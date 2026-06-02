@@ -1575,12 +1575,13 @@ class SpkController extends Controller
         $responseFilename = null;
         $sourcePdfContent = null;
         $protectedPdfContent = null;
+        $protectedPdfPath = null;
 
         if ($finalSignedPdf !== null) {
             $responseFilename = $finalSignedPdf['filename'];
 
             if (($finalSignedPdf['is_protected'] ?? false) === true) {
-                $protectedPdfContent = $finalSignedPdf['content'];
+                $protectedPdfPath = $finalSignedPdf['protected_path'] ?? null;
             } else {
                 $sourcePdfContent = $finalSignedPdf['content'];
             }
@@ -1614,22 +1615,28 @@ class SpkController extends Controller
 
             if ($finalSignedPdf !== null && isset($finalSignedPdf['cache_key'])) {
                 $this->storeCachedProtectedPublicPreviewPdf((string) $finalSignedPdf['cache_key'], $protectedPdfContent);
+                $protectedPdfPath = $this->getCachedProtectedPublicPreviewPdfPath((string) $finalSignedPdf['cache_key']);
             }
         }
 
         $disposition = ($validated['aksi'] ?? 'preview') === 'download' ? 'attachment' : 'inline';
+
+        if (is_string($protectedPdfPath) && is_file($protectedPdfPath)) {
+            return $this->buildPublicPreviewFileResponse($protectedPdfPath, (string) $responseFilename, $disposition);
+        }
 
         return response($protectedPdfContent, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => $disposition.'; filename="'.$responseFilename.'"',
             'Cache-Control' => 'no-cache, must-revalidate',
             'Expires' => '0',
+            'Accept-Ranges' => 'bytes',
             'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 
     /**
-     * @return array{filename:string,content:string,cache_key:string,is_protected:bool}|null
+    * @return array{filename:string,content?:string,cache_key:string,is_protected:bool,protected_path?:string}|null
      */
     private function resolveFinalSignedSpkPdfBinaryForPublicPreview(
         PeriodeAlokasi $periode,
@@ -1694,13 +1701,13 @@ class SpkController extends Controller
             ? 'Preview_'.$safeBaseName.'.pdf'
             : 'Preview_'.$safeBaseName.'_with_addendum.pdf';
 
-        $cachedProtectedContent = $this->getCachedProtectedPublicPreviewPdf($cacheKey);
-        if ($cachedProtectedContent !== null) {
+        $cachedProtectedPath = $this->getCachedProtectedPublicPreviewPdfPath($cacheKey);
+        if ($cachedProtectedPath !== null) {
             return [
                 'filename' => $downloadFilename,
-                'content' => $cachedProtectedContent,
                 'cache_key' => $cacheKey,
                 'is_protected' => true,
+                'protected_path' => $cachedProtectedPath,
             ];
         }
 
@@ -1766,7 +1773,7 @@ class SpkController extends Controller
         return hash('sha256', 'public-preview-v2|'.$fingerprint);
     }
 
-    private function getCachedProtectedPublicPreviewPdf(string $cacheKey): ?string
+    private function getCachedProtectedPublicPreviewPdfPath(string $cacheKey): ?string
     {
         $cachePath = storage_path('app/temp/public_preview_protected_'.$cacheKey.'.pdf');
 
@@ -1774,9 +1781,7 @@ class SpkController extends Controller
             return null;
         }
 
-        $cachedContent = @file_get_contents($cachePath);
-
-        return is_string($cachedContent) && $cachedContent !== '' ? $cachedContent : null;
+        return $cachePath;
     }
 
     private function storeCachedProtectedPublicPreviewPdf(string $cacheKey, string $protectedPdfContent): void
@@ -1787,6 +1792,25 @@ class SpkController extends Controller
         }
 
         @file_put_contents($tempPath.'/public_preview_protected_'.$cacheKey.'.pdf', $protectedPdfContent);
+    }
+
+    private function buildPublicPreviewFileResponse(string $filePath, string $responseFilename, string $disposition)
+    {
+        $headers = [
+            'Content-Type' => 'application/pdf',
+            'Cache-Control' => 'no-cache, must-revalidate',
+            'Expires' => '0',
+            'Accept-Ranges' => 'bytes',
+            'X-Content-Type-Options' => 'nosniff',
+        ];
+
+        if ($disposition === 'attachment') {
+            return response()->download($filePath, $responseFilename, $headers);
+        }
+
+        return response()->file($filePath, $headers + [
+            'Content-Disposition' => 'inline; filename="'.$responseFilename.'"',
+        ]);
     }
 
     private function isValidPublicPreviewRecaptcha(string $token, ?string $ipAddress = null): bool
@@ -1844,8 +1868,13 @@ class SpkController extends Controller
             })
             ->get();
 
+        $documentStatusMap = $this->resolvePublicPreviewDocumentStatusMap(
+            (int) $petugas->id,
+            $alokasiCollection,
+        );
+
         $penugasanList = $alokasiCollection
-            ->map(function (AlokasiPetugas $alokasi) use ($petugas): ?array {
+            ->map(function (AlokasiPetugas $alokasi) use ($documentStatusMap): ?array {
                 $periode = $alokasi->periodeAlokasi;
                 $kegiatan = $periode?->kegiatan;
 
@@ -1854,12 +1883,12 @@ class SpkController extends Controller
                 }
 
                 $periodKey = sprintf('%d-%02d', (int) $periode->tahun, (int) $periode->bulan);
-                $documentStatus = $this->resolvePublicPreviewDocumentStatusForPeriod(
-                    $petugas->id,
+                $statusKey = $this->buildPublicPreviewDocumentStatusKey(
                     $periodKey,
                     (string) $kegiatan->jenis_kegiatan,
                     (int) $kegiatan->id,
                 );
+                $documentStatus = $documentStatusMap[$statusKey] ?? 'Belum ada PK';
 
                 return [
                     'id' => $alokasi->id,
@@ -1945,6 +1974,123 @@ class SpkController extends Controller
             'sensus_kegiatans' => $sensusKegiatans,
             'penugasan_list' => $penugasanList,
         ];
+    }
+
+    /**
+     * @param  Collection<int,AlokasiPetugas>  $alokasiCollection
+     * @return array<string,string>
+     */
+    private function resolvePublicPreviewDocumentStatusMap(int $petugasId, Collection $alokasiCollection): array
+    {
+        $keys = [];
+        $months = [];
+        $years = [];
+        $kegiatanIds = [];
+
+        foreach ($alokasiCollection as $alokasi) {
+            $periode = $alokasi->periodeAlokasi;
+            $kegiatan = $periode?->kegiatan;
+
+            if (! $periode || ! $kegiatan) {
+                continue;
+            }
+
+            $periodKey = sprintf('%d-%02d', (int) $periode->tahun, (int) $periode->bulan);
+            $statusKey = $this->buildPublicPreviewDocumentStatusKey(
+                $periodKey,
+                (string) $kegiatan->jenis_kegiatan,
+                (int) $kegiatan->id,
+            );
+
+            $keys[$statusKey] = [
+                'period_key' => $periodKey,
+                'jenis_kegiatan' => (string) $kegiatan->jenis_kegiatan,
+                'kegiatan_id' => (int) $kegiatan->id,
+            ];
+
+            $months[(int) $periode->bulan] = (int) $periode->bulan;
+            $years[(int) $periode->tahun] = (int) $periode->tahun;
+            $kegiatanIds[(int) $kegiatan->id] = (int) $kegiatan->id;
+        }
+
+        if (empty($keys)) {
+            return [];
+        }
+
+        $documents = Spk::query()
+            ->where('petugas_id', $petugasId)
+            ->whereHas('alokasiPetugas.periodeAlokasi', function ($query) use ($months, $years, $kegiatanIds): void {
+                $query->whereIn('bulan', array_values($months))
+                    ->whereIn('tahun', array_values($years))
+                    ->whereIn('kegiatan_id', array_values($kegiatanIds));
+            })
+            ->with([
+                'alokasiPetugas.periodeAlokasi:id,kegiatan_id,bulan,tahun',
+                'alokasiPetugas.periodeAlokasi.kegiatan:id,jenis_kegiatan',
+            ])
+            ->get(['id', 'alokasi_petugas_id', 'signed_file_path', 'addendum_number']);
+
+        $groups = [];
+        foreach ($documents as $document) {
+            $periode = $document->alokasiPetugas?->periodeAlokasi;
+            $kegiatan = $periode?->kegiatan;
+
+            if (! $periode || ! $kegiatan) {
+                continue;
+            }
+
+            $periodKey = sprintf('%d-%02d', (int) $periode->tahun, (int) $periode->bulan);
+            $statusKey = $this->buildPublicPreviewDocumentStatusKey(
+                $periodKey,
+                (string) $kegiatan->jenis_kegiatan,
+                (int) $periode->kegiatan_id,
+            );
+
+            $groups[$statusKey][] = $document;
+        }
+
+        $result = [];
+        foreach ($keys as $statusKey => $meta) {
+            $groupDocuments = $groups[$statusKey] ?? [];
+
+            if (empty($groupDocuments)) {
+                $result[$statusKey] = 'Belum ada PK';
+                continue;
+            }
+
+            $hasMainSigned = collect($groupDocuments)->contains(fn (Spk $spk): bool => (int) $spk->addendum_number === 0 && ! empty($spk->signed_file_path));
+            $hasAddendumDraft = collect($groupDocuments)->contains(fn (Spk $spk): bool => (int) $spk->addendum_number > 0 && empty($spk->signed_file_path));
+            $hasAddendumSigned = collect($groupDocuments)->contains(fn (Spk $spk): bool => (int) $spk->addendum_number > 0 && ! empty($spk->signed_file_path));
+
+            if ($hasMainSigned && $hasAddendumSigned) {
+                $result[$statusKey] = 'PK Final + Addendum';
+                continue;
+            }
+
+            if ($hasMainSigned && $hasAddendumDraft) {
+                $result[$statusKey] = 'PK Final + Addendum(draft)';
+                continue;
+            }
+
+            if ($hasAddendumSigned) {
+                $result[$statusKey] = 'Addendum Final';
+                continue;
+            }
+
+            if ($hasMainSigned) {
+                $result[$statusKey] = 'PK Final';
+                continue;
+            }
+
+            $result[$statusKey] = 'PK Draft';
+        }
+
+        return $result;
+    }
+
+    private function buildPublicPreviewDocumentStatusKey(string $periodKey, string $jenisKegiatan, int $kegiatanId): string
+    {
+        return $periodKey.'|'.mb_strtolower($jenisKegiatan).'|'.$kegiatanId;
     }
 
     private function resolvePublicPreviewTargetPekerjaan(AlokasiPetugas $alokasi): string

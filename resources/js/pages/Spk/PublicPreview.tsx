@@ -89,6 +89,12 @@ const extractFilename = (contentDisposition: string | null): string => {
 
 const PDF_REQUEST_TIMEOUT_MS = 120000;
 
+const loadingWindowHtml = (action: 'preview' | 'download'): string => {
+    const title = action === 'preview' ? 'Memuat pratinjau PDF...' : 'Menyiapkan unduhan PDF...';
+
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${title}</title></head><body style="font-family:Arial,sans-serif;padding:16px;"><p>${title}</p><p style="color:#666;font-size:13px;">Jangan tutup tab ini sampai proses selesai.</p></body></html>`;
+};
+
 export default function PublicPreview({
     survei_periods,
     sensus_kegiatans,
@@ -430,20 +436,25 @@ export default function PublicPreview({
         sensusKegiatan,
     ]);
 
-    const requestPdf = async (aksi: 'preview' | 'download'): Promise<void> => {
+    const requestPdf = async (
+        aksi: 'preview' | 'download',
+        openedWindow: Window | null = null,
+    ): Promise<void> => {
         setErrorMessage(null);
 
         if (!canSubmit) {
             setErrorMessage('Lengkapi data terlebih dahulu.');
+            if (openedWindow && !openedWindow.closed) {
+                openedWindow.close();
+            }
             return;
         }
 
-        const previewWindow =
-            aksi === 'preview' ? window.open('', '_blank') : null;
-        if (aksi === 'preview' && previewWindow) {
-            previewWindow.document.title = 'Memuat pratinjau...';
-            previewWindow.document.body.innerHTML =
-                '<p style="font-family: sans-serif; padding: 16px;">Sedang menyiapkan pratinjau PDF...</p>';
+        const actionWindow = openedWindow;
+        if (actionWindow && !actionWindow.closed) {
+            actionWindow.document.open();
+            actionWindow.document.write(loadingWindowHtml(aksi));
+            actionWindow.document.close();
         }
 
         setProcessing(true);
@@ -503,8 +514,8 @@ export default function PublicPreview({
                 }
 
                 setErrorMessage(message);
-                if (previewWindow && !previewWindow.closed) {
-                    previewWindow.close();
+                if (actionWindow && !actionWindow.closed) {
+                    actionWindow.close();
                 }
                 return;
             }
@@ -522,8 +533,8 @@ export default function PublicPreview({
             );
 
             if (aksi === 'preview') {
-                if (previewWindow && !previewWindow.closed) {
-                    previewWindow.location.href = objectUrl;
+                if (actionWindow && !actionWindow.closed) {
+                    actionWindow.location.href = objectUrl;
                 } else {
                     const fallbackLink = document.createElement('a');
                     fallbackLink.href = objectUrl;
@@ -533,20 +544,26 @@ export default function PublicPreview({
                     fallbackLink.remove();
                 }
             } else {
-                const link = document.createElement('a');
-                link.href = objectUrl;
-                link.download = fileName;
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
+                if (actionWindow && !actionWindow.closed) {
+                    actionWindow.document.open();
+                    actionWindow.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Mengunduh PDF...</title></head><body style="font-family:Arial,sans-serif;padding:16px;"><p>Mengunduh file PDF...</p><script>const objectUrl=${JSON.stringify(objectUrl)};const filename=${JSON.stringify(fileName)};const a=document.createElement('a');a.href=objectUrl;a.download=filename;document.body.appendChild(a);a.click();setTimeout(function(){window.close();},800);</script><noscript><p>Silakan aktifkan JavaScript.</p></noscript></body></html>`);
+                    actionWindow.document.close();
+                } else {
+                    const link = document.createElement('a');
+                    link.href = objectUrl;
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                }
             }
 
             setTimeout(() => {
                 URL.revokeObjectURL(objectUrl);
             }, 60000);
         } catch (error) {
-            if (previewWindow && !previewWindow.closed) {
-                previewWindow.close();
+            if (actionWindow && !actionWindow.closed) {
+                actionWindow.close();
             }
 
             if (
@@ -957,7 +974,10 @@ export default function PublicPreview({
                             <div className="flex flex-wrap gap-3 pt-1">
                                 <Button
                                     type="button"
-                                    onClick={() => void requestPdf('preview')}
+                                    onClick={() => {
+                                        const popup = window.open('', '_blank', 'noopener,noreferrer');
+                                        void requestPdf('preview', popup);
+                                    }}
                                     disabled={processing || !canSubmit}
                                     className="min-w-[160px]"
                                 >
@@ -969,7 +989,10 @@ export default function PublicPreview({
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    onClick={() => void requestPdf('download')}
+                                    onClick={() => {
+                                        const popup = window.open('', '_blank', 'noopener,noreferrer');
+                                        void requestPdf('download', popup);
+                                    }}
                                     disabled={processing || !canSubmit}
                                     className="min-w-[160px]"
                                 >
