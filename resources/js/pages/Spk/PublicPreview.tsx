@@ -651,41 +651,20 @@ export default function PublicPreview({
 
             setDocumentProgressPercent(100);
 
-            if (aksi === 'preview') {
-                setDocumentProgressTitle('Membuka tab Print/Preview...');
-                setDocumentProgressStatus(
-                    'File siap. Membuka tab print/preview...',
-                );
+            setDocumentProgressTitle('Mengunduh PDF...');
+            setDocumentProgressStatus('File siap. Memulai unduh PDF...');
 
-                window.setTimeout(() => {
-                    const previewTab = window.open(objectUrl, '_blank');
-                    if (!previewTab || previewTab.closed) {
-                        setErrorMessage(
-                            'Pratinjau sudah siap, tetapi browser memblokir popup. Izinkan popup lalu coba lagi.',
-                        );
-                    } else {
-                        previewTab.opener = null;
-                        previewTab.focus();
-                    }
+            window.setTimeout(() => {
+                const link = document.createElement('a');
+                link.href = objectUrl;
+                link.download = fileName;
+                link.rel = 'noopener noreferrer';
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
 
-                    setDocumentProgressOpen(false);
-                }, 250);
-            } else {
-                setDocumentProgressTitle('Mengunduh PDF...');
-                setDocumentProgressStatus('File siap. Memulai unduh PDF...');
-
-                window.setTimeout(() => {
-                    const link = document.createElement('a');
-                    link.href = objectUrl;
-                    link.download = fileName;
-                    link.rel = 'noopener noreferrer';
-                    document.body.appendChild(link);
-                    link.click();
-                    link.remove();
-
-                    setDocumentProgressOpen(false);
-                }, 250);
-            }
+                setDocumentProgressOpen(false);
+            }, 250);
 
             window.setTimeout(() => {
                 URL.revokeObjectURL(objectUrl);

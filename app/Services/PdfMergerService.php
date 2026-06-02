@@ -6,6 +6,39 @@ use setasign\Fpdi\Tcpdf\Fpdi;
 
 class PdfMergerService
 {
+    private static function canUseExec(): bool
+    {
+        if (! function_exists('exec')) {
+            return false;
+        }
+
+        $disabledFunctions = ini_get('disable_functions');
+        if (! is_string($disabledFunctions) || trim($disabledFunctions) === '') {
+            return true;
+        }
+
+        $disabled = array_map(
+            static fn (string $value): string => trim(strtolower($value)),
+            explode(',', $disabledFunctions),
+        );
+
+        return ! in_array('exec', $disabled, true);
+    }
+
+    private static function runShellCommand(string $command, array &$output, int &$returnVar): bool
+    {
+        $output = [];
+        $returnVar = 1;
+
+        if (! self::canUseExec()) {
+            return false;
+        }
+
+        @exec($command, $output, $returnVar);
+
+        return true;
+    }
+
     /**
      * Merge multiple PDF files into one using FPDI with TCPDF
      * Supports mixed orientations (portrait and landscape)
@@ -95,7 +128,11 @@ class PdfMergerService
                 escapeshellarg($outputPath)
             );
 
-            exec($command, $output, $returnVar);
+            $output = [];
+            $returnVar = 1;
+            if (! self::runShellCommand($command, $output, $returnVar)) {
+                return false;
+            }
 
             return $returnVar === 0;
         }
@@ -112,7 +149,11 @@ class PdfMergerService
                 $inputFiles
             );
 
-            exec($command, $output, $returnVar);
+            $output = [];
+            $returnVar = 1;
+            if (! self::runShellCommand($command, $output, $returnVar)) {
+                return false;
+            }
 
             return $returnVar === 0;
         }
@@ -140,7 +181,16 @@ class PdfMergerService
         }
 
         // Try to find in PATH
-        exec('where pdftk 2>nul', $output);
+        $lookupCommand = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN'
+            ? 'where pdftk 2>nul'
+            : 'command -v pdftk 2>/dev/null';
+
+        $output = [];
+        $returnVar = 1;
+        if (! self::runShellCommand($lookupCommand, $output, $returnVar)) {
+            return null;
+        }
+
         if (! empty($output[0])) {
             return $output[0];
         }
@@ -174,7 +224,16 @@ class PdfMergerService
         }
 
         // Try to find in PATH
-        exec('where gs 2>nul', $output);
+        $lookupCommand = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN'
+            ? 'where gs 2>nul'
+            : 'command -v gs 2>/dev/null';
+
+        $output = [];
+        $returnVar = 1;
+        if (! self::runShellCommand($lookupCommand, $output, $returnVar)) {
+            return null;
+        }
+
         if (! empty($output[0])) {
             return $output[0];
         }
@@ -206,7 +265,11 @@ class PdfMergerService
             escapeshellarg($filePath)
         );
 
-        exec($command, $output, $returnVar);
+        $output = [];
+        $returnVar = 1;
+        if (! self::runShellCommand($command, $output, $returnVar)) {
+            return;
+        }
 
         if ($returnVar !== 0 || ! file_exists($optimizedPath)) {
             @unlink($optimizedPath);
