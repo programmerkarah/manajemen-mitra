@@ -90,7 +90,10 @@ const extractFilename = (contentDisposition: string | null): string => {
 const PDF_REQUEST_TIMEOUT_MS = 120000;
 
 const loadingWindowHtml = (action: 'preview' | 'download'): string => {
-    const title = action === 'preview' ? 'Memuat pratinjau PDF...' : 'Menyiapkan unduhan PDF...';
+    const title =
+        action === 'preview'
+            ? 'Memuat pratinjau PDF...'
+            : 'Menyiapkan unduhan PDF...';
 
     return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${title}</title></head><body style="font-family:Arial,sans-serif;padding:16px;"><p>${title}</p><p style="color:#666;font-size:13px;">Jangan tutup tab ini sampai proses selesai.</p></body></html>`;
 };
@@ -546,7 +549,9 @@ export default function PublicPreview({
             } else {
                 if (actionWindow && !actionWindow.closed) {
                     actionWindow.document.open();
-                    actionWindow.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Mengunduh PDF...</title></head><body style="font-family:Arial,sans-serif;padding:16px;"><p>Mengunduh file PDF...</p><script>const objectUrl=${JSON.stringify(objectUrl)};const filename=${JSON.stringify(fileName)};const a=document.createElement('a');a.href=objectUrl;a.download=filename;document.body.appendChild(a);a.click();setTimeout(function(){window.close();},800);</script><noscript><p>Silakan aktifkan JavaScript.</p></noscript></body></html>`);
+                    actionWindow.document.write(
+                        `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Mengunduh PDF...</title></head><body style="font-family:Arial,sans-serif;padding:16px;"><p>Mengunduh file PDF...</p><script>const objectUrl=${JSON.stringify(objectUrl)};const filename=${JSON.stringify(fileName)};const a=document.createElement('a');a.href=objectUrl;a.download=filename;document.body.appendChild(a);a.click();setTimeout(function(){window.close();},800);</script><noscript><p>Silakan aktifkan JavaScript.</p></noscript></body></html>`,
+                    );
                     actionWindow.document.close();
                 } else {
                     const link = document.createElement('a');
@@ -975,7 +980,7 @@ export default function PublicPreview({
                                 <Button
                                     type="button"
                                     onClick={() => {
-                                        const popup = window.open('', '_blank', 'noopener,noreferrer');
+                                        const popup = window.open('', '_blank');
                                         void requestPdf('preview', popup);
                                     }}
                                     disabled={processing || !canSubmit}
@@ -990,7 +995,7 @@ export default function PublicPreview({
                                     type="button"
                                     variant="outline"
                                     onClick={() => {
-                                        const popup = window.open('', '_blank', 'noopener,noreferrer');
+                                        const popup = window.open('', '_blank');
                                         void requestPdf('download', popup);
                                     }}
                                     disabled={processing || !canSubmit}
