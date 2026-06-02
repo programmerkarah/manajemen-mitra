@@ -12,7 +12,7 @@ import {
 } from '@/utils/downloadUtils';
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, Download, FileText, Loader2, Printer } from 'lucide-react';
-import { useState } from 'react';
+import { type MouseEvent, useState } from 'react';
 
 interface Petugas {
     id: number;
@@ -469,6 +469,32 @@ export default function Generate({
         return labels[peran] || peran;
     };
 
+    const formatPetugasDisplayName = (name: string): string => {
+        return name
+            .toLowerCase()
+            .split(/\s+/)
+            .filter(Boolean)
+            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(' ');
+    };
+
+    const handleRowClick = (
+        event: MouseEvent<HTMLTableRowElement>,
+        hashedId: string,
+    ): void => {
+        const target = event.target as HTMLElement | null;
+
+        if (
+            target?.closest(
+                '[data-prevent-row-toggle="true"],button,a,input,label,[role="checkbox"]',
+            )
+        ) {
+            return;
+        }
+
+        handlePetugasToggle(hashedId);
+    };
+
     const handleCloseSuccessModal = () => {
         setShowSuccessModal(false);
         router.get('/spk');
@@ -654,17 +680,32 @@ export default function Generate({
                                 </thead>
                                 <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
                                     {petugas_list.map((alokasi) => {
+                                        const isSelected = selectedPetugas.includes(
+                                            alokasi.petugas.hashed_id,
+                                        );
+
                                         return (
                                             <tr
                                                 key={alokasi.alokasi_hashed_id}
-                                                className="hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                                                onClick={(event) =>
+                                                    handleRowClick(
+                                                        event,
+                                                        alokasi.petugas
+                                                            .hashed_id,
+                                                    )
+                                                }
+                                                className={`cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800 ${
+                                                    isSelected
+                                                        ? 'bg-neutral-50 dark:bg-neutral-800/60'
+                                                        : ''
+                                                }`}
                                             >
-                                                <td className="px-6 py-4">
+                                                <td
+                                                    className="px-6 py-4"
+                                                    data-prevent-row-toggle="true"
+                                                >
                                                     <Checkbox
-                                                        checked={selectedPetugas.includes(
-                                                            alokasi.petugas
-                                                                .hashed_id,
-                                                        )}
+                                                        checked={isSelected}
                                                         onCheckedChange={() =>
                                                             handlePetugasToggle(
                                                                 alokasi.petugas
@@ -678,9 +719,11 @@ export default function Generate({
                                                         <div>
                                                             <div className="font-medium text-neutral-900 dark:text-white">
                                                                 {
-                                                                    alokasi
-                                                                        .petugas
-                                                                        .nama
+                                                                    formatPetugasDisplayName(
+                                                                        alokasi
+                                                                            .petugas
+                                                                            .nama,
+                                                                    )
                                                                 }
                                                             </div>
                                                             <div className="text-sm text-neutral-600 dark:text-neutral-400">
@@ -744,7 +787,10 @@ export default function Generate({
                                                         'id-ID',
                                                     )}
                                                 </td>
-                                                <td className="px-6 py-4 text-right text-sm">
+                                                <td
+                                                    className="px-6 py-4 text-right text-sm"
+                                                    data-prevent-row-toggle="true"
+                                                >
                                                     <div className="flex justify-end gap-2">
                                                         <Button
                                                             size="sm"
@@ -761,7 +807,7 @@ export default function Generate({
                                                             }
                                                         >
                                                             <FileText className="h-3.5 w-3.5" />
-                                                            Preview (Hal. 1+)
+                                                            Preview
                                                         </Button>
                                                         <Button
                                                             size="sm"
@@ -779,7 +825,6 @@ export default function Generate({
                                                         >
                                                             <FileText className="h-3.5 w-3.5" />
                                                             Perjanjian Kerja
-                                                            (Hal. 1)
                                                         </Button>
                                                         <Button
                                                             size="sm"
@@ -796,7 +841,7 @@ export default function Generate({
                                                             }
                                                         >
                                                             <FileText className="h-3.5 w-3.5" />
-                                                            Lampiran (Hal. 2+)
+                                                            Lampiran
                                                         </Button>
                                                     </div>
                                                 </td>

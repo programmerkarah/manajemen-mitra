@@ -430,6 +430,19 @@ export default function PublicPreview({
             return;
         }
 
+        const previewTab = window.open('', '_blank');
+        if (!previewTab) {
+            setErrorMessage(
+                'Browser memblokir popup. Izinkan popup lalu coba lagi.',
+            );
+            return;
+        }
+
+        previewTab.opener = null;
+        previewTab.document.title = 'Menyiapkan Print/Preview...';
+        previewTab.document.body.innerHTML =
+            '<p style="font-family: sans-serif; padding: 16px;">Menyiapkan dokumen Print/Preview...</p>';
+
         setDocumentProgressOpen(true);
         setDocumentProgressPercent(0);
         setDocumentProgressTitle('Menyiapkan dokumen Print/Preview...');
@@ -554,16 +567,17 @@ export default function PublicPreview({
             setDocumentProgressPercent(100);
 
             window.setTimeout(() => {
-                const previewWindow = window.open(
-                    objectUrl,
-                    '_blank',
-                    'noopener,noreferrer',
-                );
+                if (previewTab.closed) {
+                    const fallbackWindow = window.open(objectUrl, '_blank');
 
-                if (!previewWindow) {
-                    setErrorMessage(
-                        'Pratinjau sudah siap, tetapi browser memblokir popup. Izinkan popup lalu coba lagi.',
-                    );
+                    if (!fallbackWindow) {
+                        setErrorMessage(
+                            'Pratinjau sudah siap, tetapi browser memblokir popup. Izinkan popup lalu coba lagi.',
+                        );
+                    }
+                } else {
+                    previewTab.location.href = objectUrl;
+                    previewTab.focus();
                 }
 
                 setDocumentProgressOpen(false);
@@ -574,6 +588,10 @@ export default function PublicPreview({
             }, 60000);
         } catch (error) {
             setDocumentProgressOpen(false);
+
+            if (!previewTab.closed) {
+                previewTab.close();
+            }
 
             if (
                 error instanceof Error &&
