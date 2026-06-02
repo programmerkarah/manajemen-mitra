@@ -46,6 +46,7 @@
             font-family: 'Bookman Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
             font-size: 11pt;
             line-height: 1.15;
+            letter-spacing: -0.02em;
         }
 
         .header {

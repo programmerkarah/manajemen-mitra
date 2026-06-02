@@ -32,6 +32,7 @@
 			font-family: 'Bookman Old Style', 'Times New Roman', serif;
 			font-size: 11pt;
 			line-height: 1.6;
+			letter-spacing: -0.02em;
 			color: #000;
 			margin: 1cm 1.5cm 1cm 1.5cm;
 		}

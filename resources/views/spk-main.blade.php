@@ -40,6 +40,7 @@
             font-family: 'Bookman Old Style', 'Times New Roman', serif;
             font-size: 11pt;
             line-height: 1.15;
+            letter-spacing: -0.02em;
             color: #000;
             orphans: 3;
             widows: 3;

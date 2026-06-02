@@ -42,6 +42,7 @@
             font-family: 'Bookman Old Style', 'Times New Roman', serif;
             font-size: 11pt;
             line-height: 1.15;
+            letter-spacing: -0.02em;
             color: #000;
             orphans: 3;
             widows: 3;
@@ -444,7 +445,7 @@
                 Dengan ini menyatakan:
             </p>
 
-            <ol style="margin: 10px 0 0 20px;">
+            <ol style="margin: 10px 0 0 0; padding-left: 0; list-style-position: inside;">
             @if($isSurvei)
             <li style="margin: 6px 0; text-align: justify;">
                 <strong>PIHAK KEDUA</strong> telah melaksanakan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan Perjanjian Kerja {{$nomorSpkText}}.
