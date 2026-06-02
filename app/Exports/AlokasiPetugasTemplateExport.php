@@ -439,13 +439,6 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
 
                     if ($hasSensusPencacahanSplit) {
                         foreach ($sensusPencacahanUnitColumns as $columnIndex => $_columnLabel) {
-                            $targetColumn = $frameTargetColumns->get($columnIndex);
-                            if (is_array($targetColumn)) {
-                                $row[] = $this->resolveFrameTargetValue($frameRow, $targetColumn);
-
-                                continue;
-                            }
-
                             $row[] = $columnIndex === 0 ? ($entry->jumlah_satuan ?? '') : '';
                         }
                     } else {

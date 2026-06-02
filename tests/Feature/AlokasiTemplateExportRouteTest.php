@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
 use App\Models\KegiatanFrameSampel;
 use App\Models\MasterFrameSampel;
@@ -958,6 +959,110 @@ class AlokasiTemplateExportRouteTest extends TestCase
 
         $this->assertNotNull($targetColumn);
         $this->assertSame('7', (string) $frameSheet->getCell($targetColumn.'2')->getValue());
+    }
+
+    public function test_export_edit_sensus_economy_with_frame_metadata_and_no_frame_allocation_stays_successful(): void
+    {
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+
+        $masterFrame = MasterFrameSampel::create([
+            'nama' => 'Frame Sensus Ekonomi Regression',
+            'kode' => 'FSER',
+            'is_active' => true,
+        ]);
+
+        $unitUsaha = MasterUnitSampel::create([
+            'nama' => 'Usaha',
+            'kode' => 'USH-REG',
+            'is_active' => true,
+        ]);
+
+        $unitKeluarga = MasterUnitSampel::create([
+            'nama' => 'Keluarga',
+            'kode' => 'KLG-REG',
+            'is_active' => true,
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'sensus',
+            'nama_kegiatan' => 'Sensus Ekonomi',
+            'has_listing_updating' => false,
+            'frame_sampel_pencacahan_id' => $masterFrame->id,
+            'unit_sampel_pencacahan_ids' => [$unitUsaha->id, $unitKeluarga->id],
+        ]);
+
+        KegiatanFrameSampel::create([
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $masterFrame->id,
+            'tahapan' => 'pencacahan',
+            'nama_frame' => 'Frame Regression',
+            'target_unit_sampel' => [
+                (string) $unitUsaha->id => 3,
+                (string) $unitKeluarga->id => 2,
+            ],
+            'identitas_tambahan' => [
+                'kdkec' => '010',
+            ],
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'status' => 'draft',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'jumlah_satuan' => 9,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get('/alokasi/periode/'.$periode->hashed_id.'/export/edit');
+
+        $response->assertOk();
+
+        $tempPath = storage_path('framework/testing/alokasi-template-sensus-no-frame-allocation-test.xlsx');
+
+        if (! is_dir(dirname($tempPath))) {
+            mkdir(dirname($tempPath), 0777, true);
+        }
+
+        file_put_contents($tempPath, $response->streamedContent());
+
+        $spreadsheet = IOFactory::load($tempPath);
+        $mainSheet = $spreadsheet->getSheetByName('Alokasi Petugas');
+
+        $this->assertNotNull($mainSheet);
+
+        $jumlahUsahaColumn = null;
+        $jumlahKeluargaColumn = null;
+        $highestColumnIndex = Coordinate::columnIndexFromString($mainSheet->getHighestColumn());
+
+        for ($columnIndex = 1; $columnIndex <= $highestColumnIndex; $columnIndex++) {
+            $columnLetter = Coordinate::stringFromColumnIndex($columnIndex);
+            $header = (string) $mainSheet->getCell($columnLetter.'1')->getValue();
+
+            if ($header === 'Jumlah Usaha') {
+                $jumlahUsahaColumn = $columnLetter;
+            }
+
+            if ($header === 'Jumlah Keluarga') {
+                $jumlahKeluargaColumn = $columnLetter;
+            }
+        }
+
+        $this->assertNotNull($jumlahUsahaColumn);
+        $this->assertNotNull($jumlahKeluargaColumn);
+        $this->assertSame('9', (string) $mainSheet->getCell($jumlahUsahaColumn.'2')->getValue());
+        $this->assertSame('', (string) $mainSheet->getCell($jumlahKeluargaColumn.'2')->getValue());
     }
 
     private function makePreviewImportFile(array $rows): UploadedFile
