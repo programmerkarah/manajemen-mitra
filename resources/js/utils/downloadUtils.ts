@@ -390,16 +390,6 @@ export const previewFileFromPost = async (
 ): Promise<void> => {
     void defaultFilename;
 
-    const previewWindow = window.open('', '_blank');
-    if (!previewWindow || previewWindow.closed) {
-        throw new Error('Browser memblokir popup.');
-    }
-
-    previewWindow.opener = null;
-    previewWindow.document.title = 'Menyiapkan PDF...';
-    previewWindow.document.body.innerHTML =
-        '<p style="font-family: sans-serif; padding: 16px;">Menyiapkan dokumen PDF...</p>';
-
     const { hide, setProgress } = showPdfLoadingOverlayWithProgress();
 
     // Simulated progress ticker for server-side PDF generation phase (0 → 88%)
@@ -477,24 +467,16 @@ export const previewFileFromPost = async (
         // Brief pause so user sees 100% complete
         await new Promise<void>((resolve) => window.setTimeout(resolve, 500));
 
-        if (previewWindow.closed) {
-            const fallbackWindow = window.open(blobUrl, '_blank');
-            if (!fallbackWindow || fallbackWindow.closed) {
-                throw new Error('Browser memblokir popup.');
-            }
-        } else {
-            previewWindow.location.href = blobUrl;
-            previewWindow.focus();
+        const previewWindow = window.open(blobUrl, '_blank');
+        if (!previewWindow || previewWindow.closed) {
+            throw new Error('Browser memblokir popup.');
         }
+
+        previewWindow.opener = null;
+        previewWindow.focus();
 
         // Revoke blob URL after 2 minutes (enough time for the tab to load it)
         window.setTimeout(() => URL.revokeObjectURL(blobUrl), 120_000);
-    } catch (error) {
-        if (!previewWindow.closed) {
-            previewWindow.close();
-        }
-
-        throw error;
     } finally {
         window.clearInterval(fakeInterval);
         hide();
