@@ -7,7 +7,7 @@
     <style>
         @page {
             size: A4;
-            margin: 2cm 3cm 2cm 3cm;
+            margin: 1.5cm 2.5cm 1.5cm 2.5cm;
         }
 
         @font-face {
@@ -42,12 +42,12 @@
             line-height: 1.15;
             letter-spacing: -0.02em;
             color: #000;
-            margin: 2cm 2.5cm 2cm 2.5cm;
+            margin: 0;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
 
         .header h3 {
@@ -61,32 +61,32 @@
         .title {
             text-align: center;
             font-weight: bold;
-            margin: 20px 0;
+            margin: 12px 0;
             font-size: 11pt;
         }
 
         .content {
             text-align: justify;
-            margin: 10px 0;
+            margin: 6px 0;
         }
         .dasar {
             page-break-inside: avoid;
         }
         .kegiatan-list {
-            margin: 20px 0;
+            margin: 12px 0;
         }
 
         .kegiatan-item {
-            margin: 10px 0 10px 30px;
+            margin: 8px 0 8px 24px;
         }
 
         .parties {
-            margin: 20px 0 20px 30px;
+            margin: 12px 0 12px 24px;
             page-break-inside: avoid;
         }
 
         .party {
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             page-break-inside: avoid;
             overflow: hidden;
         }
@@ -108,13 +108,13 @@
         }
 
         .party-detail {
-            margin-left: 250px;
+            margin-left: 240px;
             text-align: justify;
         }
 
         .pasal-section {
             page-break-inside: avoid;
-            margin: 15px 0;
+            margin: 10px 0;
         }
 
         .pasal-title {
@@ -125,12 +125,12 @@
         }
 
         .pasal {
-            margin: 15px 0;
+            margin: 10px 0;
             page-break-inside: avoid;
         }
 
         .pasal-header-group {
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
 
         .pasal-list {
@@ -138,7 +138,7 @@
         }
 
         .pasal-item {
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             display: table;
             width: 100%;
         }
@@ -158,7 +158,7 @@
         }
 
         .sub-item {
-            margin-top: 8px;
+            margin-top: 6px;
             display: table;
             width: 100%;
         }
@@ -178,7 +178,7 @@
         }
 
         .signature-section {
-            margin-top: 20px;
+            margin-top: 8px;
             page-break-inside: avoid;
         }
 
@@ -188,13 +188,13 @@
 
         .signature-left {
             float: left;
-            width: 48%;
+            width: 50%;
             text-align: center;
         }
 
         .signature-right {
             float: right;
-            width: 48%;
+            width: 50%;
             text-align: center;
         }
 
@@ -204,7 +204,7 @@
         }
 
         .signature-name-wrap {
-            margin-top: 50px;
+            margin-top: 48px;
             margin-bottom: 0;
         }
 

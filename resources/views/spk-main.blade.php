@@ -223,7 +223,7 @@
             width: 50%;
             text-align: center;
             vertical-align: top;
-            padding: 0 20px;
+            padding: 0 10px;
         }
 
         .signature-title {

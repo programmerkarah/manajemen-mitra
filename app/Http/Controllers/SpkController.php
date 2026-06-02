@@ -7035,6 +7035,25 @@ class SpkController extends Controller
             ];
         }
 
+        $referenceAllocationIds = collect($referenceSnapshot)
+            ->pluck('alokasi_id')
+            ->map(static fn ($alokasiId) => (int) $alokasiId)
+            ->filter(fn (int $alokasiId) => $alokasiId > 0)
+            ->sort()
+            ->values()
+            ->all();
+
+        $currentAllocationIds = collect($currentSnapshot)
+            ->pluck('alokasi_id')
+            ->map(static fn ($alokasiId) => (int) $alokasiId)
+            ->filter(fn (int $alokasiId) => $alokasiId > 0)
+            ->sort()
+            ->values()
+            ->all();
+
+        $newAllocationIds = array_values(array_diff($currentAllocationIds, $referenceAllocationIds));
+        $removedAllocationIds = array_values(array_diff($referenceAllocationIds, $currentAllocationIds));
+
         $hasChangeAfterReference = $this->hasAllocationDeltaAfterReferenceForPetugas(
             $petugasId,
             $bulanFormatted,
@@ -7055,8 +7074,9 @@ class SpkController extends Controller
         $newKegiatanKeys = array_values(array_diff($currentKeys, $referenceKeys));
         $removedKegiatanKeys = array_values(array_diff($referenceKeys, $currentKeys));
 
-        $hasNewKegiatanAdded = ! empty($newKegiatanKeys);
-        $hasAllocationChange = ! empty($removedKegiatanKeys);
+        $hasNewKegiatanAdded = ! empty($newKegiatanKeys) || ! empty($newAllocationIds);
+        $hasAllocationChange = ! empty($removedKegiatanKeys)
+            || ! empty($removedAllocationIds);
 
         $commonKeys = array_intersect($referenceKeys, $currentKeys);
         foreach ($commonKeys as $kegiatanId) {
@@ -7086,7 +7106,7 @@ class SpkController extends Controller
     }
 
     /**
-     * @return array<int, array{peran:?string,jumlah_satuan:int,jumlah_satuan_listing:int,total_honor:float,total_honor_listing:float}>
+    * @return array<int, array{alokasi_id:int,peran:?string,jumlah_satuan:int,jumlah_satuan_listing:int,total_honor:float,total_honor_listing:float}>
      */
     private function buildEffectiveAllocationSnapshotForPetugasFromDocument(
         int $petugasId,
@@ -7129,6 +7149,7 @@ class SpkController extends Controller
                 }
 
                 return [
+                    'alokasi_id' => (int) ($effective->id ?? 0),
                     'peran' => $effective?->peran,
                     'jumlah_satuan' => (int) ($effective->jumlah_satuan ?? 0),
                     'jumlah_satuan_listing' => (int) ($effective->jumlah_satuan_listing ?? 0),
@@ -7189,7 +7210,7 @@ class SpkController extends Controller
     /**
      * Build latest effective allocation snapshot keyed by kegiatan_id.
      *
-     * @return array<int, array{peran:?string,jumlah_satuan:int,jumlah_satuan_listing:int,total_honor:float,total_honor_listing:float}>
+    * @return array<int, array{alokasi_id:int,peran:?string,jumlah_satuan:int,jumlah_satuan_listing:int,total_honor:float,total_honor_listing:float}>
      */
     private function buildEffectiveAllocationSnapshotForPetugas(
         int $petugasId,
@@ -7250,6 +7271,7 @@ class SpkController extends Controller
                 }
 
                 return [
+                    'alokasi_id' => (int) ($effective->id ?? 0),
                     'peran' => $effective?->peran,
                     'jumlah_satuan' => (int) ($effective->jumlah_satuan ?? 0),
                     'jumlah_satuan_listing' => (int) ($effective->jumlah_satuan_listing ?? 0),
