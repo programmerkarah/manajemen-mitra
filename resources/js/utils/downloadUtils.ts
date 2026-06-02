@@ -117,9 +117,9 @@ const appendCsrfTokenToForm = (form: HTMLFormElement): void => {
     form.appendChild(csrfInput);
 };
 
-const showPdfLoadingOverlay = (): (() => void) => {
-    const isDark = document.documentElement.classList.contains('dark');
-
+const buildOverlayCard = (
+    isDark: boolean,
+): { overlay: HTMLDivElement; card: HTMLDivElement } => {
     const overlay = document.createElement('div');
     overlay.style.cssText = [
         'position:fixed',
@@ -147,6 +147,13 @@ const showPdfLoadingOverlay = (): (() => void) => {
         'text-align:center',
         'max-width:280px',
     ].join(';');
+
+    return { overlay, card };
+};
+
+const showPdfLoadingOverlay = (): (() => void) => {
+    const isDark = document.documentElement.classList.contains('dark');
+    const { overlay, card } = buildOverlayCard(isDark);
 
     const spinnerNs = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(spinnerNs, 'svg');
@@ -205,6 +212,109 @@ const showPdfLoadingOverlay = (): (() => void) => {
         overlay.remove();
         style.remove();
     };
+};
+
+const showPdfLoadingOverlayWithProgress = (): {
+    hide: () => void;
+    setProgress: (pct: number) => void;
+} => {
+    const isDark = document.documentElement.classList.contains('dark');
+    const { overlay, card } = buildOverlayCard(isDark);
+
+    // Circular progress SVG
+    const svgNs = 'http://www.w3.org/2000/svg';
+    const svgSize = 72;
+    const radius = 28;
+    const circumference = 2 * Math.PI * radius;
+
+    const svgEl = document.createElementNS(svgNs, 'svg');
+    svgEl.setAttribute('width', String(svgSize));
+    svgEl.setAttribute('height', String(svgSize));
+    svgEl.setAttribute('viewBox', `0 0 ${svgSize} ${svgSize}`);
+    svgEl.style.transform = 'rotate(-90deg)';
+
+    const bgCircle = document.createElementNS(svgNs, 'circle');
+    bgCircle.setAttribute('cx', String(svgSize / 2));
+    bgCircle.setAttribute('cy', String(svgSize / 2));
+    bgCircle.setAttribute('r', String(radius));
+    bgCircle.setAttribute('fill', 'none');
+    bgCircle.setAttribute('stroke', isDark ? '#404040' : '#e5e7eb');
+    bgCircle.setAttribute('stroke-width', '6');
+    svgEl.appendChild(bgCircle);
+
+    const progressCircle = document.createElementNS(svgNs, 'circle');
+    progressCircle.setAttribute('cx', String(svgSize / 2));
+    progressCircle.setAttribute('cy', String(svgSize / 2));
+    progressCircle.setAttribute('r', String(radius));
+    progressCircle.setAttribute('fill', 'none');
+    progressCircle.setAttribute('stroke', isDark ? '#d4d4d4' : '#111827');
+    progressCircle.setAttribute('stroke-width', '6');
+    progressCircle.setAttribute('stroke-linecap', 'round');
+    progressCircle.setAttribute('stroke-dasharray', String(circumference));
+    progressCircle.setAttribute('stroke-dashoffset', String(circumference));
+    progressCircle.style.transition = 'stroke-dashoffset 0.35s ease';
+    svgEl.appendChild(progressCircle);
+
+    const svgWrapper = document.createElement('div');
+    svgWrapper.style.cssText =
+        'position:relative;display:inline-flex;align-items:center;justify-content:center;';
+    svgWrapper.appendChild(svgEl);
+
+    const pctLabel = document.createElement('span');
+    pctLabel.textContent = '0%';
+    pctLabel.style.cssText = [
+        'position:absolute',
+        'font-size:13px',
+        'font-weight:700',
+        `color:${isDark ? '#f5f5f5' : '#111827'}`,
+        'font-family:system-ui,sans-serif',
+    ].join(';');
+    svgWrapper.appendChild(pctLabel);
+
+    const title = document.createElement('p');
+    title.textContent = 'Menyiapkan PDF...';
+    title.style.cssText = [
+        'margin:0',
+        'font-size:15px',
+        'font-weight:600',
+        `color:${isDark ? '#f5f5f5' : '#111827'}`,
+        'font-family:system-ui,sans-serif',
+    ].join(';');
+
+    const subtitle = document.createElement('p');
+    subtitle.textContent = 'Memproses dokumen, harap tunggu';
+    subtitle.style.cssText = [
+        'margin:0',
+        'font-size:13px',
+        `color:${isDark ? '#a3a3a3' : '#6b7280'}`,
+        'font-family:system-ui,sans-serif',
+    ].join(';');
+
+    card.style.maxWidth = '300px';
+    card.appendChild(svgWrapper);
+    card.appendChild(title);
+    card.appendChild(subtitle);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    let lastPct = 0;
+
+    const setProgress = (pct: number): void => {
+        const clamped = Math.max(lastPct, Math.min(100, Math.round(pct)));
+        lastPct = clamped;
+        const offset = circumference - (clamped / 100) * circumference;
+        progressCircle.setAttribute('stroke-dashoffset', String(offset));
+        pctLabel.textContent = `${clamped}%`;
+
+        if (clamped >= 100) {
+            title.textContent = 'Membuka PDF...';
+            subtitle.textContent = 'Selesai, sedang membuka dokumen';
+        } else if (clamped > 80) {
+            subtitle.textContent = 'Mengunduh dokumen...';
+        }
+    };
+
+    return { hide: () => overlay.remove(), setProgress };
 };
 
 export const downloadFileFromPost = async (
@@ -278,45 +388,101 @@ export const previewFileFromPost = async (
     payload: DownloadPayload,
     defaultFilename: string,
 ): Promise<void> => {
-    void defaultFilename;
+    const { hide, setProgress } = showPdfLoadingOverlayWithProgress();
 
-    const hideOverlay = showPdfLoadingOverlay();
+    // Simulated progress ticker for server-side PDF generation phase (0 → 88%)
+    let fakePercent = 2;
+    let useFakeProgress = true;
+    const fakeInterval = window.setInterval(() => {
+        if (!useFakeProgress) {
+            return;
+        }
+        const remaining = 88 - fakePercent;
+        fakePercent += Math.max(0.4, remaining * 0.045);
+        setProgress(Math.min(88, fakePercent));
+    }, 400);
 
     try {
-        const previewWindow = window.open('', '_blank');
-        if (!previewWindow || previewWindow.closed) {
-            throw new Error('Popup preview terblokir browser.');
+        const formData = new FormData();
+        const token = getCsrfToken();
+        if (token) {
+            formData.append('_token', token);
         }
 
-        const targetName =
-            previewWindow.name ||
-            `preview-window-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        previewWindow.name = targetName;
+        Object.entries(payload).forEach(([key, value]) => {
+            if (Array.isArray(value)) {
+                value.forEach((item) => {
+                    if (item !== null && item !== undefined) {
+                        formData.append(key, String(item));
+                    }
+                });
 
-        previewWindow.document.open();
-        previewWindow.document.write(
-            '<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Memuat pratinjau...</title></head><body style="font-family:Arial,sans-serif;padding:16px;"><p>Memuat pratinjau PDF...</p></body></html>',
-        );
-        previewWindow.document.close();
+                return;
+            }
 
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = url;
-        form.target = targetName;
-        form.style.display = 'none';
-
-        appendCsrfTokenToForm(form);
-        appendPayloadToForm(form, payload);
-
-        document.body.appendChild(form);
-        form.submit();
-        form.remove();
-
-        await new Promise<void>((resolve) => {
-            window.setTimeout(resolve, 150);
+            if (value !== null && value !== undefined) {
+                formData.append(key, String(value));
+            }
         });
+
+        const blob = await new Promise<Blob>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', url);
+            xhr.responseType = 'blob';
+
+            xhr.onprogress = (event) => {
+                if (event.lengthComputable && event.total > 0) {
+                    useFakeProgress = false;
+                    window.clearInterval(fakeInterval);
+                    // Map real download progress onto the 88–99% range
+                    const realPct = (event.loaded / event.total) * 11 + 88;
+                    setProgress(Math.min(99, realPct));
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    resolve(xhr.response as Blob);
+                } else {
+                    reject(
+                        new Error(`Server mengembalikan status ${xhr.status}.`),
+                    );
+                }
+            };
+
+            xhr.onerror = () => reject(new Error('Gagal terhubung ke server.'));
+            xhr.onabort = () => reject(new Error('Permintaan dibatalkan.'));
+
+            xhr.send(formData);
+        });
+
+        useFakeProgress = false;
+        window.clearInterval(fakeInterval);
+        setProgress(100);
+
+        const blobUrl = URL.createObjectURL(blob);
+
+        // Brief pause so user sees 100% complete
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 500));
+
+        const win = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+
+        // Revoke blob URL after 2 minutes (enough time for the tab to load it)
+        window.setTimeout(() => URL.revokeObjectURL(blobUrl), 120_000);
+
+        if (!win || win.closed) {
+            // Popup blocked: fall back to download
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = sanitizeDownloadFilename(defaultFilename);
+            link.rel = 'noopener noreferrer';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        }
     } finally {
-        hideOverlay();
+        window.clearInterval(fakeInterval);
+        hide();
     }
 };
 
