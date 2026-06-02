@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // Cleanup old ZIP downloads daily at 3 AM
 Schedule::command('download:cleanup --hours=24')->dailyAt('03:00');
+
+// Cleanup old temp files every 6 hours (older than 30 minutes)
+Schedule::command('temp:cleanup --minutes=30')->everySixHours();
