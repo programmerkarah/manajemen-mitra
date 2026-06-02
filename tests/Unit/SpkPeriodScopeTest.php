@@ -44,7 +44,7 @@ class SpkPeriodScopeTest extends TestCase
     {
         $controller = new SpkController;
         $periode = new PeriodeAlokasi([
-            'bulan' => '06',
+            'bulan' => '6',
             'tahun' => 2026,
         ]);
         $periode->id = 15;
@@ -66,5 +66,25 @@ class SpkPeriodScopeTest extends TestCase
         $this->assertFalse($usesPeriodBasedFlow->invoke($controller, $periode));
         $this->assertSame('2026-06', $resolveGroupKey->invoke($controller, $periode));
         $this->assertSame('Juni 2026', $resolveDisplayLabel->invoke($controller, $periode));
+    }
+
+    public function test_regular_survey_index_group_key_normalizes_unpadded_months(): void
+    {
+        $controller = new SpkController;
+        $periode = new PeriodeAlokasi([
+            'bulan' => '5',
+            'tahun' => 2026,
+        ]);
+        $periode->id = 16;
+        $periode->exists = true;
+        $periode->setRelation('kegiatan', new Kegiatan([
+            'nama_kegiatan' => 'Survei Harga',
+            'jenis_kegiatan' => 'survei',
+        ]));
+
+        $resolveGroupKey = new \ReflectionMethod(SpkController::class, 'resolveSpkIndexGroupKey');
+        $resolveGroupKey->setAccessible(true);
+
+        $this->assertSame('2026-05', $resolveGroupKey->invoke($controller, $periode));
     }
 }

@@ -5479,7 +5479,7 @@ class SpkController extends Controller
             return 'periode-'.$periode->id;
         }
 
-        return $periode->tahun.'-'.$periode->bulan;
+        return sprintf('%d-%02d', (int) $periode->tahun, (int) $periode->bulan);
     }
 
     private function resolveSpkIndexDisplayLabel(PeriodeAlokasi $periode): string
