@@ -149,7 +149,7 @@
 
         .pasal-item {
             margin: 8px 0;
-            page-break-inside: avoid;
+            page-break-inside: auto;
         }
 
         .pasal-item-number {
