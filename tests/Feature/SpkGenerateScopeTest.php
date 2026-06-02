@@ -18,7 +18,7 @@ class SpkGenerateScopeTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_generate_page_excludes_already_generated_petugas_in_same_month(): void
+    public function test_generate_page_excludes_only_fully_generated_petugas_in_same_month(): void
     {
         $approverRole = Role::firstOrCreate(
             ['name' => 'approver'],
@@ -34,11 +34,25 @@ class SpkGenerateScopeTest extends TestCase
         $tahun = ActiveYearService::get();
         Carbon::setTestNow("{$tahun}-05-10 09:00:00");
 
-        $kegiatanAwyujon = Kegiatan::factory()->create([
+        $kegiatanAwyujonExisting = Kegiatan::factory()->create([
             'tahun_anggaran' => $tahun,
             'status' => 'divalidasi',
             'jenis_kegiatan' => 'survei',
-            'nama_kegiatan' => 'Survei Awyujon',
+            'nama_kegiatan' => 'Survei Awyujon Existing',
+        ]);
+
+        $kegiatanAwyujonNew = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+            'nama_kegiatan' => 'Survei Awyujon Baru',
+        ]);
+
+        $kegiatanTriana = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+            'nama_kegiatan' => 'Survei Triana Putri',
         ]);
 
         $kegiatanSakernas = Kegiatan::factory()->create([
@@ -48,11 +62,27 @@ class SpkGenerateScopeTest extends TestCase
             'nama_kegiatan' => 'Sakernas Mei',
         ]);
 
-        $periodeAwyujon = PeriodeAlokasi::factory()->create([
-            'kegiatan_id' => $kegiatanAwyujon->id,
+        $periodeAwyujonExisting = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanAwyujonExisting->id,
             'bulan' => '05',
             'tahun' => $tahun,
             'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $periodeAwyujonNew = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanAwyujonNew->id,
+            'bulan' => '5',
+            'tahun' => $tahun,
+            'status' => 'disetujui',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $periodeTriana = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanTriana->id,
+            'bulan' => '05',
+            'tahun' => $tahun,
+            'status' => 'disetujui',
             'jenis_kegiatan' => 'survei',
         ]);
 
@@ -70,20 +100,48 @@ class SpkGenerateScopeTest extends TestCase
             'status' => 'aktif',
         ]);
 
+        $petugasTriana = Petugas::factory()->create([
+            'nama' => 'Triana Putri',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
         $petugasSakernas = Petugas::factory()->create([
             'nama' => 'Sakernas Mei',
             'jenis_petugas' => 'non-organik',
             'status' => 'aktif',
         ]);
 
-        $alokasiAwyujon = AlokasiPetugas::factory()->create([
-            'periode_alokasi_id' => $periodeAwyujon->id,
+        $alokasiAwyujonExisting = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeAwyujonExisting->id,
             'petugas_id' => $petugasAwyujon->id,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
             'jumlah_satuan' => 4,
             'jumlah_satuan_listing' => 0,
             'total_honor' => 400000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $alokasiAwyujonNew = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeAwyujonNew->id,
+            'petugas_id' => $petugasAwyujon->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 2,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 200000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $alokasiTriana = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeTriana->id,
+            'petugas_id' => $petugasTriana->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 3,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 300000,
             'total_honor_listing' => 0,
         ]);
 
@@ -101,8 +159,8 @@ class SpkGenerateScopeTest extends TestCase
         Spk::query()->create([
             'nomor_spk' => 'PPIS/13730/001/K/'.$tahun,
             'petugas_id' => $petugasAwyujon->id,
-            'alokasi_petugas_id' => $alokasiAwyujon->id,
-            'alokasi_petugas_ids' => [$alokasiAwyujon->id],
+            'alokasi_petugas_id' => $alokasiAwyujonExisting->id,
+            'alokasi_petugas_ids' => [$alokasiAwyujonExisting->id],
             'addendum_number' => 0,
             'nomor_urut_base' => 1,
             'tanggal_spk' => now()->toDateString(),
@@ -110,6 +168,24 @@ class SpkGenerateScopeTest extends TestCase
             'tanggal_selesai_kerja' => now()->endOfMonth()->toDateString(),
             'uraian_pekerjaan' => 'Perjanjian kerja awal',
             'nilai_kontrak' => 400000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'created_by' => $user->id,
+        ]);
+
+        Spk::query()->create([
+            'nomor_spk' => 'PPIS/13730/002/K/'.$tahun,
+            'petugas_id' => $petugasTriana->id,
+            'alokasi_petugas_id' => $alokasiTriana->id,
+            'alokasi_petugas_ids' => [$alokasiTriana->id],
+            'addendum_number' => 0,
+            'nomor_urut_base' => 2,
+            'tanggal_spk' => now()->toDateString(),
+            'tanggal_mulai_kerja' => now()->startOfMonth()->toDateString(),
+            'tanggal_selesai_kerja' => now()->endOfMonth()->toDateString(),
+            'uraian_pekerjaan' => 'Perjanjian kerja awal',
+            'nilai_kontrak' => 300000,
             'nama_ppk' => 'PPK Test',
             'nip_ppk' => '198001012010011001',
             'status' => 'diterbitkan',
@@ -128,5 +204,5 @@ class SpkGenerateScopeTest extends TestCase
         $this->assertContains('Sakernas Mei', $names);
         $this->assertNotContains('awyujon', $names);
         $this->assertCount(1, $names);
-    }
+        $this->assertCount(2, $names);
 }
