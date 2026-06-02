@@ -16,7 +16,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Head } from '@inertiajs/react';
-import { Download, Eye } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 interface OptionItem {
@@ -67,24 +67,6 @@ const csrfToken = (): string => {
             .querySelector('meta[name="csrf-token"]')
             ?.getAttribute('content') || ''
     );
-};
-
-const extractFilename = (contentDisposition: string | null): string => {
-    if (!contentDisposition) {
-        return 'Preview_SPK.pdf';
-    }
-
-    const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
-    if (utf8Match?.[1]) {
-        return decodeURIComponent(utf8Match[1]);
-    }
-
-    const quotedMatch = contentDisposition.match(/filename="([^"]+)"/i);
-    if (quotedMatch?.[1]) {
-        return quotedMatch[1];
-    }
-
-    return 'Preview_SPK.pdf';
 };
 
 const PDF_REQUEST_TIMEOUT_MS = 120000;
@@ -440,7 +422,7 @@ export default function PublicPreview({
         sensusKegiatan,
     ]);
 
-    const requestPdf = async (aksi: 'preview' | 'download'): Promise<void> => {
+    const requestPdf = async (): Promise<void> => {
         setErrorMessage(null);
 
         if (!canSubmit) {
@@ -450,16 +432,8 @@ export default function PublicPreview({
 
         setDocumentProgressOpen(true);
         setDocumentProgressPercent(0);
-        setDocumentProgressTitle(
-            aksi === 'preview'
-                ? 'Menyiapkan pratinjau PDF...'
-                : 'Menyiapkan unduhan PDF...',
-        );
-        setDocumentProgressStatus(
-            aksi === 'preview'
-                ? 'Memproses file PDF untuk pratinjau...'
-                : 'Memproses file PDF untuk diunduh...',
-        );
+        setDocumentProgressTitle('Menyiapkan dokumen Print/Preview...');
+        setDocumentProgressStatus('Memproses file PDF untuk print/preview...');
 
         setProcessing(true);
 
@@ -469,7 +443,7 @@ export default function PublicPreview({
             formData.append('nik', nik.trim());
             formData.append('telepon_4_digit', telepon4Digit);
             formData.append('jenis_kegiatan', jenisKegiatan);
-            formData.append('aksi', aksi);
+            formData.append('aksi', 'preview');
 
             if (jenisKegiatan === 'survei') {
                 formData.append('survei_periode', surveiPeriode);
@@ -529,11 +503,7 @@ export default function PublicPreview({
                 const reader = response.body.getReader();
                 const chunks: ArrayBuffer[] = [];
 
-                setDocumentProgressStatus(
-                    aksi === 'preview'
-                        ? 'Mengunduh file PDF untuk pratinjau...'
-                        : 'Mengunduh file PDF...',
-                );
+                setDocumentProgressStatus('Menyiapkan file PDF...');
                 setDocumentProgressPercent(0);
 
                 while (true) {
@@ -554,11 +524,7 @@ export default function PublicPreview({
                             const progressValue =
                                 (loadedBytes / totalBytes) * 100;
 
-                            setDocumentProgressStatus(
-                                aksi === 'preview'
-                                    ? 'Mengunduh file PDF untuk pratinjau...'
-                                    : 'Mengunduh file PDF...',
-                            );
+                            setDocumentProgressStatus('Menyiapkan file PDF...');
                             setDocumentProgressPercent(
                                 Math.max(
                                     0,
@@ -571,17 +537,10 @@ export default function PublicPreview({
 
                 blob = new Blob(chunks, { type: 'application/pdf' });
             } else {
-                setDocumentProgressStatus(
-                    aksi === 'preview'
-                        ? 'Mengunduh file PDF untuk pratinjau...'
-                        : 'Mengunduh file PDF...',
-                );
+                setDocumentProgressStatus('Menyiapkan file PDF...');
                 blob = await response.blob();
             }
 
-            const fileName = extractFilename(
-                response.headers.get('content-disposition'),
-            );
             const objectUrl = URL.createObjectURL(
                 blob.type === 'application/pdf'
                     ? blob
@@ -590,44 +549,25 @@ export default function PublicPreview({
                       }),
             );
 
-            if (aksi === 'preview') {
-                setDocumentProgressTitle('Membuka pratinjau PDF...');
-                setDocumentProgressStatus(
-                    'File siap. Membuka tab pratinjau...',
+            setDocumentProgressTitle('Membuka tab Print/Preview...');
+            setDocumentProgressStatus('File siap. Membuka tab print/preview...');
+            setDocumentProgressPercent(100);
+
+            window.setTimeout(() => {
+                const previewWindow = window.open(
+                    objectUrl,
+                    '_blank',
+                    'noopener,noreferrer',
                 );
-                setDocumentProgressPercent(100);
 
-                window.setTimeout(() => {
-                    const previewWindow = window.open(
-                        objectUrl,
-                        '_blank',
-                        'noopener,noreferrer',
+                if (!previewWindow) {
+                    setErrorMessage(
+                        'Pratinjau sudah siap, tetapi browser memblokir popup. Izinkan popup lalu coba lagi.',
                     );
+                }
 
-                    if (!previewWindow) {
-                        setErrorMessage(
-                            'Pratinjau sudah siap, tetapi browser memblokir popup. Izinkan popup lalu coba lagi.',
-                        );
-                    }
-
-                    setDocumentProgressOpen(false);
-                }, 250);
-            } else {
-                setDocumentProgressTitle('Memicu unduhan PDF...');
-                setDocumentProgressStatus('Memicu proses unduh...');
-                setDocumentProgressPercent(100);
-
-                const link = document.createElement('a');
-                link.href = objectUrl;
-                link.download = fileName;
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-
-                window.setTimeout(() => {
-                    setDocumentProgressOpen(false);
-                }, 900);
-            }
+                setDocumentProgressOpen(false);
+            }, 250);
 
             window.setTimeout(() => {
                 URL.revokeObjectURL(objectUrl);
@@ -1044,7 +984,7 @@ export default function PublicPreview({
                                 <Button
                                     type="button"
                                     onClick={() => {
-                                        void requestPdf('preview');
+                                        void requestPdf();
                                     }}
                                     disabled={processing || !canSubmit}
                                     className="min-w-[160px]"
@@ -1052,19 +992,7 @@ export default function PublicPreview({
                                     <Eye className="h-4 w-4" />
                                     {processing
                                         ? 'Memproses...'
-                                        : 'Pratinjau PDF'}
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => {
-                                        void requestPdf('download');
-                                    }}
-                                    disabled={processing || !canSubmit}
-                                    className="min-w-[160px]"
-                                >
-                                    <Download className="h-4 w-4" />
-                                    {processing ? 'Memproses...' : 'Unduh PDF'}
+                                        : 'Print/Preview PDF'}
                                 </Button>
                             </div>
 
@@ -1133,8 +1061,8 @@ export default function PublicPreview({
                                         <p className="mt-3 text-xs text-neutral-500 dark:text-neutral-400">
                                             Mohon tunggu. Proses di halaman ini
                                             akan selesai lebih dulu, lalu
-                                            browser akan melanjutkan preview
-                                            atau unduhan PDF.
+                                            browser akan membuka tab
+                                            print/preview PDF.
                                         </p>
                                     </div>
                                 </div>
