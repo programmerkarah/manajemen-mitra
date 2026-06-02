@@ -159,6 +159,7 @@
 
         .pasal-item-content {
             margin-left: 40px;
+            width: calc(100% - 40px);
             text-align: justify;
         }
 
@@ -174,6 +175,13 @@
 
         .sub-item-content {
             margin-left: 30px;
+            width: calc(100% - 30px);
+            text-align: justify;
+        }
+
+        .ayat-lead-with-first-sub-item {
+            display: block;
+            margin: 0;
             text-align: justify;
         }
 
