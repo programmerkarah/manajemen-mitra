@@ -88,6 +88,8 @@ const extractFilename = (contentDisposition: string | null): string => {
 };
 
 const PDF_REQUEST_TIMEOUT_MS = 120000;
+const DOCUMENT_PROGRESS_RADIUS = 52;
+const DOCUMENT_PROGRESS_CIRCUMFERENCE = 2 * Math.PI * DOCUMENT_PROGRESS_RADIUS;
 
 export default function PublicPreview({
     survei_periods,
@@ -118,10 +120,13 @@ export default function PublicPreview({
     const [recaptchaReady, setRecaptchaReady] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [downloadProgressOpen, setDownloadProgressOpen] = useState(false);
-    const [downloadProgressPercent, setDownloadProgressPercent] = useState(0);
-    const [downloadProgressStatus, setDownloadProgressStatus] = useState(
-        'Menyiapkan unduhan PDF...',
+    const [documentProgressOpen, setDocumentProgressOpen] = useState(false);
+    const [documentProgressPercent, setDocumentProgressPercent] = useState(0);
+    const [documentProgressStatus, setDocumentProgressStatus] = useState(
+        'Menyiapkan dokumen PDF...',
+    );
+    const [documentProgressTitle, setDocumentProgressTitle] = useState(
+        'Menyiapkan dokumen PDF...',
     );
 
     useEffect(() => {
@@ -435,27 +440,26 @@ export default function PublicPreview({
         sensusKegiatan,
     ]);
 
-    const requestPdf = async (
-        aksi: 'preview' | 'download',
-        openedWindow: Window | null = null,
-    ): Promise<void> => {
+    const requestPdf = async (aksi: 'preview' | 'download'): Promise<void> => {
         setErrorMessage(null);
 
         if (!canSubmit) {
             setErrorMessage('Lengkapi data terlebih dahulu.');
-            if (openedWindow && !openedWindow.closed) {
-                openedWindow.close();
-            }
             return;
         }
 
-        const actionWindow = aksi === 'preview' ? openedWindow : null;
-
-        if (aksi === 'download') {
-            setDownloadProgressOpen(true);
-            setDownloadProgressPercent(0);
-            setDownloadProgressStatus('Menyiapkan unduhan PDF...');
-        }
+        setDocumentProgressOpen(true);
+        setDocumentProgressPercent(0);
+        setDocumentProgressTitle(
+            aksi === 'preview'
+                ? 'Menyiapkan pratinjau PDF...'
+                : 'Menyiapkan unduhan PDF...',
+        );
+        setDocumentProgressStatus(
+            aksi === 'preview'
+                ? 'Memproses file PDF untuk pratinjau...'
+                : 'Memproses file PDF untuk diunduh...',
+        );
 
         setProcessing(true);
 
@@ -511,13 +515,7 @@ export default function PublicPreview({
                 }
 
                 setErrorMessage(message);
-                if (aksi === 'download') {
-                    setDownloadProgressOpen(false);
-                }
-
-                if (actionWindow && !actionWindow.closed) {
-                    actionWindow.close();
-                }
+                setDocumentProgressOpen(false);
                 return;
             }
 
@@ -531,10 +529,12 @@ export default function PublicPreview({
                 const reader = response.body.getReader();
                 const chunks: ArrayBuffer[] = [];
 
-                if (aksi === 'download') {
-                    setDownloadProgressStatus('Mengunduh file PDF...');
-                    setDownloadProgressPercent(0);
-                }
+                setDocumentProgressStatus(
+                    aksi === 'preview'
+                        ? 'Mengunduh file PDF untuk pratinjau...'
+                        : 'Mengunduh file PDF...',
+                );
+                setDocumentProgressPercent(0);
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -554,29 +554,28 @@ export default function PublicPreview({
                             const progressValue =
                                 (loadedBytes / totalBytes) * 100;
 
-                            if (aksi === 'download') {
-                                setDownloadProgressStatus(
-                                    'Mengunduh file PDF...',
-                                );
-                                setDownloadProgressPercent(
-                                    Math.max(
-                                        0,
-                                        Math.min(
-                                            100,
-                                            Math.round(progressValue),
-                                        ),
-                                    ),
-                                );
-                            }
+                            setDocumentProgressStatus(
+                                aksi === 'preview'
+                                    ? 'Mengunduh file PDF untuk pratinjau...'
+                                    : 'Mengunduh file PDF...',
+                            );
+                            setDocumentProgressPercent(
+                                Math.max(
+                                    0,
+                                    Math.min(100, Math.round(progressValue)),
+                                ),
+                            );
                         }
                     }
                 }
 
                 blob = new Blob(chunks, { type: 'application/pdf' });
             } else {
-                if (aksi === 'download') {
-                    setDownloadProgressStatus('Mengunduh file PDF...');
-                }
+                setDocumentProgressStatus(
+                    aksi === 'preview'
+                        ? 'Mengunduh file PDF untuk pratinjau...'
+                        : 'Mengunduh file PDF...',
+                );
                 blob = await response.blob();
             }
 
@@ -592,19 +591,31 @@ export default function PublicPreview({
             );
 
             if (aksi === 'preview') {
-                if (actionWindow && !actionWindow.closed) {
-                    actionWindow.location.href = objectUrl;
-                } else {
-                    const fallbackLink = document.createElement('a');
-                    fallbackLink.href = objectUrl;
-                    fallbackLink.download = fileName;
-                    document.body.appendChild(fallbackLink);
-                    fallbackLink.click();
-                    fallbackLink.remove();
-                }
+                setDocumentProgressTitle('Membuka pratinjau PDF...');
+                setDocumentProgressStatus(
+                    'File siap. Membuka tab pratinjau...',
+                );
+                setDocumentProgressPercent(100);
+
+                window.setTimeout(() => {
+                    const previewWindow = window.open(
+                        objectUrl,
+                        '_blank',
+                        'noopener,noreferrer',
+                    );
+
+                    if (!previewWindow) {
+                        setErrorMessage(
+                            'Pratinjau sudah siap, tetapi browser memblokir popup. Izinkan popup lalu coba lagi.',
+                        );
+                    }
+
+                    setDocumentProgressOpen(false);
+                }, 250);
             } else {
-                setDownloadProgressStatus('Memicu proses unduh...');
-                setDownloadProgressPercent(100);
+                setDocumentProgressTitle('Memicu unduhan PDF...');
+                setDocumentProgressStatus('Memicu proses unduh...');
+                setDocumentProgressPercent(100);
 
                 const link = document.createElement('a');
                 link.href = objectUrl;
@@ -614,21 +625,15 @@ export default function PublicPreview({
                 link.remove();
 
                 window.setTimeout(() => {
-                    setDownloadProgressOpen(false);
+                    setDocumentProgressOpen(false);
                 }, 900);
             }
 
-            setTimeout(() => {
+            window.setTimeout(() => {
                 URL.revokeObjectURL(objectUrl);
             }, 60000);
         } catch (error) {
-            if (aksi === 'download') {
-                setDownloadProgressOpen(false);
-            }
-
-            if (actionWindow && !actionWindow.closed) {
-                actionWindow.close();
-            }
+            setDocumentProgressOpen(false);
 
             if (
                 error instanceof Error &&
@@ -1039,8 +1044,7 @@ export default function PublicPreview({
                                 <Button
                                     type="button"
                                     onClick={() => {
-                                        const popup = window.open('', '_blank');
-                                        void requestPdf('preview', popup);
+                                        void requestPdf('preview');
                                     }}
                                     disabled={processing || !canSubmit}
                                     className="min-w-[160px]"
@@ -1064,30 +1068,73 @@ export default function PublicPreview({
                                 </Button>
                             </div>
 
-                            {downloadProgressOpen && (
+                            {documentProgressOpen && (
                                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/55 px-4">
                                     <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-5 shadow-2xl dark:border-neutral-700 dark:bg-neutral-900">
                                         <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
-                                            Menyiapkan unduhan PDF...
+                                            {documentProgressTitle}
                                         </h3>
                                         <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-300">
-                                            {downloadProgressStatus}
+                                            {documentProgressStatus}
                                         </p>
-                                        <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700">
-                                            <div
-                                                className="h-full bg-emerald-500 transition-all duration-300 ease-out"
-                                                style={{
-                                                    width: `${downloadProgressPercent}%`,
-                                                }}
-                                            />
+                                        <div className="mt-5 flex justify-center">
+                                            <div className="relative flex h-36 w-36 items-center justify-center">
+                                                <svg
+                                                    className="h-36 w-36 -rotate-90"
+                                                    viewBox="0 0 140 140"
+                                                    aria-hidden="true"
+                                                >
+                                                    <circle
+                                                        cx="70"
+                                                        cy="70"
+                                                        r={
+                                                            DOCUMENT_PROGRESS_RADIUS
+                                                        }
+                                                        stroke="currentColor"
+                                                        strokeWidth="10"
+                                                        fill="none"
+                                                        className="text-neutral-200 dark:text-neutral-700"
+                                                    />
+                                                    <circle
+                                                        cx="70"
+                                                        cy="70"
+                                                        r={
+                                                            DOCUMENT_PROGRESS_RADIUS
+                                                        }
+                                                        stroke="currentColor"
+                                                        strokeWidth="10"
+                                                        fill="none"
+                                                        strokeLinecap="round"
+                                                        className="text-emerald-500 transition-all duration-300 ease-out"
+                                                        style={{
+                                                            strokeDasharray:
+                                                                DOCUMENT_PROGRESS_CIRCUMFERENCE,
+                                                            strokeDashoffset:
+                                                                DOCUMENT_PROGRESS_CIRCUMFERENCE -
+                                                                (documentProgressPercent /
+                                                                    100) *
+                                                                    DOCUMENT_PROGRESS_CIRCUMFERENCE,
+                                                        }}
+                                                    />
+                                                </svg>
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                                    <span className="text-3xl font-bold text-neutral-900 dark:text-neutral-100">
+                                                        {
+                                                            documentProgressPercent
+                                                        }
+                                                        %
+                                                    </span>
+                                                    <span className="mt-1 text-[11px] font-medium tracking-[0.2em] text-neutral-500 uppercase dark:text-neutral-400">
+                                                        Progress
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <p className="mt-2 text-xs font-medium text-neutral-700 dark:text-neutral-200">
-                                            {downloadProgressPercent}%
-                                        </p>
                                         <p className="mt-3 text-xs text-neutral-500 dark:text-neutral-400">
-                                            Mohon tunggu. Popup ini tidak bisa
-                                            ditutup sampai unduhan berhasil
-                                            dipicu.
+                                            Mohon tunggu. Proses di halaman ini
+                                            akan selesai lebih dulu, lalu
+                                            browser akan melanjutkan preview
+                                            atau unduhan PDF.
                                         </p>
                                     </div>
                                 </div>
