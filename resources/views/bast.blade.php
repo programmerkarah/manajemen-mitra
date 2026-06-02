@@ -124,7 +124,14 @@
 
         .signature-name {
             margin-top: 80px;
+            margin-bottom: 0;
             font-weight: bold;
+        }
+
+        .signature-name.signature-name-collapsed {
+            margin-top: 0;
+            margin-bottom: 0;
+            line-height: 1.3;
         }
 
         .signature-nip {
@@ -244,6 +251,38 @@
     } elseif(isset($nama_kegiatan)) {
         $jenisPetugasList[] = strtoupper($nama_kegiatan);
     }
+
+    $formatSignatureName = static function (?string $rawName): array {
+        $normalizedName = strtoupper(trim((string) $rawName));
+        $normalizedName = preg_replace('/\s+/', ' ', $normalizedName ?? '') ?? '';
+
+        if ($normalizedName === '') {
+            return [
+                'display' => '',
+                'collapsed' => false,
+            ];
+        }
+
+        $nameParts = explode(' ', $normalizedName);
+
+        if (count($nameParts) <= 2) {
+            return [
+                'display' => $normalizedName,
+                'collapsed' => false,
+            ];
+        }
+
+        $firstLineWordCount = (int) ceil(count($nameParts) / 2);
+
+        return [
+            'display' => implode(' ', array_slice($nameParts, 0, $firstLineWordCount)) . '<br>' . implode(' ', array_slice($nameParts, $firstLineWordCount)),
+            'collapsed' => true,
+        ];
+    };
+
+    $signatureNamePihakKedua = $formatSignatureName($bast->petugas['nama'] ?? '');
+    $rawPpkName = trim(preg_replace('/^(Dr\.?|Prof\.?|Drs\.?|Ir\.?|H\.?)\s+/i', '', explode(',', $bast->nama_ppk ?? '')[0]));
+    $signatureNamePihakPertama = $formatSignatureName($rawPpkName);
     @endphp
     
     <div class="header">
@@ -418,12 +457,12 @@
                 <div class="signature-box signature-left">
                     <div>PIHAK KEDUA,</div>
                     <div style="height:10px;"></div>
-                    <div class="signature-name">{{ strtoupper($bast->petugas['nama']?? '') }}</div>
+                    <div class="signature-name {{ $signatureNamePihakKedua['collapsed'] ? 'signature-name-collapsed' : '' }}">{!! $signatureNamePihakKedua['display'] !!}</div>
                 </div>
                 <div class="signature-box signature-right">
                     <div>PIHAK PERTAMA,</div>
                     <div style="height:10px;"></div>
-                    <div class="signature-name">{{ strtoupper(trim(preg_replace('/^(Dr\.?|Prof\.?|Drs\.?|Ir\.?|H\.?)\s+/i', '', explode(',', $bast->nama_ppk ?? '')[0]))) }}</div>
+                    <div class="signature-name {{ $signatureNamePihakPertama['collapsed'] ? 'signature-name-collapsed' : '' }}">{!! $signatureNamePihakPertama['display'] !!}</div>
                 </div>
             </div>
         </div>

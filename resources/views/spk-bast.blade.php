@@ -133,6 +133,10 @@
             padding: 0 20px;
         }
 
+        .signature-col.signature-col-collapsed .signature-title {
+            margin-bottom: 0;
+        }
+
         .signature-title {
             font-weight: bold;
             margin-bottom: 80px;
@@ -140,6 +144,13 @@
 
         .signature-name {
             font-weight: bold;
+            margin: 0;
+        }
+
+        .signature-name-collapsed {
+            margin-top: 0;
+            margin-bottom: 0;
+            line-height: 1.3;
         }
     </style>
 </head>
@@ -231,16 +242,49 @@
         Demikian Berita Acara ini dibuat untuk dipergunakan sebagaimana mestinya.
     </div>
 
+    @php
+        $formatSignatureName = static function (?string $rawName): array {
+            $normalizedName = strtoupper(trim((string) $rawName));
+            $normalizedName = preg_replace('/\s+/', ' ', $normalizedName ?? '') ?? '';
+
+            if ($normalizedName === '') {
+                return [
+                    'display' => '',
+                    'collapsed' => false,
+                ];
+            }
+
+            $nameParts = explode(' ', $normalizedName);
+
+            if (count($nameParts) <= 2) {
+                return [
+                    'display' => $normalizedName,
+                    'collapsed' => false,
+                ];
+            }
+
+            $firstLineWordCount = (int) ceil(count($nameParts) / 2);
+
+            return [
+                'display' => implode(' ', array_slice($nameParts, 0, $firstLineWordCount)) . '<br>' . implode(' ', array_slice($nameParts, $firstLineWordCount)),
+                'collapsed' => true,
+            ];
+        };
+
+        $signatureNamePihakKedua = $formatSignatureName($petugas->nama ?? '');
+        $signatureNamePihakPertama = $formatSignatureName($penandatangan ?? '');
+    @endphp
+
     <!-- Signatures -->
     <div class="signature">
         <div class="signature-row">
-            <div class="signature-col">
+            <div class="signature-col {{ $signatureNamePihakKedua['collapsed'] ? 'signature-col-collapsed' : '' }}">
                 <div class="signature-title">PIHAK KEDUA,</div>
-                <div class="signature-name">{{ strtoupper($petugas->nama) }}</div>
+                <div class="signature-name {{ $signatureNamePihakKedua['collapsed'] ? 'signature-name-collapsed' : '' }}">{!! $signatureNamePihakKedua['display'] !!}</div>
             </div>
-            <div class="signature-col">
+            <div class="signature-col {{ $signatureNamePihakPertama['collapsed'] ? 'signature-col-collapsed' : '' }}">
                 <div class="signature-title">PIHAK PERTAMA,</div>
-                <div class="signature-name">{{ strtoupper($penandatangan) }}</div>
+                <div class="signature-name {{ $signatureNamePihakPertama['collapsed'] ? 'signature-name-collapsed' : '' }}">{!! $signatureNamePihakPertama['display'] !!}</div>
             </div>
         </div>
     </div>

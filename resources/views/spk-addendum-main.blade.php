@@ -199,6 +199,23 @@
 
         .signature-name {
             font-weight: bold;
+            margin: 0;
+        }
+
+        .signature-name-wrap {
+            margin-top: 50px;
+            margin-bottom: 0;
+        }
+
+        .signature-name-wrap.signature-name-wrap-collapsed {
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+
+        .signature-name-collapsed {
+            margin-top: 0;
+            margin-bottom: 0;
+            line-height: 1.3;
         }
 
         table {
@@ -238,6 +255,37 @@
                         $judulSpk = 'PETUGAS LAPANGAN KEGIATAN SURVEI';
                     }
             $judulSpkText = strtolower($judulSpk);
+
+            $formatSignatureName = static function (?string $rawName): array {
+                $normalizedName = strtoupper(trim((string) $rawName));
+                $normalizedName = preg_replace('/\s+/', ' ', $normalizedName ?? '') ?? '';
+
+                if ($normalizedName === '') {
+                    return [
+                        'display' => '',
+                        'collapsed' => false,
+                    ];
+                }
+
+                $nameParts = explode(' ', $normalizedName);
+
+                if (count($nameParts) <= 2) {
+                    return [
+                        'display' => $normalizedName,
+                        'collapsed' => false,
+                    ];
+                }
+
+                $firstLineWordCount = (int) ceil(count($nameParts) / 2);
+
+                return [
+                    'display' => implode(' ', array_slice($nameParts, 0, $firstLineWordCount)) . '<br>' . implode(' ', array_slice($nameParts, $firstLineWordCount)),
+                    'collapsed' => true,
+                ];
+            };
+
+            $signatureNamePihakKedua = $formatSignatureName($petugas->nama ?? '');
+            $signatureNamePihakPertama = $formatSignatureName($kepalaBps ?? '');
                 @endphp
     @php
         $addendumLabel = match((int)$addendum_number) {
@@ -362,14 +410,14 @@
         <div class="signature-row">
             <div class="signature-left">
                 <p><strong>PIHAK KEDUA</strong></p>
-                <p style="margin-top: 50px;">
-                    <span class="signature-name">{{ strtoupper($petugas->nama) }}</span>
+                <p class="signature-name-wrap {{ $signatureNamePihakKedua['collapsed'] ? 'signature-name-wrap-collapsed' : '' }}">
+                    <span class="signature-name {{ $signatureNamePihakKedua['collapsed'] ? 'signature-name-collapsed' : '' }}">{!! $signatureNamePihakKedua['display'] !!}</span>
                 </p>
             </div>
             <div class="signature-right">
                 <p><strong>PIHAK PERTAMA</strong></p>
-                <p style="margin-top: 50px;">
-                    <span class="signature-name">{{ strtoupper($kepalaBps) }}</span>
+                <p class="signature-name-wrap {{ $signatureNamePihakPertama['collapsed'] ? 'signature-name-wrap-collapsed' : '' }}">
+                    <span class="signature-name {{ $signatureNamePihakPertama['collapsed'] ? 'signature-name-collapsed' : '' }}">{!! $signatureNamePihakPertama['display'] !!}</span>
                 </p>
             </div>
             
