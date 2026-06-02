@@ -3789,8 +3789,8 @@ class SpkController extends Controller
         }
 
         $tempPath = storage_path('app/temp');
-        if (! file_exists($tempPath)) {
-            mkdir($tempPath, 0777, true);
+        if (! $this->ensureDirectoryExists($tempPath)) {
+            return response()->json(['message' => 'Folder sementara tidak tersedia. Silakan coba lagi.'], 500);
         }
 
         $zipFileName = 'Preview_SPK_'.$this->getBulanLabel((int) $periode->bulan).'_'.$periode->tahun.'.zip';
@@ -3904,7 +3904,11 @@ class SpkController extends Controller
             }
 
             $path = $tempPath.'/print_main_'.$timestamp.'_'.$index.'.pdf';
-            file_put_contents($path, $pdfBinary);
+
+            if (@file_put_contents($path, $pdfBinary) === false) {
+                continue;
+            }
+
             $individualPaths[] = $path;
         }
 
@@ -3972,8 +3976,8 @@ class SpkController extends Controller
         }
 
         $tempPath = storage_path('app/temp');
-        if (! file_exists($tempPath)) {
-            mkdir($tempPath, 0777, true);
+        if (! $this->ensureDirectoryExists($tempPath)) {
+            return response()->json(['message' => 'Folder sementara tidak tersedia. Silakan coba lagi.'], 500);
         }
 
         $individualPaths = [];
@@ -3998,7 +4002,11 @@ class SpkController extends Controller
             }
 
             $path = $tempPath.'/print_lampiran_'.$timestamp.'_'.$index.'.pdf';
-            file_put_contents($path, $pdfBinary);
+
+            if (@file_put_contents($path, $pdfBinary) === false) {
+                continue;
+            }
+
             $individualPaths[] = $path;
         }
 
