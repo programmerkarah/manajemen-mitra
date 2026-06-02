@@ -18,7 +18,7 @@ class SpkGenerateScopeTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_generate_page_includes_approved_period_petugas_in_same_month(): void
+    public function test_generate_page_excludes_already_generated_petugas_in_same_month(): void
     {
         $approverRole = Role::firstOrCreate(
             ['name' => 'approver'],
@@ -125,8 +125,8 @@ class SpkGenerateScopeTest extends TestCase
 
         $names = $petugasList->pluck('petugas.nama')->all();
 
-        $this->assertContains('awyujon', $names);
         $this->assertContains('Sakernas Mei', $names);
-        $this->assertCount(2, $names);
+        $this->assertNotContains('awyujon', $names);
+        $this->assertCount(1, $names);
     }
 }

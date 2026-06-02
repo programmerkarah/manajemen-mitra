@@ -2707,40 +2707,6 @@ class SpkController extends Controller
                 }
             }
 
-            $petugasListById = $petugasList->keyBy('petugas.id');
-
-            foreach ($existingSpks as $spk) {
-                if ($petugasListById->has($spk->petugas_id)) {
-                    continue;
-                }
-
-                $baselineAlokasiIds = $spk->alokasi_petugas_ids ?? [];
-                if (empty($baselineAlokasiIds)) {
-                    $baselineAlokasiIds = [$spk->alokasi_petugas_id];
-                }
-
-                $fallbackAlokasiGroup = AlokasiPetugas::query()
-                    ->whereIn('id', $baselineAlokasiIds)
-                    ->where('petugas_id', $spk->petugas_id)
-                    ->whereIn('periode_alokasi_id', $scopePeriodeIds)
-                    ->where(function ($query) {
-                        $query->where('total_honor', '>', 0)
-                            ->orWhere('total_honor_listing', '>', 0);
-                    })
-                    ->with([
-                        'petugas:id,nama,nik,jenis_petugas',
-                        'periodeAlokasi:id,kegiatan_id,jenis_kegiatan,status',
-                        'periodeAlokasi.kegiatan:id,kode_kegiatan,nama_kegiatan',
-                    ])
-                    ->get();
-
-                if ($fallbackAlokasiGroup->isNotEmpty()) {
-                    $petugasListById->put($spk->petugas_id, $this->buildGeneratePetugasListItem($fallbackAlokasiGroup));
-                }
-            }
-
-            $petugasList = $petugasListById->values();
-
             // Check if next sequential number is already used in OTHER months
             $nextSequentialNumber = $lastNomorUrutInMonth + 1;
             $nextNumberUsedElsewhere = Spk::where('nomor_urut_base', $nextSequentialNumber)
@@ -2753,21 +2719,30 @@ class SpkController extends Controller
 
             // If next number is used elsewhere, use suffix mode (3A, 3B, etc)
             $usesSuffixForNewPetugas = $nextNumberUsedElsewhere;
-        } else {
-            // Generate mode: Filter out petugas who already have SPK in this month
-            // Only show petugas who DON'T have SPK yet
-            $petugasIds = $petugasList->pluck('petugas.id')->unique();
-            $existingSpkPetugasIds = (clone $existingSpkQuery)
-                ->whereIn('petugas_id', $petugasIds)
-                ->pluck('petugas_id')
-                ->toArray();
+        }
 
-            // Filter: only show petugas who don't have SPK yet
-            $petugasList = $petugasList->filter(function ($item) use ($existingSpkPetugasIds) {
-                $petugasId = $item['petugas']['id'];
-                $notHaveSpk = ! in_array($petugasId, $existingSpkPetugasIds);
+        $existingAlokasiIds = $isRegenerate
+            ? $existingSpks
+                ->flatMap(function (Spk $spk): array {
+                    $baselineAlokasiIds = $spk->alokasi_petugas_ids ?? [];
 
-                return $notHaveSpk;
+                    if (empty($baselineAlokasiIds)) {
+                        $baselineAlokasiIds = [$spk->alokasi_petugas_id];
+                    }
+
+                    return array_map('intval', $baselineAlokasiIds);
+                })
+                ->unique()
+                ->values()
+            : collect();
+
+        if ($existingAlokasiIds->isNotEmpty()) {
+            $petugasList = $petugasList->filter(function (array $item) use ($existingAlokasiIds) {
+                $alokasiIds = collect($item['alokasi_ids'] ?? [$item['alokasi_id']])
+                    ->map(fn ($id) => (int) $id)
+                    ->values();
+
+                return $alokasiIds->diff($existingAlokasiIds)->isNotEmpty();
             })->values();
         }
 
@@ -5324,7 +5299,7 @@ class SpkController extends Controller
 
     /**
      * @param  Collection<int,AlokasiPetugas>  $alokasiGroup
-     * @return array{alokasi_id:int,alokasi_hashed_id:string,petugas:array{id:int,hashed_id:string,nama:string,nik:string,jenis_petugas:string},jumlah_kegiatan:int,kegiatan_list:array<int,array{kegiatan_id:int,kegiatan_kode:string,kegiatan_nama:string,peran:string}>,total_honor:float}
+     * @return array{alokasi_id:int,alokasi_ids:array<int,int>,alokasi_hashed_id:string,petugas:array{id:int,hashed_id:string,nama:string,nik:string,jenis_petugas:string},jumlah_kegiatan:int,kegiatan_list:array<int,array{kegiatan_id:int,kegiatan_kode:string,kegiatan_nama:string,peran:string}>,total_honor:float}
      */
     private function buildGeneratePetugasListItem(Collection $alokasiGroup): array
     {
@@ -5345,6 +5320,7 @@ class SpkController extends Controller
 
         return [
             'alokasi_id' => $firstAlokasi->id,
+            'alokasi_ids' => $alokasiGroup->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
             'alokasi_hashed_id' => $firstAlokasi->hashed_id,
             'petugas' => [
                 'id' => $firstAlokasi->petugas->id,
