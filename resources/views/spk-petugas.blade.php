@@ -140,6 +140,11 @@
             margin: 0;
         }
 
+        .pasal-remaining-items > .pasal-item {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
         /* Clear floats */
         .party:after,
         .pasal-item:after,
@@ -185,7 +190,8 @@
         }
 
         .pasal-item-with-sub-items {
-            page-break-inside: auto;
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
 
         .sub-item-first {
