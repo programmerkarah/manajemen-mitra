@@ -341,6 +341,69 @@ class KegiatanMetodePendataanTest extends TestCase
         $this->assertSame('002', $savedPencacahan->identitas_tambahan['kddes']);
     }
 
+    public function test_store_kegiatan_preserves_zero_values_for_each_target_unit_key(): void
+    {
+        [$user, $role] = $this->makeKetuaTim();
+
+        $unitSampelSatu = MasterUnitSampel::create([
+            'nama' => 'Usaha',
+            'kode' => 'USH-0',
+            'is_active' => true,
+        ]);
+
+        $unitSampelDua = MasterUnitSampel::create([
+            'nama' => 'Keluarga',
+            'kode' => 'KLG-124',
+            'is_active' => true,
+        ]);
+
+        $framePencacahan = MasterFrameSampel::create([
+            'nama' => 'Frame Pencacahan Zero Key',
+            'kode' => 'FPZK',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->post('/kegiatan/store', [
+                'nama_kegiatan' => 'Survei Simpan Zero Unit',
+                'jenis_kegiatan' => 'survei',
+                'tanggal_mulai' => '2025-01-01',
+                'tanggal_selesai' => '2025-12-31',
+                'tahun_anggaran' => 2025,
+                'ketua_tim_user_id' => $user->id,
+                'metode_pendataan_pencacahan' => 'CAPI',
+                'has_listing_updating' => false,
+                'metode_pelatihan' => 'daring',
+                'bulan_pelatihan' => 6,
+                'frame_sampel_pencacahan_id' => $framePencacahan->id,
+                'unit_sampel_pencacahan_ids' => [$unitSampelSatu->id, $unitSampelDua->id],
+                'kegiatan_frame_sampel' => [
+                    [
+                        'tahapan' => 'pencacahan',
+                        'target_unit_sampel' => [
+                            (string) $unitSampelSatu->id => 0,
+                            (string) $unitSampelDua->id => 124,
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertSessionDoesntHaveErrors('kegiatan_frame_sampel');
+
+        $kegiatan = Kegiatan::query()->where('nama_kegiatan', 'Survei Simpan Zero Unit')->firstOrFail();
+
+        $saved = KegiatanFrameSampel::query()
+            ->where('kegiatan_id', $kegiatan->id)
+            ->where('tahapan', 'pencacahan')
+            ->firstOrFail();
+
+        $this->assertSame(0, (int) ($saved->target_unit_sampel[(string) $unitSampelSatu->id] ?? null));
+        $this->assertSame(124, (int) ($saved->target_unit_sampel[(string) $unitSampelDua->id] ?? null));
+        $this->assertArrayHasKey((string) $unitSampelSatu->id, $saved->target_unit_sampel);
+        $this->assertArrayHasKey((string) $unitSampelDua->id, $saved->target_unit_sampel);
+    }
+
     public function test_store_kegiatan_rejects_frame_rows_when_master_frame_tahapan_missing(): void
     {
         [$user, $role] = $this->makeKetuaTim();

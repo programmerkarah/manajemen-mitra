@@ -754,7 +754,7 @@ export default function Edit({
                     tahapan: row.tahapan,
                     target_unit_sampel: Object.fromEntries(
                         Object.entries(row.target_unit_sampel)
-                            .filter(([, v]) => v !== '' && Number(v) >= 1)
+                            .filter(([, v]) => v !== '' && Number(v) >= 0)
                             .map(([k, v]) => [k, Number(v)]),
                     ),
                     identitas_tambahan: (row.metadata_items || []).reduce<
