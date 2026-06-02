@@ -95,7 +95,38 @@ const loadingWindowHtml = (action: 'preview' | 'download'): string => {
             ? 'Memuat pratinjau PDF...'
             : 'Menyiapkan unduhan PDF...';
 
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${title}</title></head><body style="font-family:Arial,sans-serif;padding:16px;"><p>${title}</p><p style="color:#666;font-size:13px;">Jangan tutup tab ini sampai proses selesai.</p></body></html>`;
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${title}</title></head><body style="font-family:Arial,sans-serif;padding:16px;"><h3 style="margin:0 0 8px 0;">${title}</h3><p id="status-text" style="margin:0 0 10px 0;color:#666;font-size:13px;">Memulai proses...</p><div style="height:10px;border:1px solid #ddd;border-radius:999px;overflow:hidden;background:#f5f5f5;"><div id="progress-bar" style="height:100%;width:0%;background:#16a34a;transition:width .2s ease;"></div></div><p id="progress-label" style="margin:8px 0 0 0;color:#444;font-size:12px;">0%</p><p style="margin-top:12px;color:#666;font-size:12px;">Jangan tutup tab ini sampai proses selesai.</p></body></html>`;
+};
+
+const updateActionWindowStatus = (
+    actionWindow: Window | null,
+    statusText: string,
+    percent?: number,
+): void => {
+    if (!actionWindow || actionWindow.closed) {
+        return;
+    }
+
+    const statusNode = actionWindow.document.getElementById('status-text');
+    if (statusNode) {
+        statusNode.textContent = statusText;
+    }
+
+    if (typeof percent === 'number') {
+        const bounded = Math.max(0, Math.min(100, Math.round(percent)));
+        const progressBar =
+            actionWindow.document.getElementById('progress-bar');
+        const progressLabel =
+            actionWindow.document.getElementById('progress-label');
+
+        if (progressBar) {
+            progressBar.style.width = `${bounded}%`;
+        }
+
+        if (progressLabel) {
+            progressLabel.textContent = `${bounded}%`;
+        }
+    }
 };
 
 export default function PublicPreview({
@@ -463,14 +494,11 @@ export default function PublicPreview({
         setProcessing(true);
 
         try {
-            const recaptchaToken = await getRecaptchaToken('mitra_preview');
-
             const formData = new FormData();
             formData.append('nama', nama.trim());
             formData.append('nik', nik.trim());
             formData.append('telepon_4_digit', telepon4Digit);
             formData.append('jenis_kegiatan', jenisKegiatan);
-            formData.append('recaptcha_token', recaptchaToken.trim());
             formData.append('aksi', aksi);
 
             if (jenisKegiatan === 'survei') {
@@ -523,7 +551,57 @@ export default function PublicPreview({
                 return;
             }
 
-            const blob = await response.blob();
+            const totalBytes = Number(
+                response.headers.get('content-length') ?? '0',
+            );
+            let loadedBytes = 0;
+            let blob: Blob;
+
+            if (response.body) {
+                const reader = response.body.getReader();
+                const chunks: ArrayBuffer[] = [];
+
+                updateActionWindowStatus(
+                    actionWindow,
+                    'Mengunduh file PDF...',
+                    0,
+                );
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        break;
+                    }
+
+                    if (value) {
+                        const normalizedChunk = new Uint8Array(
+                            value.byteLength,
+                        );
+                        normalizedChunk.set(value);
+                        chunks.push(normalizedChunk.buffer);
+                        loadedBytes += value.length;
+
+                        if (totalBytes > 0) {
+                            updateActionWindowStatus(
+                                actionWindow,
+                                'Mengunduh file PDF...',
+                                (loadedBytes / totalBytes) * 100,
+                            );
+                        } else {
+                            updateActionWindowStatus(
+                                actionWindow,
+                                'Mengunduh file PDF...',
+                            );
+                        }
+                    }
+                }
+
+                blob = new Blob(chunks, { type: 'application/pdf' });
+            } else {
+                updateActionWindowStatus(actionWindow, 'Mengunduh file PDF...');
+                blob = await response.blob();
+            }
+
             const fileName = extractFilename(
                 response.headers.get('content-disposition'),
             );
@@ -536,6 +614,11 @@ export default function PublicPreview({
             );
 
             if (aksi === 'preview') {
+                updateActionWindowStatus(
+                    actionWindow,
+                    'Membuka pratinjau...',
+                    100,
+                );
                 if (actionWindow && !actionWindow.closed) {
                     actionWindow.location.href = objectUrl;
                 } else {
@@ -548,11 +631,24 @@ export default function PublicPreview({
                 }
             } else {
                 if (actionWindow && !actionWindow.closed) {
-                    actionWindow.document.open();
-                    actionWindow.document.write(
-                        `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Mengunduh PDF...</title></head><body style="font-family:Arial,sans-serif;padding:16px;"><p>Mengunduh file PDF...</p><script>const objectUrl=${JSON.stringify(objectUrl)};const filename=${JSON.stringify(fileName)};const a=document.createElement('a');a.href=objectUrl;a.download=filename;document.body.appendChild(a);a.click();setTimeout(function(){window.close();},800);</script><noscript><p>Silakan aktifkan JavaScript.</p></noscript></body></html>`,
+                    updateActionWindowStatus(
+                        actionWindow,
+                        'Memicu proses unduh...',
+                        100,
                     );
-                    actionWindow.document.close();
+                    actionWindow.onbeforeunload = null;
+                    const link = actionWindow.document.createElement('a');
+                    link.href = objectUrl;
+                    link.download = fileName;
+                    actionWindow.document.body.appendChild(link);
+                    link.click();
+
+                    const statusNode =
+                        actionWindow.document.getElementById('status-text');
+                    if (statusNode) {
+                        statusNode.textContent =
+                            'Unduhan berhasil dipicu. Anda dapat menutup tab ini.';
+                    }
                 } else {
                     const link = document.createElement('a');
                     link.href = objectUrl;
@@ -568,6 +664,7 @@ export default function PublicPreview({
             }, 60000);
         } catch (error) {
             if (actionWindow && !actionWindow.closed) {
+                actionWindow.onbeforeunload = null;
                 actionWindow.close();
             }
 
@@ -996,6 +1093,11 @@ export default function PublicPreview({
                                     variant="outline"
                                     onClick={() => {
                                         const popup = window.open('', '_blank');
+                                        if (popup && !popup.closed) {
+                                            popup.onbeforeunload = () => {
+                                                return 'Unduhan sedang diproses. Tunggu hingga selesai.';
+                                            };
+                                        }
                                         void requestPdf('download', popup);
                                     }}
                                     disabled={processing || !canSubmit}

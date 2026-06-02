@@ -1414,6 +1414,15 @@ class SpkController extends Controller
             ], 422);
         }
 
+        $request->session()->put('mitra_preview_verified', [
+            'signature' => $this->buildPublicPreviewSessionSignature(
+                (string) $validated['nama'],
+                (string) $validated['nik'],
+                (string) $validated['telepon_4_digit'],
+            ),
+            'verified_at' => now()->timestamp,
+        ]);
+
         $options = $this->resolvePublicPreviewOptionsForPetugas($petugas, ActiveYearService::get());
 
         return response()->json([
@@ -1436,14 +1445,23 @@ class SpkController extends Controller
             'jenis_kegiatan' => ['required', 'in:survei,sensus'],
             'survei_periode' => ['nullable', 'string'],
             'sensus_kegiatan' => ['nullable', 'string'],
-            'recaptcha_token' => ['required', 'string', 'max:8192'],
+            'recaptcha_token' => ['nullable', 'string', 'max:8192'],
             'aksi' => ['nullable', 'in:preview,download'],
         ]);
 
-        if (! $this->isValidPublicPreviewRecaptcha((string) $validated['recaptcha_token'], $request->ip())) {
-            return response()->json([
-                'message' => 'Verifikasi reCAPTCHA gagal. Silakan coba lagi.',
-            ], 422);
+        $hasRecentSessionVerification = $this->hasRecentPublicPreviewSessionVerification(
+            $request,
+            (string) $validated['nama'],
+            (string) $validated['nik'],
+            (string) $validated['telepon_4_digit'],
+        );
+
+        if (! $hasRecentSessionVerification) {
+            if (! $this->isValidPublicPreviewRecaptcha((string) ($validated['recaptcha_token'] ?? ''), $request->ip())) {
+                return response()->json([
+                    'message' => 'Sesi verifikasi berakhir. Klik "Muat Data" kembali.',
+                ], 422);
+            }
         }
 
         $petugas = $this->resolvePublicPreviewPetugas(
@@ -1639,6 +1657,36 @@ class SpkController extends Controller
             'Accept-Ranges' => 'bytes',
             'X-Content-Type-Options' => 'nosniff',
         ]);
+    }
+
+    private function buildPublicPreviewSessionSignature(string $nama, string $nik, string $telepon4Digit): string
+    {
+        return hash('sha256', mb_strtolower(trim($nama)).'|'.trim($nik).'|'.trim($telepon4Digit));
+    }
+
+    private function hasRecentPublicPreviewSessionVerification(
+        Request $request,
+        string $nama,
+        string $nik,
+        string $telepon4Digit,
+    ): bool {
+        $payload = $request->session()->get('mitra_preview_verified');
+
+        if (! is_array($payload)) {
+            return false;
+        }
+
+        $verifiedAt = (int) ($payload['verified_at'] ?? 0);
+        if ($verifiedAt <= 0 || (now()->timestamp - $verifiedAt) > 900) {
+            return false;
+        }
+
+        $signature = (string) ($payload['signature'] ?? '');
+        if ($signature === '') {
+            return false;
+        }
+
+        return hash_equals($signature, $this->buildPublicPreviewSessionSignature($nama, $nik, $telepon4Digit));
     }
 
     /**
