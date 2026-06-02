@@ -81,6 +81,8 @@ interface IndexProps {
         search?: string;
         bulan?: number;
     };
+    mode?: 'regular' | 'sensus-ekonomi';
+    can_access_sensus_mode?: boolean;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -93,7 +95,11 @@ type SummaryModalType =
     | 'generated'
     | 'need_addendum';
 
-export default function Index({ periodeList }: IndexProps) {
+export default function Index({
+    periodeList,
+    mode = 'regular',
+    can_access_sensus_mode = false,
+}: IndexProps) {
     const { auth } = usePage<SharedData>().props;
     const decryptedPeriodeList = useDecryptedData<MonthlyPeriodeItem>(
         periodeList.encrypted,
@@ -266,7 +272,36 @@ export default function Index({ periodeList }: IndexProps) {
                 <PageHeader
                     title="Perjanjian Kerja"
                     description="Kelola Perjanjian Kerja untuk petugas per bulan dan periode khusus"
-                />
+                >
+                    {can_access_sensus_mode && (
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant={
+                                    mode === 'regular' ? 'default' : 'outline'
+                                }
+                                onClick={() =>
+                                    router.get('/spk', { mode: 'regular' })
+                                }
+                            >
+                                Perjanjian Kerja Reguler
+                            </Button>
+                            <Button
+                                variant={
+                                    mode === 'sensus-ekonomi'
+                                        ? 'default'
+                                        : 'outline'
+                                }
+                                onClick={() =>
+                                    router.get('/spk', {
+                                        mode: 'sensus-ekonomi',
+                                    })
+                                }
+                            >
+                                Perjanjian Kerja Sensus Ekonomi
+                            </Button>
+                        </div>
+                    )}
+                </PageHeader>
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <button
@@ -539,30 +574,34 @@ export default function Index({ periodeList }: IndexProps) {
                                                         )}
 
                                                     {/* View SPK Details - Always show if SPK exists */}
-                                                    {monthData.total_spk > 0 &&
-                                                        !monthData.is_period_based && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    router.get(
-                                                                        '/spk/month',
-                                                                        {
-                                                                            state: encryptFilters(
-                                                                                {
-                                                                                    bulan: monthData.bulan,
-                                                                                    tahun: monthData.tahun,
-                                                                                },
-                                                                            ),
-                                                                        },
-                                                                    )
-                                                                }
-                                                                className="w-full cursor-pointer justify-start gap-1"
-                                                            >
-                                                                <Eye className="h-3.5 w-3.5" />
-                                                                Lihat Detail
-                                                            </Button>
-                                                        )}
+                                                    {monthData.total_spk >
+                                                        0 && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                router.get(
+                                                                    '/spk/month',
+                                                                    {
+                                                                        state: encryptFilters(
+                                                                            {
+                                                                                bulan: monthData.bulan,
+                                                                                tahun: monthData.tahun,
+                                                                                periode_hashed_id:
+                                                                                    monthData.is_period_based
+                                                                                        ? monthData.primary_periode_hashed_id
+                                                                                        : undefined,
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                )
+                                                            }
+                                                            className="w-full cursor-pointer justify-start gap-1"
+                                                        >
+                                                            <Eye className="h-3.5 w-3.5" />
+                                                            Lihat Detail
+                                                        </Button>
+                                                    )}
 
                                                     {/* Addendum SPK - Show if:
                                                         1. Has revisions AND
@@ -754,28 +793,31 @@ export default function Index({ periodeList }: IndexProps) {
                                                         </Button>
                                                     )}
 
-                                                {monthData.total_spk > 0 &&
-                                                    !monthData.is_period_based && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="secondary"
-                                                            onClick={() =>
-                                                                router.get(
-                                                                    '/spk/month',
-                                                                    {
-                                                                        state: encryptFilters(
-                                                                            {
-                                                                                bulan: monthData.bulan,
-                                                                                tahun: monthData.tahun,
-                                                                            },
-                                                                        ),
-                                                                    },
-                                                                )
-                                                            }
-                                                        >
-                                                            <Eye className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    )}
+                                                {monthData.total_spk > 0 && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="secondary"
+                                                        onClick={() =>
+                                                            router.get(
+                                                                '/spk/month',
+                                                                {
+                                                                    state: encryptFilters(
+                                                                        {
+                                                                            bulan: monthData.bulan,
+                                                                            tahun: monthData.tahun,
+                                                                            periode_hashed_id:
+                                                                                monthData.is_period_based
+                                                                                    ? monthData.primary_periode_hashed_id
+                                                                                    : undefined,
+                                                                        },
+                                                                    ),
+                                                                },
+                                                            )
+                                                        }
+                                                    >
+                                                        <Eye className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                )}
 
                                                 {isNeedAddendum(monthData) &&
                                                     periodeHashedId && (

@@ -30,7 +30,7 @@
 		}
 		body {
 			font-family: 'Bookman Old Style', 'Times New Roman', serif;
-			font-size: 10pt;
+			font-size: 11pt;
 			line-height: 1.6;
 			color: #000;
 			margin: 1cm 1.5cm 1cm 1.5cm;
@@ -46,7 +46,7 @@
 		.lampiran-header {
 			text-align: left;
 			margin-left: 60%;
-			font-size: 8pt;
+			font-size: 11pt;
 			margin-bottom: 10px;
 		}
 		.lampiran-subtitle {
@@ -59,7 +59,7 @@
 			width: 100%;
 			border-collapse: collapse;
 			margin: 15px 0;
-			font-size: 9pt;
+			font-size: 11pt;
 			page-break-after: avoid !important;
 		}
 		.lampiran-table th,
@@ -100,16 +100,16 @@
 		.signature-box {
 			width: 48%;
 			text-align: center;
-			line-height: 1.3;
-			font-size: 10pt;
+			line-height: 1.15;
+			font-size: 11pt;
 			padding: 0;
 			display: inline-block;
 			vertical-align: top;
 		}
 		.signature-title {
 			margin-bottom: 4px;
-			font-size: 10pt;
-			line-height: 1.2;
+			font-size: 11pt;
+			line-height: 1.15;
 		}
 		.signature-space {
 			height: 70px;
@@ -118,7 +118,7 @@
 		}
 		.signature-name {
 			font-weight: bold;
-			font-size: 10pt;
+			font-size: 11pt;
 			text-align: center;
 			margin: 0;
 		}
@@ -138,7 +138,7 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 		<div>Berita Acara Serah Terima Hasil Pekerjaan Petugas Pendataan Lapangan {{$nama_kegiatan}} {{$tahun}} pelaksanaan Bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }}</div>
 	</div>
 	<div class="lampiran-subtitle">REKAPITULASI PELAKSANAAN {{ strtoupper($nama_kegiatan) }} {{ $tahun}}<br>BULAN {{ strtoupper($bulan_label) }} TAHUN {{ $tahun ?? '-' }}<br>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</div>
-	<div class="lampiran-subtitle" style="font-size:10pt; text-align:left;">Rekapitulasi Listing</div>
+	<div class="lampiran-subtitle" style="font-size:11pt; text-align:left;">Rekapitulasi Listing</div>
 	@php
 		$hasNonResponseListing = collect($petugas)->contains(function($p) {
 			return isset($p['non_response_listing']) && $p['non_response_listing'] > 0;
@@ -242,7 +242,7 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 		<div class="lampiran-title">Berita Acara Serah Terima Hasil Pekerjaan Petugas Pendataan Lapangan {{$nama_kegiatan}} {{$tahun}} pelaksanaan Bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }}</div>
 	</div>
 	<div class="lampiran-subtitle">REKAPITULASI PELAKSANAAN {{ strtoupper($nama_kegiatan) }} {{ $tahun}}<br>BULAN {{ strtoupper($bulan_label) }} TAHUN {{ $tahun ?? '-' }}<br>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</div>
-	<div class="lampiran-subtitle" style="font-size:10pt; text-align:left;">Rekapitulasi Pendataan Lapangan</div>
+	<div class="lampiran-subtitle" style="font-size:11pt; text-align:left;">Rekapitulasi Pendataan Lapangan</div>
 	@php
 		$hasNonResponse = collect($petugas)->contains(function($p) {
 			return isset($p['non_response']) && $p['non_response'] > 0;
@@ -344,7 +344,7 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 		<div>Berita Acara Serah Terima Hasil Pekerjaan Petugas Pengolahan Listing {{$nama_kegiatan}} {{$tahun}} pelaksanaan Bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }}</div>
 	</div>
 	<div class="lampiran-subtitle">REKAPITULASI PELAKSANAAN {{ strtoupper($nama_kegiatan) }} {{ $tahun}}<br>BULAN {{ strtoupper($bulan_label) }} TAHUN {{ $tahun ?? '-' }}<br>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</div>
-	<div class="lampiran-subtitle" style="font-size:10pt; text-align:left;">Rekapitulasi Pengolahan Listing</div>
+	<div class="lampiran-subtitle" style="font-size:11pt; text-align:left;">Rekapitulasi Pengolahan Listing</div>
 	@php
 		$hasNonResponsePengolahan = $hasNonResponseListing || $hasNonResponse;
 	@endphp
@@ -443,7 +443,7 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 		<div>Berita Acara Serah Terima Hasil Pekerjaan Petugas Pengolahan Lapangan {{$nama_kegiatan}} {{$tahun}} pelaksanaan Bulan {{ $bulan_label }} Tahun {{ $tahun ?? '-' }}</div>
 	</div>
 	<div class="lampiran-subtitle">REKAPITULASI PELAKSANAAN {{ strtoupper($nama_kegiatan) }} {{ $tahun}}<br>BULAN {{ strtoupper($bulan_label) }} TAHUN {{ $tahun ?? '-' }}<br>PADA BADAN PUSAT STATISTIK KOTA SAWAHLUNTO</div>
-	<div class="lampiran-subtitle" style="font-size:10pt; text-align:left;">Rekapitulasi Pengolahan Lapangan</div>
+	<div class="lampiran-subtitle" style="font-size:11pt; text-align:left;">Rekapitulasi Pengolahan Lapangan</div>
 	@php
 		$hasNonResponsePengolahan = $hasNonResponseListing || $hasNonResponse;
 	@endphp
@@ -528,5 +528,28 @@ $pengolahanRoles = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan']
 	</div>
 </div>
 @endif
+
+<script type="text/php">
+	if (isset($pdf) && isset($fontMetrics)) {
+		$pageNumberOffset = {{ (int) ($pageNumberOffset ?? 1) }};
+
+		$pdf->page_script(function ($pageNumber, $pageCount, $canvas, $fontMetrics) use ($pageNumberOffset) {
+			$displayPage = $pageNumber + $pageNumberOffset;
+			if ($displayPage <= 1) {
+				return;
+			}
+
+			$topMargin = 28.35; // 1 cm
+			$font = $fontMetrics->get_font('Bookman Old Style', 'normal');
+			$size = 11;
+			$text = '-' . $displayPage . '-';
+			$textWidth = $fontMetrics->getTextWidth($text, $font, $size);
+			$x = ($canvas->get_width() - $textWidth) / 2;
+			$y = $topMargin / 2;
+
+			$canvas->text($x, $y, $text, $font, $size);
+		});
+	}
+</script>
 </body>
 </html>

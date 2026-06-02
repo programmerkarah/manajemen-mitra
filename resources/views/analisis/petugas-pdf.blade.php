@@ -125,6 +125,36 @@
         </table>
     </div>
 
+    <div class="table-section page-break-before">
+        <h2>Petugas Belum Dialokasikan</h2>
+        @if(count($petugasBelumDialokasikan) > 0)
+            <table class="striped">
+                <thead>
+                    <tr>
+                        <th style="width:30px">No</th>
+                        <th>Nama</th>
+                        <th>Kecamatan</th>
+                        <th>Jenis Kelamin</th>
+                        <th>Telepon</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($petugasBelumDialokasikan as $index => $item)
+                        <tr>
+                            <td class="text-center">{{ $index + 1 }}</td>
+                            <td>{{ $item['nama'] }}</td>
+                            <td>{{ $item['kecamatan'] ?: '-' }}</td>
+                            <td>{{ $item['jenis_kelamin'] ?: '-' }}</td>
+                            <td>{{ $item['telepon'] ?: '-' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @else
+            <p class="metric-note">Semua petugas aktif sudah memiliki alokasi.</p>
+        @endif
+    </div>
+
     <div class="chart-section">
         <h2>Visualisasi Distribusi Lanjutan</h2>
         <table class="chart-grid chart-grid-two">

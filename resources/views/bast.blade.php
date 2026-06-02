@@ -41,11 +41,11 @@
         body {
             font-family: 'Bookman Old Style', 'Times New Roman', serif;
             font-size: 11pt;
-            line-height: 1.6;
+            line-height: 1.15;
             color: #000;
             orphans: 3;
             widows: 3;
-            margin: 1.5cm 1.5cm 1.5cm 2.5cm;
+            margin: 1.5cm 2cm 1cm 2.5cm;
             padding: 0;
         }
 
@@ -56,7 +56,7 @@
         }
 
         .title {
-            font-size: 13pt;
+            font-size: 11pt;
         }
 
         .nomor {
@@ -130,7 +130,7 @@
 
         .signature-name.signature-name-collapsed {
             margin-bottom: 0;
-            line-height: 1;
+            line-height: 1.15;
         }
 
         .signature-nip {
@@ -152,7 +152,7 @@
             float: right;
             width: 40%;
             text-align: right;
-            font-size: 10pt;
+            font-size: 11pt;
         }
 
         .lampiran-title {
@@ -187,7 +187,7 @@
         .lampiran-table td {
             padding: 8px 12px;
             vertical-align: top;
-            font-size: 10.5pt;
+            font-size: 11pt;
         }
 
         .lampiran-table tbody tr:nth-child(even) {
@@ -209,7 +209,8 @@
     @php
     // Generate judul dinamis berdasarkan jenis kegiatan dan peran
     $jenisPetugasList = [];
-    $isSurvei = false;
+    $isSensusEkonomi = (bool) ($bast->is_sensus_ekonomi ?? false);
+    $isSurvei = ! $isSensusEkonomi;
     $bulanBast = \Carbon\Carbon::parse($bast->tanggal_bast)->locale('id')->isoFormat('MMMM');
     $tahunBast = \Carbon\Carbon::parse($bast->tanggal_bast)->format('Y');
     
@@ -218,16 +219,20 @@
             $jenisKegiatan = strtolower($keg['jenis_kegiatan'] ?? '');
             $peran = strtolower($keg['peran'] ?? '');
             $jenisPetugas = '';
+            $isSensusEkonomiKegiatan = $isSensusEkonomi
+                || $jenisKegiatan === 'sensus'
+                || str_contains(strtolower((string) ($keg['nama_kegiatan'] ?? '')), 'sensus ekonomi')
+                || str_contains((string) ($bast->nomor_bast ?? ''), 'BAST-SE2026');
             
-            if ($jenisKegiatan === 'sensus') {
+            if ($isSensusEkonomiKegiatan) {
                 if ($peran === 'pcl' || $peran === 'ppl' || $peran === 'pcl_ppl') {
-                    $jenisPetugas = 'PETUGAS LAPANGAN (' . strtoupper($keg['nama_kegiatan']) . ')';
+                    $jenisPetugas = 'PETUGAS LAPANGAN ' . strtoupper($keg['nama_kegiatan']);
                 } elseif ($peran === 'pml' || $peran === 'pemeriksa') {
-                    $jenisPetugas = 'PETUGAS PEMERIKSA LAPANGAN (' . strtoupper($keg['nama_kegiatan']) . ')';
+                    $jenisPetugas = 'PETUGAS PEMERIKSA LAPANGAN ' . strtoupper($keg['nama_kegiatan']);
                 } elseif (str_contains($peran, 'olah')) {
-                    $jenisPetugas = 'PETUGAS PENGOLAHAN (' . strtoupper($keg['nama_kegiatan']) . ')';
+                    $jenisPetugas = 'PETUGAS PENGOLAHAN ' . strtoupper($keg['nama_kegiatan']);
                 } else {
-                    $jenisPetugas = 'PETUGAS LAPANGAN (' . strtoupper($keg['nama_kegiatan']) . ')';
+                    $jenisPetugas = 'PETUGAS LAPANGAN ' . strtoupper($keg['nama_kegiatan']);
                 }
             } else {
                 // Untuk survei
@@ -285,7 +290,7 @@
     @endphp
     
     <div class="header">
-        <div class="title">BERITA ACARA SERAH TERIMA</div>
+        <div class="title">BERITA ACARA SERAH TERIMA HASIL PEKERJAAN</div>
         @if($isSurvei)
             @foreach($jenisPetugasList as $jenisPetugas)
                 <div class="title">{{ $jenisPetugas }}</div>
@@ -294,7 +299,6 @@
             <div class="title">BULAN {{ strtoupper($bulanBast) }} {{ $tahunBast }}</div>
             <div class="title">PADA BADAN PUSAT STATISTIK {{ strtoupper($bast->lokasi_kegiatan) }}</div>
         @else
-            <div class="title">HASIL PEKERJAAN</div>
             @foreach($jenisPetugasList as $jenisPetugas)
                 <div class="title">{{ $jenisPetugas }}</div>
             @endforeach
@@ -330,20 +334,8 @@
                 <td style="border: none;"></td>
                 <td style="border: none; vertical-align: top;">Jabatan</td>
                 <td style="border: none; vertical-align: top;">:</td>
-                <td style="border: none; vertical-align: top; text-align: justify;">{{ $jabatan_ppk ?? 'Pejabat Pembuat Komitmen Badan Pusat Statistik ' . $bast->lokasi_kegiatan . ' untuk Program Penyediaan dan Pelayanan Informasi Statistik' }}</td>
-            </tr>
-            <tr style="border: none;">
-                <td style="border: none;"></td>
-                <td style="border: none; vertical-align: top;">Unit Kerja</td>
-                <td style="border: none; vertical-align: top;">:</td>
-                <td style="border: none; vertical-align: top;">Badan Pusat Statistik {{ $bast->lokasi_kegiatan }}</td>
-            </tr>
-            <tr style="border: none;">
-                <td style="border: none;"></td>
-                <td style="border: none; vertical-align: top;">Alamat Unit Kerja</td>
-                <td style="border: none; vertical-align: top;">:</td>
-                <td style="border: none; vertical-align: top; text-align: justify;">{{ $alamat_unit_kerja ?? 'Jl. Jend. Ahmad Yani No.7, ' . $bast->lokasi_kegiatan }}</td>
-            </tr>
+                <td style="border: none; vertical-align: top; text-align: justify;">{{ $jabatan_ppk ?? 'Pejabat Pembuat Komitmen Badan Pusat Statistik ' . $bast->lokasi_kegiatan }}.</td>
+            </tr>            
         </table>
 
         <span>bertindak untuk dan atas nama Badan Pusat Statistik {{ $bast->lokasi_kegiatan }}, selanjutnya disebut sebagai <strong>PIHAK PERTAMA.</strong></span>
@@ -363,9 +355,9 @@
             </tr>
             <tr style="border: none;">
                 <td style="border: none;"></td>
-                <td style="border: none; vertical-align: top;">Alamat</td>
+                <td style="border: none; vertical-align: top;">Jabatan</td>
                 <td style="border: none; vertical-align: top;">:</td>
-                <td style="border: none; vertical-align: top; text-align: justify;">{{ $bast->petugas['alamat'] ?? '-' }}</td>
+                <td style="border: none; vertical-align: top; text-align: justify;">{{ ucwords(strtolower($jenisPetugas) ?? '-')  . ' ' . $tahunBast }}</td>
             </tr>
         </table>
         bertindak untuk dan atas namanya sendiri, selanjutnya disebut sebagai <strong>PIHAK KEDUA</strong>.
@@ -373,6 +365,39 @@
         @php
         $kegiatanText = '';
         $nomorSpkText = '';
+        $muatanInput = isset($bast->muatan_input) ? (int) $bast->muatan_input : null;
+        $muatanPrelist = isset($bast->muatan_prelist) ? (int) $bast->muatan_prelist : null;
+        $formatSensusEkonomiVolume = static function ($jumlahSls, $jumlahUsaha, $jumlahKeluarga, ?int $fallbackTotal = null) {
+            $segments = [];
+
+            if (is_numeric($jumlahSls) && (int) $jumlahSls > 0) {
+                $segments[] = number_format((int) $jumlahSls, 0, ',', '.') . ' SLS/sub-SLS';
+            }
+
+            $usahaKeluarga = [];
+
+            if (is_numeric($jumlahUsaha) && (int) $jumlahUsaha > 0) {
+                $usahaKeluarga[] = number_format((int) $jumlahUsaha, 0, ',', '.') . ' usaha';
+            }
+
+            if (is_numeric($jumlahKeluarga) && (int) $jumlahKeluarga > 0) {
+                $usahaKeluarga[] = number_format((int) $jumlahKeluarga, 0, ',', '.') . ' keluarga';
+            }
+
+            if ($usahaKeluarga !== []) {
+                $segments[] = implode('/', $usahaKeluarga);
+            }
+
+            if ($segments !== []) {
+                return implode(' dan/atau ', $segments);
+            }
+
+            if (is_numeric($fallbackTotal) && (int) $fallbackTotal > 0) {
+                return number_format((int) $fallbackTotal, 0, ',', '.');
+            }
+
+            return null;
+        };
         if(isset($bast->kegiatan_list) && count($bast->kegiatan_list) > 0) {
             // Filter hanya kegiatan yang memiliki nomor SPK (bukan "Belum ada SPK")
             $kegiatanWithSpk = collect($bast->kegiatan_list)->filter(function($keg) {
@@ -393,9 +418,28 @@
                 $nomorSpkText = 'Belum ada SPK';
             }
         }
+        $isSensusEkonomi = $isSensusEkonomi
+            || str_contains(strtolower($kegiatanText), 'sensus ekonomi')
+            || str_contains((string) ($bast->nomor_bast ?? ''), 'BAST-SE2026');
+        $targetPekerjaanText = $isSensusEkonomi
+            ? $formatSensusEkonomiVolume(
+                $bast->target_jumlah_frame_sampel ?? null,
+                $bast->target_muatan_prelist_usaha ?? null,
+                $bast->target_muatan_prelist_keluarga ?? null,
+                $muatanPrelist
+            )
+            : null;
+        $hasilPekerjaanText = $isSensusEkonomi
+            ? $formatSensusEkonomiVolume(
+                $bast->hasil_jumlah_frame_sampel ?? $bast->target_jumlah_frame_sampel ?? null,
+                $bast->hasil_realisasi_usaha ?? null,
+                $bast->hasil_realisasi_keluarga ?? null,
+                $muatanInput
+            )
+            : null;
         @endphp
 
-        <div style="page-break-inside: avoid; margin-top: 10px;">
+        <div style="page-break-inside: auto; margin-top: 10px;">
             <p style="text-align: justify;">
                 Dengan ini menyatakan:
             </p>
@@ -409,7 +453,7 @@
                 <strong>PIHAK KEDUA</strong> telah menyelesaikan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan hasil pemeriksaan dan evaluasi pekerjaan sebagaimana tercantum dalam Lampiran Berita Acara ini.
             </li>
             <li style="margin: 6px 0; text-align: justify;">
-                Berdasarkan angka 2 tersebut di atas, <strong>PIHAK KEDUA</strong> menyerahkan hasil kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} kepada <strong>PIHAK PERTAMA</strong>, dan <strong>PIHAK PERTAMA</strong> menerima hasil pekerjaan tersebut yang telah sesuai dengan seharusnya.
+                    Berdasarkan angka 2 tersebut di atas, <strong>PIHAK KEDUA</strong> menyerahkan hasil kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} kepada <strong>PIHAK PERTAMA</strong>, dan <strong>PIHAK PERTAMA</strong> menerima hasil pekerjaan tersebut yang telah sesuai dengan seharusnya.
             </li>
             <li style="margin: 6px 0; text-align: justify;">
                 Hasil pekerjaan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} sebagaimana dimaksud dalam angka 3 di atas, berupa data hasil kegiatan Survei Badan Pusat Statistik {{$bast->lokasi_kegiatan}} bulan {{ $bulanBast }} {{ $tahunBast }} yang telah diperiksa, sebagaimana tercantum dalam Lampiran Berita Acara ini.
@@ -424,25 +468,26 @@
             </li>
             @else
             <li style="margin: 6px 0; text-align: justify;">
-                <strong>PIHAK KEDUA</strong> telah melaksanakan pekerjaan {{ $kegiatanText }}pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan Perjanjian Kerja {{ $nomorSpkText }}.
+                <strong>PIHAK KEDUA</strong> telah melaksanakan pekerjaan {{$peran === 'pcl' ? 'Pendataan Lapangan' : 'Pemeriksaan Pendataan Lapangan'}}  {{ $kegiatanText }}2026 pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan Perjanjian Kerja {{ $nomorSpkText }}{{ ($isSensusEkonomi && filled($targetPekerjaanText)) ? ' dengan target pekerjaan yang ditetapkan sebesar ' . $targetPekerjaanText : '' }} selama pendataan 15 Juni 2026 sampai dengan 31 Agustus 2026.
             </li>
             <li style="margin: 6px 0; text-align: justify;">
-                <strong>PIHAK KEDUA</strong> telah menyelesaikan pekerjaan {{ $kegiatanText }}pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan hasil pemeriksaan dan evaluasi pekerjaan sebagaimana tercantum dalam lampiran.
+                <strong>PIHAK KEDUA</strong> telah menyelesaikan pekerjaan {{$peran === 'pcl' ? 'Pendataan Lapangan' : 'Pemeriksaan Pendataan Lapangan'}} {{ $kegiatanText }}2026 pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan hasil pemeriksaan dan evaluasi pekerjaan sebagaimana tercantum dalam lampiran.
             </li>
             <li style="margin: 6px 0; text-align: justify;">
-                Berdasarkan angka 2 tersebut di atas, <strong>PIHAK KEDUA</strong> menyerahkan hasil pekerjaan {{ $kegiatanText }}pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} kepada <strong>PIHAK PERTAMA</strong>, dan <strong>PIHAK PERTAMA</strong> menerima hasil pekerjaan tersebut yang telah sesuai dengan seharusnya.
+                Berdasarkan angka 2 tersebut di atas, <strong>PIHAK KEDUA</strong> menyerahkan hasil pekerjaan {{$peran === 'pcl' ? 'Pendataan Lapangan' : 'Pemeriksaan Pendataan Lapangan'}} {{ $kegiatanText }}2026 pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} kepada <strong>PIHAK PERTAMA</strong>, dan <strong>PIHAK PERTAMA</strong> menerima hasil pekerjaan tersebut yang telah sesuai dengan seharusnya.
             </li>
             <li style="margin: 6px 0; text-align: justify;">
-                Hasil pekerjaan {{ $kegiatanText }}pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} sebagaimana dimaksud dalam angka 3 di atas, berupa data hasil {{ $kegiatanText }}yang telah diperiksa, sebagaimana tercantum dalam Lampiran Berita Acara ini.
+                Hasil pekerjaan {{$peran === 'pcl' ? 'Pendataan Lapangan' : 'Pemeriksaan Pendataan Lapangan'}} {{ $kegiatanText }}2026 sebagaimana dimaksud dalam angka 3, berupa dokumen hasil {{$peran === 'pcl' ? 'Pendataan Lapangan' : 'Pemeriksaan Pendataan Lapangan'}} {{ $kegiatanText }}2026, sejumlah {{ ($isSensusEkonomi && filled($hasilPekerjaanText)) ? $hasilPekerjaanText : '' }}.
+            </li>
+            <li style="margin: 6px 0; text-align: justify;">
+               {{$peran ==='pcl' ? ' Hasil pekerjaan pendataan lapangan': 'Pekerjaan pemeriksaan'}} sebagaimana dimaksud pada angka 4 yang memerlukan pemeriksaan lanjutan, akan dilakukan pengecekan, perubahan, dan/atau kunjungan kembali ke lapangan merujuk pada perjanjian yang ditandatangani oleh <strong>PARA PIHAK.</strong>
             </li>
             @if($menggunakan_fasih ?? false)
             <li style="margin: 6px 0; text-align: justify;">
-                <strong>PIHAK KEDUA</strong> menghapus Aplikasi FASIH dan data hasil {{ $kegiatanText }}pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} pada perangkat handphone <strong>PIHAK KEDUA</strong> disaksikan oleh pegawai BPS {{ $bast->lokasi_kegiatan }} yang ditunjuk oleh <strong>PIHAK PERTAMA</strong>.
+                <strong>PIHAK KEDUA</strong> menghapus Aplikasi <em>FASIH</em> dan data hasil {{$peran === 'pcl' ? 'Pendataan Lapangan' : 'Pemeriksaan Pendataan Lapangan'}} {{ $kegiatanText }}2026 pada perangkat handphone <strong>PIHAK KEDUA</strong> disaksikan oleh pegawai BPS {{ $bast->lokasi_kegiatan }} yang ditunjuk oleh <strong>PIHAK PERTAMA.</strong>
             </li>
             @endif
-            <li style="margin: 6px 0; text-align: justify;">
-                Untuk hasil {{ $kegiatanText }}sebagaimana dimaksud pada angka 4 yang memerlukan pemeriksaan lanjutan, akan dilakukan pengecekan, perubahan, dan/atau kunjungan kembali ke lapangan merujuk pada perjanjian yang ditandatangani oleh <strong>PARA PIHAK</strong>.
-            </li>
+            
             @endif
             </ol>
         </div>
@@ -467,6 +512,25 @@
         </div>
     </div>
     @endif
-</body>
 
+    <script type="text/php">
+        if (isset($pdf) && isset($fontMetrics)) {
+            $pdf->page_script(function ($pageNumber, $pageCount, $canvas, $fontMetrics) {
+                if ($pageNumber <= 1) {
+                    return;
+                }
+
+                $topMargin = 56.69; // 2 cm
+                $font = $fontMetrics->get_font('Bookman Old Style', 'normal');
+                $size = 11;
+                $text = '-' . $pageNumber . '-';
+                $textWidth = $fontMetrics->getTextWidth($text, $font, $size);
+                $x = ($canvas->get_width() - $textWidth) / 2;
+                $y = $topMargin / 2;
+
+                $canvas->text($x, $y, $text, $font, $size);
+            });
+        }
+    </script>
+</body>
 </html>

@@ -39,7 +39,7 @@
         body {
             font-family: 'Bookman Old Style', 'Times New Roman', serif;
             font-size: 11pt;
-            line-height: 1.6;
+            line-height: 1.15;
             color: #000;
             margin: 2cm 2.5cm 2cm 2.5cm;
         }
@@ -51,7 +51,7 @@
         .lampiran-title {
             text-align: left;
             margin-left: 60%;
-            line-height: 1.4;
+            line-height: 1.15;
             font-size: 10pt;
         }
 
@@ -65,7 +65,7 @@
             width: 100%;
             border-collapse: collapse;
             margin: 15px 0;
-            font-size: 9pt;
+            font-size: 11pt;
         }
 
         table th,

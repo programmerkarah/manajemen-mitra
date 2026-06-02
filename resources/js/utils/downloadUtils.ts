@@ -518,9 +518,53 @@ export const previewFileFromPost = async (
                 if (xhr.status >= 200 && xhr.status < 300) {
                     resolve(xhr.response as Blob);
                 } else {
-                    reject(
-                        new Error(`Server mengembalikan status ${xhr.status}.`),
-                    );
+                    const fallbackMessage = `Server mengembalikan status ${xhr.status}.`;
+                    const responseBlob = xhr.response;
+
+                    if (responseBlob instanceof Blob) {
+                        responseBlob
+                            .text()
+                            .then((rawText) => {
+                                let errorMessage = fallbackMessage;
+
+                                try {
+                                    const parsed = JSON.parse(rawText) as {
+                                        message?: string;
+                                        errors?: Record<string, string[]>;
+                                    };
+
+                                    if (
+                                        parsed.message &&
+                                        parsed.message.trim() !== ''
+                                    ) {
+                                        errorMessage = parsed.message;
+                                    } else if (parsed.errors) {
+                                        const firstFieldError = Object.values(
+                                            parsed.errors,
+                                        )
+                                            .flat()
+                                            .find(
+                                                (value) =>
+                                                    typeof value === 'string' &&
+                                                    value.trim() !== '',
+                                            );
+
+                                        if (firstFieldError) {
+                                            errorMessage = firstFieldError;
+                                        }
+                                    }
+                                } catch {
+                                    // Keep fallback when response is not JSON.
+                                }
+
+                                reject(new Error(errorMessage));
+                            })
+                            .catch(() => reject(new Error(fallbackMessage)));
+
+                        return;
+                    }
+
+                    reject(new Error(fallbackMessage));
                 }
             };
 

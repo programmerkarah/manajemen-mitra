@@ -36,6 +36,8 @@ interface IndexProps {
         search?: string;
     };
     active_year: number;
+    mode?: 'regular' | 'sensus-ekonomi';
+    can_access_sensus_mode?: boolean;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'BAST', href: '/bast' }];
@@ -46,7 +48,12 @@ type SummaryModalType =
     | 'completed'
     | 'without_spk';
 
-export default function Index({ data, active_year }: IndexProps) {
+export default function Index({
+    data,
+    active_year,
+    mode = 'regular',
+    can_access_sensus_mode = false,
+}: IndexProps) {
     const { auth } = usePage<SharedData>().props;
     const decryptedData = useDecryptedData<PeriodeData>(data.encrypted);
     const [summaryModalOpen, setSummaryModalOpen] = useState(false);
@@ -102,7 +109,7 @@ export default function Index({ data, active_year }: IndexProps) {
     };
 
     const openDetailByPeriod = (bulan: number, tahun: number) => {
-        const state = encryptFilters({ bulan, tahun });
+        const state = encryptFilters({ bulan, tahun, mode });
 
         router.get('/bast/open-detail', {
             state,
@@ -121,7 +128,36 @@ export default function Index({ data, active_year }: IndexProps) {
                 <PageHeader
                     title="Berita Acara Serah Terima (BAST)"
                     description={`Kelola BAST hasil pekerjaan petugas tahun ${active_year}`}
-                />
+                >
+                    {can_access_sensus_mode && (
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant={
+                                    mode === 'regular' ? 'default' : 'outline'
+                                }
+                                onClick={() =>
+                                    router.get('/bast', { mode: 'regular' })
+                                }
+                            >
+                                BAST Reguler
+                            </Button>
+                            <Button
+                                variant={
+                                    mode === 'sensus-ekonomi'
+                                        ? 'default'
+                                        : 'outline'
+                                }
+                                onClick={() =>
+                                    router.get('/bast', {
+                                        mode: 'sensus-ekonomi',
+                                    })
+                                }
+                            >
+                                BAST Sensus Ekonomi
+                            </Button>
+                        </div>
+                    )}
+                </PageHeader>
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <button
@@ -287,7 +323,7 @@ export default function Index({ data, active_year }: IndexProps) {
                                                             asChild
                                                         >
                                                             <Link
-                                                                href={`/bast/create?bulan=${item.bulan}&tahun=${item.tahun}`}
+                                                                href={`/bast/create?bulan=${item.bulan}&tahun=${item.tahun}&mode=${mode}`}
                                                             >
                                                                 <Plus className="mr-1 h-4 w-4" />
                                                                 Generate BAST
@@ -388,7 +424,7 @@ export default function Index({ data, active_year }: IndexProps) {
                                                 !item.all_completed && (
                                                     <Button size="sm" asChild>
                                                         <Link
-                                                            href={`/bast/create?bulan=${item.bulan}&tahun=${item.tahun}`}
+                                                            href={`/bast/create?bulan=${item.bulan}&tahun=${item.tahun}&mode=${mode}`}
                                                         >
                                                             <Plus className="h-3.5 w-3.5" />
                                                         </Link>

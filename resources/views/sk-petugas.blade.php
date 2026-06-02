@@ -44,8 +44,8 @@
             margin: 0;
             padding: 0;
             font-family: 'Bookman Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
-            font-size: 12pt;
-            line-height: 1.5;
+            font-size: 11pt;
+            line-height: 1.15;
         }
 
         .header {
@@ -58,7 +58,7 @@
         .header h3 {
             margin: 0;
             font-weight: bold;
-            line-height: 1;
+            line-height: 1.15;
         }
 
         /* Make images block-level to remove the inline baseline gap below images in printed output */
@@ -72,7 +72,7 @@
             display: block;
             margin: 0;
             padding: 0;
-            line-height: 1;
+            line-height: 1.15;
         }
 
         .title {

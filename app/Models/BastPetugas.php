@@ -18,6 +18,10 @@ class BastPetugas extends Model
         'spk_id',
         'nomor_spk',
         'nama_petugas',
+        'muatan_input',
+        'muatan_prelist',
+        'realisasi_unit_sampel',
+        'fasih_screenshot_path',
         'hasil_listing',
         'satuan_listing',
         'hasil_pendataan_lapangan',
@@ -30,6 +34,9 @@ class BastPetugas extends Model
     protected function casts(): array
     {
         return [
+            'muatan_input' => 'integer',
+            'muatan_prelist' => 'integer',
+            'realisasi_unit_sampel' => 'array',
             'hasil_listing' => 'integer',
             'hasil_pendataan_lapangan' => 'integer',
             'hasil_pengolahan' => 'integer',

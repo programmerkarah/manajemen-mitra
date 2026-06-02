@@ -625,6 +625,8 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('bast/generate-batch', [BastController::class, 'generateBatch'])->name('bast.generate-batch');
         Route::post('bast/preview-bast', [BastController::class, 'previewForSpk'])->name('bast.preview-bast');
         Route::get('bast/download-all', [BastController::class, 'downloadAll'])->name('bast.download-all');
+        Route::get('bast/template/sensus-realisasi', [BastController::class, 'downloadSensusRealisasiTemplate'])->name('bast.template.sensus-realisasi');
+        Route::post('bast/import/sensus-realisasi', [BastController::class, 'importSensusRealisasi'])->name('bast.import-sensus-realisasi');
         Route::get('bast/kegiatan/{kegiatan}/create', [BastController::class, 'createForKegiatan'])->name('bast.create-for-kegiatan');
         Route::post('bast/preview', [BastController::class, 'preview'])->name('bast.preview');
         Route::post('bast', [BastController::class, 'store'])->name('bast.store');
@@ -633,12 +635,17 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('bast/{bast}/upload-signed', [BastController::class, 'uploadSigned'])
             ->where('bast', '[A-Za-z0-9]+')
             ->name('bast.upload-signed');
+        Route::post('bast/{bast}/upload-fasih-screenshot', [BastController::class, 'uploadFasihScreenshot'])
+            ->where('bast', '[A-Za-z0-9]+')
+            ->name('bast.upload-fasih-screenshot');
         Route::put('bast/{bast}', [BastController::class, 'update'])->name('bast.update');
         Route::patch('bast/{bast}', [BastController::class, 'update']);
         Route::delete('bast/{bast}', [BastController::class, 'destroy'])->name('bast.destroy');
     });
 
     Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
+        Route::post('bast/sensus-reference', [BastController::class, 'saveSensusReference'])->name('bast.sensus-reference.save');
+        Route::post('bast/sensus-reference/upload-fasih-screenshot', [BastController::class, 'uploadSharedSensusFasihScreenshot'])->name('bast.sensus-reference.upload-fasih-screenshot');
         Route::match(['get', 'post'], 'bast/open-detail', [BastController::class, 'openDetailByPetugas'])
             ->name('bast.open-detail-by-petugas');
         Route::post('bast/lampiran-action/preview', [BastController::class, 'previewLampiranByReference'])
@@ -647,6 +654,8 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
             ->name('bast.lampiran.download');
         Route::post('bast/lampiran-action/upload-signed', [BastController::class, 'uploadLampiranSignedByReference'])
             ->name('bast.lampiran.upload-signed');
+        Route::post('bast/lampiran-action/upload-fasih-screenshot', [BastController::class, 'uploadLampiranFasihScreenshotByReference'])
+            ->name('bast.lampiran.upload-fasih-screenshot');
         Route::get('bast/{bast}/download', [BastController::class, 'downloadPdf'])->name('bast.download');
         Route::get('bast/{bast}/download-signed', [BastController::class, 'downloadSignedPdf'])->name('bast.download-signed');
         Route::get('bast/{bast}/download-compiled', [BastController::class, 'downloadCompiledBast'])->name('bast.download-compiled');

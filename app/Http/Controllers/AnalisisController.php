@@ -120,14 +120,14 @@ class AnalisisController extends Controller
         $alokasiPerBulan = [];
         for ($bulan = 1; $bulan <= 12; $bulan++) {
             $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+            $bulanCandidates = $this->resolveBulanCandidates($bulanFormatted);
 
             $jumlahPetugas = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
-                ->where('periode_alokasi.bulan', $bulanFormatted)
+                ->whereIn('periode_alokasi.bulan', $bulanCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
-                ->where('petugas.jenis_petugas', 'non-organik')
-                ->whereRaw($this->nonZeroHonorClause().' > 0');
+                ->whereRaw($this->allocationOrHonorExistsClause());
             $this->applyEffectivePeriode($jumlahPetugas);
             $jumlahPetugas = $jumlahPetugas->distinct('alokasi_petugas.petugas_id')
                 ->count('alokasi_petugas.petugas_id');
@@ -135,10 +135,9 @@ class AnalisisController extends Controller
             $jumlahKegiatan = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
-                ->where('periode_alokasi.bulan', $bulanFormatted)
+                ->whereIn('periode_alokasi.bulan', $bulanCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
-                ->where('petugas.jenis_petugas', 'non-organik')
-                ->whereRaw($this->nonZeroHonorClause().' > 0');
+                ->whereRaw($this->allocationOrHonorExistsClause());
             $this->applyEffectivePeriode($jumlahKegiatan);
             $jumlahKegiatan = $jumlahKegiatan->distinct('periode_alokasi.kegiatan_id')
                 ->count('periode_alokasi.kegiatan_id');
@@ -157,7 +156,7 @@ class AnalisisController extends Controller
             ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
             ->where('periode_alokasi.tahun', $currentYear)
             ->where('petugas.jenis_petugas', 'non-organik')
-            ->whereRaw($this->nonZeroHonorClause().' > 0');
+            ->whereRaw($this->allocationOrHonorExistsClause());
         $this->applyEffectivePeriode($petugasKegiatan);
         $petugasKegiatan = $petugasKegiatan->select(
             'petugas.id as petugas_id',
@@ -192,7 +191,7 @@ class AnalisisController extends Controller
             ->where('periode_alokasi.tahun', $currentYear)
             ->where('petugas.jenis_petugas', 'non-organik')
             ->whereNotIn('kegiatan.status', ['dibatalkan'])
-            ->whereRaw($this->nonZeroHonorClause().' > 0');
+            ->whereRaw($this->allocationOrHonorExistsClause());
         $this->applyEffectivePeriode($kegiatanList);
         $kegiatanList = $kegiatanList
             ->select(
@@ -208,9 +207,9 @@ class AnalisisController extends Controller
         $petugasAlokasiRaw = DB::table('alokasi_petugas')
             ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
             ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+            ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
             ->where('periode_alokasi.tahun', $currentYear)
-            ->where('petugas.jenis_petugas', 'non-organik')
-            ->whereRaw($this->nonZeroHonorClause().' > 0');
+            ->whereRaw($this->allocationOrHonorExistsClause());
         $this->applyEffectivePeriode($petugasAlokasiRaw);
         $petugasAlokasiRaw = $petugasAlokasiRaw->select(
             'petugas.id as petugas_id',
@@ -218,7 +217,11 @@ class AnalisisController extends Controller
             'periode_alokasi.bulan',
         )
             ->selectRaw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as jumlah_kegiatan')
-            ->selectRaw('COALESCE(SUM(alokasi_petugas.total_honor), 0) + COALESCE(SUM(alokasi_petugas.total_honor_listing), 0) as total_honor')
+            ->selectRaw("COALESCE(SUM(CASE
+                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.2
+                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) IN (7, 8) THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
+                ELSE COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)
+            END), 0) as total_honor")
             ->groupBy('petugas.id', 'petugas.nama', 'periode_alokasi.bulan')
             ->get();
 
@@ -261,7 +264,7 @@ class AnalisisController extends Controller
             ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
             ->where('periode_alokasi.tahun', $currentYear)
             ->where('petugas.jenis_petugas', 'non-organik')
-            ->whereRaw($this->nonZeroHonorClause().' > 0')
+            ->whereRaw($this->allocationOrHonorExistsClause())
             ->whereRaw('TIMESTAMPDIFF(MONTH, kegiatan.tanggal_mulai, kegiatan.tanggal_selesai) > 2');
         $this->applyEffectivePeriode($petugasRutinRaw);
         $petugasRutinRaw = $petugasRutinRaw
@@ -381,25 +384,30 @@ class AnalisisController extends Controller
             ->select('petugas.id as petugas_id')
             ->selectRaw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as jumlah_kegiatan')
             ->selectRaw("COUNT(DISTINCT CONCAT(periode_alokasi.kegiatan_id, '-', CAST(periode_alokasi.bulan AS UNSIGNED))) as jumlah_alokasi")
+            ->selectRaw('COUNT(DISTINCT CAST(periode_alokasi.bulan AS UNSIGNED)) as jumlah_bulan_dialokasikan')
             ->groupBy('petugas.id')
             ->get()
             ->keyBy('petugas_id');
 
         $bebanKerjaDetail = $petugasOrganikAktif
-            ->map(function ($petugas) use ($alokasiPerPetugas, $currentMonth) {
+            ->map(function ($petugas) use ($alokasiPerPetugas) {
                 $stat = $alokasiPerPetugas->get($petugas->id);
                 $jumlahKegiatan = $stat ? (int) $stat->jumlah_kegiatan : 0;
                 $jumlahAlokasi = $stat ? (int) $stat->jumlah_alokasi : 0;
-                $rataRataKegiatanPerBulan = $currentMonth > 0 ? $jumlahKegiatan / $currentMonth : 0;
+                $jumlahBulanDialokasikan = $stat ? (int) $stat->jumlah_bulan_dialokasikan : 0;
+                $rataRataKegiatanPerBulan = $jumlahBulanDialokasikan > 0 ? $jumlahAlokasi / $jumlahBulanDialokasikan : 0;
 
-                $performanceStatus = 'optimal';
-                $performanceLabel = 'Optimal';
-                if ($rataRataKegiatanPerBulan > 5) {
+                $performanceStatus = 'under_performance';
+                $performanceLabel = 'Under Performance';
+                if ($rataRataKegiatanPerBulan > 3) {
                     $performanceStatus = 'overload';
                     $performanceLabel = 'Overload';
-                } elseif ($rataRataKegiatanPerBulan < 2) {
-                    $performanceStatus = 'under_performance';
-                    $performanceLabel = 'Under Performance';
+                } elseif (abs($rataRataKegiatanPerBulan - 1) < 0.00001) {
+                    $performanceStatus = 'normal';
+                    $performanceLabel = 'Normal';
+                } elseif ($rataRataKegiatanPerBulan > 1 && $rataRataKegiatanPerBulan <= 3) {
+                    $performanceStatus = 'optimal';
+                    $performanceLabel = 'Optimal';
                 }
 
                 return [
@@ -429,11 +437,12 @@ class AnalisisController extends Controller
         $trenBebanKerja = [];
         for ($bulan = 1; $bulan <= $currentMonth; $bulan++) {
             $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+            $bulanCandidates = $this->resolveBulanCandidates($bulanFormatted);
 
             $data = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
-                ->where('periode_alokasi.bulan', $bulanFormatted)
+                ->whereIn('periode_alokasi.bulan', $bulanCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->whereIn('periode_alokasi.status', $activeStatuses)
                 ->where('petugas.jenis_petugas', 'organik');
@@ -687,18 +696,23 @@ class AnalisisController extends Controller
         $trenAlokasi = [];
         for ($bulan = 1; $bulan <= 12; $bulan++) {
             $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+            $bulanCandidates = $this->resolveBulanCandidates($bulanFormatted);
 
             $data = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
-                ->where('periode_alokasi.bulan', $bulanFormatted)
+                ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
+                ->whereIn('periode_alokasi.bulan', $bulanCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
-                ->where('petugas.jenis_petugas', 'non-organik')
                 ->whereRaw($this->nonZeroHonorClause().' > 0');
             $this->applyEffectivePeriode($data);
             $data = $data
                 ->selectRaw('COUNT(DISTINCT alokasi_petugas.petugas_id) as jumlah_petugas')
-                ->selectRaw('COALESCE(SUM(alokasi_petugas.total_honor), 0) + COALESCE(SUM(alokasi_petugas.total_honor_listing), 0) as total_honor')
+                ->selectRaw("COALESCE(SUM(CASE
+                    WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.2
+                    WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) IN (7, 8) THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
+                    ELSE COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)
+                END), 0) as total_honor")
                 ->selectRaw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as total_kegiatan')
                 ->first();
 
@@ -718,8 +732,41 @@ class AnalisisController extends Controller
         ]);
     }
 
+    private function calculateSensusWeightedHonor(int $bulan, float|int $baseHonor, ?string $jenisKegiatan): float
+    {
+        if ($jenisKegiatan !== 'sensus') {
+            return (float) $baseHonor;
+        }
+
+        return match ($bulan) {
+            6 => (float) $baseHonor * 0.2,
+            7, 8 => (float) $baseHonor * 0.4,
+            default => 0.0,
+        };
+    }
+
     private function nonZeroHonorClause(): string
     {
         return '(COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0))';
+    }
+
+    private function allocationOrHonorExistsClause(): string
+    {
+        return '(
+            COALESCE(alokasi_petugas.jumlah_satuan, 0) > 0
+            OR COALESCE(alokasi_petugas.jumlah_satuan_listing, 0) > 0
+            OR COALESCE(alokasi_petugas.total_honor, 0) > 0
+            OR COALESCE(alokasi_petugas.total_honor_listing, 0) > 0
+        )';
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function resolveBulanCandidates(string $bulan): array
+    {
+        $normalizedBulan = str_pad((string) ((int) $bulan), 2, '0', STR_PAD_LEFT);
+
+        return array_values(array_unique([$bulan, (string) ((int) $bulan), $normalizedBulan]));
     }
 }

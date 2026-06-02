@@ -2,29 +2,38 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\BastSensusRealisasiTemplateExport;
+use App\Imports\BastSensusRealisasiImport as BastSensusRealisasiSpreadsheetImport;
 use App\Models\ActivityLog;
 use App\Models\AlokasiPetugas;
 use App\Models\Bast;
 use App\Models\BastKegiatan;
 use App\Models\BastNumberAllocation;
 use App\Models\BastPetugas;
+use App\Models\BastSensusRealisasiImport;
 use App\Models\Kegiatan;
+use App\Models\MasterUnitSampel;
 use App\Models\Penandatangan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\Spk;
+use App\Models\User;
 use App\Services\ActiveYearService;
 use App\Services\PdfMergerService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use DateTimeInterface;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Facades\Excel;
 use setasign\Fpdi\PdfParser\StreamReader;
 use setasign\Fpdi\Tcpdf\Fpdi;
 
@@ -35,9 +44,425 @@ class BastController extends Controller
 
     private const PENGOLAHAN_ROLES = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'];
 
+    private function supportsSensusPetugasColumns(): bool
+    {
+        return Schema::hasColumn('bast_petugas', 'muatan_input')
+            && Schema::hasColumn('bast_petugas', 'muatan_prelist')
+            && Schema::hasColumn('bast_petugas', 'realisasi_unit_sampel')
+            && Schema::hasColumn('bast_petugas', 'fasih_screenshot_path');
+    }
+
+    private function supportsSensusReferenceColumns(): bool
+    {
+        return Schema::hasTable('bast_sensus_realisasi_imports')
+            && Schema::hasColumn('bast_sensus_realisasi_imports', 'realisasi_unit_sampel');
+    }
+
+    private function supportsSensusReferenceScreenshotColumns(): bool
+    {
+        return $this->supportsSensusReferenceColumns()
+            && Schema::hasColumn('bast_sensus_realisasi_imports', 'fasih_screenshot_path')
+            && Schema::hasColumn('bast_sensus_realisasi_imports', 'fasih_screenshot_uploaded_at');
+    }
+
+    private function supportsLampiranFasihScreenshotColumns(): bool
+    {
+        return Schema::hasColumn('bast_kegiatan', 'fasih_screenshot_path')
+            && Schema::hasColumn('bast_kegiatan', 'fasih_screenshot_uploaded_at');
+    }
+
+    private function shouldUseLampiranFasihScreenshot(?string $kegiatanName, ?string $peran): bool
+    {
+        if (! $this->isSensusEkonomiName($kegiatanName)) {
+            return false;
+        }
+
+        return in_array((string) $peran, self::PENDATAAN_ROLES, true);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $kegiatanList
+     * @param  iterable<int, BastKegiatan>  $records
+     * @return array<int, array<string, mixed>>
+     */
+    private function mergeLampiranScreenshotPathsIntoKegiatanList(array $kegiatanList, iterable $records): array
+    {
+        if (! $this->supportsLampiranFasihScreenshotColumns() || empty($kegiatanList)) {
+            return $kegiatanList;
+        }
+
+        $recordMap = collect($records)
+            ->filter(fn ($record) => $record instanceof BastKegiatan)
+            ->keyBy(fn (BastKegiatan $record) => $this->makeBastKegiatanKey((int) $record->kegiatan_id, (int) $record->periode_alokasi_id));
+
+        return collect($kegiatanList)
+            ->map(function (array $item) use ($recordMap) {
+                $record = $recordMap->get(
+                    $this->makeBastKegiatanKey((int) ($item['kegiatan_id'] ?? 0), (int) ($item['periode_alokasi_id'] ?? 0))
+                );
+
+                if ($record) {
+                    $item['fasih_screenshot_path'] = $record->fasih_screenshot_path;
+                }
+
+                return $item;
+            })
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $kegiatanList
+     * @return array<int, array<string, mixed>>
+     */
+    private function mergeSharedSensusScreenshotIntoKegiatanList(array $kegiatanList, ?string $fasihScreenshotPath): array
+    {
+        if (empty($kegiatanList)) {
+            return $kegiatanList;
+        }
+
+        return collect($kegiatanList)
+            ->map(function (array $item) use ($fasihScreenshotPath) {
+                if ($this->shouldUseLampiranFasihScreenshot($item['nama_kegiatan'] ?? null, $item['peran'] ?? null)) {
+                    $item['fasih_screenshot_path'] = $fasihScreenshotPath;
+                }
+
+                return $item;
+            })
+            ->all();
+    }
+
     private function getRequestUser(Request $request)
     {
         return effectiveUser($request) ?? $request->user();
+    }
+
+    /**
+     * @param  array<string, mixed>  $values
+     * @return array<string, int>
+     */
+    private function normalizeRealisasiUnitSampelValues(array $values): array
+    {
+        return collect($values)
+            ->filter(fn ($value, $key) => ($key !== null && $key !== '') && $value !== null && $value !== '')
+            ->mapWithKeys(function ($value, $key): array {
+                if (! is_numeric($value)) {
+                    return [];
+                }
+
+                return [
+                    (string) $key => max(0, (int) round((float) $value)),
+                ];
+            })
+            ->all();
+    }
+
+    private function sumRealisasiUnitSampelValues(array $values): ?int
+    {
+        if ($values === []) {
+            return null;
+        }
+
+        return (int) array_sum($values);
+    }
+
+    /**
+     * @return Collection<int, array{id:int, nama:string}>
+     */
+    private function getUnitSampelPencacahanItemsForSpk(?Spk $spk): Collection
+    {
+        if (! $spk?->alokasiPetugas) {
+            return collect();
+        }
+
+        $spk->loadMissing('alokasiPetugas.periodeAlokasi.kegiatan');
+
+        $alokasiPetugasIds = collect($spk->alokasi_petugas_ids)
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->values();
+
+        $kegiatan = collect([$spk->alokasiPetugas?->periodeAlokasi?->kegiatan])
+            ->filter();
+
+        if ($alokasiPetugasIds->isNotEmpty()) {
+            $kegiatan = $kegiatan->merge(
+                AlokasiPetugas::query()
+                    ->with('periodeAlokasi.kegiatan')
+                    ->whereIn('id', $alokasiPetugasIds->all())
+                    ->get()
+                    ->map(fn (AlokasiPetugas $alokasi) => $alokasi->periodeAlokasi?->kegiatan)
+                    ->filter()
+            );
+        }
+
+        return $kegiatan
+            ->unique('id')
+            ->flatMap(function (Kegiatan $kegiatan) {
+                return $kegiatan->unitSampelPencacahanItems()
+                    ->map(fn ($unit) => ['id' => (int) $unit->id, 'nama' => (string) $unit->nama])
+                    ->values();
+            })
+            ->unique('id')
+            ->values();
+    }
+
+    private function upsertSensusReferenceRecord(
+        Spk $spk,
+        int $bulan,
+        int $tahun,
+        array $realisasiUnitSampel,
+        ?Request $request = null,
+        ?string $fasihScreenshotPath = null,
+        ?Carbon $fasihScreenshotUploadedAt = null,
+    ): BastSensusRealisasiImport {
+        $record = BastSensusRealisasiImport::query()->firstOrNew([
+            'spk_id' => (int) $spk->id,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+        ]);
+
+        $petugas = $spk->alokasiPetugas?->petugas;
+        $normalizedRealisasi = $this->normalizeRealisasiUnitSampelValues($realisasiUnitSampel);
+
+        $record->fill([
+            'petugas_id' => $petugas?->id,
+            'nomor_spk' => (string) $spk->nomor_spk,
+            'nik_petugas' => (string) ($petugas?->nik ?? ''),
+            'nama_petugas' => (string) ($petugas?->nama ?? ''),
+            'realisasi_keluarga' => isset($normalizedRealisasi['keluarga']) ? (int) $normalizedRealisasi['keluarga'] : null,
+            'realisasi_usaha' => isset($normalizedRealisasi['usaha']) ? (int) $normalizedRealisasi['usaha'] : null,
+            'realisasi_unit_sampel' => $normalizedRealisasi,
+        ]);
+
+        if ($request) {
+            $record->fill([
+                'imported_by' => $this->getRequestUser($request)?->id,
+                'imported_at' => now(),
+            ]);
+        }
+
+        if ($this->supportsSensusReferenceScreenshotColumns()) {
+            if ($fasihScreenshotPath !== null) {
+                $record->fasih_screenshot_path = $fasihScreenshotPath;
+            }
+
+            if ($fasihScreenshotUploadedAt !== null) {
+                $record->fasih_screenshot_uploaded_at = $fasihScreenshotUploadedAt;
+            }
+        }
+
+        $record->save();
+
+        return $record;
+    }
+
+    private function syncSensusReferenceToBastPetugas(Bast $bast, Spk $spk, array $realisasiUnitSampel, ?string $fasihScreenshotPath = null): void
+    {
+        if (! $this->supportsSensusPetugasColumns()) {
+            return;
+        }
+
+        $bastPetugas = BastPetugas::query()
+            ->where('bast_id', $bast->id)
+            ->where('spk_id', $spk->id)
+            ->first();
+
+        if (! $bastPetugas) {
+            return;
+        }
+
+        $payload = [
+            'muatan_input' => $this->sumRealisasiUnitSampelValues($realisasiUnitSampel),
+            'realisasi_unit_sampel' => $this->normalizeRealisasiUnitSampelValues($realisasiUnitSampel),
+        ];
+
+        if ($fasihScreenshotPath !== null) {
+            $payload['fasih_screenshot_path'] = $fasihScreenshotPath;
+        }
+
+        $bastPetugas->update($payload);
+    }
+
+    private function ensureSensusReferenceRecord(
+        Spk $spk,
+        int $bulan,
+        int $tahun,
+        ?BastPetugas $bastPetugas = null,
+    ): ?BastSensusRealisasiImport {
+        if (! $this->supportsSensusReferenceColumns()) {
+            return null;
+        }
+
+        $record = BastSensusRealisasiImport::query()
+            ->where('spk_id', (int) $spk->id)
+            ->where('bulan', $bulan)
+            ->where('tahun', $tahun)
+            ->first();
+
+        if (! $bastPetugas) {
+            return $record;
+        }
+
+        $needsSync = ! $record
+            || empty($record->realisasi_unit_sampel)
+            || (
+                $this->supportsSensusReferenceScreenshotColumns()
+                && blank($record->fasih_screenshot_path)
+                && filled($bastPetugas->fasih_screenshot_path)
+            );
+
+        if (! $needsSync) {
+            return $record;
+        }
+
+        return $this->upsertSensusReferenceRecord(
+            $spk,
+            $bulan,
+            $tahun,
+            is_array($bastPetugas->realisasi_unit_sampel) ? $bastPetugas->realisasi_unit_sampel : [],
+            null,
+            $this->supportsSensusReferenceScreenshotColumns()
+                ? ($record?->fasih_screenshot_path ?: $bastPetugas->fasih_screenshot_path)
+                : null,
+            $record?->fasih_screenshot_uploaded_at,
+        );
+    }
+
+    private function buildSensusReferencePayload(?Spk $spk, int $bulan, int $tahun, ?BastPetugas $bastPetugas = null): ?array
+    {
+        if (! $spk || ! $this->supportsSensusReferenceColumns()) {
+            return null;
+        }
+
+        $this->ensureSensusReferenceRecord($spk, $bulan, $tahun, $bastPetugas);
+
+        $persisted = $this->getPersistedSensusRealisasiInputs(collect([$spk]), $bulan, $tahun)[(int) $spk->id] ?? [];
+        $realisasiUnitSampel = $persisted['realisasi_unit_sampel'] ?? [];
+        $fasihScreenshotPath = $persisted['fasih_screenshot_path'] ?? null;
+        $fasihScreenshotUploadedAt = $persisted['fasih_screenshot_uploaded_at'] ?? null;
+        $muatanPrelistKeluarga = (int) ($spk->muatan_prelist_keluarga_default ?? 0);
+        $muatanPrelistUsaha = (int) ($spk->muatan_prelist_usaha_default ?? 0);
+
+        // Keep prelist target parity with Create page by prioritizing
+        // frame/allocation-based breakdown for the petugas in the same year.
+        $petugasId = (int) ($spk->alokasiPetugas?->petugas_id ?? 0);
+        if ($petugasId > 0) {
+            $allSensusAlokasi = $this->getSensusEkonomiAlokasiForPetugasInYear($petugasId, $tahun);
+            if ($allSensusAlokasi->isNotEmpty()) {
+                $prelistBreakdown = $this->calculateSensusPrelistBreakdown($allSensusAlokasi);
+
+                $muatanPrelistKeluarga = (int) ($prelistBreakdown['keluarga'] ?? $muatanPrelistKeluarga);
+                $muatanPrelistUsaha = (int) ($prelistBreakdown['usaha'] ?? $muatanPrelistUsaha);
+            }
+        }
+
+        $unitItems = $this->getUnitSampelPencacahanItemsForSpk($spk);
+
+        if ($unitItems->isEmpty()) {
+            $fallbackUnitKeys = collect(array_keys(is_array($realisasiUnitSampel) ? $realisasiUnitSampel : []))
+                ->map(fn ($key) => trim((string) $key))
+                ->filter(fn (string $key) => $key !== '')
+                ->values();
+
+            if ($fallbackUnitKeys->isEmpty()) {
+                $fallbackUnitKeys = collect(['keluarga', 'usaha']);
+            }
+
+            if ($muatanPrelistKeluarga > 0 && ! $fallbackUnitKeys->contains(fn (string $key) => str_contains($key, 'keluarga') || str_contains($key, 'rumah_tangga'))) {
+                $fallbackUnitKeys->push('keluarga');
+            }
+
+            if ($muatanPrelistUsaha > 0 && ! $fallbackUnitKeys->contains(fn (string $key) => str_contains($key, 'usaha'))) {
+                $fallbackUnitKeys->push('usaha');
+            }
+
+            $unitItems = $fallbackUnitKeys
+                ->unique()
+                ->values()
+                ->map(function (string $unitKey, int $index): array {
+                    $label = str_replace('_', ' ', $unitKey);
+
+                    return [
+                        'id' => $index + 1,
+                        'nama' => ucwords($label),
+                    ];
+                });
+        }
+
+        $muatanPrelistByUnit = $unitItems
+            ->mapWithKeys(function (array $unit) use ($muatanPrelistKeluarga, $muatanPrelistUsaha): array {
+                $unitName = mb_strtolower(trim((string) ($unit['nama'] ?? '')));
+                $unitKey = preg_replace('/\s+/', '_', $unitName ?? '') ?? '';
+
+                if ($unitKey === '') {
+                    return [];
+                }
+
+                if (str_contains($unitKey, 'usaha')) {
+                    return [$unitKey => $muatanPrelistUsaha];
+                }
+
+                if (str_contains($unitKey, 'keluarga') || str_contains($unitKey, 'rumah_tangga')) {
+                    return [$unitKey => $muatanPrelistKeluarga];
+                }
+
+                return [$unitKey => null];
+            })
+            ->all();
+
+        return [
+            'spk_id' => (int) $spk->id,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'unit_sampel_pencacahan_items' => $unitItems->all(),
+            'realisasi_unit_sampel' => $realisasiUnitSampel,
+            'muatan_input' => $this->sumRealisasiUnitSampelValues($realisasiUnitSampel),
+            'muatan_prelist' => $bastPetugas?->muatan_prelist
+                ?? ($muatanPrelistKeluarga + $muatanPrelistUsaha),
+            'muatan_prelist_unit_sampel' => $muatanPrelistByUnit,
+            'fasih_screenshot_path' => $fasihScreenshotPath,
+            'fasih_screenshot_uploaded_at' => $fasihScreenshotUploadedAt,
+        ];
+    }
+
+    /**
+     * @return array{bulan:int,tahun:int,bulan_label:string}
+     */
+    private function resolveBastDetailReferencePeriod(Request $request, Bast $bast): array
+    {
+        $requestedBulan = (int) $request->input('bulan', 0);
+        $requestedTahun = (int) $request->input('tahun', 0);
+
+        if ($requestedBulan >= 1 && $requestedBulan <= 12 && $requestedTahun >= 2000) {
+            return [
+                'bulan' => $requestedBulan,
+                'tahun' => $requestedTahun,
+                'bulan_label' => $this->getBulanLabel($requestedBulan),
+            ];
+        }
+
+        $sessionFilters = $request->session()->get('bast_open_detail_filters');
+        if (
+            is_array($sessionFilters)
+            && isset($sessionFilters['bulan'], $sessionFilters['tahun'])
+            && (int) $sessionFilters['bulan'] >= 1
+            && (int) $sessionFilters['bulan'] <= 12
+            && (int) $sessionFilters['tahun'] >= 2000
+        ) {
+            return [
+                'bulan' => (int) $sessionFilters['bulan'],
+                'tahun' => (int) $sessionFilters['tahun'],
+                'bulan_label' => $this->getBulanLabel((int) $sessionFilters['bulan']),
+            ];
+        }
+
+        $periode = $bast->periodeAlokasi;
+
+        return [
+            'bulan' => (int) $periode->bulan,
+            'tahun' => (int) $periode->tahun,
+            'bulan_label' => $this->getBulanLabel((int) $periode->bulan),
+        ];
     }
 
     private function resolveBastFromHashedId(string $hashedId): ?Bast
@@ -229,7 +654,61 @@ class BastController extends Controller
             return (int) $matches[1];
         }
 
+        if (preg_match('/B-(\d{3})\/BAST-SE2026\/1373\/PL\.200\/2026/', $nomorBast, $matches)) {
+            return (int) $matches[1];
+        }
+
         return 0;
+    }
+
+    private function extractBastSequenceForScheme(?string $nomorBast, bool $isSensusEkonomi): int
+    {
+        if (! $nomorBast) {
+            return 0;
+        }
+
+        if ($isSensusEkonomi) {
+            if (preg_match('/B-(\d{3})\/BAST-SE2026\/1373\/PL\.200\/2026/', $nomorBast, $matches)) {
+                return (int) $matches[1];
+            }
+
+            return 0;
+        }
+
+        if (preg_match('/PPIS\/13730\/(\d+)\/BAST\/\d{4}/', $nomorBast, $matches)) {
+            return (int) $matches[1];
+        }
+
+        return 0;
+    }
+
+    private function isSensusEkonomiName(?string $name): bool
+    {
+        if (! $name) {
+            return false;
+        }
+
+        $normalized = mb_strtolower($name);
+
+        return str_contains($normalized, 'sensus ekonomi');
+    }
+
+    private function isSensusEkonomiSpk(Spk $spk): bool
+    {
+        $spk->loadMissing('alokasiPetugas.periodeAlokasi.kegiatan:id,nama_kegiatan');
+
+        $kegiatanName = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->nama_kegiatan;
+
+        return $this->isSensusEkonomiName($kegiatanName);
+    }
+
+    private function formatBastNomor(int $sequence, int $year, bool $isSensusEkonomi): string
+    {
+        if ($isSensusEkonomi) {
+            return sprintf('B-%03d/BAST-SE2026/1373/PL.200/2026', $sequence);
+        }
+
+        return sprintf('PPIS/13730/%d/BAST/%d', $sequence, $year);
     }
 
     private function allocateNomorBastForSpk(Spk $spk, Carbon $tanggalBast): string
@@ -240,23 +719,24 @@ class BastController extends Controller
             return (string) $existing->nomor_bast;
         }
 
+        $isSensusEkonomi = $this->isSensusEkonomiSpk($spk);
         $tahun = $tanggalBast->year;
         $bulan = $tanggalBast->month;
 
         $maxFromBast = Bast::query()
             ->whereYear('tanggal_bast', $tahun)
             ->pluck('nomor_bast')
-            ->map(fn (?string $nomorBast) => $this->extractBastSequence($nomorBast))
+            ->map(fn (?string $nomorBast) => $this->extractBastSequenceForScheme($nomorBast, $isSensusEkonomi))
             ->max() ?? 0;
 
         $maxFromAllocation = BastNumberAllocation::query()
             ->where('tahun', $tahun)
             ->pluck('nomor_bast')
-            ->map(fn (?string $nomorBast) => $this->extractBastSequence($nomorBast))
+            ->map(fn (?string $nomorBast) => $this->extractBastSequenceForScheme($nomorBast, $isSensusEkonomi))
             ->max() ?? 0;
 
         $nextSequence = max($maxFromBast, $maxFromAllocation) + 1;
-        $nomorBast = sprintf('PPIS/13730/%d/BAST/%d', $nextSequence, $tahun);
+        $nomorBast = $this->formatBastNomor($nextSequence, $tahun, $isSensusEkonomi);
 
         BastNumberAllocation::query()->updateOrCreate(
             ['spk_id' => $spk->id],
@@ -277,7 +757,7 @@ class BastController extends Controller
         $existing = BastNumberAllocation::query()->where('spk_id', $spk->id)->first();
 
         $year = (int) now()->year;
-        if (preg_match('/\/BAST\/(\d{4})$/', $nomorBast, $matches)) {
+        if (preg_match('/(\d{4})$/', $nomorBast, $matches)) {
             $year = (int) $matches[1];
         }
 
@@ -294,18 +774,20 @@ class BastController extends Controller
     }
 
     /**
-     * @return array{file_path:?string,signed_file_path:?string,generated_at:?string,signed_uploaded_at:?string,status:string,can_upload_signed:bool}
+     * @return array{file_path:?string,signed_file_path:?string,fasih_screenshot_path:?string,generated_at:?string,signed_uploaded_at:?string,status:string,can_upload_signed:bool}
      */
     private function getPreviewLampiranDocumentState(
         ?Spk $spk,
         int $kegiatanId,
         int $periodeAlokasiId,
         string $kodeKegiatan,
+        ?string $sharedFasihScreenshotPath = null,
     ): array {
         if (! $spk || $kegiatanId <= 0 || $periodeAlokasiId <= 0) {
             return [
                 'file_path' => null,
                 'signed_file_path' => null,
+                'fasih_screenshot_path' => null,
                 'generated_at' => null,
                 'signed_uploaded_at' => null,
                 'status' => 'pending',
@@ -330,6 +812,7 @@ class BastController extends Controller
         return [
             'file_path' => $hasDraft ? $record?->file_path : null,
             'signed_file_path' => $hasSigned ? $record?->signed_file_path : null,
+            'fasih_screenshot_path' => $sharedFasihScreenshotPath,
             'generated_at' => $hasDraft && $record?->generated_at
                 ? $record->generated_at->copy()->timezone($timezone)->format('d M Y H:i')
                 : null,
@@ -371,8 +854,9 @@ class BastController extends Controller
 
             $hasDraft = filled($record->file_path) && $draftAbsolutePath && file_exists($draftAbsolutePath);
             $hasSigned = filled($record->signed_file_path) && $signedAbsolutePath && file_exists($signedAbsolutePath);
+            $hasScreenshot = $this->supportsLampiranFasihScreenshotColumns() && filled($record->fasih_screenshot_path);
 
-            if (! $hasDraft && ! $hasSigned) {
+            if (! $hasDraft && ! $hasSigned && ! $hasScreenshot) {
                 continue;
             }
 
@@ -398,6 +882,11 @@ class BastController extends Controller
                     'lampiran-signed'
                 );
                 $updates['signed_uploaded_at'] = $record->signed_uploaded_at ?? now();
+            }
+
+            if ($hasScreenshot) {
+                $updates['fasih_screenshot_path'] = $record->fasih_screenshot_path;
+                $updates['fasih_screenshot_uploaded_at'] = $record->fasih_screenshot_uploaded_at ?? now();
             }
 
             if (! empty($updates)) {
@@ -440,11 +929,56 @@ class BastController extends Controller
         return trim('bast-export/'.trim($subdirectory, '/').'/'.$filename, '/');
     }
 
+    private function countPdfPagesFromString(?string $pdfContent): int
+    {
+        if (blank($pdfContent)) {
+            return 0;
+        }
+
+        try {
+            $pdf = new Fpdi;
+            $reader = StreamReader::createByString($pdfContent);
+
+            return (int) $pdf->setSourceFile($reader);
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    private function countPdfPagesFromRelativePath(?string $relativePath): int
+    {
+        $absolutePath = $this->resolveDocumentAbsolutePath($relativePath);
+        if (! $absolutePath || ! file_exists($absolutePath)) {
+            return 0;
+        }
+
+        try {
+            $pdf = new Fpdi;
+
+            return (int) $pdf->setSourceFile($absolutePath);
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    private function resolveLampiranPageNumberOffset(?Bast $bast = null, ?string $mainPdfContent = null): int
+    {
+        $mainPageCount = $this->countPdfPagesFromString($mainPdfContent);
+
+        if ($mainPageCount <= 0 && $bast) {
+            $mainPageCount = $this->countPdfPagesFromRelativePath($bast->file_path);
+        }
+
+        return max(1, $mainPageCount);
+    }
+
     private function prepareStoredBastViewData(Bast $bast): array
     {
         $bast->loadMissing([
             'spk.alokasiPetugas.petugas',
             'spk.alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim',
+            'bastPetugas',
+            'bastKegiatan',
         ]);
 
         $spk = $bast->spk;
@@ -458,13 +992,39 @@ class BastController extends Controller
             'nip' => $bast->nip_ppk,
         ];
 
-        return $this->prepareBastDataForExport(
+        $primaryBastPetugas = $bast->bastPetugas->first();
+        $isSensusEkonomi = $bast->spk ? $this->isSensusEkonomiSpk($bast->spk) : false;
+        $seInput = $primaryBastPetugas ? [
+            'muatan_input' => $primaryBastPetugas->muatan_input,
+            'muatan_prelist' => $primaryBastPetugas->muatan_prelist,
+            'realisasi_unit_sampel' => $primaryBastPetugas->realisasi_unit_sampel,
+        ] : null;
+
+        $sensusReference = $isSensusEkonomi
+            ? $this->buildSensusReferencePayload(
+                $spk,
+                (int) $bast->tanggal_bast->month,
+                (int) $bast->tanggal_bast->year,
+                $primaryBastPetugas,
+            )
+            : null;
+
+        $viewData = $this->prepareBastDataForExport(
             $spk,
             collect(),
             $bast->nomor_bast,
             $bast->tanggal_bast->format('Y-m-d'),
-            $ppk
+            $ppk,
+            $seInput,
+            $isSensusEkonomi
         );
+
+        $viewData['bast']->kegiatan_list = $this->mergeSharedSensusScreenshotIntoKegiatanList(
+            $viewData['bast']->kegiatan_list ?? [],
+            $sensusReference['fasih_screenshot_path'] ?? null,
+        );
+
+        return $viewData;
     }
 
     private function isLampiranGenerationAllowed(array $kegiatanPayload): bool
@@ -472,6 +1032,16 @@ class BastController extends Controller
         $tanggalSelesai = $this->normalizeDateForCompare($kegiatanPayload['tanggal_selesai'] ?? null);
 
         if (! $tanggalSelesai) {
+            return false;
+        }
+
+        if (
+            $this->shouldUseLampiranFasihScreenshot(
+                $kegiatanPayload['nama_kegiatan'] ?? null,
+                $kegiatanPayload['peran'] ?? null,
+            )
+            && blank($kegiatanPayload['fasih_screenshot_path'] ?? null)
+        ) {
             return false;
         }
 
@@ -631,22 +1201,20 @@ class BastController extends Controller
             });
     }
 
-    private function nextBastNomorForDate(Carbon $targetDate): string
+    private function nextBastNomorForDate(Carbon $targetDate, bool $isSensusEkonomi = false): string
     {
         $allBast = Bast::whereYear('tanggal_bast', $targetDate->year)
             ->pluck('nomor_bast');
 
         $maxUrut = 0;
         foreach ($allBast as $existingNomor) {
-            if (preg_match('/PPIS\/13730\/(\d+)\/BAST\/\d{4}/', $existingNomor, $matches)) {
-                $urut = (int) $matches[1];
-                if ($urut > $maxUrut) {
-                    $maxUrut = $urut;
-                }
+            $urut = $this->extractBastSequenceForScheme($existingNomor, $isSensusEkonomi);
+            if ($urut > $maxUrut) {
+                $maxUrut = $urut;
             }
         }
 
-        return sprintf('PPIS/13730/%d/BAST/%d', $maxUrut + 1, $targetDate->year);
+        return $this->formatBastNomor($maxUrut + 1, $targetDate->year, $isSensusEkonomi);
     }
 
     private function buildOrGetBastForPetugasPeriod(Request $request, int $petugasId, string $bulanFormatted, int $tahun): ?Bast
@@ -712,6 +1280,7 @@ class BastController extends Controller
                 'periodeAlokasi.kegiatan.rateHonors.satuan',
                 'periodeAlokasi.kegiatan.rateHonors.satuanListing',
                 'periodeAlokasi.kegiatan.ketuaTim',
+                'frameSampelAllocations.kegiatanFrameSampel',
                 'spk',
             ])
             ->get();
@@ -742,6 +1311,13 @@ class BastController extends Controller
         $viewData = $this->prepareBastDataForExport(
             $spk,
             $allAlokasi,
+            $nomorBast,
+            $targetDate->format('Y-m-d'),
+            $ppkObject
+        );
+        $viewData = $this->prepareBastDataForExport(
+            $spk,
+            collect([$spk]),
             $nomorBast,
             $targetDate->format('Y-m-d'),
             $ppkObject
@@ -809,6 +1385,7 @@ class BastController extends Controller
                 'bulan' => 'required|integer|min:1|max:12',
                 'tahun' => 'required|integer|min:2000',
                 'petugas_id' => 'nullable|integer|exists:petugas,id',
+                'mode' => 'nullable|string',
             ]);
 
             $filters = [
@@ -816,12 +1393,20 @@ class BastController extends Controller
                 'tahun' => (int) $validated['tahun'],
             ];
 
+            if (filled($validated['mode'] ?? null) && (string) $validated['mode'] !== 'regular') {
+                $filters['mode'] = (string) $validated['mode'];
+            }
+
             $request->session()->put('bast_open_detail_filters', $filters);
 
             $routeParams = [];
 
             if (filled($validated['petugas_id'] ?? null)) {
                 $routeParams['petugas_id'] = (int) $validated['petugas_id'];
+            }
+
+            if (filled($validated['mode'] ?? null) && (string) $validated['mode'] !== 'regular') {
+                $routeParams['mode'] = (string) $validated['mode'];
             }
 
             return redirect()->route('bast.open-detail-by-petugas', $routeParams);
@@ -838,12 +1423,17 @@ class BastController extends Controller
                 'bulan' => 'required|integer|min:1|max:12',
                 'tahun' => 'required|integer|min:2000',
                 'petugas_id' => 'nullable|integer|exists:petugas,id',
+                'mode' => 'nullable|string',
             ]);
 
             $filters = [
                 'bulan' => (int) $validated['bulan'],
                 'tahun' => (int) $validated['tahun'],
             ];
+
+            if (filled($validated['mode'] ?? null) && (string) $validated['mode'] !== 'regular') {
+                $filters['mode'] = (string) $validated['mode'];
+            }
 
             $request->session()->put('bast_open_detail_filters', $filters);
         }
@@ -861,6 +1451,10 @@ class BastController extends Controller
             $filters['petugas_id'] = (int) $selectedPetugasId;
         }
 
+        if (filled($request->input('mode')) && (string) $request->input('mode') !== 'regular') {
+            $filters['mode'] = (string) $request->input('mode');
+        }
+
         $request->merge($filters);
 
         return $this->listByMonth($request);
@@ -869,7 +1463,7 @@ class BastController extends Controller
     /**
      * Check if any petugas has pendataan allocation with hasil_pendataan_lapangan > 0
      */
-    private function hasPendataan($petugas): bool
+    private function hasPendataan(array $petugas): bool
     {
         return collect($petugas)->contains(function ($p) {
             return in_array($p['peran'] ?? null, self::PENDATAAN_ROLES, true)
@@ -880,7 +1474,7 @@ class BastController extends Controller
     /**
      * Check if any petugas has listing allocation with hasil_listing > 0
      */
-    private function hasListing($petugas): bool
+    private function hasListing(array $petugas): bool
     {
         return collect($petugas)->contains(function ($p) {
             return in_array($p['peran'] ?? null, self::PENDATAAN_ROLES, true)
@@ -922,7 +1516,7 @@ class BastController extends Controller
         return false;
     }
 
-    private function normalizeDateForCompare($value): ?string
+    private function normalizeDateForCompare(mixed $value): ?string
     {
         if (empty($value)) {
             return null;
@@ -937,6 +1531,232 @@ class BastController extends Controller
         } catch (\Exception $exception) {
             return null;
         }
+    }
+
+    /**
+     * Resolve preview-time SE input and require complete keluarga/usaha values.
+     *
+     * @return array{muatan_input:int|null, muatan_prelist:int|null, realisasi_unit_sampel:array<string,int>}|null
+     */
+    private function resolveSensusPreviewInput(Spk $spk, Request $request): ?array
+    {
+        if (! $this->isSensusEkonomiSpk($spk)) {
+            return null;
+        }
+
+        $seInput = $request->input('se_input');
+        if (! is_array($seInput)) {
+            abort(422, 'Isi realisasi (keluarga) dan realisasi (usaha) terlebih dahulu sebelum preview.');
+        }
+
+        $realisasiUnitSampel = $seInput['realisasi_unit_sampel'] ?? [];
+        $realisasiKeluarga = $realisasiUnitSampel['keluarga'] ?? null;
+        $realisasiUsaha = $realisasiUnitSampel['usaha'] ?? null;
+
+        if ($realisasiKeluarga === null || $realisasiKeluarga === '' || $realisasiUsaha === null || $realisasiUsaha === '') {
+            abort(422, 'Isi realisasi (keluarga) dan realisasi (usaha) terlebih dahulu sebelum preview.');
+        }
+
+        $realisasiKeluarga = (int) $realisasiKeluarga;
+        $realisasiUsaha = (int) $realisasiUsaha;
+
+        $muatanInput = $seInput['muatan_input'] ?? ($realisasiKeluarga + $realisasiUsaha);
+        $muatanPrelist = $seInput['muatan_prelist'] ?? (
+            (int) ($spk->muatan_prelist_keluarga_default ?? 0) + (int) ($spk->muatan_prelist_usaha_default ?? 0)
+        );
+
+        return [
+            'muatan_input' => is_numeric($muatanInput) ? (int) $muatanInput : null,
+            'muatan_prelist' => is_numeric($muatanPrelist) ? (int) $muatanPrelist : null,
+            'realisasi_unit_sampel' => [
+                'keluarga' => $realisasiKeluarga,
+                'usaha' => $realisasiUsaha,
+            ],
+        ];
+    }
+
+    /**
+     * @return array{
+     *     target_jumlah_frame_sampel:int|null,
+     *     target_muatan_prelist_keluarga:int|null,
+     *     target_muatan_prelist_usaha:int|null,
+     *     hasil_jumlah_frame_sampel:int|null,
+     *     hasil_realisasi_keluarga:int|null,
+     *     hasil_realisasi_usaha:int|null
+     * }
+     */
+    private function buildSensusEkonomiNarrativeData(Collection $alokasiCollection, ?array $seInput = null): array
+    {
+        $prelistBreakdown = $this->calculateSensusPrelistBreakdown($alokasiCollection);
+        $targetJumlahFrameSampel = (int) $alokasiCollection->sum(function (AlokasiPetugas $alokasi): int {
+            return (int) ($alokasi->jumlah_frame_sampel ?? 0);
+        });
+
+        $hasilJumlahFrameSampel = data_get($seInput, 'hasil_jumlah_frame_sampel');
+
+        if (! is_numeric($hasilJumlahFrameSampel)) {
+            $hasilJumlahFrameSampel = data_get($seInput, 'realisasi_jumlah_frame_sampel');
+        }
+
+        if (! is_numeric($hasilJumlahFrameSampel)) {
+            $hasilJumlahFrameSampel = data_get($seInput, 'jumlah_frame_sampel');
+        }
+
+        $hasilRealisasiKeluarga = data_get($seInput, 'realisasi_unit_sampel.keluarga');
+        $hasilRealisasiUsaha = data_get($seInput, 'realisasi_unit_sampel.usaha');
+
+        return [
+            'target_jumlah_frame_sampel' => is_numeric($targetJumlahFrameSampel) && (int) $targetJumlahFrameSampel > 0
+                ? (int) $targetJumlahFrameSampel
+                : null,
+            'target_muatan_prelist_keluarga' => (int) ($prelistBreakdown['keluarga'] ?? 0) > 0
+                ? (int) $prelistBreakdown['keluarga']
+                : null,
+            'target_muatan_prelist_usaha' => (int) ($prelistBreakdown['usaha'] ?? 0) > 0
+                ? (int) $prelistBreakdown['usaha']
+                : null,
+            'hasil_jumlah_frame_sampel' => is_numeric($hasilJumlahFrameSampel) && (int) $hasilJumlahFrameSampel > 0
+                ? (int) $hasilJumlahFrameSampel
+                : null,
+            'hasil_realisasi_keluarga' => is_numeric($hasilRealisasiKeluarga) && (int) $hasilRealisasiKeluarga > 0
+                ? (int) $hasilRealisasiKeluarga
+                : null,
+            'hasil_realisasi_usaha' => is_numeric($hasilRealisasiUsaha) && (int) $hasilRealisasiUsaha > 0
+                ? (int) $hasilRealisasiUsaha
+                : null,
+        ];
+    }
+
+    private function formatSensusUsahaKeluargaVolume(?int $usaha, ?int $keluarga): string
+    {
+        $parts = [];
+
+        if (($usaha ?? 0) > 0) {
+            $parts[] = number_format((int) $usaha, 0, ',', '.').' usaha';
+        }
+
+        if (($keluarga ?? 0) > 0) {
+            $parts[] = number_format((int) $keluarga, 0, ',', '.').' keluarga';
+        }
+
+        if ($parts === []) {
+            return '-';
+        }
+
+        return implode('/', $parts);
+    }
+
+    /**
+     * @return array<int, array{no:int,nama_kecamatan:string,nama_desa:string,jumlah_sls:string,muatan_label:string}>
+     */
+    private function buildSensusLampiranWilayahKerja(AlokasiPetugas $alokasi): array
+    {
+        $frames = $alokasi->frameSampelAllocations
+            ->map(fn ($allocation) => $allocation->kegiatanFrameSampel)
+            ->filter();
+
+        if ($frames->isEmpty()) {
+            return [];
+        }
+
+        $unitIds = $frames
+            ->flatMap(function ($frame): array {
+                $targets = is_array($frame?->target_unit_sampel) ? $frame->target_unit_sampel : [];
+
+                return array_values(array_filter(array_map(static function ($key) {
+                    return is_numeric($key) ? (int) $key : 0;
+                }, array_keys($targets))));
+            })
+            ->filter(fn ($unitId) => (int) $unitId > 0)
+            ->unique()
+            ->values();
+
+        $unitNameById = $unitIds->isNotEmpty()
+            ? MasterUnitSampel::query()
+                ->whereIn('id', $unitIds->all())
+                ->pluck('nama', 'id')
+                ->map(fn ($name) => mb_strtolower(trim((string) $name)))
+                ->toArray()
+            : [];
+
+        $rows = [];
+
+        foreach ($frames as $frame) {
+            $identitas = is_array($frame->identitas_tambahan) ? $frame->identitas_tambahan : [];
+            $kodeKecamatan = (string) ($identitas['kdkec'] ?? $frame->kode_kecamatan ?? '-');
+            $namaKecamatan = (string) ($identitas['kdkec_label'] ?? $identitas['nama_kecamatan'] ?? $kodeKecamatan);
+            $kodeDesa = (string) ($identitas['kddes'] ?? $frame->kode_desa ?? '-');
+            $namaDesa = (string) ($identitas['kddes_label'] ?? $identitas['nama_desa'] ?? $identitas['nama_kelurahan'] ?? $kodeDesa);
+
+            $key = implode('|', [
+                $kodeKecamatan,
+                $kodeDesa,
+            ]);
+
+            if (! isset($rows[$key])) {
+                $rows[$key] = [
+                    'nama_kecamatan' => $namaKecamatan,
+                    'nama_desa' => $namaDesa,
+                    'jumlah_sls' => 0,
+                    'usaha' => 0,
+                    'keluarga' => 0,
+                ];
+            }
+
+            $rows[$key]['jumlah_sls']++;
+
+            foreach ((array) ($frame->target_unit_sampel ?? []) as $unitKey => $targetValue) {
+                $target = max(0, (int) $targetValue);
+                if ($target === 0) {
+                    continue;
+                }
+
+                $normalizedUnitName = '';
+
+                if (is_numeric($unitKey) && (int) $unitKey > 0) {
+                    $normalizedUnitName = $unitNameById[(int) $unitKey] ?? '';
+                } else {
+                    $normalizedUnitName = mb_strtolower(trim((string) $unitKey));
+                }
+
+                if (str_contains($normalizedUnitName, 'usaha')) {
+                    $rows[$key]['usaha'] += $target;
+                }
+
+                if (str_contains($normalizedUnitName, 'keluarga') || str_contains($normalizedUnitName, 'rumah tangga')) {
+                    $rows[$key]['keluarga'] += $target;
+                }
+            }
+        }
+
+        return collect(array_values($rows))
+            ->values()
+            ->map(function (array $row, int $index): array {
+                return [
+                    'no' => $index + 1,
+                    'nama_kecamatan' => $row['nama_kecamatan'] !== '' ? $row['nama_kecamatan'] : '-',
+                    'nama_desa' => $row['nama_desa'] !== '' ? $row['nama_desa'] : '-',
+                    'jumlah_sls' => number_format((int) $row['jumlah_sls'], 0, ',', '.'),
+                    'muatan_label' => $this->formatSensusUsahaKeluargaVolume(
+                        (int) $row['usaha'],
+                        (int) $row['keluarga']
+                    ),
+                ];
+            })
+            ->all();
+    }
+
+    private function resolveBastLampiranSpkView(array $viewData): string
+    {
+        $firstKegiatan = data_get($viewData, 'bast.kegiatan_list.0');
+        $isSensusEkonomi = (bool) data_get($viewData, 'bast.is_sensus_ekonomi', false)
+            || str_contains(mb_strtolower((string) ($firstKegiatan['nama_kegiatan'] ?? '')), 'sensus ekonomi')
+            || (string) ($firstKegiatan['jenis_kegiatan'] ?? '') === 'sensus'
+            || str_contains((string) data_get($viewData, 'bast.nomor_bast', ''), 'BAST-SE2026');
+
+        return $isSensusEkonomi
+            ? 'bast-lampiran-spk-sensus-ekonomi'
+            : 'bast-lampiran-spk';
     }
 
     private function getAlokasiLatestTanggalSelesai(AlokasiPetugas $alokasi): ?string
@@ -1024,6 +1844,167 @@ class BastController extends Controller
             ->get();
 
         return $this->getEffectiveAlokasiByKegiatan($allAlokasi)->values();
+    }
+
+    private function getSensusEkonomiAlokasiForPetugasInYear(int $petugasId, int $tahun): Collection
+    {
+        $allAlokasi = AlokasiPetugas::query()
+            ->where('petugas_id', $petugasId)
+            ->whereHas('periodeAlokasi', function ($q) use ($tahun) {
+                $q->where('tahun', $tahun)
+                    ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+                    ->whereHas('kegiatan', function ($kegiatanQuery) {
+                        $kegiatanQuery->where('nama_kegiatan', 'like', '%Sensus Ekonomi%');
+                    });
+            })
+            ->where(function ($query) {
+                $query->where('total_honor', '>', 0)
+                    ->orWhere('total_honor_listing', '>', 0)
+                    ->orWhere('jumlah_satuan', '>', 0)
+                    ->orWhere('jumlah_satuan_listing', '>', 0);
+            })
+            ->with([
+                'periodeAlokasi:id,kegiatan_id,status,created_at,tanggal_selesai,tanggal_selesai_listing,jadwal_pengolahan_listing_selesai,jadwal_pengolahan_pencacahan_selesai',
+                'periodeAlokasi.kegiatan',
+                'frameSampelAllocations.kegiatanFrameSampel',
+                'spk' => function ($query) {
+                    $query->orderByDesc('addendum_number');
+                },
+            ])
+            ->get();
+
+        return $this->getEffectiveAlokasiByKegiatan($allAlokasi)->values();
+    }
+
+    /**
+     * @return array{keluarga:int,usaha:int,total:int}
+     */
+    private function calculateSensusPrelistBreakdown(Collection $alokasiCollection): array
+    {
+        if ($alokasiCollection->isEmpty()) {
+            return [
+                'keluarga' => 0,
+                'usaha' => 0,
+                'total' => 0,
+            ];
+        }
+
+        $unitIds = $alokasiCollection
+            ->flatMap(function (AlokasiPetugas $alokasi): Collection {
+                return $alokasi->frameSampelAllocations
+                    ->map(fn ($allocation) => $allocation->kegiatanFrameSampel?->target_unit_sampel)
+                    ->filter(fn ($target) => is_array($target))
+                    ->flatMap(function (array $target): array {
+                        return array_values(array_filter(array_map(function ($key) {
+                            return is_numeric($key) ? (int) $key : 0;
+                        }, array_keys($target))));
+                    });
+            })
+            ->filter(fn ($unitId) => (int) $unitId > 0)
+            ->unique()
+            ->values();
+
+        $unitNameById = $unitIds->isNotEmpty()
+            ? MasterUnitSampel::query()
+                ->whereIn('id', $unitIds->all())
+                ->pluck('nama', 'id')
+                ->map(fn ($name) => mb_strtolower(trim((string) $name)))
+                ->toArray()
+            : [];
+
+        $totalKeluarga = 0;
+        $totalUsaha = 0;
+
+        foreach ($alokasiCollection as $alokasi) {
+            foreach ($alokasi->frameSampelAllocations as $allocation) {
+                $targetUnitSampel = $allocation->kegiatanFrameSampel?->target_unit_sampel;
+                if (! is_array($targetUnitSampel)) {
+                    continue;
+                }
+
+                foreach ($targetUnitSampel as $unitKey => $targetValue) {
+                    $target = max(0, (int) $targetValue);
+                    if ($target === 0) {
+                        continue;
+                    }
+
+                    $normalizedUnitName = '';
+                    if (is_numeric($unitKey) && (int) $unitKey > 0) {
+                        $normalizedUnitName = $unitNameById[(int) $unitKey] ?? '';
+                    } else {
+                        $normalizedUnitName = mb_strtolower(trim((string) $unitKey));
+                    }
+
+                    if (str_contains($normalizedUnitName, 'usaha')) {
+                        $totalUsaha += $target;
+                    }
+
+                    if (str_contains($normalizedUnitName, 'keluarga') || str_contains($normalizedUnitName, 'rumah tangga')) {
+                        $totalKeluarga += $target;
+                    }
+                }
+            }
+        }
+
+        return [
+            'keluarga' => $totalKeluarga,
+            'usaha' => $totalUsaha,
+            'total' => $totalKeluarga + $totalUsaha,
+        ];
+    }
+
+    /**
+     * @return Collection<int, Spk>
+     */
+    private function getSensusRealisasiTemplateSpks(int $bulan, int $tahun): Collection
+    {
+        return Spk::query()
+            ->with(['alokasiPetugas.petugas'])
+            ->whereYear('tanggal_selesai_kerja', $tahun)
+            ->whereMonth('tanggal_selesai_kerja', $bulan)
+            ->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($query) {
+                $query->where('nama_kegiatan', 'like', '%Sensus Ekonomi%');
+            })
+            ->orderBy('nomor_spk')
+            ->get();
+    }
+
+    /**
+     * @param  Collection<int, Spk>  $spks
+     * @return array<int, array{realisasi_unit_sampel: array<string, int>, fasih_screenshot_path?: string|null, fasih_screenshot_uploaded_at?: string|null}>
+     */
+    private function getPersistedSensusRealisasiInputs(Collection $spks, int $bulan, int $tahun): array
+    {
+        $spkIds = $spks->pluck('id')->filter()->values();
+
+        if ($spkIds->isEmpty()) {
+            return [];
+        }
+
+        return BastSensusRealisasiImport::query()
+            ->whereIn('spk_id', $spkIds->all())
+            ->where('bulan', $bulan)
+            ->where('tahun', $tahun)
+            ->get()
+            ->mapWithKeys(function (BastSensusRealisasiImport $item): array {
+                $realisasi = $this->normalizeRealisasiUnitSampelValues(
+                    is_array($item->realisasi_unit_sampel) ? $item->realisasi_unit_sampel : []
+                );
+
+                $payload = [
+                    'realisasi_unit_sampel' => $realisasi,
+                ];
+
+                if ($this->supportsSensusReferenceScreenshotColumns() && filled($item->fasih_screenshot_path)) {
+                    $payload['fasih_screenshot_path'] = $item->fasih_screenshot_path;
+                    $payload['fasih_screenshot_uploaded_at'] = $item->fasih_screenshot_uploaded_at?->format('d M Y H:i');
+                }
+
+                return [
+                    (int) $item->spk_id => $payload,
+                ];
+            })
+            ->all();
     }
 
     private function hasPositiveBastAttachmentPayloadForPetugas(int $petugasId, string $bulanFormatted, int $tahun): bool
@@ -1177,15 +2158,66 @@ class BastController extends Controller
     {
         $search = $request->input('search');
         $activeYear = ActiveYearService::get();
+        $requestedMode = (string) $request->input('mode', 'regular');
+        $user = $this->getRequestUser($request);
+        $canAccessSensusMode = $this->canAccessSensusMode($user, $activeYear);
+        $mode = $requestedMode === 'sensus-ekonomi' && $canAccessSensusMode
+            ? 'sensus-ekonomi'
+            : 'regular';
+        $isSensusEkonomiMode = $mode === 'sensus-ekonomi';
+        $sensusPetugasByMonth = collect();
+
+        if ($isSensusEkonomiMode) {
+            $sensusPetugasByMonth = Spk::query()
+                ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($activeYear) {
+                    $q->where('tahun', $activeYear);
+                })
+                ->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($q) {
+                    $q->where('nama_kegiatan', 'like', '%Sensus Ekonomi%');
+                })
+                ->whereHas('alokasiPetugas', function ($q) {
+                    $q->where(function ($inner) {
+                        $inner->where('jumlah_satuan', '>', 0)
+                            ->orWhere('jumlah_satuan_listing', '>', 0)
+                            ->orWhere('total_honor', '>', 0)
+                            ->orWhere('total_honor_listing', '>', 0);
+                    });
+                })
+                ->get(['petugas_id', 'tanggal_selesai_kerja', 'tanggal_mulai_kerja'])
+                ->map(function ($spk) {
+                    $endDate = $spk->tanggal_selesai_kerja ?? $spk->tanggal_mulai_kerja;
+                    if (! $endDate) {
+                        return null;
+                    }
+
+                    $month = $endDate instanceof Carbon
+                        ? (int) $endDate->format('n')
+                        : (int) Carbon::parse($endDate)->format('n');
+
+                    return [
+                        'bulan' => $month,
+                        'petugas_id' => (int) $spk->petugas_id,
+                    ];
+                })
+                ->filter()
+                ->groupBy('bulan')
+                ->map(fn (Collection $items) => $items->pluck('petugas_id')->unique()->values());
+        }
 
         // Ambil semua SPK yang punya alokasi > 0 pada periode status 'perubahan' (final allocation state) di tahun berjalan
         // Konsisten dengan filtering di create() method
         $eligibleSpks = DB::table('spk')
             ->join('alokasi_petugas as ap', 'ap.petugas_id', '=', 'spk.petugas_id')
             ->join('periode_alokasi as pa', 'ap.periode_alokasi_id', '=', 'pa.id')
+            ->join('kegiatan as k', 'pa.kegiatan_id', '=', 'k.id')
             ->where('spk.addendum_number', 0)
             ->where('pa.tahun', $activeYear)
             ->where('pa.status', 'perubahan')
+            ->when($isSensusEkonomiMode, function ($query) {
+                $query->where('k.nama_kegiatan', 'like', '%Sensus Ekonomi%');
+            }, function ($query) {
+                $query->where('k.nama_kegiatan', 'not like', '%Sensus Ekonomi%');
+            })
             ->where(function ($q) {
                 $q->where('ap.jumlah_satuan', '>', 0)
                     ->orWhere('ap.jumlah_satuan_listing', '>', 0)
@@ -1200,8 +2232,14 @@ class BastController extends Controller
         // Ambil seluruh alokasi_petugas yang join ke periode_alokasi (tahun aktif, status perubahan, jumlah > 0)
         $alokasiRows = DB::table('alokasi_petugas as ap')
             ->join('periode_alokasi as pa', 'ap.periode_alokasi_id', '=', 'pa.id')
+            ->join('kegiatan as k', 'pa.kegiatan_id', '=', 'k.id')
             ->where('pa.tahun', $activeYear)
             ->where('pa.status', 'perubahan')
+            ->when($isSensusEkonomiMode, function ($query) {
+                $query->where('k.nama_kegiatan', 'like', '%Sensus Ekonomi%');
+            }, function ($query) {
+                $query->where('k.nama_kegiatan', 'not like', '%Sensus Ekonomi%');
+            })
             ->where(function ($q) {
                 $q->where('ap.jumlah_satuan', '>', 0)
                     ->orWhere('ap.jumlah_satuan_listing', '>', 0)
@@ -1225,41 +2263,57 @@ class BastController extends Controller
             $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
             $isLegacyBastMode = $this->isLegacyBastAttachmentMode($bulanFormatted, (int) $activeYear);
 
-            // Get all unique petugas who have SPK (original or addendum) in this month
-            $allPetugasIds = Spk::whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($activeYear, $bulanFormatted) {
-                $q->where('tahun', $activeYear)
-                    ->where('bulan', $bulanFormatted);
-            })
-                ->distinct()
-                ->pluck('petugas_id')
-                ->filter()
-                ->unique()
-                ->values();
+            if ($isSensusEkonomiMode) {
+                $eligiblePetugasCount = $sensusPetugasByMonth->get($bulan, collect())->count();
+            } else {
+                // Get all unique petugas who have SPK (original or addendum) in this month
+                $allPetugasIds = Spk::whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($activeYear, $bulanFormatted) {
+                    $q->where('tahun', $activeYear)
+                        ->where('bulan', $bulanFormatted);
+                })
+                    ->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($relationQuery) {
+                        $relationQuery->where('nama_kegiatan', 'not like', '%Sensus Ekonomi%');
+                    })
+                    ->distinct()
+                    ->pluck('petugas_id')
+                    ->filter()
+                    ->unique()
+                    ->values();
 
-            // Filter petugas using the same logic as create() method
-            $eligiblePetugasIds = $allPetugasIds->filter(function ($petugasId) use ($bulanFormatted, $activeYear, $isLegacyBastMode) {
-                if ($isLegacyBastMode) {
-                    return $this->hasPositiveBastAttachmentPayloadForPetugas(
+                // Filter petugas using the same logic as create() method
+                $eligiblePetugasIds = $allPetugasIds->filter(function ($petugasId) use ($bulanFormatted, $activeYear, $isLegacyBastMode) {
+                    if ($isLegacyBastMode) {
+                        return $this->hasPositiveBastAttachmentPayloadForPetugas(
+                            (int) $petugasId,
+                            $bulanFormatted,
+                            (int) $activeYear
+                        );
+                    }
+
+                    return $this->hasPositiveEffectiveAlokasiForPetugasInMonth(
                         (int) $petugasId,
                         $bulanFormatted,
                         (int) $activeYear
                     );
-                }
+                });
 
-                return $this->hasPositiveEffectiveAlokasiForPetugasInMonth(
-                    (int) $petugasId,
-                    $bulanFormatted,
-                    (int) $activeYear
-                );
-            });
-
-            $eligiblePetugasCount = $eligiblePetugasIds->count();
+                $eligiblePetugasCount = $eligiblePetugasIds->count();
+            }
 
             // Samakan metrik "BAST dibuat" dengan detail bulan (jumlah petugas pada dokumen BAST bulan tersebut)
             $petugasWithBast = DB::table('bast_petugas as bp')
                 ->join('bast as b', 'bp.bast_id', '=', 'b.id')
+                ->join('spk as s', 'bp.spk_id', '=', 's.id')
+                ->join('alokasi_petugas as ap2', 's.alokasi_petugas_id', '=', 'ap2.id')
+                ->join('periode_alokasi as pa2', 'ap2.periode_alokasi_id', '=', 'pa2.id')
+                ->join('kegiatan as k2', 'pa2.kegiatan_id', '=', 'k2.id')
                 ->whereYear('b.tanggal_bast', $activeYear)
                 ->whereMonth('b.tanggal_bast', $bulan)
+                ->when($isSensusEkonomiMode, function ($query) {
+                    $query->where('k2.nama_kegiatan', 'like', '%Sensus Ekonomi%');
+                }, function ($query) {
+                    $query->where('k2.nama_kegiatan', 'not like', '%Sensus Ekonomi%');
+                })
                 ->distinct('bp.petugas_id')
                 ->count('bp.petugas_id');
 
@@ -1287,9 +2341,38 @@ class BastController extends Controller
             ],
             'filters' => [
                 'search' => $search,
+                'mode' => $mode,
             ],
             'active_year' => $activeYear,
+            'mode' => $mode,
+            'can_access_sensus_mode' => $canAccessSensusMode,
         ]);
+    }
+
+    private function canAccessSensusMode(?User $user, ?int $tahunAnggaran = null): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if (in_array($user->active_role, ['admin', 'operator'], true)) {
+            return true;
+        }
+
+        if ($user->active_role !== 'ketua_tim') {
+            return false;
+        }
+
+        $activeYear = $tahunAnggaran ?? ActiveYearService::get();
+
+        return Kegiatan::query()
+            ->where('tahun_anggaran', $activeYear)
+            ->where('nama_kegiatan', 'like', '%Sensus Ekonomi%')
+            ->where(function ($query) use ($user) {
+                $query->where('ketua_tim_user_id', $user->id)
+                    ->orWhere('pj_lainnya_id', $user->id);
+            })
+            ->exists();
     }
 
     /**
@@ -1307,6 +2390,13 @@ class BastController extends Controller
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
         $selectedPetugasId = (int) $request->input('petugas_id', 0);
+        $requestedMode = (string) $request->input('mode', 'regular');
+        $user = $this->getRequestUser($request);
+        $canAccessSensusMode = $this->canAccessSensusMode($user, (int) $tahun);
+        $mode = $requestedMode === 'sensus-ekonomi' && $canAccessSensusMode
+            ? 'sensus-ekonomi'
+            : 'regular';
+        $isSensusEkonomiMode = $mode === 'sensus-ekonomi';
         $activeYear = ActiveYearService::get();
 
         // Default to current year if no filter
@@ -1316,17 +2406,15 @@ class BastController extends Controller
 
         $bulanFormatted = str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
 
-        $user = $this->getRequestUser($request);
         $isKetuaTim = $user?->active_role === 'ketua_tim';
 
         // Get first BAST for this month, filtered by kegiatan managed by the current ketua tim so
         // they land on a BAST that actually contains their lampiran (not an unrelated BAST).
-        $firstBast = Bast::whereHas('periodeAlokasi', function ($query) use ($tahun, $bulan) {
-            $query->where('tahun', $tahun);
-            if ($bulan) {
-                $query->where('bulan', $bulan);
-            }
-        })
+        $firstBast = Bast::query()
+            ->whereYear('tanggal_bast', (int) $tahun)
+            ->when($bulan, function ($query) use ($bulan) {
+                $query->whereMonth('tanggal_bast', (int) $bulan);
+            })
             ->when($isKetuaTim, function ($query) use ($user) {
                 $query->whereHas('bastKegiatan.kegiatan', function ($q) use ($user) {
                     $q->where(function ($sub) use ($user) {
@@ -1340,10 +2428,8 @@ class BastController extends Controller
 
         if ($selectedPetugasId > 0) {
             $selectedPetugasBast = Bast::query()
-                ->whereHas('periodeAlokasi', function ($query) use ($tahun, $bulanFormatted) {
-                    $query->where('tahun', $tahun)
-                        ->where('bulan', $bulanFormatted);
-                })
+                ->whereYear('tanggal_bast', (int) $tahun)
+                ->whereMonth('tanggal_bast', (int) $bulan)
                 ->where(function ($query) use ($selectedPetugasId) {
                     $query->whereHas('spk.alokasiPetugas', function ($relationQuery) use ($selectedPetugasId) {
                         $relationQuery->where('petugas_id', $selectedPetugasId);
@@ -1376,22 +2462,38 @@ class BastController extends Controller
                 ? $this->buildBastListForPeriod($periodeReference, $canManageMain, $isKetuaTim, $request)
                 : collect();
 
-            $existingBastSpkIds = Bast::whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                $q->where('bulan', $bulanFormatted)->where('tahun', $tahun);
-            })->pluck('spk_id')->filter()->unique();
+            $existingBastSpkIds = Bast::query()
+                ->whereYear('tanggal_bast', (int) $tahun)
+                ->whereMonth('tanggal_bast', (int) $bulan)
+                ->pluck('spk_id')
+                ->filter()
+                ->unique();
 
             $eligibleWithoutBast = Spk::with('alokasiPetugas.petugas')
                 ->whereNotIn('id', $existingBastSpkIds)
-                ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                    $q->where('bulan', $bulanFormatted)
-                        ->where('tahun', $tahun)
-                        ->whereIn('status', ['dikirim', 'perubahan']);
-                })
-                ->when($isKetuaTim, function ($query) use ($user, $bulanFormatted, $tahun) {
-                    $alokasiIds = AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($user, $bulanFormatted, $tahun) {
+                ->when($isSensusEkonomiMode, function ($query) use ($tahun, $bulan) {
+                    $query->whereYear('tanggal_selesai_kerja', (int) $tahun)
+                        ->whereMonth('tanggal_selesai_kerja', (int) $bulan)
+                        ->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($kegiatanQuery) {
+                            $kegiatanQuery->where('nama_kegiatan', 'like', '%Sensus Ekonomi%');
+                        });
+                }, function ($query) use ($bulanFormatted, $tahun) {
+                    $query->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
                         $q->where('bulan', $bulanFormatted)
                             ->where('tahun', $tahun)
-                            ->whereHas('kegiatan', function ($qk) use ($user) {
+                            ->whereIn('status', ['dikirim', 'perubahan']);
+                    });
+                })
+                ->when($isKetuaTim, function ($query) use ($user, $bulanFormatted, $tahun, $isSensusEkonomiMode) {
+                    $alokasiIds = AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($user, $bulanFormatted, $tahun, $isSensusEkonomiMode) {
+                        $q->where('tahun', $tahun)
+                            ->when(! $isSensusEkonomiMode, function ($subQuery) use ($bulanFormatted) {
+                                $subQuery->where('bulan', $bulanFormatted);
+                            })
+                            ->whereHas('kegiatan', function ($qk) use ($user, $isSensusEkonomiMode) {
+                                if ($isSensusEkonomiMode) {
+                                    $qk->where('nama_kegiatan', 'like', '%Sensus Ekonomi%');
+                                }
                                 $qk->where(function ($sub) use ($user) {
                                     $sub->where('ketua_tim_user_id', $user?->id)
                                         ->orWhere('pj_lainnya_id', $user?->id);
@@ -1432,12 +2534,21 @@ class BastController extends Controller
             $selectedPetugas = null;
             $lampiranPreview = collect();
             $selectedSpk = null;
+            $previewSensusReference = null;
 
             if ($selectedPetugasId > 0) {
                 $selectedSpk = Spk::where('petugas_id', $selectedPetugasId)
-                    ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                        $q->where('bulan', $bulanFormatted)
-                            ->where('tahun', $tahun);
+                    ->when($isSensusEkonomiMode, function ($query) use ($tahun, $bulan) {
+                        $query->whereYear('tanggal_selesai_kerja', (int) $tahun)
+                            ->whereMonth('tanggal_selesai_kerja', (int) $bulan)
+                            ->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($kegiatanQuery) {
+                                $kegiatanQuery->where('nama_kegiatan', 'like', '%Sensus Ekonomi%');
+                            });
+                    }, function ($query) use ($bulanFormatted, $tahun) {
+                        $query->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                            $q->where('bulan', $bulanFormatted)
+                                ->where('tahun', $tahun);
+                        });
                     })
                     ->orderByDesc('addendum_number')
                     ->orderByDesc('created_at')
@@ -1453,51 +2564,68 @@ class BastController extends Controller
 
                 $alokasiIdsFromLatestSpk = $alokasiIdsFromLatestSpk->unique()->values();
 
-                $alokasiPreviewQuery = AlokasiPetugas::query();
+                if ($isSensusEkonomiMode) {
+                    $alokasiPreview = $this->getSensusEkonomiAlokasiForPetugasInYear($selectedPetugasId, (int) $tahun)
+                        ->when($isKetuaTim, function ($collection) use ($user) {
+                            return $collection->filter(function ($alokasi) use ($user) {
+                                $kegiatan = $alokasi->periodeAlokasi?->kegiatan;
 
-                if ($alokasiIdsFromLatestSpk->isNotEmpty()) {
-                    $alokasiPreviewQuery->whereIn('id', $alokasiIdsFromLatestSpk->all());
+                                return (int) ($kegiatan?->ketua_tim_user_id ?? 0) === (int) ($user?->id ?? 0)
+                                    || (int) ($kegiatan?->pj_lainnya_id ?? 0) === (int) ($user?->id ?? 0);
+                            })->values();
+                        });
                 } else {
-                    $alokasiPreviewQuery->where('petugas_id', $selectedPetugasId)
+                    $alokasiPreviewQuery = AlokasiPetugas::query();
+
+                    if ($alokasiIdsFromLatestSpk->isNotEmpty()) {
+                        $alokasiPreviewQuery->whereIn('id', $alokasiIdsFromLatestSpk->all());
+                    } else {
+                        $alokasiPreviewQuery->where('petugas_id', $selectedPetugasId)
+                            ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
+                                $q->where('bulan', $bulanFormatted)
+                                    ->where('tahun', $tahun)
+                                    ->whereIn('status', ['dikirim', 'perubahan']);
+                            });
+                    }
+
+                    $alokasiPreview = $alokasiPreviewQuery
                         ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
                             $q->where('bulan', $bulanFormatted)
                                 ->where('tahun', $tahun)
                                 ->whereIn('status', ['dikirim', 'perubahan']);
-                        });
-                }
-
-                $alokasiPreview = $alokasiPreviewQuery
-                    ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                        $q->where('bulan', $bulanFormatted)
-                            ->where('tahun', $tahun)
-                            ->whereIn('status', ['dikirim', 'perubahan']);
-                    })
-                    ->whereHas('petugas', function ($q) {
-                        $q->where('jenis_petugas', 'non-organik');
-                    })
-                    ->where(function ($query) {
-                        $query->where('total_honor', '>', 0)
-                            ->orWhere('total_honor_listing', '>', 0);
-                    })
-                    ->when($isKetuaTim, function ($query) use ($user) {
-                        $query->whereHas('periodeAlokasi.kegiatan', function ($q) use ($user) {
-                            $q->where(function ($sub) use ($user) {
-                                $sub->where('ketua_tim_user_id', $user?->id)
-                                    ->orWhere('pj_lainnya_id', $user?->id);
+                        })
+                        ->whereHas('petugas', function ($q) {
+                            $q->where('jenis_petugas', 'non-organik');
+                        })
+                        ->where(function ($query) {
+                            $query->where('total_honor', '>', 0)
+                                ->orWhere('total_honor_listing', '>', 0);
+                        })
+                        ->when($isKetuaTim, function ($query) use ($user) {
+                            $query->whereHas('periodeAlokasi.kegiatan', function ($q) use ($user) {
+                                $q->where(function ($sub) use ($user) {
+                                    $sub->where('ketua_tim_user_id', $user?->id)
+                                        ->orWhere('pj_lainnya_id', $user?->id);
+                                });
                             });
-                        });
-                    })
-                    ->with([
-                        'petugas',
-                        'periodeAlokasi.kegiatan.ketuaTim',
-                    ])
-                    ->get();
+                        })
+                        ->with([
+                            'petugas',
+                            'periodeAlokasi.kegiatan.ketuaTim',
+                        ])
+                        ->get();
+                }
 
                 $selectedPetugas = $alokasiPreview->first()?->petugas;
 
+                $previewSensusReference = $selectedSpk && $this->isSensusEkonomiSpk($selectedSpk)
+                    ? $this->buildSensusReferencePayload($selectedSpk, (int) $bulan, (int) $tahun)
+                    : null;
+                $sharedPreviewScreenshotPath = $previewSensusReference['fasih_screenshot_path'] ?? null;
+
                 $lampiranPreview = $this->getEffectiveAlokasiByKegiatan($alokasiPreview)
                     ->values()
-                    ->map(function (AlokasiPetugas $alokasi, int $index) use ($selectedSpk) {
+                    ->map(function (AlokasiPetugas $alokasi, int $index) use ($selectedSpk, $sharedPreviewScreenshotPath) {
                         $kegiatan = $alokasi->periodeAlokasi?->kegiatan;
                         $tanggalSelesai = $this->getAlokasiLatestTanggalSelesai($alokasi);
                         $formatted = '-';
@@ -1510,18 +2638,20 @@ class BastController extends Controller
                             }
                         }
 
-                        $readyToGenerate = false;
-                        $normalizedTanggalSelesai = $this->normalizeDateForCompare($tanggalSelesai);
-                        if ($normalizedTanggalSelesai) {
-                            $readyToGenerate = $normalizedTanggalSelesai <= now()->format('Y-m-d');
-                        }
-
                         $previewDocumentState = $this->getPreviewLampiranDocumentState(
                             $selectedSpk,
                             (int) ($kegiatan?->id ?? 0),
                             (int) ($alokasi->periode_alokasi_id ?? 0),
                             (string) ($kegiatan?->kode_kegiatan ?? '-'),
+                            $sharedPreviewScreenshotPath,
                         );
+                        $usesFasihScreenshot = $this->shouldUseLampiranFasihScreenshot($kegiatan?->nama_kegiatan, $alokasi->peran);
+                        $readyToGenerate = $this->isLampiranGenerationAllowed([
+                            'tanggal_selesai' => $tanggalSelesai,
+                            'nama_kegiatan' => $kegiatan?->nama_kegiatan,
+                            'peran' => $alokasi->peran,
+                            'fasih_screenshot_path' => $sharedPreviewScreenshotPath,
+                        ]);
 
                         return [
                             'id' => $index + 1,
@@ -1536,14 +2666,17 @@ class BastController extends Controller
                             'ketua_tim_nama' => $kegiatan?->ketuaTim?->name,
                             'file_path' => $previewDocumentState['file_path'],
                             'signed_file_path' => $previewDocumentState['signed_file_path'],
+                            'fasih_screenshot_path' => $previewDocumentState['fasih_screenshot_path'],
                             'generated_at' => $previewDocumentState['generated_at'],
                             'signed_uploaded_at' => $previewDocumentState['signed_uploaded_at'],
                             'status' => $previewDocumentState['status'],
-                            'can_download' => $readyToGenerate || filled($previewDocumentState['file_path']) || filled($previewDocumentState['signed_file_path']),
+                            'can_download' => $readyToGenerate,
                             'can_generate' => $readyToGenerate,
                             'can_upload_signed' => $previewDocumentState['can_upload_signed'],
-                            'can_preview' => $readyToGenerate || filled($previewDocumentState['file_path']) || filled($previewDocumentState['signed_file_path']),
+                            'can_upload_fasih_screenshot' => false,
+                            'can_preview' => $readyToGenerate,
                             'ready_to_generate' => $readyToGenerate,
+                            'uses_fasih_screenshot' => $usesFasihScreenshot,
                             'preview_spk_id' => $selectedSpk?->id,
                         ];
                     });
@@ -1553,6 +2686,7 @@ class BastController extends Controller
             $signedLampiranPreviewCount = $lampiranPreview->filter(fn (array $item) => filled($item['signed_file_path']))->count();
             $allLampiranPreviewGenerated = $lampiranPreview->isNotEmpty() && $generatedLampiranPreviewCount === $lampiranPreview->count();
             $allLampiranPreviewSigned = $lampiranPreview->isNotEmpty() && $signedLampiranPreviewCount === $lampiranPreview->count();
+            $previewSensusReferenceForView = $previewSensusReference ?? null;
 
             return Inertia::render('Bast/Show', [
                 'bast' => [
@@ -1575,6 +2709,11 @@ class BastController extends Controller
                     'lokasi_kegiatan' => null,
                     'status' => 'draft',
                     'catatan' => null,
+                    'is_sensus_ekonomi' => $selectedSpk ? $this->isSensusEkonomiSpk($selectedSpk) : false,
+                    'muatan_input' => $previewSensusReferenceForView['muatan_input'] ?? null,
+                    'muatan_prelist' => $previewSensusReferenceForView['muatan_prelist'] ?? null,
+                    'realisasi_unit_sampel' => $previewSensusReferenceForView['realisasi_unit_sampel'] ?? null,
+                    'fasih_screenshot_path' => $previewSensusReferenceForView['fasih_screenshot_path'] ?? null,
                     'created_by' => '-',
                     'created_at' => '-',
                     'is_legacy_mode' => false,
@@ -1626,6 +2765,8 @@ class BastController extends Controller
                     'main_signed_uploaded' => false,
                     'final_signed_ready' => false,
                 ],
+                'sensus_reference' => $previewSensusReferenceForView,
+                'mode' => $mode,
                 'bulan' => (int) $bulan,
                 'tahun' => (int) $tahun,
                 'bulan_label' => $this->getBulanLabel((int) $bulan),
@@ -1652,26 +2793,54 @@ class BastController extends Controller
 
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun', ActiveYearService::get());
+        $requestedMode = (string) $request->input('mode', 'regular');
+        $user = $this->getRequestUser($request);
+        $canAccessSensusMode = $this->canAccessSensusMode($user, (int) $tahun);
+        $mode = $requestedMode === 'sensus-ekonomi' && $canAccessSensusMode
+            ? 'sensus-ekonomi'
+            : 'regular';
+        $isSensusEkonomiMode = $mode === 'sensus-ekonomi';
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
         if (! $bulan) {
             return redirect()->route('bast.index')
                 ->with('error', 'Bulan harus diisi');
         }
 
-        // Get all unique petugas who have SPK (original or addendum) in this month
-        $allPetugasIds = Spk::whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($tahun, $bulanFormatted) {
-            $q->where('tahun', $tahun)
-                ->where('bulan', $bulanFormatted);
-        })
-            ->distinct()
-            ->pluck('petugas_id')
-            ->filter()
-            ->unique();
+        if ($isSensusEkonomiMode && (int) $bulan !== 8) {
+            return redirect()->route('bast.index', ['mode' => 'sensus-ekonomi'])
+                ->with('info', 'BAST Sensus Ekonomi hanya dapat dibuat pada bulan Agustus sesuai akhir pelaksanaan PK.');
+        }
+
+        if ($isSensusEkonomiMode) {
+            $allPetugasIds = Spk::query()
+                ->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($q) {
+                    $q->where('nama_kegiatan', 'like', '%Sensus Ekonomi%');
+                })
+                ->whereYear('tanggal_selesai_kerja', (int) $tahun)
+                ->whereMonth('tanggal_selesai_kerja', (int) $bulan)
+                ->pluck('petugas_id')
+                ->filter()
+                ->unique();
+        } else {
+            // Get all unique petugas who have SPK (original or addendum) in this month
+            $allPetugasIds = Spk::whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($tahun, $bulanFormatted) {
+                $q->where('tahun', $tahun)
+                    ->where('bulan', $bulanFormatted);
+            })
+                ->distinct()
+                ->pluck('petugas_id')
+                ->filter()
+                ->unique();
+        }
 
         $isLegacyBastMode = $this->isLegacyBastAttachmentMode($bulanFormatted, (int) $tahun);
 
         // Filter petugas who are eligible for BAST (have positive honor and no pending addendum)
-        $eligiblePetugasIds = $allPetugasIds->filter(function ($petugasId) use ($bulanFormatted, $tahun, $isLegacyBastMode) {
+        $eligiblePetugasIds = $allPetugasIds->filter(function ($petugasId) use ($bulanFormatted, $tahun, $isLegacyBastMode, $isSensusEkonomiMode) {
+            if ($isSensusEkonomiMode) {
+                return true;
+            }
+
             if ($isLegacyBastMode) {
                 return $this->hasPositiveBastAttachmentPayloadForPetugas(
                     (int) $petugasId,
@@ -1691,14 +2860,28 @@ class BastController extends Controller
         $spks = collect();
         foreach ($eligiblePetugasIds as $petugasId) {
             $latestSpk = Spk::where('petugas_id', $petugasId)
-                ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($tahun, $bulanFormatted) {
-                    $q->where('tahun', $tahun)
-                        ->where('bulan', $bulanFormatted);
+                ->when($isSensusEkonomiMode, function ($query) use ($tahun, $bulan) {
+                    $query->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($q) {
+                        $q->where('nama_kegiatan', 'like', '%Sensus Ekonomi%');
+                    })->whereYear('tanggal_selesai_kerja', (int) $tahun)
+                        ->whereMonth('tanggal_selesai_kerja', (int) $bulan);
+                }, function ($query) use ($tahun, $bulanFormatted) {
+                    $query->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($tahun, $bulanFormatted) {
+                        $q->where('tahun', $tahun)
+                            ->where('bulan', $bulanFormatted);
+                    });
                 })
                 ->with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi', 'bast'])
                 ->orderByDesc('addendum_number')
                 ->orderByDesc('created_at')
                 ->first();
+
+            if ($latestSpk) {
+                $isSensusEkonomiSpk = $this->isSensusEkonomiSpk($latestSpk);
+                if ($isSensusEkonomiMode !== $isSensusEkonomiSpk) {
+                    continue;
+                }
+            }
 
             // Check if this petugas already has BAST for this month
             if ($latestSpk) {
@@ -1728,8 +2911,8 @@ class BastController extends Controller
             ->orderByDesc('id')
             ->first();
 
-        if ($lastBast && preg_match('/PPIS\/13730\/(\d+)\/BAST\/\d{4}/', $lastBast->nomor_bast, $matches)) {
-            $nomorUrutStart = (int) $matches[1] + 1;
+        if ($lastBast) {
+            $nomorUrutStart = $this->extractBastSequence($lastBast->nomor_bast) + 1;
         } else {
             $nomorUrutStart = 1;
         }
@@ -1745,13 +2928,15 @@ class BastController extends Controller
         })->filter()->max();
 
         // Urutkan SPKs berdasarkan tanggal_berakhir_paling_akhir kemudian nama petugas (A-Z)
-        $spks = $spks->sort(function ($a, $b) use ($bulanFormatted, $tahun) {
+        $spks = $spks->sort(function ($a, $b) use ($bulanFormatted, $tahun, $isSensusEkonomiMode) {
             // Get tanggal berakhir untuk SPK A
             $petugasA = $a->alokasiPetugas?->petugas;
-            $allAlokasiA = $this->getEffectiveAlokasiForPetugasInMonth((int) ($petugasA?->id ?? 0), $bulanFormatted, (int) $tahun)
-                ->filter(function ($alokasi) {
-                    return (int) ($alokasi->jumlah_satuan ?? 0) > 0 || (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
-                });
+            $allAlokasiA = $isSensusEkonomiMode
+                ? $this->getSensusEkonomiAlokasiForPetugasInYear((int) ($petugasA?->id ?? 0), (int) $tahun)
+                : $this->getEffectiveAlokasiForPetugasInMonth((int) ($petugasA?->id ?? 0), $bulanFormatted, (int) $tahun)
+                    ->filter(function ($alokasi) {
+                        return (int) ($alokasi->jumlah_satuan ?? 0) > 0 || (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
+                    });
 
             $tanggalBerakhirA = $allAlokasiA->map(function ($alokasi) {
                 return $this->getAlokasiLatestTanggalSelesai($alokasi);
@@ -1763,10 +2948,12 @@ class BastController extends Controller
 
             // Get tanggal berakhir untuk SPK B
             $petugasB = $b->alokasiPetugas?->petugas;
-            $allAlokasiB = $this->getEffectiveAlokasiForPetugasInMonth((int) ($petugasB?->id ?? 0), $bulanFormatted, (int) $tahun)
-                ->filter(function ($alokasi) {
-                    return (int) ($alokasi->jumlah_satuan ?? 0) > 0 || (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
-                });
+            $allAlokasiB = $isSensusEkonomiMode
+                ? $this->getSensusEkonomiAlokasiForPetugasInYear((int) ($petugasB?->id ?? 0), (int) $tahun)
+                : $this->getEffectiveAlokasiForPetugasInMonth((int) ($petugasB?->id ?? 0), $bulanFormatted, (int) $tahun)
+                    ->filter(function ($alokasi) {
+                        return (int) ($alokasi->jumlah_satuan ?? 0) > 0 || (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
+                    });
 
             $tanggalBerakhirB = $allAlokasiB->map(function ($alokasi) {
                 return $this->getAlokasiLatestTanggalSelesai($alokasi);
@@ -1787,23 +2974,26 @@ class BastController extends Controller
         })->values();
 
         // Format data SPK dengan detail kegiatan yang diikuti petugas
-        $spkList = $spks->map(function ($spk, $index) use ($bulanFormatted, $tahun, $nomorUrutStart) {
+        $spkList = $spks->map(function ($spk, $index) use ($bulanFormatted, $tahun, $nomorUrutStart, $isSensusEkonomiMode) {
             $petugas = $spk->alokasiPetugas?->petugas;
 
             // Ambil SEMUA alokasi petugas untuk bulan ini (semua kegiatan yang diikuti petugas di bulan yang sama)
-            $allAlokasi = $this->getEffectiveAlokasiForPetugasInMonth((int) ($petugas?->id ?? 0), $bulanFormatted, (int) $tahun)
-                ->filter(function ($alokasi) {
-                    return
-                        (float) ($alokasi->total_honor ?? 0) > 0 ||
-                        (float) ($alokasi->total_honor_listing ?? 0) > 0;
-                })
-                ->load([
-                    'periodeAlokasi.kegiatan',
-                    'spk' => function ($query) {
-                        $query->orderByDesc('addendum_number');
-                    },
-                ])
-                ->values();
+            $allAlokasi = $isSensusEkonomiMode
+                ? $this->getSensusEkonomiAlokasiForPetugasInYear((int) ($petugas?->id ?? 0), (int) $tahun)
+                    ->values()
+                : $this->getEffectiveAlokasiForPetugasInMonth((int) ($petugas?->id ?? 0), $bulanFormatted, (int) $tahun)
+                    ->filter(function ($alokasi) {
+                        return
+                            (float) ($alokasi->total_honor ?? 0) > 0 ||
+                            (float) ($alokasi->total_honor_listing ?? 0) > 0;
+                    })
+                    ->load([
+                        'periodeAlokasi.kegiatan',
+                        'spk' => function ($query) {
+                            $query->orderByDesc('addendum_number');
+                        },
+                    ])
+                    ->values();
 
             // Kumpulkan kegiatan unik dengan detail dari semua alokasi petugas
             $kegiatanList = $allAlokasi->map(function ($alokasi) {
@@ -1865,6 +3055,33 @@ class BastController extends Controller
                 ];
             })->filter()->values();
 
+            $isSensusEkonomi = $isSensusEkonomiMode || $kegiatanList->contains(function ($kegiatanItem) {
+                return $this->isSensusEkonomiName((string) ($kegiatanItem['nama_kegiatan'] ?? null));
+            });
+
+            $prelistBreakdown = $isSensusEkonomi
+                ? $this->calculateSensusPrelistBreakdown($allAlokasi)
+                : [
+                    'keluarga' => 0,
+                    'usaha' => 0,
+                    'total' => (int) round($allAlokasi->sum(function ($alokasi) {
+                        return (float) $alokasi->getEffectiveJumlahSatuan();
+                    })),
+                ];
+
+            $muatanPrelistDefault = (int) $prelistBreakdown['total'];
+
+            $unitSampelPencacahanItems = $allAlokasi
+                ->map(fn ($alokasi) => $alokasi->periodeAlokasi?->kegiatan)
+                ->filter()
+                ->flatMap(function (Kegiatan $kegiatan) {
+                    return $kegiatan->unitSampelPencacahanItems()
+                        ->map(fn ($unit) => ['id' => (int) $unit->id, 'nama' => (string) $unit->nama])
+                        ->values();
+                })
+                ->unique('id')
+                ->values();
+
             // Hitung tanggal berakhir paling akhir dari kegiatan yang diikuti petugas ini
             $tanggalBerakhirPetugasIni = $kegiatanList->map(function ($kegiatan) {
                 return $kegiatan['tanggal_selesai'];
@@ -1880,7 +3097,13 @@ class BastController extends Controller
             // Generate nomor BAST untuk SPK ini dengan nomor urut yang increment
             $nomorUrut = $nomorUrutStart + $index;
             $nomorBastPreview = $tanggalBerakhirPetugasIni
-                ? sprintf('PPIS/13730/%d/BAST/%d', $nomorUrut, $tanggalBerakhirPetugasIni instanceof Carbon ? $tanggalBerakhirPetugasIni->year : Carbon::parse($tanggalBerakhirPetugasIni)->year)
+                ? $this->formatBastNomor(
+                    $nomorUrut,
+                    $tanggalBerakhirPetugasIni instanceof Carbon
+                        ? $tanggalBerakhirPetugasIni->year
+                        : Carbon::parse($tanggalBerakhirPetugasIni)->year,
+                    $isSensusEkonomi
+                )
                 : null;
 
             return [
@@ -1904,6 +3127,11 @@ class BastController extends Controller
                     'nama' => $ketuaTim?->name,
                     'nip' => $ketuaTim?->nip,
                 ],
+                'is_sensus_ekonomi' => $isSensusEkonomi,
+                'muatan_prelist_default' => $muatanPrelistDefault,
+                'muatan_prelist_keluarga_default' => (int) $prelistBreakdown['keluarga'],
+                'muatan_prelist_usaha_default' => (int) $prelistBreakdown['usaha'],
+                'unit_sampel_pencacahan_items' => $unitSampelPencacahanItems,
                 'kegiatan_list' => $kegiatanList,
                 'jumlah_kegiatan' => is_array($kegiatanList) ? count($kegiatanList) : (method_exists($kegiatanList, 'count') ? $kegiatanList->count() : 0),
             ];
@@ -1911,13 +3139,22 @@ class BastController extends Controller
 
         // Encrypt sensitive data
         $encryptedSpkList = encryptData($spkList);
+        $encryptedImportedSensusInputs = encryptData(
+            $isSensusEkonomiMode
+                ? $this->getPersistedSensusRealisasiInputs($spks, (int) $bulan, (int) $tahun)
+                : []
+        );
 
         return Inertia::render('Bast/CreateForMonth', [
             'bulan' => (int) $bulan,
             'tahun' => $tahun,
             'bulan_label' => $this->getBulanLabel((int) $bulan),
+            'index_mode' => $mode,
             'spk_list' => [
                 'encrypted' => $encryptedSpkList,
+            ],
+            'imported_sensus_inputs' => [
+                'encrypted' => $encryptedImportedSensusInputs,
             ],
         ]);
     }
@@ -1939,6 +3176,11 @@ class BastController extends Controller
         $request->validate([
             'spk_ids' => 'required|array|min:1',
             'spk_ids.*' => 'required|integer|exists:spk,id',
+            'se_inputs' => 'nullable|array',
+            'se_inputs.*.muatan_input' => 'nullable|integer|min:0',
+            'se_inputs.*.muatan_prelist' => 'nullable|integer|min:0',
+            'se_inputs.*.realisasi_unit_sampel' => 'nullable|array',
+            'se_inputs.*.realisasi_unit_sampel.*' => 'nullable|numeric|min:0',
         ]);
 
         // Load semua SPKs yang dipilih dengan relasi yang dibutuhkan
@@ -1946,6 +3188,42 @@ class BastController extends Controller
             'alokasiPetugas.petugas',
             'alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim',
         ])->whereIn('id', $request->spk_ids)->get();
+
+        $hasSensusOutsideAugust = $spks->contains(function ($spk) {
+            if (! $this->isSensusEkonomiSpk($spk)) {
+                return false;
+            }
+
+            $endDate = $spk->tanggal_selesai_kerja ?? $spk->tanggal_mulai_kerja;
+            if (! $endDate) {
+                return true;
+            }
+
+            $endMonth = $endDate instanceof Carbon
+                ? (int) $endDate->format('n')
+                : (int) Carbon::parse($endDate)->format('n');
+
+            return $endMonth !== 8;
+        });
+
+        if ($hasSensusOutsideAugust) {
+            return redirect()->route('bast.index', ['mode' => 'sensus-ekonomi'])
+                ->with('error', 'BAST Sensus Ekonomi hanya dapat dibuat pada bulan Agustus sesuai akhir pelaksanaan PK.');
+        }
+
+        $seInputsBySpkId = collect($request->input('se_inputs', []))
+            ->mapWithKeys(function ($payload, $spkId) {
+                return [(int) $spkId => [
+                    'muatan_input' => isset($payload['muatan_input']) ? (int) $payload['muatan_input'] : null,
+                    'muatan_prelist' => isset($payload['muatan_prelist']) ? (int) $payload['muatan_prelist'] : null,
+                    'realisasi_unit_sampel' => isset($payload['realisasi_unit_sampel']) && is_array($payload['realisasi_unit_sampel'])
+                        ? collect($payload['realisasi_unit_sampel'])
+                            ->map(fn ($value) => is_numeric($value) ? (float) $value : null)
+                            ->filter(fn ($value) => $value !== null)
+                            ->all()
+                        : null,
+                ]];
+            });
 
         // Urutkan SPKs berdasarkan tanggal_berakhir_paling_akhir kemudian nama petugas (A-Z)
         $spksSorted = $spks->sort(function ($a, $b) {
@@ -2187,6 +3465,7 @@ class BastController extends Controller
                     $tanggalBerakhirPalingAkhir = $carbonTarget->format('Y-m-d');
 
                     $nomorBastTemp = null;
+                    $isSensusEkonomi = $this->isSensusEkonomiSpk($spk);
                     // Cek apakah SPK ini sudah punya alokasi nomor BAST dari lampiran preview
                     $existingAllocation = BastNumberAllocation::query()->where('spk_id', $spk->id)->first();
                     if ($existingAllocation?->nomor_bast) {
@@ -2197,18 +3476,16 @@ class BastController extends Controller
                             ->pluck('nomor_bast');
                         $maxUrut = 0;
                         foreach ($allBast as $existingNomor) {
-                            if (preg_match('/PPIS\/13730\/(\d+)\/BAST\/\d{4}/', $existingNomor, $matches)) {
-                                $urut = (int) $matches[1];
-                                if ($urut > $maxUrut) {
-                                    $maxUrut = $urut;
-                                }
+                            $urut = $this->extractBastSequenceForScheme($existingNomor, $isSensusEkonomi);
+                            if ($urut > $maxUrut) {
+                                $maxUrut = $urut;
                             }
                         }
                         // Cek nomor yang sudah dialokasikan via bast_number_allocations
                         $maxUrutAllocation = BastNumberAllocation::query()
                             ->where('tahun', $carbonTarget->year)
                             ->pluck('nomor_bast')
-                            ->map(fn (?string $n) => $this->extractBastSequence($n))
+                            ->map(fn (?string $n) => $this->extractBastSequenceForScheme($n, $isSensusEkonomi))
                             ->max() ?? 0;
                         $maxUrut = max($maxUrut, $maxUrutAllocation);
                         // Cek juga nomor urut yang sudah dipakai di batch ini
@@ -2218,7 +3495,7 @@ class BastController extends Controller
                             $maxUrutBatch = $maxUrut;
                         }
                         $nomorBastTemp = $maxUrutBatch + 1;
-                        $nomorBast = sprintf('PPIS/13730/%d/BAST/%d', $nomorBastTemp, $carbonTarget->year);
+                        $nomorBast = $this->formatBastNomor($nomorBastTemp, $carbonTarget->year, $isSensusEkonomi);
                     }
 
                     // Ambil PPK aktif
@@ -2232,7 +3509,8 @@ class BastController extends Controller
                         $allAlokasi,
                         $nomorBast,
                         $tanggalBerakhirPalingAkhir,
-                        $ppk
+                        $ppk,
+                        $seInputsBySpkId->get((int) $spk->id)
                     );
 
                     // Generate file BAST utama tanpa lampiran.
@@ -2273,6 +3551,11 @@ class BastController extends Controller
                     $alokasi = $spk->alokasiPetugas;
                     $petugas = $alokasi->petugas;
                     if ($petugas) {
+                        $seInput = $seInputsBySpkId->get((int) $spk->id, []);
+                        $persistedSensusReference = $this->supportsSensusReferenceColumns()
+                            ? $this->getPersistedSensusRealisasiInputs(collect([$spk]), (int) $bulan, (int) $tahun)
+                            : [];
+                        $persistedSensusReferenceItem = $persistedSensusReference[(int) $spk->id] ?? [];
                         $isPendataanRole = in_array($alokasi->peran, self::PENDATAAN_ROLES, true);
                         $isPengolahanRole = in_array($alokasi->peran, self::PENGOLAHAN_ROLES, true);
                         // Aggregate hasil dari semua SPK (original + addendum)
@@ -2300,7 +3583,7 @@ class BastController extends Controller
                                 $catatan[] = $alokasiSpk->catatan;
                             }
                         }
-                        BastPetugas::create([
+                        $bastPetugasPayload = [
                             'bast_id' => $bast->id,
                             'petugas_id' => $alokasi->petugas_id,
                             'spk_id' => $spk->id, // SPK utama
@@ -2311,7 +3594,16 @@ class BastController extends Controller
                             'hasil_pengolahan' => $totalPengolahan > 0 ? $totalPengolahan : null,
                             'hasil_pengolahan_listing' => $totalListing > 0 && $isPengolahanRole ? $totalListing : null,
                             'catatan' => ! empty($catatan) ? implode('; ', $catatan) : null,
-                        ]);
+                        ];
+
+                        if ($this->supportsSensusPetugasColumns()) {
+                            $bastPetugasPayload['muatan_input'] = isset($seInput['muatan_input']) ? (int) $seInput['muatan_input'] : null;
+                            $bastPetugasPayload['muatan_prelist'] = isset($seInput['muatan_prelist']) ? (int) $seInput['muatan_prelist'] : ($totalPendataan > 0 ? (int) $totalPendataan : null);
+                            $bastPetugasPayload['realisasi_unit_sampel'] = $seInput['realisasi_unit_sampel'] ?? null;
+                            $bastPetugasPayload['fasih_screenshot_path'] = $persistedSensusReferenceItem['fasih_screenshot_path'] ?? null;
+                        }
+
+                        BastPetugas::create($bastPetugasPayload);
                     }
 
                     collect($viewData['bast']->kegiatan_list)
@@ -2342,6 +3634,11 @@ class BastController extends Controller
                     if (isset($filePath)) {
                         $this->deleteStoredDocument($filePath);
                     }
+                    Log::error('BAST generate-batch item failed', [
+                        'spk_id' => $spk->id ?? null,
+                        'nomor_spk' => $spk->nomor_spk ?? null,
+                        'message' => $e->getMessage(),
+                    ]);
                     $failedSpk[] = [
                         'nomor_spk' => $spk->nomor_spk ?? 'Unknown',
                         'reason' => $e->getMessage(),
@@ -2381,15 +3678,17 @@ class BastController extends Controller
      * Prepare BAST data for export (sama dengan preview)
      */
     private function prepareBastDataForExport(
-        $spk,
-        $allSpks,
-        $nomorBast,
-        $tanggalBerakhir,
-        $ppk
+        Spk $spk,
+        Collection $allSpks,
+        string $nomorBast,
+        DateTimeInterface|string $tanggalBerakhir,
+        Penandatangan $ppk,
+        ?array $seInput = null,
+        ?bool $isSensusEkonomi = null
     ): array {
         $petugas = $spk->alokasiPetugas->petugas;
-        $bulan = date('m', strtotime($spk->tanggal_mulai_kerja));
-        $tahun = date('Y', strtotime($spk->tanggal_mulai_kerja));
+        $bulan = (int) date('n', strtotime($spk->tanggal_mulai_kerja));
+        $tahun = (int) date('Y', strtotime($spk->tanggal_mulai_kerja));
 
         // Ambil semua alokasi untuk petugas yang sama dalam bulan dan tahun yang sama
         // Exclude status 'direvisi' karena tidak perlu masuk ke lampiran
@@ -2410,11 +3709,14 @@ class BastController extends Controller
                 'periodeAlokasi.kegiatan.rateHonors.satuan',
                 'periodeAlokasi.kegiatan.rateHonors.satuanListing',
                 'periodeAlokasi.kegiatan.ketuaTim',
+                'frameSampelAllocations.kegiatanFrameSampel',
                 'spk',
             ])
             ->get();
 
         $ketuaTim = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->ketuaTim;
+
+        $sensusNarrativeData = $this->buildSensusEkonomiNarrativeData($allAlokasi, $seInput);
 
         // Format data untuk BAST
         $bastData = [
@@ -2422,6 +3724,16 @@ class BastController extends Controller
             'tanggal_bast' => $tanggalBerakhir,
             'tanggal_pelaksanaan' => $spk->tanggal_mulai_kerja,
             'tanggal_selesai' => $tanggalBerakhir,
+            'muatan_input' => $seInput['muatan_input'] ?? null,
+            'muatan_prelist' => $seInput['muatan_prelist'] ?? null,
+            'realisasi_unit_sampel' => $seInput['realisasi_unit_sampel'] ?? null,
+            'target_jumlah_frame_sampel' => $sensusNarrativeData['target_jumlah_frame_sampel'],
+            'target_muatan_prelist_keluarga' => $sensusNarrativeData['target_muatan_prelist_keluarga'],
+            'target_muatan_prelist_usaha' => $sensusNarrativeData['target_muatan_prelist_usaha'],
+            'hasil_jumlah_frame_sampel' => $sensusNarrativeData['hasil_jumlah_frame_sampel'],
+            'hasil_realisasi_keluarga' => $sensusNarrativeData['hasil_realisasi_keluarga'],
+            'hasil_realisasi_usaha' => $sensusNarrativeData['hasil_realisasi_usaha'],
+            'is_sensus_ekonomi' => $isSensusEkonomi ?? $this->isSensusEkonomiSpk($spk),
             'lokasi_kegiatan' => 'Kota Sawahlunto',
             'nama_ppk' => $ppk->nama,
             'nip_ppk' => $ppk->nip ?? '-',
@@ -2635,6 +3947,8 @@ class BastController extends Controller
                 'hasil_pengolahan_listing' => $isPengolahanRole ? $effectiveListingVolume : null,
                 'satuan_pengolahan' => $isPengolahanRole ? $rateHonor?->satuan?->nama : null,
                 'satuan_pengolahan_listing' => $isPengolahanRole ? $rateHonor?->satuanListing?->nama : null,
+                'nilai_perjanjian' => (float) ($spkPetugas?->nilai_kontrak ?? 0),
+                'wilayah_kerja' => $this->buildSensusLampiranWilayahKerja($alokasi),
                 'keterangan' => $alokasi->catatan,
                 'ketua_tim' => [
                     'nama' => $ketuaTimKegiatan?->name,
@@ -2658,7 +3972,7 @@ class BastController extends Controller
             'tanggal_akhir_kegiatan' => Carbon::parse($tanggalBerakhir)->locale('id')->isoFormat('D MMMM YYYY'),
             'hari' => Carbon::parse($tanggalBerakhir)->locale('id')->isoFormat('dddd'),
             'menggunakan_fasih' => $this->isMenggunakanFasih($allAlokasi),
-            'jabatan_ppk' => 'Pejabat Pembuat Komitmen Badan Pusat Statistik Kota Sawahlunto untuk Program Penyediaan dan Pelayanan Informasi Statistik',
+            'jabatan_ppk' => 'Pejabat Pembuat Komitmen Badan Pusat Statistik Kota Sawahlunto',
             'alamat_unit_kerja' => 'Jl. Bagindo Aziz Chan, Kel. Aur Mulyo, Kec. Lembah Segar, Kota Sawahlunto',
             'nama_kepala' => $kepala?->nama,
         ];
@@ -2668,15 +3982,15 @@ class BastController extends Controller
      * Prepare BAST data for PDF export
      */
     private function prepareBastData(
-        $spk,
-        $allSpks,
-        $nomorBast,
-        $tanggalBerakhir,
-        $kegiatan,
-        $periodeAlokasi,
-        $uraianPekerjaan,
-        $ketuaTim,
-        $ppk
+        Spk $spk,
+        Collection $allSpks,
+        string $nomorBast,
+        DateTimeInterface|string $tanggalBerakhir,
+        Kegiatan $kegiatan,
+        PeriodeAlokasi $periodeAlokasi,
+        string $uraianPekerjaan,
+        ?User $ketuaTim,
+        Penandatangan $ppk
     ): array {
         $petugas = $spk->alokasiPetugas->petugas;
 
@@ -2834,6 +4148,8 @@ class BastController extends Controller
                 'hasil_pengolahan_listing' => $isPengolahanRole ? $this->resolveLampiranCumulativeVolume($alokasi, 'listing') : null,
                 'satuan_pengolahan' => $isPengolahanRole ? $rateHonor?->satuan?->nama : null,
                 'satuan_pengolahan_listing' => $isPengolahanRole ? $rateHonor?->satuanListing?->nama : null,
+                'nilai_perjanjian' => (float) ($spkPetugas?->nilai_kontrak ?? 0),
+                'wilayah_kerja' => $this->buildSensusLampiranWilayahKerja($alokasi),
                 'keterangan' => $alokasi->catatan,
                 'ketua_tim' => [
                     'nama' => $ketuaTimKegiatan?->name,
@@ -2877,7 +4193,7 @@ class BastController extends Controller
     /**
      * Generate nomor BAST otomatis untuk SPK
      */
-    private function generateNomorBastForSpk(Carbon $tanggalBast): string
+    private function generateNomorBastForSpk(Carbon $tanggalBast, bool $isSensusEkonomi = false): string
     {
         $tahun = $tanggalBast->year;
         $bulan = $tanggalBast->month;
@@ -2889,19 +4205,15 @@ class BastController extends Controller
 
         $maxUrut = 0;
         foreach ($allBast as $nomorBast) {
-            // Pattern: PPIS/13730/{urut}/BAST/{tahun}
-            if (preg_match('/PPIS\/13730\/(\d+)\/BAST\/\d{4}/', $nomorBast, $matches)) {
-                $urut = (int) $matches[1];
-                if ($urut > $maxUrut) {
-                    $maxUrut = $urut;
-                }
+            $urut = $this->extractBastSequenceForScheme($nomorBast, $isSensusEkonomi);
+            if ($urut > $maxUrut) {
+                $maxUrut = $urut;
             }
         }
 
         $urut = $maxUrut + 1;
-        $bulanRomawi = $this->getRomanMonth($bulan);
 
-        return sprintf('PPIS/13730/%d/BAST/%d', $urut, $tahun);
+        return $this->formatBastNomor($urut, $tahun, $isSensusEkonomi);
     }
 
     /**
@@ -2990,9 +4302,11 @@ class BastController extends Controller
             'alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim',
         ])->findOrFail($request->spk_id);
 
+        $seInputForPreview = $this->resolveSensusPreviewInput($spk, $request);
+
         $petugas = $spk->alokasiPetugas?->petugas;
-        $bulan = date('m', strtotime($spk->tanggal_mulai_kerja));
-        $tahun = date('Y', strtotime($spk->tanggal_mulai_kerja));
+        $bulan = (int) date('n', strtotime($spk->tanggal_mulai_kerja));
+        $tahun = (int) date('Y', strtotime($spk->tanggal_mulai_kerja));
 
         // Ambil semua alokasi untuk petugas yang sama dalam bulan dan tahun yang sama
         // Exclude status 'direvisi' karena tidak perlu masuk ke lampiran
@@ -3053,12 +4367,24 @@ class BastController extends Controller
             $noUrutBAST = $this->allocateNomorBastForSpk($spk, $tanggalBastCarbon);
         }
 
+        $sensusNarrativeData = $this->buildSensusEkonomiNarrativeData($allAlokasi, $seInputForPreview);
+
         // Format data untuk preview
         $bastData = [
             'nomor_bast' => $noUrutBAST,
             'tanggal_bast' => $tanggalBerakhirPalingAkhir,
             'tanggal_pelaksanaan' => $spk->tanggal_mulai_kerja,
             'tanggal_selesai' => $tanggalBerakhirPalingAkhir,
+            'muatan_input' => $seInputForPreview['muatan_input'] ?? null,
+            'muatan_prelist' => $seInputForPreview['muatan_prelist'] ?? null,
+            'realisasi_unit_sampel' => $seInputForPreview['realisasi_unit_sampel'] ?? null,
+            'target_jumlah_frame_sampel' => $sensusNarrativeData['target_jumlah_frame_sampel'],
+            'target_muatan_prelist_keluarga' => $sensusNarrativeData['target_muatan_prelist_keluarga'],
+            'target_muatan_prelist_usaha' => $sensusNarrativeData['target_muatan_prelist_usaha'],
+            'hasil_jumlah_frame_sampel' => $sensusNarrativeData['hasil_jumlah_frame_sampel'],
+            'hasil_realisasi_keluarga' => $sensusNarrativeData['hasil_realisasi_keluarga'],
+            'hasil_realisasi_usaha' => $sensusNarrativeData['hasil_realisasi_usaha'],
+            'is_sensus_ekonomi' => $this->isSensusEkonomiSpk($spk),
             'lokasi_kegiatan' => 'Kota Sawahlunto',
             'nama_ppk' => $spk->nama_ppk,
             'nip_ppk' => $spk->nip_ppk,
@@ -3245,6 +4571,8 @@ class BastController extends Controller
                 'satuan_pengolahan' => $isPengolahanRole ? $rateHonor?->satuan?->nama : null,
                 'hasil_pengolahan_listing' => $isPengolahanRole ? $effectiveListingVolume : null,
                 'satuan_pengolahan_listing' => $isPengolahanRole ? $rateHonor?->satuanListing?->nama : null,
+                'nilai_perjanjian' => (float) ($spkPetugas?->nilai_kontrak ?? 0),
+                'wilayah_kerja' => $this->buildSensusLampiranWilayahKerja($alokasi),
                 'keterangan' => $alokasi->catatan,
                 'ketua_tim' => [
                     'nama' => $ketuaTimKegiatan?->name,
@@ -3265,7 +4593,7 @@ class BastController extends Controller
             'tanggal_akhir_kegiatan' => Carbon::parse($tanggalBerakhirPalingAkhir)->locale('id')->isoFormat('D MMMM YYYY'),
             'hari' => Carbon::parse($tanggalBerakhirPalingAkhir)->locale('id')->isoFormat('dddd'),
             'menggunakan_fasih' => $this->isMenggunakanFasih($allAlokasi),
-            'jabatan_ppk' => 'Pejabat Pembuat Komitmen Badan Pusat Statistik Kota Sawahlunto untuk Program Penyediaan dan Pelayanan Informasi Statistik',
+            'jabatan_ppk' => 'Pejabat Pembuat Komitmen Badan Pusat Statistik Kota Sawahlunto',
             'alamat_unit_kerja' => 'Jl. Bagindo Aziz Chan, Kel. Aur Mulyo, Kec. Lembah Segar, Kota Sawahlunto',
             'nama_kepala' => $kepala?->nama,
         ];
@@ -3331,6 +4659,8 @@ class BastController extends Controller
             'alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim',
         ])->findOrFail($request->spk_id);
 
+        $seInputForPreview = $this->resolveSensusPreviewInput($spk, $request);
+
         $petugas = $spk->alokasiPetugas?->petugas;
         abort_unless($petugas, 404, 'Petugas pada SPK tidak ditemukan.');
 
@@ -3353,11 +4683,44 @@ class BastController extends Controller
             collect([$spk]),
             $nomorBastPreview,
             $tanggalAkhir,
-            $ppk
+            $ppk,
+            $seInputForPreview
+        );
+
+        $previewSensusReference = $this->isSensusEkonomiSpk($spk)
+            ? $this->buildSensusReferencePayload(
+                $spk,
+                (int) Carbon::parse($tanggalAkhir)->month,
+                (int) Carbon::parse($tanggalAkhir)->year,
+            )
+            : null;
+
+        $viewData['bast']->kegiatan_list = $this->mergeSharedSensusScreenshotIntoKegiatanList(
+            $viewData['bast']->kegiatan_list ?? [],
+            $previewSensusReference['fasih_screenshot_path'] ?? null,
         );
 
         $kegiatanId = $request->input('kegiatan_id');
         $periodeAlokasiId = (int) $request->input('periode_alokasi_id', 0);
+
+        if ($kegiatanId) {
+            $selectedKegiatanPayload = collect($viewData['bast']->kegiatan_list)
+                ->first(function (array $item) use ($kegiatanId, $periodeAlokasiId) {
+                    $sameKegiatan = (int) ($item['kegiatan_id'] ?? 0) === (int) $kegiatanId;
+
+                    if (! $sameKegiatan) {
+                        return false;
+                    }
+
+                    if ($periodeAlokasiId <= 0) {
+                        return true;
+                    }
+
+                    return (int) ($item['periode_alokasi_id'] ?? 0) === $periodeAlokasiId;
+                });
+
+            abort_if(! $selectedKegiatanPayload, 404, 'Kegiatan lampiran tidak ditemukan.');
+        }
 
         if ($kegiatanId) {
             $previewRecordQuery = BastKegiatan::query()
@@ -3457,7 +4820,21 @@ class BastController extends Controller
             abort(404, 'Tidak ada data lampiran untuk SPK ini.');
         }
 
-        $pdfLampiran = Pdf::loadView('bast-lampiran-spk', $viewData)
+        abort_if(
+            collect($viewData['bast']->kegiatan_list)->contains(
+                fn (array $item) => ! $this->isLampiranGenerationAllowed($item)
+            ),
+            422,
+            'Preview lampiran hanya bisa dibuka setelah screenshot Fasih diunggah dan kegiatan berakhir.'
+        );
+
+        $mainContent = Pdf::loadView('bast', $viewData)
+            ->setPaper('a4', 'portrait')
+            ->output();
+
+        $viewData['pageNumberOffset'] = $this->resolveLampiranPageNumberOffset(null, $mainContent);
+
+        $pdfLampiran = Pdf::loadView($this->resolveBastLampiranSpkView($viewData), $viewData)
             ->setPaper('a4', 'landscape');
 
         $tempPath = storage_path('app/temp');
@@ -3568,6 +4945,19 @@ class BastController extends Controller
             $ppk
         );
 
+        $previewSensusReference = $this->isSensusEkonomiSpk($spk)
+            ? $this->buildSensusReferencePayload(
+                $spk,
+                (int) Carbon::parse($tanggalAkhir)->month,
+                (int) Carbon::parse($tanggalAkhir)->year,
+            )
+            : null;
+
+        $viewData['bast']->kegiatan_list = $this->mergeSharedSensusScreenshotIntoKegiatanList(
+            $viewData['bast']->kegiatan_list ?? [],
+            $previewSensusReference['fasih_screenshot_path'] ?? null,
+        );
+
         $kegiatanPayload = collect($viewData['bast']->kegiatan_list)
             ->first(function (array $item) use ($kegiatanId, $periodeAlokasiIdFromRequest) {
                 $sameKegiatan = (int) ($item['kegiatan_id'] ?? 0) === $kegiatanId;
@@ -3584,11 +4974,17 @@ class BastController extends Controller
             });
 
         abort_if(! $kegiatanPayload, 404, 'Kegiatan lampiran tidak ditemukan.');
-        abort_if(! $this->isLampiranGenerationAllowed($kegiatanPayload), 422, 'Lampiran hanya bisa diunduh setelah kegiatan berakhir.');
+        abort_if(! $this->isLampiranGenerationAllowed($kegiatanPayload), 422, 'Lampiran hanya bisa diunduh setelah screenshot Fasih diunggah dan kegiatan berakhir.');
 
         $viewData['bast']->kegiatan_list = [$kegiatanPayload];
 
-        $pdfLampiran = Pdf::loadView('bast-lampiran-spk', $viewData)
+        $mainContent = Pdf::loadView('bast', $viewData)
+            ->setPaper('a4', 'portrait')
+            ->output();
+
+        $viewData['pageNumberOffset'] = $this->resolveLampiranPageNumberOffset(null, $mainContent);
+
+        $pdfLampiran = Pdf::loadView($this->resolveBastLampiranSpkView($viewData), $viewData)
             ->setPaper('a4', 'landscape');
 
         $periodeAlokasiId = (int) ($kegiatanPayload['periode_alokasi_id'] ?? 0);
@@ -3857,6 +5253,22 @@ class BastController extends Controller
         return $this->uploadPreviewLampiranSigned($request);
     }
 
+    public function uploadLampiranFasihScreenshotByReference(Request $request): RedirectResponse
+    {
+        if ($request->filled('bast_hashed_id')) {
+            $bast = $this->resolveBastFromHashedId((string) $request->input('bast_hashed_id'));
+
+            if ($bast) {
+                $this->rememberOpenDetailFiltersFromBast($request, $bast);
+            }
+        }
+
+        return $this->redirectToLocalPath(
+            $request,
+            route('bast.open-detail-by-petugas', absolute: false)
+        )->with('error', 'Upload screenshot Fasih per lampiran sudah dihapus. Gunakan upload screenshot Fasih utama pada referensi sensus.');
+    }
+
     public function previewStoredLampiran(Request $request, Bast $bast, BastKegiatan $bastKegiatan): \Symfony\Component\HttpFoundation\Response
     {
         $bast->loadMissing('bastKegiatan.kegiatan');
@@ -3864,6 +5276,14 @@ class BastController extends Controller
 
         $this->ensureBastKegiatanBelongsToBast($bast, $bastKegiatan);
         abort_unless($this->userCanManageLampiran($request, $bastKegiatan) && $this->userCanAccessBast($request, $bast), 403);
+
+        $viewData = $this->prepareStoredBastViewData($bast);
+        $kegiatanPayload = collect($viewData['bast']->kegiatan_list)->first(function (array $item) use ($bastKegiatan) {
+            return (int) ($item['kegiatan_id'] ?? 0) === (int) $bastKegiatan->kegiatan_id
+                && (int) ($item['periode_alokasi_id'] ?? 0) === (int) $bastKegiatan->periode_alokasi_id;
+        });
+
+        abort_if(! $kegiatanPayload, 404, 'Lampiran kegiatan tidak ditemukan.');
 
         $signedPath = $this->resolveDocumentAbsolutePath($bastKegiatan->signed_file_path);
         if ($signedPath && file_exists($signedPath)) {
@@ -3885,17 +5305,12 @@ class BastController extends Controller
             ]);
         }
 
-        $viewData = $this->prepareStoredBastViewData($bast);
-        $kegiatanPayload = collect($viewData['bast']->kegiatan_list)->first(function (array $item) use ($bastKegiatan) {
-            return (int) ($item['kegiatan_id'] ?? 0) === (int) $bastKegiatan->kegiatan_id
-                && (int) ($item['periode_alokasi_id'] ?? 0) === (int) $bastKegiatan->periode_alokasi_id;
-        });
-
-        abort_if(! $kegiatanPayload, 404, 'Lampiran kegiatan tidak ditemukan.');
+        abort_if(! $this->isLampiranGenerationAllowed($kegiatanPayload), 422, 'Preview lampiran hanya bisa dibuka setelah screenshot Fasih diunggah dan kegiatan berakhir.');
 
         $viewData['bast']->kegiatan_list = [$kegiatanPayload];
+        $viewData['pageNumberOffset'] = $this->resolveLampiranPageNumberOffset($bast);
 
-        $pdfLampiran = Pdf::loadView('bast-lampiran-spk', $viewData)
+        $pdfLampiran = Pdf::loadView($this->resolveBastLampiranSpkView($viewData), $viewData)
             ->setPaper('a4', 'landscape');
 
         $tempPath = storage_path('app/temp');
@@ -4026,11 +5441,12 @@ class BastController extends Controller
         });
 
         abort_if(! $kegiatanPayload, 404, 'Lampiran kegiatan tidak dapat disiapkan dari data alokasi saat ini.');
-        abort_if(! $this->isLampiranGenerationAllowed($kegiatanPayload), 422, 'Lampiran hanya bisa diunduh setelah kegiatan berakhir.');
+        abort_if(! $this->isLampiranGenerationAllowed($kegiatanPayload), 422, 'Lampiran hanya bisa diunduh setelah screenshot Fasih diunggah dan kegiatan berakhir.');
 
         $viewData['bast']->kegiatan_list = [$kegiatanPayload];
+        $viewData['pageNumberOffset'] = $this->resolveLampiranPageNumberOffset($bast);
 
-        $pdfLampiran = Pdf::loadView('bast-lampiran-spk', $viewData)
+        $pdfLampiran = Pdf::loadView($this->resolveBastLampiranSpkView($viewData), $viewData)
             ->setPaper('a4', 'landscape');
 
         $this->deleteStoredDocument($bastKegiatan->file_path);
@@ -4075,12 +5491,13 @@ class BastController extends Controller
         }
 
         if (! $this->isLampiranGenerationAllowed($kegiatanPayload)) {
-            return redirect()->back()->with('error', 'Lampiran hanya bisa digenerate setelah kegiatan berakhir.');
+            return redirect()->back()->with('error', 'Lampiran hanya bisa digenerate setelah screenshot Fasih diunggah dan kegiatan berakhir.');
         }
 
         $viewData['bast']->kegiatan_list = [$kegiatanPayload];
+        $viewData['pageNumberOffset'] = $this->resolveLampiranPageNumberOffset($bast);
 
-        $pdfLampiran = Pdf::loadView('bast-lampiran-spk', $viewData)
+        $pdfLampiran = Pdf::loadView($this->resolveBastLampiranSpkView($viewData), $viewData)
             ->setPaper('a4', 'landscape');
 
         $filename = 'LAMPIRAN_'.$this->sanitizeDocumentSegment($bast->nomor_bast).'_'.$this->sanitizeDocumentSegment($bastKegiatan->kode_kegiatan).'.pdf';
@@ -4110,6 +5527,15 @@ class BastController extends Controller
         $this->ensureBastKegiatanBelongsToBast($bast, $bastKegiatan);
         abort_unless($this->userCanManageLampiran($request, $bastKegiatan) && $this->userCanAccessBast($request, $bast), 403);
 
+        $viewData = $this->prepareStoredBastViewData($bast);
+        $kegiatanPayload = collect($viewData['bast']->kegiatan_list)->first(function (array $item) use ($bastKegiatan) {
+            return (int) ($item['kegiatan_id'] ?? 0) === (int) $bastKegiatan->kegiatan_id
+                && (int) ($item['periode_alokasi_id'] ?? 0) === (int) $bastKegiatan->periode_alokasi_id;
+        });
+
+        abort_if(! $kegiatanPayload, 404, 'Lampiran kegiatan tidak ditemukan.');
+        abort_if(! $this->isLampiranGenerationAllowed($kegiatanPayload), 422, 'Lampiran hanya bisa diunduh setelah screenshot Fasih diunggah dan kegiatan berakhir.');
+
         $path = $bastKegiatan->signed_file_path ?: $bastKegiatan->file_path;
         $absolutePath = $this->resolveDocumentAbsolutePath($path);
         abort_unless($absolutePath && file_exists($absolutePath), 404, 'Lampiran belum tersedia untuk diunduh.');
@@ -4121,6 +5547,24 @@ class BastController extends Controller
             'Content-Type' => 'application/pdf',
             'Cache-Control' => 'no-cache, must-revalidate',
         ]);
+    }
+
+    public function uploadLampiranFasihScreenshot(Request $request, Bast $bast, BastKegiatan $bastKegiatan): RedirectResponse
+    {
+        $this->rememberOpenDetailFiltersFromBast($request, $bast);
+
+        return $this->redirectToLocalPath(
+            $request,
+            route('bast.open-detail-by-petugas', absolute: false)
+        )->with('error', 'Upload screenshot Fasih per lampiran sudah dihapus. Gunakan upload screenshot Fasih utama pada referensi sensus.');
+    }
+
+    public function uploadPreviewLampiranFasihScreenshot(Request $request): RedirectResponse
+    {
+        return $this->redirectToLocalPath(
+            $request,
+            route('bast.index', absolute: false)
+        )->with('error', 'Upload screenshot Fasih per lampiran sudah dihapus. Gunakan upload screenshot Fasih utama pada referensi sensus.');
     }
 
     public function uploadLampiranSigned(Request $request, Bast $bast, BastKegiatan $bastKegiatan): RedirectResponse
@@ -4512,6 +5956,7 @@ class BastController extends Controller
         $mainContent = $pdfMain->output();
 
         // PDF lampiran: selalu render sebagai halaman terpisah
+        $viewData['pageNumberOffset'] = $this->resolveLampiranPageNumberOffset(null, $mainContent);
         $pdfLampiran = Pdf::loadView('bast-lampiran', $viewData)
             ->setPaper('a4', 'landscape');
         $lampiranContent = $pdfLampiran->output();
@@ -4947,12 +6392,14 @@ class BastController extends Controller
             'bastKegiatan.kegiatan:id,kode_kegiatan,nama_kegiatan,jenis_kegiatan,ketua_tim_user_id,pj_lainnya_id',
             'createdBy:id,name',
             'spk.alokasiPetugas.petugas',
+            'spk.alokasiPetugas.periodeAlokasi.kegiatan',
         ]);
 
         $user = $this->getRequestUser($request);
         $canManageMain = $this->userCanManageBastMain($request);
         $periode = $bast->periodeAlokasi;
         $bulanFormatted = str_pad((string) $periode->bulan, 2, '0', STR_PAD_LEFT);
+        $detailReferencePeriod = $this->resolveBastDetailReferencePeriod($request, $bast);
 
         $isKetuaTim = $user?->active_role === 'ketua_tim';
 
@@ -5032,6 +6479,8 @@ class BastController extends Controller
                 );
                 $canManageLampiran = $this->userCanManageLampiran($request, $item);
                 $readyToGenerate = ! empty($payload) && $this->isLampiranGenerationAllowed($payload);
+                $usesFasihScreenshot = $this->shouldUseLampiranFasihScreenshot($item->nama_kegiatan, $payload['peran'] ?? null);
+                $hasStoredLampiranFile = filled($item->signed_file_path) || filled($item->file_path);
 
                 return [
                     'id' => $item->id,
@@ -5046,14 +6495,18 @@ class BastController extends Controller
                     'ketua_tim_nama' => $payload['ketua_tim']['nama'] ?? null,
                     'file_path' => $item->file_path,
                     'signed_file_path' => $item->signed_file_path,
+                    'fasih_screenshot_path' => $payload['fasih_screenshot_path'] ?? null,
                     'generated_at' => $item->generated_at?->format('d M Y H:i'),
                     'signed_uploaded_at' => $item->signed_uploaded_at?->format('d M Y H:i'),
+                    'fasih_screenshot_uploaded_at' => null,
                     'status' => $item->signed_file_path ? 'signed' : ($item->file_path ? 'generated' : 'pending'),
-                    'can_download' => $canManageLampiran && ($readyToGenerate || filled($item->file_path) || filled($item->signed_file_path)),
+                    'can_download' => $canManageLampiran && ($readyToGenerate || $hasStoredLampiranFile),
                     'can_generate' => $canManageLampiran && $readyToGenerate,
                     'can_upload_signed' => $canManageLampiran && filled($item->file_path),
-                    'can_preview' => $readyToGenerate || filled($item->file_path) || filled($item->signed_file_path),
+                    'can_upload_fasih_screenshot' => false,
+                    'can_preview' => $readyToGenerate,
                     'ready_to_generate' => $readyToGenerate,
+                    'uses_fasih_screenshot' => $usesFasihScreenshot,
                 ];
             });
 
@@ -5071,6 +6524,11 @@ class BastController extends Controller
         $finalSignedReady = $isLegacyMode
             ? filled($bast->signed_file_path)
             : filled($bast->main_signed_file_path) && $allLampiranSigned && filled($bast->signed_file_path);
+        $primaryBastPetugas = $bast->bastPetugas->first();
+        $isSensusEkonomiBast = $this->isSensusEkonomiName($bast->kegiatan?->nama_kegiatan);
+        $sensusReference = $isSensusEkonomiBast
+            ? $this->buildSensusReferencePayload($spk, $detailReferencePeriod['bulan'], $detailReferencePeriod['tahun'], $primaryBastPetugas)
+            : null;
 
         return Inertia::render('Bast/Show', [
             'bast' => [
@@ -5093,6 +6551,11 @@ class BastController extends Controller
                 'lokasi_kegiatan' => $bast->lokasi_kegiatan,
                 'status' => $bast->status,
                 'catatan' => $bast->catatan,
+                'is_sensus_ekonomi' => $isSensusEkonomiBast,
+                'muatan_input' => $sensusReference['muatan_input'] ?? $primaryBastPetugas?->muatan_input,
+                'muatan_prelist' => $sensusReference['muatan_prelist'] ?? $primaryBastPetugas?->muatan_prelist,
+                'realisasi_unit_sampel' => $sensusReference['realisasi_unit_sampel'] ?? $primaryBastPetugas?->realisasi_unit_sampel,
+                'fasih_screenshot_path' => $sensusReference['fasih_screenshot_path'] ?? null,
                 'created_by' => $bast->createdBy?->name ?? 'System',
                 'created_at' => $bast->created_at->format('d M Y H:i'),
                 'is_legacy_mode' => $isLegacyMode,
@@ -5151,9 +6614,150 @@ class BastController extends Controller
                 'main_signed_uploaded' => filled($bast->main_signed_file_path),
                 'final_signed_ready' => $finalSignedReady,
             ],
-            'bulan' => (int) $periode->bulan,
-            'tahun' => $periode->tahun,
-            'bulan_label' => $bulanLabel,
+            'sensus_reference' => $sensusReference,
+            'mode' => (string) $request->input('mode', 'regular'),
+            'bulan' => $detailReferencePeriod['bulan'],
+            'tahun' => $detailReferencePeriod['tahun'],
+            'bulan_label' => $detailReferencePeriod['bulan_label'],
+        ]);
+    }
+
+    public function saveSensusReference(Request $request): JsonResponse
+    {
+        abort_unless($this->supportsSensusReferenceColumns(), 404);
+
+        $validated = $request->validate([
+            'spk_id' => 'required|integer|exists:spk,id',
+            'bulan' => 'required|integer|min:1|max:12',
+            'tahun' => 'required|integer|min:2026',
+            'bast_hashed_id' => 'nullable|string',
+            'realisasi_unit_sampel' => 'required|array|min:1',
+            'realisasi_unit_sampel.*' => 'nullable|numeric|min:0',
+        ]);
+
+        $spk = Spk::query()->with('alokasiPetugas.petugas')->findOrFail((int) $validated['spk_id']);
+        $bast = null;
+
+        if (filled($validated['bast_hashed_id'] ?? null)) {
+            $bast = $this->resolveBastFromHashedId((string) $validated['bast_hashed_id']);
+            abort_unless($bast && $this->userCanAccessBast($request, $bast), 403);
+        } else {
+            abort_unless($this->userCanManageBastMain($request), 403);
+        }
+
+        $realisasiUnitSampel = $this->normalizeRealisasiUnitSampelValues($validated['realisasi_unit_sampel']);
+        $record = $this->upsertSensusReferenceRecord(
+            $spk,
+            (int) $validated['bulan'],
+            (int) $validated['tahun'],
+            $realisasiUnitSampel,
+            $request,
+        );
+
+        if ($bast) {
+            $this->syncSensusReferenceToBastPetugas($bast, $spk, $realisasiUnitSampel);
+        }
+
+        return response()->json([
+            'message' => 'Referensi realisasi berhasil disimpan.',
+            'data' => [
+                'spk_id' => (int) $spk->id,
+                'realisasi_unit_sampel' => $record->realisasi_unit_sampel ?? [],
+                'muatan_input' => $this->sumRealisasiUnitSampelValues($record->realisasi_unit_sampel ?? []),
+            ],
+        ]);
+    }
+
+    private function storeSharedSensusFasihScreenshot(
+        Request $request,
+        Spk $spk,
+        int $bulan,
+        int $tahun,
+        ?Bast $bast = null,
+    ): BastSensusRealisasiImport {
+        $existingRecord = BastSensusRealisasiImport::query()
+            ->where('spk_id', (int) $spk->id)
+            ->where('bulan', $bulan)
+            ->where('tahun', $tahun)
+            ->first();
+
+        $directory = $this->ensureBastExportDirectory('fasih-screenshot');
+        $extension = strtolower((string) $request->file('file')->getClientOriginalExtension());
+        $filename = sprintf(
+            'FASIH_REF_SPK_%d_%d_%d.%s',
+            (int) $spk->id,
+            $bulan,
+            time(),
+            $extension
+        );
+
+        $request->file('file')->move($directory, $filename);
+        $relativePath = trim('bast-export/fasih-screenshot/'.$filename, '/');
+
+        $oldAbsolute = $this->resolveDocumentAbsolutePath($existingRecord?->fasih_screenshot_path);
+        if ($oldAbsolute && file_exists($oldAbsolute)) {
+            @unlink($oldAbsolute);
+        }
+
+        $record = $this->upsertSensusReferenceRecord(
+            $spk,
+            $bulan,
+            $tahun,
+            is_array($existingRecord?->realisasi_unit_sampel) ? $existingRecord->realisasi_unit_sampel : [],
+            $request,
+            $relativePath,
+            now(),
+        );
+
+        if ($bast) {
+            $this->syncSensusReferenceToBastPetugas(
+                $bast,
+                $spk,
+                is_array($record->realisasi_unit_sampel) ? $record->realisasi_unit_sampel : [],
+                $relativePath,
+            );
+        }
+
+        return $record;
+    }
+
+    public function uploadSharedSensusFasihScreenshot(Request $request): JsonResponse
+    {
+        abort_unless($this->supportsSensusReferenceScreenshotColumns(), 404);
+
+        $validated = $request->validate([
+            'spk_id' => 'required|integer|exists:spk,id',
+            'bulan' => 'required|integer|min:1|max:12',
+            'tahun' => 'required|integer|min:2026',
+            'bast_hashed_id' => 'nullable|string',
+            'file' => 'required|file|mimes:jpg,jpeg,png,webp|max:5120',
+        ]);
+
+        $spk = Spk::query()->with('alokasiPetugas.petugas')->findOrFail((int) $validated['spk_id']);
+        $bast = null;
+
+        if (filled($validated['bast_hashed_id'] ?? null)) {
+            $bast = $this->resolveBastFromHashedId((string) $validated['bast_hashed_id']);
+            abort_unless($bast && $this->userCanAccessBast($request, $bast), 403);
+        } else {
+            abort_unless($this->userCanManageBastMain($request), 403);
+        }
+
+        $record = $this->storeSharedSensusFasihScreenshot(
+            $request,
+            $spk,
+            (int) $validated['bulan'],
+            (int) $validated['tahun'],
+            $bast,
+        );
+
+        return response()->json([
+            'message' => 'Screenshot Fasih berhasil diunggah.',
+            'data' => [
+                'spk_id' => (int) $spk->id,
+                'fasih_screenshot_path' => $record->fasih_screenshot_path,
+                'fasih_screenshot_uploaded_at' => $record->fasih_screenshot_uploaded_at?->format('d M Y H:i'),
+            ],
         ]);
     }
 
@@ -5275,6 +6879,229 @@ class BastController extends Controller
         }
     }
 
+    public function downloadSensusRealisasiTemplate(Request $request)
+    {
+        $validated = $request->validate([
+            'bulan' => 'required|integer|min:1|max:12',
+            'tahun' => 'required|integer|min:2026',
+        ]);
+
+        if ((int) $validated['bulan'] !== 8) {
+            return redirect()->route('bast.index', ['mode' => 'sensus-ekonomi'])
+                ->with('info', 'Template realisasi BAST Sensus Ekonomi hanya tersedia untuk bulan Agustus.');
+        }
+
+        $spkRows = $this->getSensusRealisasiTemplateSpks((int) $validated['bulan'], (int) $validated['tahun'])
+            ->map(function (Spk $spk) use ($validated) {
+                $petugas = $spk->alokasiPetugas?->petugas;
+                $prelistBreakdown = $this->calculateSensusPrelistBreakdown(
+                    $this->getSensusEkonomiAlokasiForPetugasInYear((int) ($petugas?->id ?? 0), (int) $validated['tahun'])
+                );
+
+                return [
+                    'nomor_spk' => (string) $spk->nomor_spk,
+                    'nik_petugas' => (string) ($petugas?->nik ?? ''),
+                    'nama_petugas' => (string) ($petugas?->nama ?? ''),
+                    'muatan_prelist_keluarga' => (int) $prelistBreakdown['keluarga'],
+                    'muatan_prelist_usaha' => (int) $prelistBreakdown['usaha'],
+                ];
+            })
+            ->values()
+            ->all();
+
+        $filename = sprintf(
+            'template-realisasi-bast-se2026-%02d-%d.xlsx',
+            (int) $validated['bulan'],
+            (int) $validated['tahun']
+        );
+
+        return Excel::download(new BastSensusRealisasiTemplateExport($spkRows), $filename);
+    }
+
+    public function importSensusRealisasi(Request $request): JsonResponse
+    {
+        abort_unless($this->userCanManageBastMain($request), 403);
+
+        $validated = $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
+            'bulan' => 'required|integer|min:1|max:12',
+            'tahun' => 'required|integer|min:2026',
+        ]);
+
+        if ((int) $validated['bulan'] !== 8) {
+            return response()->json([
+                'message' => 'Import realisasi BAST Sensus Ekonomi hanya tersedia untuk bulan Agustus.',
+            ], 422);
+        }
+
+        $import = new BastSensusRealisasiSpreadsheetImport;
+        Excel::import($import, $request->file('file'));
+
+        $rows = collect($import->rows())
+            ->filter(function (array $row) {
+                return filled($row['nomor_spk']) || filled($row['nik_petugas']) || filled($row['nama_petugas']);
+            })
+            ->values();
+
+        $rowsWithRealisasi = $rows
+            ->filter(fn (array $row) => ! empty($row['realisasi_unit_sampel']))
+            ->values();
+
+        if ($rowsWithRealisasi->isEmpty()) {
+            return response()->json([
+                'message' => 'Import gagal: semua baris realisasi kosong. Isi minimal 1 nilai realisasi (keluarga/usaha).',
+            ], 422);
+        }
+
+        $spks = $this->getSensusRealisasiTemplateSpks((int) $validated['bulan'], (int) $validated['tahun']);
+        $spksByNomor = $spks
+            ->filter(fn (Spk $spk) => filled($spk->nomor_spk))
+            ->keyBy(fn (Spk $spk) => mb_strtolower(trim((string) $spk->nomor_spk)));
+        $spksByNik = $spks
+            ->filter(fn (Spk $spk) => filled($spk->alokasiPetugas?->petugas?->nik))
+            ->keyBy(fn (Spk $spk) => preg_replace('/\D+/', '', (string) $spk->alokasiPetugas?->petugas?->nik));
+
+        $timestamp = now();
+
+        $matchedRows = $rowsWithRealisasi
+            ->map(function (array $row) use ($spksByNomor, $spksByNik, $validated, $request, $timestamp): ?array {
+                $nomorSpkKey = mb_strtolower(trim((string) ($row['nomor_spk'] ?? '')));
+                $nikKey = preg_replace('/\D+/', '', (string) ($row['nik_petugas'] ?? ''));
+
+                $spk = ($nomorSpkKey !== '' ? $spksByNomor->get($nomorSpkKey) : null)
+                    ?? ($nikKey !== '' ? $spksByNik->get($nikKey) : null);
+
+                if (! $spk) {
+                    return null;
+                }
+
+                $petugas = $spk->alokasiPetugas?->petugas;
+                $realisasiKeluarga = $row['realisasi_keluarga'] ?? data_get($row, 'realisasi_unit_sampel.keluarga');
+                $realisasiUsaha = $row['realisasi_usaha'] ?? data_get($row, 'realisasi_unit_sampel.usaha');
+
+                return [
+                    'spk_id' => (int) $spk->id,
+                    'petugas_id' => $petugas?->id,
+                    'bulan' => (int) $validated['bulan'],
+                    'tahun' => (int) $validated['tahun'],
+                    'nomor_spk' => (string) $spk->nomor_spk,
+                    'nik_petugas' => (string) ($petugas?->nik ?? ($row['nik_petugas'] ?? '')),
+                    'nama_petugas' => (string) ($petugas?->nama ?? ($row['nama_petugas'] ?? '')),
+                    'muatan_prelist_keluarga' => isset($row['muatan_prelist_keluarga']) ? (int) $row['muatan_prelist_keluarga'] : null,
+                    'muatan_prelist_usaha' => isset($row['muatan_prelist_usaha']) ? (int) $row['muatan_prelist_usaha'] : null,
+                    'realisasi_keluarga' => is_numeric($realisasiKeluarga) ? (int) $realisasiKeluarga : null,
+                    'realisasi_usaha' => is_numeric($realisasiUsaha) ? (int) $realisasiUsaha : null,
+                    'realisasi_unit_sampel' => array_filter([
+                        'keluarga' => is_numeric($realisasiKeluarga) ? (int) $realisasiKeluarga : null,
+                        'usaha' => is_numeric($realisasiUsaha) ? (int) $realisasiUsaha : null,
+                    ], static fn ($value) => $value !== null),
+                    'imported_by' => $this->getRequestUser($request)?->id,
+                    'imported_at' => $timestamp,
+                ];
+            })
+            ->filter()
+            ->values();
+
+        if ($matchedRows->isEmpty()) {
+            return response()->json([
+                'message' => 'Import gagal: tidak ada baris yang cocok dengan SPK Sensus Ekonomi pada periode ini.',
+            ], 422);
+        }
+
+        $persistedRows = $matchedRows
+            ->map(function (array $row): array {
+                $row['realisasi_unit_sampel'] = json_encode($row['realisasi_unit_sampel']);
+
+                return $row;
+            })
+            ->all();
+
+        BastSensusRealisasiImport::query()->upsert(
+            $persistedRows,
+            ['spk_id', 'bulan', 'tahun'],
+            [
+                'petugas_id',
+                'nomor_spk',
+                'nik_petugas',
+                'nama_petugas',
+                'muatan_prelist_keluarga',
+                'muatan_prelist_usaha',
+                'realisasi_keluarga',
+                'realisasi_usaha',
+                'realisasi_unit_sampel',
+                'imported_by',
+                'imported_at',
+                'updated_at',
+            ],
+        );
+
+        return response()->json([
+            'message' => 'Template realisasi berhasil diimpor dan disimpan.',
+            'rows' => $matchedRows->map(fn (array $row) => [
+                'nomor_spk' => $row['nomor_spk'],
+                'nik_petugas' => $row['nik_petugas'],
+                'nama_petugas' => $row['nama_petugas'],
+                'muatan_prelist_keluarga' => $row['muatan_prelist_keluarga'],
+                'muatan_prelist_usaha' => $row['muatan_prelist_usaha'],
+                'realisasi_keluarga' => $row['realisasi_keluarga'],
+                'realisasi_usaha' => $row['realisasi_usaha'],
+                'realisasi_unit_sampel' => $row['realisasi_unit_sampel'],
+            ])->values()->all(),
+            'summary' => [
+                'total_rows' => $matchedRows->count(),
+                'rows_with_prelist_keluarga' => $matchedRows->filter(fn (array $row) => $row['muatan_prelist_keluarga'] !== null)->count(),
+                'rows_with_prelist_usaha' => $matchedRows->filter(fn (array $row) => $row['muatan_prelist_usaha'] !== null)->count(),
+                'rows_with_realisasi' => $matchedRows->count(),
+            ],
+        ]);
+    }
+
+    public function uploadFasihScreenshot(Request $request, Bast $bast): RedirectResponse
+    {
+        abort_unless($this->userCanManageBastMain($request) && $this->userCanAccessBast($request, $bast), 403);
+
+        if (! $this->supportsSensusPetugasColumns()) {
+            return back()->with('error', 'Fitur screenshot Fasih belum tersedia pada skema database ini.');
+        }
+
+        $validated = $request->validate([
+            'file' => 'required|file|mimes:jpg,jpeg,png,webp|max:5120',
+            'petugas_id' => 'nullable|integer|exists:petugas,id',
+        ]);
+
+        $bastPetugas = BastPetugas::query()
+            ->where('bast_id', $bast->id)
+            ->when(isset($validated['petugas_id']), function ($query) use ($validated) {
+                $query->where('petugas_id', (int) $validated['petugas_id']);
+            })
+            ->first();
+
+        if (! $bastPetugas) {
+            return back()->with('error', 'Data petugas BAST tidak ditemukan.');
+        }
+
+        $spk = $bast->spk()->with('alokasiPetugas.petugas')->first();
+        $referencePeriod = $this->resolveBastDetailReferencePeriod($request, $bast);
+
+        if (! $spk || ! $this->supportsSensusReferenceScreenshotColumns()) {
+            return back()->with('error', 'Referensi screenshot Fasih belum tersedia untuk BAST ini.');
+        }
+
+        try {
+            $this->storeSharedSensusFasihScreenshot(
+                $request,
+                $spk,
+                $referencePeriod['bulan'],
+                $referencePeriod['tahun'],
+                $bast,
+            );
+
+            return back()->with('success', 'Screenshot Fasih berhasil diunggah.');
+        } catch (\Throwable $exception) {
+            return back()->with('error', 'Gagal mengunggah screenshot Fasih: '.$exception->getMessage());
+        }
+    }
+
     /**
      * Show the form for editing the specified resource.
      */
@@ -5305,6 +7132,8 @@ class BastController extends Controller
     private function generateNomorBast(int $kegiatanId): string
     {
         $year = now()->year;
+        $kegiatan = Kegiatan::find($kegiatanId);
+        $isSensusEkonomi = $this->isSensusEkonomiName($kegiatan?->nama_kegiatan);
 
         // Get last number for this kegiatan (current year)
         $lastBast = Bast::where('kegiatan_id', $kegiatanId)
@@ -5320,8 +7149,7 @@ class BastController extends Controller
 
         $nextNumber = $lastNumber + 1;
 
-        // Format: PPIS/13730/{NO_URUT_AUTO_INCREMENT}/BAST/{YEAR}
-        return sprintf('PPIS/13730/%d/BAST/%d', $nextNumber, $year);
+        return $this->formatBastNomor($nextNumber, $year, $isSensusEkonomi);
     }
 
     /**
@@ -5459,6 +7287,7 @@ class BastController extends Controller
 
         // Render lampiran only (landscape) using bast-lampiran.blade.php directly
         $viewDataLamp = $viewData;
+        $viewDataLamp['pageNumberOffset'] = $this->resolveLampiranPageNumberOffset(null, $mainContent);
         $lampOrientation = (! empty($viewData['dokumen_rekap']) && count($viewData['dokumen_rekap']) > 0)
             || $viewData['has_listing'] || $viewData['has_pengolahan'] || $viewData['has_pengolahan_listing'] || ($viewData['has_pendataan'] ?? false) ? 'landscape' : 'portrait';
         $pdfLamp = Pdf::loadView('bast-lampiran', $viewDataLamp)

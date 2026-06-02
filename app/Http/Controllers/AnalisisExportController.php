@@ -34,6 +34,7 @@ class AnalisisExportController extends Controller
 
                 $totalHonorQuery = DB::table('alokasi_petugas')
                     ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+                    ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
                     ->where('periode_alokasi.kegiatan_id', $kegiatan->id)
                     ->where('periode_alokasi.tahun', $currentYear)
                     ->whereRaw($this->nonZeroHonorClause().' > 0');
@@ -41,7 +42,11 @@ class AnalisisExportController extends Controller
                 $this->applyEffectivePeriode($totalHonorQuery);
 
                 $totalHonor = $totalHonorQuery
-                    ->selectRaw('COALESCE(SUM(alokasi_petugas.total_honor), 0) + COALESCE(SUM(alokasi_petugas.total_honor_listing), 0) as total')
+                    ->selectRaw("COALESCE(SUM(CASE
+                        WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.2
+                        WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) IN (7, 8) THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
+                        ELSE COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)
+                    END), 0) as total")
                     ->value('total');
 
                 return [
@@ -78,18 +83,24 @@ class AnalisisExportController extends Controller
         $trenAlokasi = [];
         for ($bulan = 1; $bulan <= 12; $bulan++) {
             $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+            $bulanCandidates = $this->resolveBulanCandidates($bulanFormatted);
 
             $data = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
-                ->where('periode_alokasi.bulan', $bulanFormatted)
+                ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
+                ->whereIn('periode_alokasi.bulan', $bulanCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->where('petugas.jenis_petugas', 'non-organik')
                 ->whereRaw($this->nonZeroHonorClause().' > 0');
             $this->applyEffectivePeriode($data);
             $data = $data
                 ->selectRaw('COUNT(DISTINCT alokasi_petugas.petugas_id) as jumlah_petugas')
-                ->selectRaw('COALESCE(SUM(alokasi_petugas.total_honor), 0) + COALESCE(SUM(alokasi_petugas.total_honor_listing), 0) as total_honor')
+                ->selectRaw("COALESCE(SUM(CASE
+                    WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.2
+                    WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) IN (7, 8) THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
+                    ELSE COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)
+                END), 0) as total_honor")
                 ->selectRaw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as total_kegiatan')
                 ->first();
 
@@ -211,14 +222,37 @@ class AnalisisExportController extends Controller
                 'count' => $group->count(),
             ])->sortByDesc('count')->values()->all();
 
+        $petugasBelumDialokasikan = Petugas::query()
+            ->where('jenis_petugas', 'non-organik')
+            ->where('status', 'aktif')
+            ->whereNull('deleted_at')
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('alokasi_petugas')
+                    ->whereColumn('alokasi_petugas.petugas_id', 'petugas.id');
+            })
+            ->select('id', 'nama', 'kecamatan', 'jenis_kelamin', 'telepon')
+            ->orderBy('nama')
+            ->get()
+            ->map(fn ($p) => [
+                'id' => $p->id,
+                'nama' => $p->nama,
+                'kecamatan' => $p->kecamatan,
+                'jenis_kelamin' => $p->jenis_kelamin,
+                'telepon' => $p->telepon,
+            ])
+            ->values()
+            ->all();
+
         $alokasiPerBulan = [];
         for ($bulan = 1; $bulan <= 12; $bulan++) {
             $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+            $bulanCandidates = $this->resolveBulanCandidates($bulanFormatted);
 
             $jumlahPetugas = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
-                ->where('periode_alokasi.bulan', $bulanFormatted)
+                ->whereIn('periode_alokasi.bulan', $bulanCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->where('petugas.jenis_petugas', 'non-organik')
                 ->whereRaw($this->nonZeroHonorClause().' > 0');
@@ -230,7 +264,7 @@ class AnalisisExportController extends Controller
             $jumlahKegiatan = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
-                ->where('periode_alokasi.bulan', $bulanFormatted)
+                ->whereIn('periode_alokasi.bulan', $bulanCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->where('petugas.jenis_petugas', 'non-organik')
                 ->whereRaw($this->nonZeroHonorClause().' > 0');
@@ -282,6 +316,7 @@ class AnalisisExportController extends Controller
         $petugasAlokasiRaw = DB::table('alokasi_petugas')
             ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
             ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+            ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
             ->where('periode_alokasi.tahun', $currentYear)
             ->where('petugas.jenis_petugas', 'non-organik')
             ->whereRaw($this->nonZeroHonorClause().' > 0');
@@ -289,11 +324,15 @@ class AnalisisExportController extends Controller
         $petugasAlokasiRaw = $petugasAlokasiRaw->select(
             'petugas.id as petugas_id',
             'petugas.nama as petugas_nama',
-            'periode_alokasi.bulan',
+            DB::raw("LPAD(CAST(periode_alokasi.bulan AS UNSIGNED), 2, '0') as bulan"),
         )
             ->selectRaw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as jumlah_kegiatan')
-            ->selectRaw('COALESCE(SUM(alokasi_petugas.total_honor), 0) + COALESCE(SUM(alokasi_petugas.total_honor_listing), 0) as total_honor')
-            ->groupBy('petugas.id', 'petugas.nama', 'periode_alokasi.bulan')
+            ->selectRaw("COALESCE(SUM(CASE
+                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.2
+                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) IN (7, 8) THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
+                ELSE COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)
+            END), 0) as total_honor")
+            ->groupBy('petugas.id', 'petugas.nama', DB::raw("LPAD(CAST(periode_alokasi.bulan AS UNSIGNED), 2, '0')"))
             ->get();
 
         $petugasAlokasiDetail = $petugasAlokasiRaw->groupBy('petugas_id')->map(function ($items) {
@@ -493,6 +532,7 @@ class AnalisisExportController extends Controller
             'top5HonorSvg' => $top5HonorSvg,
             'top5DetailByKegiatan' => $top5DetailByKegiatan,
             'top5DetailByHonor' => $top5DetailByHonor,
+            'petugasBelumDialokasikan' => $petugasBelumDialokasikan,
             'pieChartSvg' => $petugasPieSvg,
             'lineChartSvg' => $petugasLineSvg,
             'totalPetugas' => $petugasNonOrganik->count(),
@@ -532,25 +572,30 @@ class AnalisisExportController extends Controller
             ->select('petugas.id as petugas_id')
             ->selectRaw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as jumlah_kegiatan')
             ->selectRaw("COUNT(DISTINCT CONCAT(periode_alokasi.kegiatan_id, '-', CAST(periode_alokasi.bulan AS UNSIGNED))) as jumlah_alokasi")
+            ->selectRaw('COUNT(DISTINCT CAST(periode_alokasi.bulan AS UNSIGNED)) as jumlah_bulan_dialokasikan')
             ->groupBy('petugas.id')
             ->get()
             ->keyBy('petugas_id');
 
         $bebanKerjaDetail = $petugasOrganikAktif
-            ->map(function ($petugas) use ($alokasiPerPetugas, $currentMonth) {
+            ->map(function ($petugas) use ($alokasiPerPetugas) {
                 $stat = $alokasiPerPetugas->get($petugas->id);
                 $jumlahKegiatan = $stat ? (int) $stat->jumlah_kegiatan : 0;
                 $jumlahAlokasi = $stat ? (int) $stat->jumlah_alokasi : 0;
-                $rataRataKegiatanPerBulan = $currentMonth > 0 ? $jumlahKegiatan / $currentMonth : 0;
+                $jumlahBulanDialokasikan = $stat ? (int) $stat->jumlah_bulan_dialokasikan : 0;
+                $rataRataKegiatanPerBulan = $jumlahBulanDialokasikan > 0 ? $jumlahAlokasi / $jumlahBulanDialokasikan : 0;
 
-                $performanceStatus = 'optimal';
-                $performanceLabel = 'Optimal';
-                if ($rataRataKegiatanPerBulan > 5) {
+                $performanceStatus = 'under_performance';
+                $performanceLabel = 'Under Performance';
+                if ($rataRataKegiatanPerBulan > 3) {
                     $performanceStatus = 'overload';
                     $performanceLabel = 'Overload';
-                } elseif ($rataRataKegiatanPerBulan < 2) {
-                    $performanceStatus = 'under_performance';
-                    $performanceLabel = 'Under Performance';
+                } elseif (abs($rataRataKegiatanPerBulan - 1) < 0.00001) {
+                    $performanceStatus = 'normal';
+                    $performanceLabel = 'Normal';
+                } elseif ($rataRataKegiatanPerBulan > 1 && $rataRataKegiatanPerBulan <= 3) {
+                    $performanceStatus = 'optimal';
+                    $performanceLabel = 'Optimal';
                 }
 
                 return [
@@ -795,6 +840,13 @@ class AnalisisExportController extends Controller
         return $pdf->download($this->filename('analisis_dokumen', $currentYear));
     }
 
+    private function resolveBulanCandidates(string $bulan): array
+    {
+        $normalizedBulan = str_pad((string) ((int) $bulan), 2, '0', STR_PAD_LEFT);
+
+        return array_values(array_unique([$bulan, (string) ((int) $bulan), $normalizedBulan]));
+    }
+
     /**
      * @param  array<int, array<string, mixed>>  $items
      */
@@ -915,11 +967,11 @@ class AnalisisExportController extends Controller
         }
 
         $width = 760;
-        $height = 280;
+        $height = 300;
         $left = 42;
         $right = 740;
         $top = $title ? 44 : 24;
-        $bottom = 220;
+        $bottom = 210;
 
         $maxValue = 0.0;
         foreach ($rows as $row) {
@@ -1012,10 +1064,16 @@ class AnalisisExportController extends Controller
         }
 
         $legend = [];
+        $legendColumns = 3;
+        $legendStartY = 248;
+        $legendRowSpacing = 16;
         foreach ($series as $index => $s) {
-            $legendX = 52 + ($index * 190);
-            $legend[] = sprintf('<line x1="%d" y1="262" x2="%d" y2="262" stroke="%s" stroke-width="2" />', $legendX, $legendX + 16, $s['color']);
-            $legend[] = sprintf('<text x="%d" y="265" font-size="10" fill="#0f172a">%s</text>', $legendX + 22, $this->escapeSvg($s['label']));
+            $legendRow = intdiv($index, $legendColumns);
+            $legendColumn = $index % $legendColumns;
+            $legendX = 52 + ($legendColumn * 230);
+            $legendY = $legendStartY + ($legendRow * $legendRowSpacing);
+            $legend[] = sprintf('<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="2" />', $legendX, $legendY, $legendX + 16, $legendY, $s['color']);
+            $legend[] = sprintf('<text x="%d" y="%d" font-size="10" fill="#0f172a">%s</text>', $legendX + 22, $legendY + 3, $this->escapeSvg($s['label']));
         }
 
         return sprintf(

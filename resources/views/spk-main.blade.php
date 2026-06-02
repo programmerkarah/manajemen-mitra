@@ -39,7 +39,7 @@
         body {
             font-family: 'Bookman Old Style', 'Times New Roman', serif;
             font-size: 11pt;
-            line-height: 1.6;
+            line-height: 1.15;
             color: #000;
             orphans: 3;
             widows: 3;
@@ -55,9 +55,9 @@
 
         .header h3 {
             text-align: center;
-            font-size: 13pt;
+            font-size: 11pt;
             font-weight: bold;
-            line-height: 1.4;
+            line-height: 1.15;
             margin: 2px 0;
         }
 
@@ -65,18 +65,21 @@
             text-align: center !important;
             font-weight: bold;
             margin: 15px 0;
-            font-size: 12pt;
+            font-size: 11pt;
+            line-height: 1.15;
             page-break-after: avoid;
         }
 
         .content {
             text-align: justify;
             margin: 15px 0;
+            line-height: 1.15;
             page-break-inside: avoid;
         }
 
         .parties {
             margin: 20px 0 20px 30px;
+            line-height: 1.15;
             page-break-inside: avoid;
         }
 
@@ -226,7 +229,7 @@
         .signature-name-collapsed {
             margin-top: 0;
             margin-bottom: 0;
-            line-height: 1;
+            line-height: 1.15;
         }
     </style>
 </head>

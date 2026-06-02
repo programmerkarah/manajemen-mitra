@@ -210,6 +210,21 @@ export default function ShowByMonth({
         unique_kegiatan_list.encrypted,
     );
 
+    const isSensusEkonomiContext = decryptedKegiatanList.some((item) => {
+        const jenisKegiatan = (item.jenis_kegiatan || '').toLowerCase();
+        const namaKegiatan = (item.nama_kegiatan || '').toLowerCase();
+
+        return (
+            jenisKegiatan.includes('sensus') ||
+            namaKegiatan.includes('sensus ekonomi')
+        );
+    });
+
+    const documentLabel = isSensusEkonomiContext
+        ? 'PK Sensus Ekonomi'
+        : 'Perjanjian Kerja';
+    const detailTitle = `Detail ${documentLabel} ${bulan_label} ${tahun}`;
+
     // Separate petugas into signed and unsigned based on the latest SPK document
     const uniquePetugasMap = decryptedPetugasList.reduce((map, item) => {
         const key = item.petugas_nik ? item.petugas_nik : item.id;
@@ -261,7 +276,7 @@ export default function ShowByMonth({
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Perjanjian Kerja', href: '/spk' },
-        { title: `Detail Perjanjian Kerja ${bulan_label} ${tahun}`, href: '#' },
+        { title: detailTitle, href: '#' },
     ];
 
     const canEdit =
@@ -316,11 +331,15 @@ export default function ShowByMonth({
     };
 
     const getDocumentLabel = (addendumNumber: number) => {
-        if (addendumNumber === 0) return 'Perjanjian Kerja';
-        if (addendumNumber === 1) return 'Perjanjian Kerja Addendum';
-        if (addendumNumber === 2) return 'Perjanjian Kerja Addendum Kedua';
-        if (addendumNumber === 3) return 'Perjanjian Kerja Addendum Ketiga';
-        return `Perjanjian Kerja Addendum Ke-${addendumNumber}`;
+        const baseLabel = isSensusEkonomiContext
+            ? 'PK Sensus Ekonomi'
+            : 'Perjanjian Kerja';
+
+        if (addendumNumber === 0) return baseLabel;
+        if (addendumNumber === 1) return `${baseLabel} Addendum`;
+        if (addendumNumber === 2) return `${baseLabel} Addendum Kedua`;
+        if (addendumNumber === 3) return `${baseLabel} Addendum Ketiga`;
+        return `${baseLabel} Addendum Ke-${addendumNumber}`;
     };
 
     const handleDownload = (filePath: string) => {
@@ -384,17 +403,15 @@ export default function ShowByMonth({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Detail Perjanjian Kerja`} />
-            <PageHeader
-                title={`Detail Perjanjian Kerja ${bulan_label} ${tahun}`}
-            ></PageHeader>
+            <Head title={detailTitle} />
+            <PageHeader title={detailTitle}></PageHeader>
 
             <ContentCard>
                 <div className="space-y-4">
                     <div className="flex items-start justify-between gap-3">
                         <div>
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                Ringkasan Dokumen Perjanjian Kerja
+                                Ringkasan Dokumen {documentLabel}
                             </h3>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
                                 Progres dokumen petugas periode {bulan_label}{' '}
@@ -479,7 +496,7 @@ export default function ShowByMonth({
                                 size="sm"
                             >
                                 <Archive className="mr-2 h-4 w-4" />
-                                Download Semua Perjanjian Kerja
+                                Download Semua {documentLabel}
                             </Button>
                             <h4 className="text-sm font-semibold text-green-700 dark:text-green-400">
                                 Petugas dengan PK Ditandatangani (
@@ -553,7 +570,7 @@ export default function ShowByMonth({
                         <ContentCard>
                             <div className="space-y-4">
                                 <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                    Download Perjanjian Kerja per Kegiatan
+                                    Download {documentLabel} per Kegiatan
                                 </h3>
                                 <p className="text-sm text-neutral-600 dark:text-neutral-400">
                                     Unduh Perjanjian Kerja semua petugas yang
@@ -663,7 +680,7 @@ export default function ShowByMonth({
                     <ContentCard>
                         <div className="space-y-4">
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                Riwayat Dokumen Perjanjian Kerja
+                                Riwayat Dokumen {documentLabel}
                             </h3>
 
                             <div className="space-y-3">
@@ -777,10 +794,11 @@ export default function ShowByMonth({
                             <div className="flex items-start justify-between">
                                 <div>
                                     <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                        Informasi Perjanjian Kerja
+                                        Informasi {documentLabel}
                                     </h3>
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                        Detail surat perjanjian kerja petugas
+                                        Detail surat{' '}
+                                        {documentLabel.toLowerCase()} petugas
                                     </p>
                                 </div>
                                 {getStatusBadge(decryptedSpk.status)}

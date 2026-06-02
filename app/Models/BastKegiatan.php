@@ -24,8 +24,10 @@ class BastKegiatan extends Model
         'jenis_kegiatan',
         'file_path',
         'signed_file_path',
+        'fasih_screenshot_path',
         'generated_at',
         'signed_uploaded_at',
+        'fasih_screenshot_uploaded_at',
     ];
 
     protected function casts(): array
@@ -33,6 +35,7 @@ class BastKegiatan extends Model
         return [
             'generated_at' => 'datetime',
             'signed_uploaded_at' => 'datetime',
+            'fasih_screenshot_uploaded_at' => 'datetime',
         ];
     }
 

@@ -13,6 +13,7 @@ use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\RateHonor;
 use App\Models\Spk;
+use App\Models\User;
 use App\Services\ActiveYearService;
 use App\Services\PdfMergerService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -36,10 +37,20 @@ class SpkController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(FilterRequest $request): Response
+    public function index(FilterRequest $request): Response|RedirectResponse
     {
         $validated = $request->validated();
         $activeYear = ActiveYearService::get();
+        $requestedMode = (string) $request->input('mode', 'regular');
+        $canAccessSensusMode = $this->canAccessSensusMode($this->getRequestUser($request), $activeYear);
+
+        if ($requestedMode === 'sensus-ekonomi' && ! $canAccessSensusMode) {
+            return redirect()->route('spk.index', ['mode' => 'regular']);
+        }
+
+        $mode = $requestedMode === 'sensus-ekonomi' && $canAccessSensusMode
+            ? 'sensus-ekonomi'
+            : 'regular';
 
         // Get periode alokasi yang sudah validated grouped by month
         $query = PeriodeAlokasi::query()
@@ -56,7 +67,17 @@ class SpkController extends Controller
             ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
             ->where('tahun', $activeYear);
 
-        $periodes = $query->latest()->get();
+        $periodes = $query->latest()->get()
+            ->filter(function (PeriodeAlokasi $periode) use ($mode) {
+                $isPeriodBased = $this->usesPeriodBasedSpkFlow($periode);
+
+                if ($mode === 'sensus-ekonomi') {
+                    return $isPeriodBased;
+                }
+
+                return ! $isPeriodBased;
+            })
+            ->values();
 
         // Group by month for regular activities, but keep Sensus Ekonomi period-based.
         $groupedByMonth = $periodes->groupBy(function ($periode) {
@@ -289,6 +310,8 @@ class SpkController extends Controller
                 'encrypted' => encryptFilters($validated),
                 'decrypted' => $validated,
             ],
+            'mode' => $mode,
+            'can_access_sensus_mode' => $canAccessSensusMode,
         ]);
     }
 
@@ -389,8 +412,9 @@ class SpkController extends Controller
         $bulan = $decrypted['bulan'] ?? $request->query('bulan');
         $tahun = $decrypted['tahun'] ?? $request->query('tahun');
         $spkHashedId = $decrypted['spk'] ?? $request->query('spk');
+        $periodeHashedId = $decrypted['periode_hashed_id'] ?? $request->query('periode_hashed_id');
 
-        return $this->renderShowByMonth($bulan, $tahun, $spkHashedId);
+        return $this->renderShowByMonth($request, $bulan, $tahun, $spkHashedId, $periodeHashedId);
     }
 
     /**
@@ -409,38 +433,84 @@ class SpkController extends Controller
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
         $spkHashedId = $request->input('spk');
+        $periodeHashedId = $request->input('periode_hashed_id');
 
-        return $this->renderShowByMonth($bulan, $tahun, $spkHashedId);
+        return $this->renderShowByMonth($request, $bulan, $tahun, $spkHashedId, $periodeHashedId);
     }
 
     /**
      * Internal method to render ShowByMonth view
      */
-    private function renderShowByMonth(?string $bulan, ?string $tahun, ?string $spkHashedId): Response|RedirectResponse
+    private function renderShowByMonth(Request $request, ?string $bulan, ?string $tahun, ?string $spkHashedId, ?string $periodeHashedId = null): Response|RedirectResponse
     {
 
         if (! $bulan || ! $tahun) {
             return redirect()->route('spk.index');
         }
 
+        $canAccessSensusMode = $this->canAccessSensusMode($this->getRequestUser($request));
+
         // Format bulan with leading zero
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+        $bulanNumeric = (string) ((int) $bulan);
 
-        // Get all periodes in this month (include 'direvisi' and 'perubahan')
-        $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
-            ->where('tahun', $tahun)
-            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
-            ->whereHas('kegiatan', function ($q) {
-                $q->where('jenis_kegiatan', 'survei'); // Only survei activities
+        // For period-based flow (e.g. Sensus Ekonomi), lock detail to the selected periode.
+        if (filled($periodeHashedId)) {
+            $periodeId = Hashids::decode((string) $periodeHashedId)[0] ?? null;
+
+            if (! $periodeId) {
+                return redirect()->route('spk.index')->with('error', 'Periode tidak ditemukan.');
+            }
+
+            $selectedPeriode = PeriodeAlokasi::query()
+                ->with('kegiatan:id,jenis_kegiatan,nama_kegiatan')
+                ->find($periodeId);
+
+            if (! $selectedPeriode) {
+                return redirect()->route('spk.index')->with('error', 'Periode tidak ditemukan.');
+            }
+
+            if ($this->usesPeriodBasedSpkFlow($selectedPeriode) && ! $canAccessSensusMode) {
+                return redirect()->route('spk.index', ['mode' => 'regular']);
+            }
+
+            $allPeriodeInMonth = PeriodeAlokasi::query()
+                ->whereKey($periodeId)
+                ->where(function ($query) use ($bulanFormatted, $bulanNumeric) {
+                    $query->where('bulan', $bulanFormatted)
+                        ->orWhere('bulan', $bulanNumeric);
+                })
+                ->where('tahun', $tahun)
+                ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+                ->pluck('id');
+        } else {
+            // Default month-detail flow keeps existing behavior for survei.
+            $allPeriodeInMonth = PeriodeAlokasi::where(function ($query) use ($bulanFormatted, $bulanNumeric) {
+                $query->where('bulan', $bulanFormatted)
+                    ->orWhere('bulan', $bulanNumeric);
             })
-            ->pluck('id');
+                ->where('tahun', $tahun)
+                ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+                ->whereHas('kegiatan', function ($q) {
+                    $q->where('jenis_kegiatan', 'survei'); // Default: survei activities
+                })
+                ->pluck('id');
+        }
+
+        $alokasiIdsInScope = AlokasiPetugas::query()
+            ->whereIn('periode_alokasi_id', $allPeriodeInMonth)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values();
 
         // Get all SPKs in this month
         $allSpks = Spk::with(['alokasiPetugas.petugas'])
-            ->whereIn('alokasi_petugas_id', function ($query) use ($allPeriodeInMonth) {
-                $query->select('id')
-                    ->from('alokasi_petugas')
-                    ->whereIn('periode_alokasi_id', $allPeriodeInMonth);
+            ->where(function ($query) use ($alokasiIdsInScope) {
+                $query->whereIn('alokasi_petugas_id', $alokasiIdsInScope->all());
+
+                foreach ($alokasiIdsInScope as $alokasiId) {
+                    $query->orWhereJsonContains('alokasi_petugas_ids', $alokasiId);
+                }
             })
             ->orderBy('nomor_spk')
             ->get();
@@ -1994,7 +2064,7 @@ class SpkController extends Controller
         return $this->appendPublicPreviewDownloadCookie($response, $disposition, $downloadToken);
     }
 
-    private function appendPublicPreviewDownloadCookie($response, string $disposition, string $downloadToken)
+    private function appendPublicPreviewDownloadCookie(mixed $response, string $disposition, string $downloadToken): mixed
     {
         if ($disposition !== 'attachment') {
             return $response;
@@ -5439,7 +5509,41 @@ class SpkController extends Controller
     private function isSensusEkonomi2026(Kegiatan $kegiatan): bool
     {
         return mb_strtolower((string) $kegiatan->jenis_kegiatan) === 'sensus'
-            && mb_strtolower(trim((string) $kegiatan->nama_kegiatan)) === 'sensus ekonomi';
+            && str_contains(
+                mb_strtolower(trim((string) $kegiatan->nama_kegiatan)),
+                'sensus ekonomi'
+            );
+    }
+
+    private function canAccessSensusMode(?User $user, ?int $tahunAnggaran = null): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if (in_array($user->active_role, ['admin', 'operator', 'approver'], true)) {
+            return true;
+        }
+
+        if ($user->active_role !== 'ketua_tim') {
+            return false;
+        }
+
+        $activeYear = $tahunAnggaran ?? ActiveYearService::get();
+
+        return Kegiatan::query()
+            ->where('tahun_anggaran', $activeYear)
+            ->where('nama_kegiatan', 'like', '%Sensus Ekonomi%')
+            ->where(function ($query) use ($user) {
+                $query->where('ketua_tim_user_id', $user->id)
+                    ->orWhere('pj_lainnya_id', $user->id);
+            })
+            ->exists();
+    }
+
+    private function getRequestUser(Request $request): ?User
+    {
+        return effectiveUser($request) ?? $request->user();
     }
 
     /**
@@ -6062,7 +6166,7 @@ class SpkController extends Controller
      * Detect work type from all allocations
      * Returns: 'lapangan', 'pengolahan', or 'lapangan_pengolahan'
      */
-    private function detectWorkType($allAlokasi): string
+    private function detectWorkType(iterable $allAlokasi): string
     {
         $hasPengolahan = false;
         $hasLapangan = false;
@@ -6678,7 +6782,7 @@ class SpkController extends Controller
     /**
      * Check if there are new revisions after addendum was generated
      */
-    private function hasNewRevisionAfterAddendum(int $tahun, int $bulan, $monthPeriodes): bool
+    private function hasNewRevisionAfterAddendum(int $tahun, int $bulan, iterable $monthPeriodes): bool
     {
         // Get the latest Addendum (SPK with addendum_number > 0) creation timestamp in this month
         $latestAddendumCreatedAt = null;

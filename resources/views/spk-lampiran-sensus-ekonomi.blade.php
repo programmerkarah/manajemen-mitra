@@ -34,7 +34,7 @@
         body {
             font-family: 'Bookman Old Style', 'Times New Roman', serif;
             font-size: 10pt;
-            line-height: 1.2;
+            line-height: 1.15;
             color: #000;
         }
 
@@ -45,19 +45,20 @@
 
         .header-title {
             font-size: 10pt;
-            line-height: 1.2;
+            line-height: 1.15;
         }
 
         .section-title {
             margin: 6px 0 4px;
-            font-size: 10pt;
+            font-size: 11pt;
+            line-height: 1.15;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            font-size: 9pt;
+            font-size: 11pt;
         }
 
         thead {
@@ -103,8 +104,8 @@
             overflow-wrap: normal;
             word-break: normal;
             hyphens: none;
-            line-height: 1.2;
-            font-size: 9pt;
+            line-height: 1.15;
+            font-size: 11pt;
         }
 
         td.right {
@@ -138,17 +139,17 @@
         <colgroup>
             <col style="width: 40%;">
             <col style="width: 20%;">
-            <col style="width: 8%;">
-            <col style="width: 20%;">
-            <col style="width: 12%;">
+            <col style="width: 10%;">
+            <col style="width: 16%;">
+            <col style="width: 14%;">
         </colgroup>
         <thead>
             <tr style="height: 0; line-height: 0; font-size: 0;">
                 <td style="width: 40%; padding: 0; border: none; height: 0; line-height: 0;"></td>
                 <td style="width: 20%; padding: 0; border: none; height: 0; line-height: 0;"></td>
-                <td style="width: 8%; padding: 0; border: none; height: 0; line-height: 0;"></td>
-                <td style="width: 20%; padding: 0; border: none; height: 0; line-height: 0;"></td>
-                <td style="width: 12%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                <td style="width: 10%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                <td style="width: 16%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                <td style="width: 14%; padding: 0; border: none; height: 0; line-height: 0;"></td>
             </tr>
             <tr>
                 <th rowspan="2">Uraian Pekerjaan</th>
@@ -163,9 +164,9 @@
             <tr>
                 <th style="width: 40%;">(1)</th>
                 <th style="width: 20%;">(2)</th>
-                <th style="width: 8%;">(3)</th>
-                <th style="width: 20%;">(4)</th>
-                <th style="width: 12%;">(5)</th>
+                <th style="width: 10%;">(3)</th>
+                <th style="width: 16%;">(4)</th>
+                <th style="width: 14%;">(5)</th>
             </tr>
         </thead>
         @php($itemCounter = 1)

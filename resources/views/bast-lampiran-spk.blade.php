@@ -33,8 +33,8 @@
 
 		body {
 			font-family: 'Bookman Old Style', 'Times New Roman', serif;
-			font-size: 10pt;
-			line-height: 1;
+			font-size: 11pt;
+			line-height: 1.15;
 			color: #000;
 			margin: 0.5cm 0.5cm 0 1cm;
 		}
@@ -42,7 +42,7 @@
 		.lampiran-header {
 			text-align: justify;
 			margin-left: 50%;
-			font-size: 9pt;
+			font-size: 11pt;
 			margin-bottom: 10px;
 		}
 
@@ -54,7 +54,7 @@
 			text-align: center;
 			font-weight: bold;
 			margin: 15px 0;
-			font-size: 10pt;
+			font-size: 11pt;
 		}
 
 		.lampiran-page {
@@ -66,14 +66,14 @@
 		.kegiatan-section {
 			margin: 20px 0;
 			page-break-inside: avoid;
-			font-size: 9pt;
+			font-size: 11pt;
 		}
 
 		.lampiran-table {
 			width: 100%;
 			border-collapse: collapse;
 			margin: 10px 0;
-			font-size: 9pt;
+			font-size: 11pt;
 		}
 
 		.lampiran-table th,
@@ -82,7 +82,7 @@
 			text-align: center;
 			vertical-align: middle;
 			padding: 5px;
-			font-size: 9pt;
+			font-size: 11pt;
 		}
 
 		.lampiran-table th {
@@ -113,8 +113,8 @@
 			width: 50%;
 			vertical-align: top;
 			text-align: center;
-			font-size: 10pt;
-			line-height: 1;
+			font-size: 11pt;
+			line-height: 1.15;
 			page-break-inside: avoid !important;
 		}
 
@@ -383,6 +383,28 @@
 
 
 
+<script type="text/php">
+	if (isset($pdf) && isset($fontMetrics)) {
+		$pageNumberOffset = {{ (int) ($pageNumberOffset ?? 1) }};
+
+		$pdf->page_script(function ($pageNumber, $pageCount, $canvas, $fontMetrics) use ($pageNumberOffset) {
+			$displayPage = $pageNumber + $pageNumberOffset;
+			if ($displayPage <= 1) {
+				return;
+			}
+
+			$topMargin = 28.35; // 1 cm
+			$font = $fontMetrics->get_font('Bookman Old Style', 'normal');
+			$size = 11;
+			$text = '-' . $displayPage . '-';
+			$textWidth = $fontMetrics->getTextWidth($text, $font, $size);
+			$x = ($canvas->get_width() - $textWidth) / 2;
+			$y = $topMargin / 2;
+
+			$canvas->text($x, $y, $text, $font, $size);
+		});
+	}
+</script>
 </body>
 
 </html>

@@ -184,10 +184,11 @@
 
     <div class="table-section page-break-before">
         <h2>Detail Beban Kerja Pegawai Organik</h2>
-        <p class="metric-note">Jumlah Kegiatan = kegiatan unik dialokasikan. Jumlah Alokasi = total alokasi kegiatan per pegawai dari Januari sampai bulan berjalan.</p>
-        <p class="metric-note">Aturan indikator statis: Overload &gt; 5 kegiatan/bulan, Optimal 2-4 kegiatan/bulan, Under Performance &lt; 2 kegiatan/bulan.</p>
+        <p class="metric-note">Jumlah Kegiatan = kegiatan unik dialokasikan. Jumlah Alokasi = total alokasi kegiatan per pegawai. Rata-rata per bulan = total alokasi / jumlah bulan yang benar-benar dialokasikan.</p>
+        <p class="metric-note">Aturan indikator statis: Under Performance &lt; 1 kegiatan/bulan, Normal = 1 kegiatan/bulan, Optimal &gt; 1-3 kegiatan/bulan, Overload &gt; 3 kegiatan/bulan.</p>
         <p class="indicator-legend">
             <span><span class="badge badge-red">Overload</span></span>
+            <span><span class="badge badge-blue">Normal</span></span>
             <span><span class="badge badge-green">Optimal</span></span>
             <span><span class="badge badge-amber">Under Performance</span></span>
         </p>

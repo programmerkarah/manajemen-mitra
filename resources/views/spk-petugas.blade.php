@@ -39,7 +39,7 @@
         body {
             font-family: 'Bookman Old Style', 'Times New Roman', serif;
             font-size: 11pt;
-            line-height: 1.6;
+            line-height: 1.15;
             color: #000;
             orphans: 3;
             widows: 3;
@@ -55,9 +55,9 @@
 
         .header h3 {
             text-align: center;
-            font-size: 13pt;
+            font-size: 11pt;
             font-weight: bold;
-            line-height: 1.4;
+            line-height: 1.15;
             margin: 2px 0;
         }
 
@@ -65,13 +65,15 @@
             text-align: center;
             font-weight: bold;
             margin: 15px 0;
-            font-size: 12pt;
+            font-size: 11pt;
+            line-height: 1.15;
             page-break-after: avoid;
         }
 
         .content {
             text-align: justify;
             margin: 15px 0;
+            line-height: 1.15;
             page-break-inside: avoid;
         }
 
@@ -229,23 +231,23 @@
         }
 
         table.sensus-lampiran-table col.col-uraian {
-            width: 66%;
+            width: 65%;
         }
 
         table.sensus-lampiran-table col.col-waktu {
-            width: 11%;
+            width: 9%;
         }
 
         table.sensus-lampiran-table col.col-persentase {
-            width: 5%;
+            width: 7%;
         }
 
         table.sensus-lampiran-table col.col-volume {
-            width: 11%;
+            width: 10%;
         }
 
         table.sensus-lampiran-table col.col-nilai {
-            width: 7%;
+            width: 9%;
         }
 
         table.sensus-lampiran-table td.volume-cell {
@@ -990,11 +992,11 @@
                     <th>Volume</th>
                 </tr>
                 <tr>
-                    <th style="width: 66%;">(1)</th>
-                    <th style="width: 11%;">(2)</th>
-                    <th style="width: 5%;">(3)</th>
-                    <th style="width: 11%;">(4)</th>
-                    <th style="width: 7%;">(5)</th>
+                    <th style="width: 65%;">(1)</th>
+                    <th style="width: 9%;">(2)</th>
+                    <th style="width: 7%;">(3)</th>
+                    <th style="width: 10%;">(4)</th>
+                    <th style="width: 9%;">(5)</th>
                 </tr>
                     <tr>
                         <td class="left">

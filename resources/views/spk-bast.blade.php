@@ -39,7 +39,7 @@
         body {
             font-family: 'Bookman Old Style', 'Times New Roman', serif;
             font-size: 11pt;
-            line-height: 1.6;
+            line-height: 1.15;
             color: #000;
         }
 
@@ -51,7 +51,7 @@
         .bast-title {
             font-weight: bold;
             font-size: 12pt;
-            line-height: 1.4;
+            line-height: 1.15;
         }
 
         .content {

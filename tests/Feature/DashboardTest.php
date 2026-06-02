@@ -134,6 +134,115 @@ class DashboardTest extends TestCase
             );
     }
 
+    public function test_dashboard_weights_sensus_honor_across_june_to_august(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $previousNow = Carbon::getTestNow();
+        Carbon::setTestNow(Carbon::create(2026, 8, 15, 12, 0, 0));
+
+        try {
+            $year = 2026;
+
+            $kegiatan = Kegiatan::factory()->create([
+                'status' => 'aktif',
+                'jenis_kegiatan' => 'sensus',
+                'nama_kegiatan' => 'Sensus Ekonomi 2026',
+                'tahun_anggaran' => $year,
+                'tanggal_mulai' => '2026-06-15',
+                'tanggal_selesai' => '2026-08-31',
+            ]);
+
+            $petugas = Petugas::factory()->create([
+                'nama' => 'Petugas Sensus Dashboard',
+                'status' => 'aktif',
+                'jenis_petugas' => 'non-organik',
+            ]);
+
+            $petugasOrganik = Petugas::factory()->create([
+                'nama' => 'Petugas Sensus Organik Dashboard',
+                'status' => 'aktif',
+                'jenis_petugas' => 'organik',
+            ]);
+
+            foreach ([6, 7, 8] as $bulan) {
+                $bulanValue = $bulan === 6 ? '6' : str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
+
+                $periode = PeriodeAlokasi::factory()->create([
+                    'kegiatan_id' => $kegiatan->id,
+                    'tahun' => $year,
+                    'bulan' => $bulanValue,
+                    'status' => 'dikirim',
+                ]);
+
+                AlokasiPetugas::query()->create([
+                    'periode_alokasi_id' => $periode->id,
+                    'petugas_id' => $petugas->id,
+                    'jumlah_satuan' => 1,
+                    'total_honor' => 250000,
+                    'total_honor_listing' => 0,
+                    'peran' => 'pcl_ppl',
+                    'status_kepegawaian' => 'non_organik',
+                ]);
+
+                AlokasiPetugas::query()->create([
+                    'periode_alokasi_id' => $periode->id,
+                    'petugas_id' => $petugasOrganik->id,
+                    'jumlah_satuan' => 1,
+                    'total_honor' => 250000,
+                    'total_honor_listing' => 0,
+                    'peran' => 'pcl_ppl',
+                    'status_kepegawaian' => 'organik',
+                ]);
+            }
+
+            $response = $this->get(route('dashboard'));
+
+            $response->assertOk();
+
+            $props = $response->original->getData()['page']['props'];
+            $honorPerPetugas = collect($props['honorPerPetugas'])->firstWhere(
+                'petugas_id',
+                $petugas->id,
+            );
+            $honorPerPetugasOrganik = collect($props['honorPerPetugas'])->firstWhere(
+                'petugas_id',
+                $petugasOrganik->id,
+            );
+            $chartJune = collect($props['chartData'])->firstWhere('month', 'Jun');
+            $monitoringJune = collect($props['petugasMonitoringData'])->firstWhere('month', 'Jun');
+            $honorInequalityData = collect($props['honorInequalityData']);
+
+            $this->assertNotNull($honorPerPetugas);
+            $this->assertNotNull($honorPerPetugasOrganik);
+            $this->assertNotNull($chartJune);
+            $this->assertNotNull($monitoringJune);
+            $this->assertEquals(2, $chartJune['petugas_count']);
+            $this->assertEquals(1, $chartJune['kegiatan_count']);
+            $this->assertEquals(2, $monitoringJune['kegiatan_1_2']);
+            $this->assertEquals(50000, $honorPerPetugas['per_bulan']['Jun']);
+            $this->assertEquals(100000, $honorPerPetugas['per_bulan']['Jul']);
+            $this->assertEquals(100000, $honorPerPetugas['per_bulan']['Aug']);
+            $this->assertEquals(50000, $honorPerPetugasOrganik['per_bulan']['Jun']);
+            $this->assertEquals(100000, $honorPerPetugasOrganik['per_bulan']['Jul']);
+            $this->assertEquals(100000, $honorPerPetugasOrganik['per_bulan']['Aug']);
+
+            $juni = $honorInequalityData->firstWhere('month', 'Jun');
+            $juli = $honorInequalityData->firstWhere('month', 'Jul');
+            $agustus = $honorInequalityData->firstWhere('month', 'Aug');
+
+            $this->assertNotNull($juni);
+            $this->assertNotNull($juli);
+            $this->assertNotNull($agustus);
+            $this->assertEquals(50000, $juni['rata_rata_honor']);
+            $this->assertEquals(100000, $juli['rata_rata_honor']);
+            $this->assertEquals(100000, $agustus['rata_rata_honor']);
+        } finally {
+            Carbon::setTestNow($previousNow);
+        }
+    }
+
     public function test_dashboard_kegiatan_bulan_ini_scopes_spk_count_to_each_periode(): void
     {
         $user = User::factory()->create();

@@ -33,8 +33,8 @@
 
         body {
             font-family: 'Bookman Old Style', 'Times New Roman', serif;
-            font-size: 10pt;
-            line-height: 1.2;
+            font-size: 11pt;
+            line-height: 1.15;
             color: #000;
         }
 
@@ -44,20 +44,21 @@
         }
 
         .header-title {
-            font-size: 10pt;
-            line-height: 1.2;
+            font-size: 11pt;
+            line-height: 1.15;
         }
 
         .section-title {
             margin: 6px 0 4px;
-            font-size: 10pt;
+            font-size: 11pt;
+            line-height: 1.15;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            font-size: 9pt;
+            font-size: 11pt;
         }
 
         thead {
@@ -103,8 +104,8 @@
             overflow-wrap: normal;
             word-break: normal;
             hyphens: none;
-            line-height: 1.2;
-            font-size: 9pt;
+            line-height: 1.15;
+            font-size: 11pt;
         }
 
         td.right {

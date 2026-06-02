@@ -8,6 +8,7 @@ use App\Http\Middleware\EnsureTwoFactorEnabled;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogRequests;
+use App\Http\Middleware\ViewAsUserMiddleware;
 use App\Http\Middleware\PreserveSessionLastActivityForSsoSync;
 use App\Http\Middleware\PreventMaintenanceModeRequests;
 use App\Models\ActivityLog;
@@ -68,6 +69,7 @@ return Application::configure(basePath: dirname(__DIR__))
             EnsureSingleActiveSession::class,
             PreserveSessionLastActivityForSsoSync::class,
             HandleAppearance::class,
+            ViewAsUserMiddleware::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);

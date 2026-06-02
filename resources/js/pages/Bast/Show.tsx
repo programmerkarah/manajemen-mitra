@@ -2,13 +2,20 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import {
     constructBastDownloadFilename,
-    downloadFileFromPost,
     openFastDownload,
     previewFileFromPost,
     tryDirectDownload,
@@ -50,6 +57,11 @@ interface Bast {
     lokasi_kegiatan: string | null;
     status: 'draft' | 'diterbitkan' | 'dibatalkan';
     catatan: string | null;
+    is_sensus_ekonomi: boolean;
+    muatan_input: number | null;
+    muatan_prelist: number | null;
+    realisasi_unit_sampel: Record<string, number> | null;
+    fasih_screenshot_path: string | null;
     created_by: string;
     created_at: string;
     is_legacy_mode: boolean;
@@ -94,14 +106,18 @@ interface LampiranItem {
     ketua_tim_nama: string | null;
     file_path: string | null;
     signed_file_path: string | null;
+    fasih_screenshot_path: string | null;
     generated_at: string | null;
     signed_uploaded_at: string | null;
+    fasih_screenshot_uploaded_at?: string | null;
     status: 'pending' | 'generated' | 'signed';
     can_download: boolean;
     can_generate: boolean;
     can_upload_signed: boolean;
+    can_upload_fasih_screenshot?: boolean;
     can_preview: boolean;
     ready_to_generate: boolean;
+    uses_fasih_screenshot?: boolean;
     preview_spk_id?: number | null;
 }
 
@@ -134,6 +150,19 @@ interface Summary {
     final_signed_ready: boolean;
 }
 
+interface SensusReference {
+    spk_id: number;
+    bulan: number;
+    tahun: number;
+    unit_sampel_pencacahan_items: { id: number; nama: string }[];
+    realisasi_unit_sampel: Record<string, number>;
+    muatan_input: number | null;
+    muatan_prelist: number | null;
+    muatan_prelist_unit_sampel?: Record<string, number | null>;
+    fasih_screenshot_path: string | null;
+    fasih_screenshot_uploaded_at?: string | null;
+}
+
 interface EligibleWithoutBast {
     petugas_nama: string;
     petugas_id?: number | null;
@@ -149,10 +178,28 @@ interface ShowProps {
     eligible_without_bast: EligibleWithoutBast[];
     permissions: Permissions;
     summary: Summary;
+    sensus_reference?: SensusReference | null;
+    mode?: string;
     bulan: number;
     tahun: number;
     bulan_label: string;
 }
+
+interface ModalAlertState {
+    open: boolean;
+    title: string;
+    message: string;
+}
+
+interface ImagePreviewState {
+    open: boolean;
+    title: string;
+    src: string;
+    alt: string;
+}
+
+const getUnitKey = (unit: { id: number; nama: string }): string =>
+    unit.nama.trim().toLowerCase().replace(/\s+/g, '_');
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'BAST', href: '/bast' },
@@ -191,12 +238,44 @@ export default function Show({
     eligible_without_bast,
     permissions,
     summary,
+    sensus_reference,
+    mode = 'regular',
     bulan,
     tahun,
     bulan_label,
 }: ShowProps) {
     usePage<SharedData>();
     const [uploadingTarget, setUploadingTarget] = useState<string | null>(null);
+    const [modalAlert, setModalAlert] = useState<ModalAlertState>({
+        open: false,
+        title: '',
+        message: '',
+    });
+    const [imagePreview, setImagePreview] = useState<ImagePreviewState>({
+        open: false,
+        title: '',
+        src: '',
+        alt: '',
+    });
+    const [savingReference, setSavingReference] = useState(false);
+    const [saveReferenceError, setSaveReferenceError] = useState<string | null>(
+        null,
+    );
+    const [lastReferenceSavedAt, setLastReferenceSavedAt] = useState<
+        string | null
+    >(null);
+    const [realisasiUnitSampel, setRealisasiUnitSampel] = useState<
+        Record<string, string>
+    >(() =>
+        Object.fromEntries(
+            Object.entries(sensus_reference?.realisasi_unit_sampel ?? {}).map(
+                ([unitKey, value]) => [unitKey, String(value)],
+            ),
+        ),
+    );
+    const [sharedScreenshotPath, setSharedScreenshotPath] = useState<
+        string | null
+    >(sensus_reference?.fasih_screenshot_path ?? bast.fasih_screenshot_path);
     const isPreviewOnlyMode = !bast.hashed_id;
     const listScrollRef = useRef<HTMLDivElement>(null);
     const SCROLL_KEY = `bast-list-scroll-${bulan}-${tahun}`;
@@ -204,6 +283,20 @@ export default function Show({
         window.location.pathname +
         window.location.search +
         window.location.hash;
+
+    useEffect(() => {
+        setRealisasiUnitSampel(
+            Object.fromEntries(
+                Object.entries(
+                    sensus_reference?.realisasi_unit_sampel ?? {},
+                ).map(([unitKey, value]) => [unitKey, String(value)]),
+            ),
+        );
+        setSharedScreenshotPath(
+            sensus_reference?.fasih_screenshot_path ??
+                bast.fasih_screenshot_path,
+        );
+    }, [sensus_reference, bast.fasih_screenshot_path]);
 
     useEffect(() => {
         const saved = sessionStorage.getItem(SCROLL_KEY);
@@ -221,6 +314,217 @@ export default function Show({
         }
     };
 
+    const getCsrfToken = () =>
+        document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content') ?? '';
+
+    const showModalAlert = (title: string, message: string) => {
+        setModalAlert({
+            open: true,
+            title,
+            message,
+        });
+    };
+
+    const openImagePreview = (title: string, src: string, alt: string) => {
+        setImagePreview({
+            open: true,
+            title,
+            src,
+            alt,
+        });
+    };
+
+    const extractErrorMessage = async (response: Response): Promise<string> => {
+        const fallbackMessage = `Server mengembalikan status ${response.status}.`;
+        const contentType = response.headers.get('content-type') ?? '';
+
+        if (contentType.includes('application/json')) {
+            const parsed = (await response.json().catch(() => null)) as {
+                message?: string;
+                errors?: Record<string, string[]>;
+            } | null;
+
+            if (parsed?.message && parsed.message.trim() !== '') {
+                return parsed.message;
+            }
+
+            if (parsed?.errors) {
+                const firstFieldError = Object.values(parsed.errors)
+                    .flat()
+                    .find(
+                        (value) =>
+                            typeof value === 'string' && value.trim() !== '',
+                    );
+
+                if (firstFieldError) {
+                    return firstFieldError;
+                }
+            }
+
+            return fallbackMessage;
+        }
+
+        const rawText = await response.text().catch(() => '');
+        if (rawText.trim() !== '') {
+            try {
+                const parsed = JSON.parse(rawText) as {
+                    message?: string;
+                    errors?: Record<string, string[]>;
+                };
+
+                if (parsed.message && parsed.message.trim() !== '') {
+                    return parsed.message;
+                }
+
+                if (parsed.errors) {
+                    const firstFieldError = Object.values(parsed.errors)
+                        .flat()
+                        .find(
+                            (value) =>
+                                typeof value === 'string' &&
+                                value.trim() !== '',
+                        );
+
+                    if (firstFieldError) {
+                        return firstFieldError;
+                    }
+                }
+            } catch {
+                // Keep fallback for non-JSON response body.
+            }
+        }
+
+        return fallbackMessage;
+    };
+
+    const getUnitInputValue = (unitKey: string) =>
+        realisasiUnitSampel[unitKey] ?? '';
+
+    const hasAnyRealisasiValue = Object.values(realisasiUnitSampel).some(
+        (value) => value.trim() !== '',
+    );
+
+    const getPrelistTargetValue = (unitKey: string): string => {
+        const value = sensus_reference?.muatan_prelist_unit_sampel?.[unitKey];
+        if (value === null || value === undefined) {
+            return '-';
+        }
+
+        return String(value);
+    };
+
+    const persistSensusReference = async () => {
+        if (!sensus_reference) {
+            return;
+        }
+
+        const payload = Object.fromEntries(
+            Object.entries(realisasiUnitSampel)
+                .filter(([, value]) => value !== '')
+                .map(([unitKey, value]) => [unitKey, Number(value)]),
+        );
+
+        if (Object.keys(payload).length === 0) {
+            return;
+        }
+
+        setSavingReference(true);
+        setSaveReferenceError(null);
+
+        try {
+            const requestBody: Record<string, unknown> = {
+                spk_id: sensus_reference.spk_id,
+                bulan: sensus_reference.bulan,
+                tahun: sensus_reference.tahun,
+                realisasi_unit_sampel: payload,
+            };
+
+            if (bast.hashed_id) {
+                requestBody.bast_hashed_id = bast.hashed_id;
+            }
+
+            const response = await fetch('/bast/sensus-reference', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': getCsrfToken(),
+                },
+                body: JSON.stringify(requestBody),
+            });
+
+            const result = await response.json().catch(() => null);
+
+            if (!response.ok) {
+                throw new Error(
+                    result?.message ?? 'Gagal menyimpan referensi realisasi.',
+                );
+            }
+
+            setLastReferenceSavedAt(new Date().toLocaleTimeString('id-ID'));
+            reloadDetailData();
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : 'Gagal menyimpan referensi realisasi.';
+            setSaveReferenceError(message);
+        } finally {
+            setSavingReference(false);
+        }
+    };
+
+    const handleUploadSharedFasihScreenshot = async (
+        event: React.ChangeEvent<HTMLInputElement>,
+    ) => {
+        const file = event.target.files?.[0];
+        if (!file || !sensus_reference) {
+            return;
+        }
+
+        setUploadingTarget('shared-fasih-screenshot');
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('spk_id', String(sensus_reference.spk_id));
+            formData.append('bulan', String(sensus_reference.bulan));
+            formData.append('tahun', String(sensus_reference.tahun));
+            formData.append('bast_hashed_id', bast.hashed_id);
+
+            const response = await fetch(
+                '/bast/sensus-reference/upload-fasih-screenshot',
+                {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': getCsrfToken(),
+                    },
+                    body: formData,
+                },
+            );
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    result?.message ??
+                        'Screenshot Fasih tidak berhasil diunggah.',
+                );
+            }
+
+            setSharedScreenshotPath(
+                result?.data?.fasih_screenshot_path ?? null,
+            );
+            reloadDetailData();
+        } finally {
+            setUploadingTarget(null);
+            event.target.value = '';
+        }
+    };
+
     const openDetailByPetugas = (petugasId?: number | null) => {
         handleListLinkClick();
 
@@ -232,6 +536,7 @@ export default function Show({
             bulan,
             tahun,
             petugas_id: petugasId,
+            mode,
         });
 
         router.get(
@@ -259,6 +564,7 @@ export default function Show({
                     'summary',
                     'bast_list',
                     'eligible_without_bast',
+                    'sensus_reference',
                 ],
             },
         );
@@ -286,6 +592,25 @@ export default function Show({
     const canDownloadAll = bast.is_legacy_mode
         ? allSignedInList
         : allCompiledInList;
+    const isSensusEkonomi = Boolean(bast.is_sensus_ekonomi);
+    const sensusTitle = `Sensus Ekonomi ${kegiatan.tahun_anggaran}`;
+    const pageTitle = isSensusEkonomi
+        ? `Detail BAST ${sensusTitle}`
+        : `Detail BAST ${bulan_label} ${tahun}`;
+    const pageDescription = isSensusEkonomi
+        ? `Dokumen utama dan lampiran BAST Sensus Ekonomi untuk ${petugas?.nama ?? kegiatan.nama_kegiatan}`
+        : `Dokumen utama dan lampiran BAST kegiatan untuk ${petugas?.nama ?? kegiatan.nama_kegiatan}`;
+
+    const showPreviewError = (error: unknown) => {
+        const fallback =
+            'Preview lampiran gagal dibuka. Pastikan screenshot Fasih sudah diunggah dan kegiatan sudah berakhir.';
+        const message =
+            error instanceof Error && error.message.trim() !== ''
+                ? error.message
+                : fallback;
+
+        showModalAlert('Preview Lampiran Gagal', message);
+    };
 
     const handleDownloadAll = async () => {
         const fallbackUrl = `/bast/download-all?bulan=${bulan}&tahun=${tahun}`;
@@ -325,6 +650,12 @@ export default function Show({
         );
     };
 
+    const handleUploadFasihScreenshot = (
+        event: React.ChangeEvent<HTMLInputElement>,
+    ) => {
+        void handleUploadSharedFasihScreenshot(event);
+    };
+
     const handleGenerateDownloadLampiran = async (item: LampiranItem) => {
         if (!item.ready_to_generate && !item.file_path) {
             return;
@@ -334,9 +665,8 @@ export default function Show({
             return;
         }
 
-        await downloadFileFromPost(
-            '/bast/lampiran-action/download',
-            bast.hashed_id
+        try {
+            const payload = bast.hashed_id
                 ? {
                       bast_hashed_id: bast.hashed_id,
                       bast_kegiatan_id: item.id,
@@ -347,33 +677,105 @@ export default function Show({
                           kegiatan_id: item.kegiatan_id,
                           periode_alokasi_id: item.periode_alokasi_id,
                       }),
-                  },
-            `LAMPIRAN_${item.kode_kegiatan}.pdf`,
-        );
+                  };
 
-        reloadDetailData();
+            const formData = new FormData();
+            const csrfToken = getCsrfToken();
+            if (csrfToken) {
+                formData.append('_token', csrfToken);
+            }
+
+            Object.entries(payload).forEach(([key, value]) => {
+                if (value !== null && value !== undefined) {
+                    formData.append(key, String(value));
+                }
+            });
+
+            const response = await fetch('/bast/lampiran-action/download', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    Accept: 'application/pdf,application/json',
+                },
+                credentials: 'include',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const message = await extractErrorMessage(response);
+                throw new Error(message);
+            }
+
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = blobUrl;
+            anchor.download = `LAMPIRAN_${item.kode_kegiatan}.pdf`;
+            anchor.rel = 'noopener noreferrer';
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 2000);
+
+            reloadDetailData();
+        } catch (error) {
+            const message =
+                error instanceof Error && error.message.trim() !== ''
+                    ? error.message
+                    : 'Unduh lampiran gagal. Silakan coba lagi.';
+
+            showModalAlert('Unduh Lampiran Gagal', message);
+        }
     };
 
     const handlePreviewLampiran = async (item: LampiranItem) => {
+        if (
+            item.uses_fasih_screenshot &&
+            !(item.fasih_screenshot_path ?? sharedScreenshotPath)
+        ) {
+            showModalAlert(
+                'Preview Lampiran Dinonaktifkan',
+                'Preview dinonaktifkan karena screenshot Fasih belum diunggah.',
+            );
+
+            return;
+        }
+
         if (!bast.hashed_id && !item.preview_spk_id) {
             return;
         }
 
-        await previewFileFromPost(
-            '/bast/lampiran-action/preview',
-            bast.hashed_id
-                ? {
-                      bast_hashed_id: bast.hashed_id,
-                      bast_kegiatan_id: item.id,
-                  }
-                : {
-                      encrypted_filters: encryptFilters({
-                          spk_id: item.preview_spk_id,
-                          kegiatan_id: item.kegiatan_id,
-                          periode_alokasi_id: item.periode_alokasi_id,
-                      }),
-                  },
-            `Preview_Lampiran_${item.kode_kegiatan}.pdf`,
+        try {
+            await previewFileFromPost(
+                '/bast/lampiran-action/preview',
+                bast.hashed_id
+                    ? {
+                          bast_hashed_id: bast.hashed_id,
+                          bast_kegiatan_id: item.id,
+                      }
+                    : {
+                          encrypted_filters: encryptFilters({
+                              spk_id: item.preview_spk_id,
+                              kegiatan_id: item.kegiatan_id,
+                              periode_alokasi_id: item.periode_alokasi_id,
+                          }),
+                      },
+                `Preview_Lampiran_${item.kode_kegiatan}.pdf`,
+            );
+        } catch (error) {
+            showPreviewError(error);
+        }
+    };
+
+    const handlePreviewSharedScreenshot = () => {
+        if (!sharedScreenshotPath) {
+            return;
+        }
+
+        openImagePreview(
+            'Screenshot Fasih',
+            `/${sharedScreenshotPath}`,
+            'Screenshot Fasih BAST',
         );
     };
 
@@ -419,13 +821,10 @@ export default function Show({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Detail BAST`} />
+            <Head title={pageTitle} />
 
             <div className="space-y-6">
-                <PageHeader
-                    title={`Detail BAST ${bulan_label} ${tahun}`}
-                    description={`Dokumen utama dan lampiran kegiatan untuk ${petugas?.nama ?? kegiatan.nama_kegiatan}`}
-                >
+                <PageHeader title={pageTitle} description={pageDescription}>
                     <div className="flex items-center gap-2">
                         {(permissions.can_manage_main ||
                             permissions.is_ketua_tim) && (
@@ -534,7 +933,9 @@ export default function Show({
                             <div className="flex items-start justify-between gap-4">
                                 <div>
                                     <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                        Progres Periode {bulan_label} {tahun}
+                                        {isSensusEkonomi
+                                            ? `Progress BAST ${sensusTitle}`
+                                            : `Progres BAST Periode ${bulan_label} ${tahun}`}
                                     </h3>
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400">
                                         {finalSignedCount} dari{' '}
@@ -565,7 +966,9 @@ export default function Show({
                                         Daftar BAST
                                     </h3>
                                     <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                        Dokumen periode {bulan_label} {tahun}
+                                        {isSensusEkonomi
+                                            ? `Daftar Petugas ${sensusTitle}`
+                                            : `Daftar Petugas Survei periode ${bulan_label} ${tahun}`}
                                     </p>
                                 </div>
                                 <div
@@ -844,6 +1247,170 @@ export default function Show({
                             </ContentCard>
                         )}
 
+                        {permissions.can_upload_main &&
+                            bast.is_sensus_ekonomi &&
+                            petugas &&
+                            sensus_reference && (
+                                <ContentCard>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                                Realisasi dan Screenshot Fasih
+                                            </h3>
+                                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                                Input realisasi pendataan Sensus
+                                                Ekonomi 2026 dan unggah
+                                                screenshot aplikasi Fasih
+                                                sebagai bukti. Data ini akan
+                                                disimpan sebagai referensi untuk
+                                                BAST berikutnya dengan petugas
+                                                yang sama, jadi pastikan untuk
+                                                memperbarui jika ada perubahan
+                                                realisasi atau saat mengganti
+                                                screenshot Fasih.
+                                            </p>
+                                        </div>
+
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            {sensus_reference.unit_sampel_pencacahan_items.map(
+                                                (unit) => {
+                                                    const unitKey =
+                                                        getUnitKey(unit);
+
+                                                    return (
+                                                        <div key={unit.id}>
+                                                            <Label>
+                                                                Muatan prelist (
+                                                                {unit.nama})
+                                                            </Label>
+                                                            <Input
+                                                                value={getPrelistTargetValue(
+                                                                    unitKey,
+                                                                )}
+                                                                readOnly
+                                                                disabled
+                                                            />
+                                                        </div>
+                                                    );
+                                                },
+                                            )}
+                                            {sensus_reference.unit_sampel_pencacahan_items.map(
+                                                (unit) => {
+                                                    const unitKey =
+                                                        getUnitKey(unit);
+
+                                                    return (
+                                                        <div
+                                                            key={`realisasi-${unit.id}`}
+                                                        >
+                                                            <Label>
+                                                                Realisasi (
+                                                                {unit.nama})
+                                                            </Label>
+                                                            <Input
+                                                                type="number"
+                                                                min={0}
+                                                                value={getUnitInputValue(
+                                                                    unitKey,
+                                                                )}
+                                                                onChange={(
+                                                                    event,
+                                                                ) => {
+                                                                    setRealisasiUnitSampel(
+                                                                        (
+                                                                            prev,
+                                                                        ) => ({
+                                                                            ...prev,
+                                                                            [unitKey]:
+                                                                                event
+                                                                                    .target
+                                                                                    .value,
+                                                                        }),
+                                                                    );
+                                                                }}
+                                                                onBlur={() => {
+                                                                    void persistSensusReference();
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    );
+                                                },
+                                            )}
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    void persistSensusReference();
+                                                }}
+                                                disabled={
+                                                    savingReference ||
+                                                    !hasAnyRealisasiValue
+                                                }
+                                            >
+                                                {savingReference
+                                                    ? 'Menyimpan...'
+                                                    : 'Simpan Realisasi'}
+                                            </Button>
+                                        </div>
+                                        <div
+                                            className={`text-xs ${
+                                                saveReferenceError
+                                                    ? 'text-red-600 dark:text-red-400'
+                                                    : 'text-neutral-500 dark:text-neutral-400'
+                                            }`}
+                                        >
+                                            {savingReference
+                                                ? 'Menyimpan perubahan referensi...'
+                                                : saveReferenceError
+                                                  ? saveReferenceError
+                                                  : lastReferenceSavedAt
+                                                    ? `Perubahan realisasi tersimpan pukul ${lastReferenceSavedAt}.`
+                                                    : 'Perubahan realisasi telah disimpan.'}
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            <Label
+                                                htmlFor="fasih-screenshot-file"
+                                                className="inline-flex h-11 cursor-pointer items-center justify-center gap-2.5 rounded-xl border-2 border-input bg-white/50 px-5 text-base font-semibold shadow-lg backdrop-blur-sm transition-[color,box-shadow,transform] hover:border-accent-foreground/20 hover:bg-accent hover:text-accent-foreground hover:shadow-xl active:scale-[0.98] dark:bg-neutral-800/60"
+                                            >
+                                                <Upload className="size-5 shrink-0" />
+                                                {uploadingTarget ===
+                                                'fasih-screenshot'
+                                                    ? 'Mengunggah...'
+                                                    : sharedScreenshotPath
+                                                      ? 'Ganti Screenshot Fasih'
+                                                      : 'Pilih Screenshot Fasih'}
+                                            </Label>
+                                            <Input
+                                                id="fasih-screenshot-file"
+                                                type="file"
+                                                accept="image/png,image/jpeg,image/webp"
+                                                onChange={
+                                                    handleUploadFasihScreenshot
+                                                }
+                                                className="hidden"
+                                            />
+                                            {sharedScreenshotPath && (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    className="inline-flex items-center gap-2 px-0 text-sm font-medium text-blue-600 hover:bg-transparent hover:text-blue-700 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
+                                                    onClick={
+                                                        handlePreviewSharedScreenshot
+                                                    }
+                                                >
+                                                    <Eye className="h-4 w-4" />
+                                                    Lihat Screenshot Saat Ini
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </ContentCard>
+                            )}
+
                         {!bast.is_legacy_mode && (
                             <ContentCard>
                                 <div className="space-y-5">
@@ -876,6 +1443,24 @@ export default function Show({
                                                 const isUploadingThis =
                                                     uploadingTarget ===
                                                     `lampiran-${item.id}`;
+                                                const requiresFasihScreenshot =
+                                                    Boolean(
+                                                        item.uses_fasih_screenshot,
+                                                    );
+                                                const hasFasihScreenshot =
+                                                    Boolean(
+                                                        item.fasih_screenshot_path ??
+                                                        sharedScreenshotPath,
+                                                    );
+                                                const canPreviewLampiran =
+                                                    item.can_preview &&
+                                                    (!requiresFasihScreenshot ||
+                                                        hasFasihScreenshot);
+                                                const previewDisabledReason =
+                                                    requiresFasihScreenshot &&
+                                                    !hasFasihScreenshot
+                                                        ? 'Preview dinonaktifkan karena screenshot Fasih belum diunggah.'
+                                                        : undefined;
 
                                                 return (
                                                     <div
@@ -894,57 +1479,18 @@ export default function Show({
                                                                         item.status,
                                                                     )}
                                                                 </div>
-                                                                <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                                                                <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                                                                    {' '}
+                                                                    {peranLabelMap[
+                                                                        item.peran ??
+                                                                            ''
+                                                                    ] ??
+                                                                        item.peran ??
+                                                                        'Tanpa peran'}{' '}
+                                                                    •{' '}
                                                                     {
-                                                                        item.kode_kegiatan
+                                                                        item.tanggal_selesai_formatted
                                                                     }
-                                                                    {item.peran
-                                                                        ? ` • ${peranLabelMap[item.peran] ?? item.peran}`
-                                                                        : ''}
-                                                                </div>
-                                                            </div>
-                                                            <div className="text-sm text-neutral-500 dark:text-neutral-400">
-                                                                Berakhir:{' '}
-                                                                {
-                                                                    item.tanggal_selesai_formatted
-                                                                }
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="mt-4 grid gap-4 md:grid-cols-3">
-                                                            <div>
-                                                                <Label>
-                                                                    Jenis
-                                                                    Kegiatan
-                                                                </Label>
-                                                                <p className="font-medium text-neutral-900 capitalize dark:text-white">
-                                                                    {
-                                                                        item.jenis_kegiatan
-                                                                    }
-                                                                </p>
-                                                            </div>
-                                                            <div>
-                                                                <Label>
-                                                                    Ketua Tim
-                                                                </Label>
-                                                                <p className="font-medium text-neutral-900 dark:text-white">
-                                                                    {item.ketua_tim_nama ??
-                                                                        '-'}
-                                                                </p>
-                                                            </div>
-                                                            <div>
-                                                                <Label>
-                                                                    Status
-                                                                    Dokumen
-                                                                </Label>
-                                                                <p className="font-medium text-neutral-900 dark:text-white">
-                                                                    {item.status ===
-                                                                    'signed'
-                                                                        ? 'Signed'
-                                                                        : item.status ===
-                                                                            'generated'
-                                                                          ? 'Draft tersedia'
-                                                                          : 'Belum digenerate'}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -953,7 +1499,10 @@ export default function Show({
                                                             <Button
                                                                 variant="outline"
                                                                 disabled={
-                                                                    !item.can_preview
+                                                                    !canPreviewLampiran
+                                                                }
+                                                                title={
+                                                                    previewDisabledReason
                                                                 }
                                                                 onClick={() =>
                                                                     void handlePreviewLampiran(
@@ -1036,6 +1585,9 @@ export default function Show({
                                                                     baru dapat
                                                                     digenerate
                                                                     setelah
+                                                                    screenshot
+                                                                    Fasih utama
+                                                                    diunggah dan
                                                                     kegiatan
                                                                     berakhir.
                                                                 </div>
@@ -1061,6 +1613,15 @@ export default function Show({
                                                                         }
                                                                     </span>
                                                                 )}
+                                                                {item.fasih_screenshot_uploaded_at && (
+                                                                    <span>
+                                                                        Screenshot
+                                                                        diunggah:{' '}
+                                                                        {
+                                                                            item.fasih_screenshot_uploaded_at
+                                                                        }
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         )}
                                                     </div>
@@ -1074,6 +1635,74 @@ export default function Show({
                     </div>
                 </div>
             </div>
+
+            <Dialog
+                open={modalAlert.open}
+                onOpenChange={(open) =>
+                    setModalAlert((prev) => ({ ...prev, open }))
+                }
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{modalAlert.title}</DialogTitle>
+                        <DialogDescription>
+                            {modalAlert.message}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            onClick={() =>
+                                setModalAlert((prev) => ({
+                                    ...prev,
+                                    open: false,
+                                }))
+                            }
+                        >
+                            Tutup
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={imagePreview.open}
+                onOpenChange={(open) =>
+                    setImagePreview((prev) => ({ ...prev, open }))
+                }
+            >
+                <DialogContent className="max-w-4xl">
+                    <DialogHeader>
+                        <DialogTitle>{imagePreview.title}</DialogTitle>
+                        <DialogDescription>
+                            Pratinjau screenshot Fasih.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="max-h-[70vh] overflow-auto rounded-lg border border-neutral-200 bg-neutral-50 p-2 dark:border-neutral-700 dark:bg-neutral-900">
+                        {imagePreview.src && (
+                            <img
+                                src={imagePreview.src}
+                                alt={imagePreview.alt}
+                                className="mx-auto max-h-[65vh] w-full object-contain"
+                            />
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() =>
+                                setImagePreview((prev) => ({
+                                    ...prev,
+                                    open: false,
+                                }))
+                            }
+                        >
+                            Tutup
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

@@ -604,24 +604,25 @@ class DashboardController extends Controller
         // Chart data from January to current month
         $chartData = [];
         $petugasMonitoringData = [];
+        $totalPetugasAktif = Petugas::where('status', 'aktif')->count();
 
         for ($month = 1; $month <= $currentMonth; $month++) {
             $monthName = Carbon::create($currentYear, $month, 1)->format('M');
             $monthFormatted = str_pad((string) $month, 2, '0', STR_PAD_LEFT);
+            $monthCandidates = $this->resolveBulanCandidates($monthFormatted);
 
-            // Count total non-organik petugas allocated for this month (exclude honor=0)
+            // Count total petugas allocated for this month (exclude honor=0)
             $totalPetugasAlokasi = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
-                ->where('periode_alokasi.bulan', $monthFormatted)
+                ->whereIn('periode_alokasi.bulan', $monthCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
-                ->where('petugas.jenis_petugas', 'non-organik')
                 ->whereRaw('(alokasi_petugas.total_honor + COALESCE(alokasi_petugas.total_honor_listing, 0)) > 0')
                 ->distinct('alokasi_petugas.petugas_id')
                 ->count('alokasi_petugas.petugas_id');
 
             // Count kegiatan for this month
-            $kegiatanCount = PeriodeAlokasi::where('bulan', $monthFormatted)
+            $kegiatanCount = PeriodeAlokasi::whereIn('bulan', $monthCandidates)
                 ->where('tahun', $currentYear)
                 ->distinct('kegiatan_id')
                 ->count('kegiatan_id');
@@ -632,18 +633,12 @@ class DashboardController extends Controller
                 'kegiatan_count' => $kegiatanCount,
             ];
 
-            // Petugas monitoring data - non-organik only
-            $totalPetugasAktif = Petugas::where('status', 'aktif')
-                ->where('jenis_petugas', 'non-organik')
-                ->count();
-
-            // Get all alokasi for this month with non-organik petugas only (exclude honor=0)
+            // Get all alokasi for this month (exclude honor=0)
             $alokasiThisMonth = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
-                ->where('periode_alokasi.bulan', $monthFormatted)
+                ->whereIn('periode_alokasi.bulan', $monthCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
-                ->where('petugas.jenis_petugas', 'non-organik')
                 ->whereRaw('(alokasi_petugas.total_honor + COALESCE(alokasi_petugas.total_honor_listing, 0)) > 0')
                 ->select('alokasi_petugas.petugas_id', DB::raw('COUNT(*) as jumlah_kegiatan'))
                 ->groupBy('alokasi_petugas.petugas_id')
@@ -670,22 +665,22 @@ class DashboardController extends Controller
         for ($month = 1; $month <= $currentMonth; $month++) {
             $monthName = Carbon::create($currentYear, $month, 1)->format('M');
             $monthFormatted = str_pad((string) $month, 2, '0', STR_PAD_LEFT);
+            $monthCandidates = $this->resolveBulanCandidates($monthFormatted);
 
             // Get all honor data for this month, prefer 'perubahan' over 'dikirim' per (petugas, kegiatan)
-            // Only include survei kegiatan (sensus excluded as honor can exceed 3.5 million)
             $rawAlokasi = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
                 ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
-                ->where('periode_alokasi.bulan', $monthFormatted)
+                ->whereIn('periode_alokasi.bulan', $monthCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
-                ->where('petugas.jenis_petugas', 'non-organik')
-                ->where('kegiatan.jenis_kegiatan', 'survei')
                 ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan'])
                 ->select(
                     'alokasi_petugas.petugas_id',
                     'periode_alokasi.kegiatan_id',
                     'periode_alokasi.status as periode_status',
+                    'kegiatan.jenis_kegiatan',
+                    'kegiatan.nama_kegiatan',
                     'alokasi_petugas.total_honor',
                     'alokasi_petugas.total_honor_listing'
                 )
@@ -709,7 +704,12 @@ class DashboardController extends Controller
             $petugasHonor = [];
             foreach ($grouped as $row) {
                 $pid = $row->petugas_id;
-                $honor = ($row->total_honor ?? 0) + ($row->total_honor_listing ?? 0);
+                $honor = $this->calculateDashboardHonor(
+                    $month,
+                    ($row->total_honor ?? 0) + ($row->total_honor_listing ?? 0),
+                    $row->jenis_kegiatan ?? null,
+                    $row->nama_kegiatan ?? null,
+                );
                 if (! isset($petugasHonor[$pid])) {
                     $petugasHonor[$pid] = 0;
                 }
@@ -977,5 +977,43 @@ class DashboardController extends Controller
             'currentYear' => $currentYear,
             'userRole' => $user->role,
         ]);
+    }
+
+    private function calculateDashboardHonor(
+        int $month,
+        float|int $baseHonor,
+        ?string $jenisKegiatan,
+        ?string $namaKegiatan,
+    ): float {
+        if (! $this->isSensusEkonomiKegiatan($jenisKegiatan, $namaKegiatan)) {
+            return (float) $baseHonor;
+        }
+
+        return (float) $baseHonor * $this->getSensusHonorWeight($month);
+    }
+
+    private function isSensusEkonomiKegiatan(?string $jenisKegiatan, ?string $namaKegiatan): bool
+    {
+        return $jenisKegiatan === 'sensus'
+            && str_contains(mb_strtolower((string) $namaKegiatan), 'sensus ekonomi');
+    }
+
+    private function getSensusHonorWeight(int $month): float
+    {
+        return match ($month) {
+            6 => 0.2,
+            7, 8 => 0.4,
+            default => 1.0,
+        };
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function resolveBulanCandidates(string $bulan): array
+    {
+        $normalizedBulan = str_pad((string) ((int) $bulan), 2, '0', STR_PAD_LEFT);
+
+        return array_values(array_unique([$bulan, (string) ((int) $bulan), $normalizedBulan]));
     }
 }

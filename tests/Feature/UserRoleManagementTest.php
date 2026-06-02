@@ -188,4 +188,28 @@ class UserRoleManagementTest extends TestCase
         $this->assertNotNull($activeRole);
         $this->assertSame('operator', $activeRole->name);
     }
+
+    public function test_role_switch_uses_viewed_user_roles_when_viewing_as_user(): void
+    {
+        $this->seedRoles();
+
+        $viewer = User::factory()->create(['username' => 'rhmtzikri']);
+        $viewerApproverRole = Role::where('name', 'approver')->firstOrFail();
+        $viewer->roles()->attach($viewerApproverRole->id);
+
+        $viewedUser = User::factory()->create(['username' => 'angga']);
+        $viewedApproverRole = Role::where('name', 'approver')->firstOrFail();
+        $viewedOperatorRole = Role::where('name', 'operator')->firstOrFail();
+        $viewedUser->roles()->attach([$viewedApproverRole->id, $viewedOperatorRole->id]);
+
+        $response = $this->actingAs($viewer)
+            ->withSession(['view_as_user_id' => $viewedUser->id])
+            ->post(route('role.switch'), ['role_id' => $viewedApproverRole->id]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $this->assertSame($viewedUser->id, (int) session('active_role_user_id'));
+        $this->assertSame($viewedApproverRole->id, (int) session('active_role_id'));
+    }
 }

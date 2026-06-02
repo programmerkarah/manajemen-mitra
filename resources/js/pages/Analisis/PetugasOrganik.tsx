@@ -305,12 +305,13 @@ export default function AnalisisPetugasOrganik({
                     <p className="mb-3 text-xs text-neutral-500 dark:text-neutral-400">
                         Jumlah Kegiatan = jumlah kegiatan unik yang
                         dialokasikan. Jumlah Alokasi = total alokasi kegiatan
-                        per pegawai dari Januari sampai bulan berjalan.
+                        per pegawai. Rata-rata per bulan = total alokasi /
+                        jumlah bulan yang benar-benar dialokasikan.
                     </p>
                     <p className="mb-3 text-xs text-neutral-500 dark:text-neutral-400">
                         Aturan indikator statis berdasarkan rata-rata kegiatan
-                        per bulan: Overload {'>'} 5, Optimal 2-4, Under
-                        Performance {'<'} 2.
+                        per bulan: Under Performance {'<'} 1, Normal = 1,
+                        Optimal {'>'} 1-3, Overload {'>'} 3.
                     </p>
                     <div className="overflow-x-auto">
                         <table className="min-w-full border-collapse text-sm">
@@ -360,7 +361,10 @@ export default function AnalisisPetugasOrganik({
                                                         : item.performance_status ===
                                                             'under_performance'
                                                           ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
-                                                          : 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300'
+                                                          : item.performance_status ===
+                                                              'normal'
+                                                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+                                                            : 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300'
                                                 }`}
                                             >
                                                 {item.performance_label}
