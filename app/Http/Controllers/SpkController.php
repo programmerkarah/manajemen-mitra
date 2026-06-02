@@ -1636,7 +1636,7 @@ class SpkController extends Controller
     }
 
     /**
-    * @return array{filename:string,content?:string,cache_key:string,is_protected:bool,protected_path?:string}|null
+     * @return array{filename:string,content?:string,cache_key:string,is_protected:bool,protected_path?:string}|null
      */
     private function resolveFinalSignedSpkPdfBinaryForPublicPreview(
         PeriodeAlokasi $periode,
@@ -2055,6 +2055,7 @@ class SpkController extends Controller
 
             if (empty($groupDocuments)) {
                 $result[$statusKey] = 'Belum ada PK';
+
                 continue;
             }
 
@@ -2064,21 +2065,25 @@ class SpkController extends Controller
 
             if ($hasMainSigned && $hasAddendumSigned) {
                 $result[$statusKey] = 'PK Final + Addendum';
+
                 continue;
             }
 
             if ($hasMainSigned && $hasAddendumDraft) {
                 $result[$statusKey] = 'PK Final + Addendum(draft)';
+
                 continue;
             }
 
             if ($hasAddendumSigned) {
                 $result[$statusKey] = 'Addendum Final';
+
                 continue;
             }
 
             if ($hasMainSigned) {
                 $result[$statusKey] = 'PK Final';
+
                 continue;
             }
 
