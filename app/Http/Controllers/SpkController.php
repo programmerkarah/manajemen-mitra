@@ -2618,7 +2618,7 @@ class SpkController extends Controller
             'kegiatan',
         ])->findOrFail($periodeId);
 
-        $scopePeriodeIds = $this->resolveSpkScopePeriodeIds($periode, ['dikirim', 'perubahan']);
+        $scopePeriodeIds = $this->resolveSpkScopePeriodeIds($periode, ['dikirim', 'disetujui', 'direvisi', 'perubahan']);
         $hasDraftPeriode = $this->hasDraftPeriodeInSpkScope($periode);
 
         // Get all unique non-organik petugas from the SPK scope.
@@ -2641,39 +2641,7 @@ class SpkController extends Controller
 
         // Group by petugas_id and aggregate their data
         $petugasList = $allAlokasi->groupBy('petugas_id')
-            ->map(function ($alokasiGroup) {
-                $firstAlokasi = $alokasiGroup->first();
-
-                // Calculate total honor across all kegiatan
-                $totalHonor = $alokasiGroup->sum(function ($alokasi) {
-                    return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
-                });
-
-                // Get all kegiatan with their peran
-                $kegiatanList = $alokasiGroup->map(function ($alokasi) {
-                    return [
-                        'kegiatan_id' => $alokasi->periodeAlokasi->kegiatan->id,
-                        'kegiatan_kode' => $alokasi->periodeAlokasi->kegiatan->kode_kegiatan,
-                        'kegiatan_nama' => $alokasi->periodeAlokasi->kegiatan->nama_kegiatan,
-                        'peran' => $alokasi->peran,
-                    ];
-                })->values()->all();
-
-                return [
-                    'alokasi_id' => $firstAlokasi->id,
-                    'alokasi_hashed_id' => $firstAlokasi->hashed_id,
-                    'petugas' => [
-                        'id' => $firstAlokasi->petugas->id,
-                        'hashed_id' => $firstAlokasi->petugas->hashed_id,
-                        'nama' => $firstAlokasi->petugas->nama,
-                        'nik' => $firstAlokasi->petugas->nik,
-                        'jenis_petugas' => $firstAlokasi->petugas->jenis_petugas,
-                    ],
-                    'jumlah_kegiatan' => $alokasiGroup->count(),
-                    'kegiatan_list' => $kegiatanList,
-                    'total_honor' => $totalHonor,
-                ];
-            })
+            ->map(fn (Collection $alokasiGroup) => $this->buildGeneratePetugasListItem($alokasiGroup))
             ->sortBy(function ($item) {
                 return $item['petugas']['nama'];
             })
@@ -2739,27 +2707,39 @@ class SpkController extends Controller
                 }
             }
 
-            // Filter petugas list for regenerate mode
-            // Only show: 1) New petugas (not in existingSpkMap), 2) Petugas with kegiatan additions
-            $petugasList = $petugasList->filter(function ($item) use ($existingKegiatanPerPetugas) {
-                $petugasId = $item['petugas']['id'];
+            $petugasListById = $petugasList->keyBy('petugas.id');
 
-                // For existing petugas, check if they have NEW kegiatan (additions only)
-                $currentKegiatanIds = collect($item['kegiatan_list'])
-                    ->pluck('kegiatan_id')
-                    ->filter()
-                    ->unique()
-                    ->sort()
-                    ->values()
-                    ->toArray();
+            foreach ($existingSpks as $spk) {
+                if ($petugasListById->has($spk->petugas_id)) {
+                    continue;
+                }
 
-                $oldKegiatanIds = $existingKegiatanPerPetugas[$petugasId] ?? [];
+                $baselineAlokasiIds = $spk->alokasi_petugas_ids ?? [];
+                if (empty($baselineAlokasiIds)) {
+                    $baselineAlokasiIds = [$spk->alokasi_petugas_id];
+                }
 
-                // Include only if there are NEW kegiatan (current has kegiatan that old doesn't have)
-                $hasNewKegiatan = count(array_diff($currentKegiatanIds, $oldKegiatanIds)) > 0;
+                $fallbackAlokasiGroup = AlokasiPetugas::query()
+                    ->whereIn('id', $baselineAlokasiIds)
+                    ->where('petugas_id', $spk->petugas_id)
+                    ->whereIn('periode_alokasi_id', $scopePeriodeIds)
+                    ->where(function ($query) {
+                        $query->where('total_honor', '>', 0)
+                            ->orWhere('total_honor_listing', '>', 0);
+                    })
+                    ->with([
+                        'petugas:id,nama,nik,jenis_petugas',
+                        'periodeAlokasi:id,kegiatan_id,jenis_kegiatan,status',
+                        'periodeAlokasi.kegiatan:id,kode_kegiatan,nama_kegiatan',
+                    ])
+                    ->get();
 
-                return $hasNewKegiatan;
-            })->values();
+                if ($fallbackAlokasiGroup->isNotEmpty()) {
+                    $petugasListById->put($spk->petugas_id, $this->buildGeneratePetugasListItem($fallbackAlokasiGroup));
+                }
+            }
+
+            $petugasList = $petugasListById->values();
 
             // Check if next sequential number is already used in OTHER months
             $nextSequentialNumber = $lastNomorUrutInMonth + 1;
@@ -5343,6 +5323,43 @@ class SpkController extends Controller
     }
 
     /**
+     * @param  Collection<int,AlokasiPetugas>  $alokasiGroup
+     * @return array{alokasi_id:int,alokasi_hashed_id:string,petugas:array{id:int,hashed_id:string,nama:string,nik:string,jenis_petugas:string},jumlah_kegiatan:int,kegiatan_list:array<int,array{kegiatan_id:int,kegiatan_kode:string,kegiatan_nama:string,peran:string}>,total_honor:float}
+     */
+    private function buildGeneratePetugasListItem(Collection $alokasiGroup): array
+    {
+        $firstAlokasi = $alokasiGroup->first();
+
+        $totalHonor = $alokasiGroup->sum(function (AlokasiPetugas $alokasi) {
+            return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
+        });
+
+        $kegiatanList = $alokasiGroup->map(function (AlokasiPetugas $alokasi): array {
+            return [
+                'kegiatan_id' => $alokasi->periodeAlokasi->kegiatan->id,
+                'kegiatan_kode' => $alokasi->periodeAlokasi->kegiatan->kode_kegiatan,
+                'kegiatan_nama' => $alokasi->periodeAlokasi->kegiatan->nama_kegiatan,
+                'peran' => $alokasi->peran,
+            ];
+        })->values()->all();
+
+        return [
+            'alokasi_id' => $firstAlokasi->id,
+            'alokasi_hashed_id' => $firstAlokasi->hashed_id,
+            'petugas' => [
+                'id' => $firstAlokasi->petugas->id,
+                'hashed_id' => $firstAlokasi->petugas->hashed_id,
+                'nama' => $firstAlokasi->petugas->nama,
+                'nik' => $firstAlokasi->petugas->nik,
+                'jenis_petugas' => $firstAlokasi->petugas->jenis_petugas,
+            ],
+            'jumlah_kegiatan' => $alokasiGroup->count(),
+            'kegiatan_list' => $kegiatanList,
+            'total_honor' => $totalHonor,
+        ];
+    }
+
+    /**
      * Calculate total honor for petugas
      */
     private function calculateTotalHonor(Kegiatan $kegiatan, AlokasiPetugas $alokasi): float
@@ -5432,11 +5449,12 @@ class SpkController extends Controller
     private function resolveSpkScopePeriodeIds(PeriodeAlokasi $periode, array $statuses = []): Collection
     {
         $query = PeriodeAlokasi::query();
+        $bulanFormatted = str_pad((string) ((int) $periode->bulan), 2, '0', STR_PAD_LEFT);
 
         if ($this->usesPeriodBasedSpkFlow($periode)) {
             $query->whereKey($periode->id);
         } else {
-            $query->where('bulan', $periode->bulan)
+            $query->whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
                 ->where('tahun', $periode->tahun);
         }
 
@@ -5453,7 +5471,9 @@ class SpkController extends Controller
             return false;
         }
 
-        return PeriodeAlokasi::where('bulan', $periode->bulan)
+        $bulanFormatted = str_pad((string) ((int) $periode->bulan), 2, '0', STR_PAD_LEFT);
+
+        return PeriodeAlokasi::whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
             ->where('tahun', $periode->tahun)
             ->where('status', 'draft')
             ->exists();
@@ -6289,7 +6309,7 @@ class SpkController extends Controller
         }
 
         $periode = PeriodeAlokasi::with(['kegiatan'])->findOrFail($periodeId);
-        $scopePeriodeIds = $this->resolveSpkScopePeriodeIds($periode, ['dikirim', 'perubahan']);
+        $scopePeriodeIds = $this->resolveSpkScopePeriodeIds($periode, ['dikirim', 'disetujui', 'direvisi', 'perubahan']);
 
         // Get all unique non-organik petugas from the SPK scope.
         // Only include those with honor > 0

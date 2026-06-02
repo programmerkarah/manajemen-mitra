@@ -81,7 +81,6 @@ class SpkPeriodScopeTest extends TestCase
             'nama_kegiatan' => 'Survei Harga',
             'jenis_kegiatan' => 'survei',
         ]));
-
         $resolveGroupKey = new \ReflectionMethod(SpkController::class, 'resolveSpkIndexGroupKey');
         $resolveGroupKey->setAccessible(true);
 
