@@ -2288,6 +2288,28 @@ class AlokasiPetugasController extends Controller
             $rateHonor->sbml_limit = $sbml ? $sbml->honor_max : null;
         }
 
+        $kegiatanWithRates->setAttribute(
+            'unit_sampel_pencacahan_items',
+            $kegiatanWithRates->unitSampelPencacahanItems()
+                ->map(fn ($item) => [
+                    'id' => $item->id,
+                    'nama' => $item->nama,
+                ])
+                ->values()
+                ->all()
+        );
+
+        $kegiatanWithRates->setAttribute(
+            'unit_sampel_listing_items',
+            $kegiatanWithRates->unitSampelListingItems()
+                ->map(fn ($item) => [
+                    'id' => $item->id,
+                    'nama' => $item->nama,
+                ])
+                ->values()
+                ->all()
+        );
+
         // Load all petugas
         $petugas = Petugas::select('id', 'nama', 'jenis_petugas', 'golongan', 'jabatan', 'desa_kelurahan')
             ->where('status', 'aktif')

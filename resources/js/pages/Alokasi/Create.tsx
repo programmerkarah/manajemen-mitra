@@ -147,6 +147,8 @@ interface Kegiatan {
     pagu_listing?: number | null;
     tanggal_mulai?: string | null; // format: YYYY-MM-DD
     tanggal_selesai?: string | null; // format: YYYY-MM-DD
+    unit_sampel_pencacahan_ids?: Array<number | string>;
+    unit_sampel_listing_ids?: Array<number | string>;
     kegiatan_frame_sampel?: Array<{
         id: number;
         tahapan: 'listing' | 'pencacahan';
@@ -982,6 +984,14 @@ export default function Create({
         });
     }, [selectedKegiatan?.unit_sampel_pencacahan_items]);
 
+    const pencacahanUnitNameById = useMemo(() => {
+        return new Map(
+            (selectedKegiatan?.unit_sampel_pencacahan_items || []).map(
+                (item) => [String(item.id), item.nama.trim()] as const,
+            ),
+        );
+    }, [selectedKegiatan?.unit_sampel_pencacahan_items]);
+
     const frameSampelById = useMemo(
         () =>
             new Map(
@@ -1037,6 +1047,7 @@ export default function Create({
                     .replace(/\b\w/g, (char) => char.toUpperCase());
 
                 return {
+                    id: /^\d+$/.test(key) ? Number(key) : undefined,
                     name: readableName || key,
                     keyHints: [key, normalizedKey, `target_${normalizedKey}`],
                 };
@@ -1060,6 +1071,73 @@ export default function Create({
                 return getPriority(leftName) - getPriority(rightName);
             });
     }, [allFrameSampelOptions, orderedPencacahanUnitItems]);
+
+    const resolveUnitTargetDisplayName = useCallback(
+        (unitDefinition: UnitTargetDefinition): string => {
+            const rawName = unitDefinition.name.trim();
+
+            if (rawName !== '' && !/^\d+$/.test(rawName)) {
+                return rawName;
+            }
+
+            const directUnitIdCandidates = [
+                unitDefinition.id,
+                rawName,
+                ...unitDefinition.keyHints,
+            ]
+                .map((value) => String(value ?? '').trim())
+                .filter((value) => /^\d+$/.test(value));
+
+            for (const unitId of directUnitIdCandidates) {
+                const resolvedName = pencacahanUnitNameById.get(unitId);
+
+                if (resolvedName && resolvedName !== '') {
+                    return resolvedName;
+                }
+            }
+
+            const normalizedCandidates = new Set(
+                [rawName, ...unitDefinition.keyHints]
+                    .map((value) =>
+                        value
+                            .trim()
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]+/g, '_')
+                            .replace(/^_+|_+$/g, ''),
+                    )
+                    .filter((value) => value !== ''),
+            );
+
+            for (const frameSampel of allFrameSampelOptions) {
+                const metadata = frameSampel.identitas_tambahan || {};
+
+                for (const [key, value] of Object.entries(metadata)) {
+                    if (!key.toLowerCase().endsWith('_label')) {
+                        continue;
+                    }
+
+                    const baseKey = key
+                        .replace(/_label$/i, '')
+                        .trim()
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, '_')
+                        .replace(/^_+|_+$/g, '');
+
+                    if (!normalizedCandidates.has(baseKey)) {
+                        continue;
+                    }
+
+                    const resolvedLabel = formatMetadataValue(value);
+                    if (resolvedLabel !== '-') {
+                        return resolvedLabel;
+                    }
+                }
+            }
+
+            return rawName || 'Target';
+        },
+        [allFrameSampelOptions, pencacahanUnitNameById],
+    );
 
     const formatFrameTargetSummary = useCallback(
         (
@@ -1123,11 +1201,15 @@ export default function Create({
                         return null;
                     }
 
-                    return `${formatTargetNumber(targetValue)} ${unitDefinition.name}`;
+                    return `${formatTargetNumber(targetValue)} ${resolveUnitTargetDisplayName(unitDefinition)}`;
                 })
                 .filter((value): value is string => value !== null);
         },
-        [formatFrameTargetSummary, unitTargetDefinitions],
+        [
+            formatFrameTargetSummary,
+            resolveUnitTargetDisplayName,
+            unitTargetDefinitions,
+        ],
     );
 
     const getSelectedFrameSampelDetails = useCallback(
@@ -1177,7 +1259,7 @@ export default function Create({
                     return null;
                 }
 
-                return `${formatTargetNumber(totalTarget)} ${unitDefinition.name}`;
+                return `${formatTargetNumber(totalTarget)} ${resolveUnitTargetDisplayName(unitDefinition)}`;
             })
             .filter((value): value is string => value !== null);
 
@@ -4222,9 +4304,9 @@ export default function Create({
                                                                       className="px-2 py-1 text-right"
                                                                   >
                                                                       Target{' '}
-                                                                      {
-                                                                          unitDefinition.name
-                                                                      }
+                                                                      {resolveUnitTargetDisplayName(
+                                                                          unitDefinition,
+                                                                      )}
                                                                   </th>
                                                               ),
                                                           )

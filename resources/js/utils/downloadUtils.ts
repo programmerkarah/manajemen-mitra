@@ -38,20 +38,6 @@ const decodeSegment = (segment: string): string => {
     }
 };
 
-const inferMimeType = (filename: string): string => {
-    const lowerFilename = filename.toLowerCase();
-
-    if (lowerFilename.endsWith('.pdf')) {
-        return 'application/pdf';
-    }
-
-    if (lowerFilename.endsWith('.zip')) {
-        return 'application/zip';
-    }
-
-    return 'application/octet-stream';
-};
-
 const resolveDownloadFilename = (filePath: string): string => {
     const fallbackName = 'download-file';
 
@@ -70,58 +56,12 @@ const resolveDownloadFilename = (filePath: string): string => {
     }
 };
 
-const resolveContentType = (
-    responseContentType: string | null,
-    filename: string,
-): string => {
-    if (!responseContentType) {
-        return inferMimeType(filename);
-    }
-
-    const normalized = responseContentType.toLowerCase();
-
-    if (
-        normalized.includes('application/octet-stream') ||
-        normalized.includes('binary/octet-stream') ||
-        normalized.includes('text/plain')
-    ) {
-        return inferMimeType(filename);
-    }
-
-    return responseContentType.split(';')[0].trim();
-};
-
 const getCsrfToken = (): string => {
     return (
         document
             .querySelector('meta[name="csrf-token"]')
             ?.getAttribute('content') || ''
     );
-};
-
-const extractFilenameFromContentDisposition = (
-    contentDisposition: string | null,
-): string | null => {
-    if (!contentDisposition) {
-        return null;
-    }
-
-    const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
-    if (utf8Match?.[1]) {
-        return decodeSegment(utf8Match[1]);
-    }
-
-    const quotedMatch = contentDisposition.match(/filename="([^"]+)"/i);
-    if (quotedMatch?.[1]) {
-        return quotedMatch[1];
-    }
-
-    const plainMatch = contentDisposition.match(/filename=([^;]+)/i);
-    if (plainMatch?.[1]) {
-        return plainMatch[1].trim();
-    }
-
-    return null;
 };
 
 const sanitizeDownloadFilename = (filename: string): string => {
@@ -135,70 +75,46 @@ type DownloadPayload = Record<
     DownloadPayloadValue | DownloadPayloadValue[]
 >;
 
-interface PostFileResult {
-    blob: Blob;
-    filename: string;
-}
-
-const requestFileFromPost = async (
-    url: string,
+const appendPayloadToForm = (
+    form: HTMLFormElement,
     payload: DownloadPayload,
-    defaultFilename: string,
-): Promise<PostFileResult> => {
-    const formData = new FormData();
-
+): void => {
     Object.entries(payload).forEach(([key, value]) => {
         if (Array.isArray(value)) {
             value.forEach((item) => {
                 if (item !== null && item !== undefined) {
-                    formData.append(key, String(item));
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = key;
+                    input.value = String(item);
+                    form.appendChild(input);
                 }
             });
+
             return;
         }
 
         if (value !== null && value !== undefined) {
-            formData.append(key, String(value));
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = String(value);
+            form.appendChild(input);
         }
     });
+};
 
-    const response = await fetch(url, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-            'X-CSRF-TOKEN': getCsrfToken(),
-            'X-Requested-With': 'XMLHttpRequest',
-            Accept: 'application/pdf,application/octet-stream,*/*',
-        },
-        body: formData,
-    });
-
-    if (!response.ok) {
-        throw new Error(`Download failed with status ${response.status}`);
+const appendCsrfTokenToForm = (form: HTMLFormElement): void => {
+    const token = getCsrfToken();
+    if (!token) {
+        return;
     }
 
-    const contentDisposition = response.headers.get('content-disposition');
-    const filenameFromHeader =
-        extractFilenameFromContentDisposition(contentDisposition);
-    const resolvedFilename = sanitizeDownloadFilename(
-        filenameFromHeader || defaultFilename,
-    );
-
-    const rawBlob = await response.blob();
-    const resolvedType = resolveContentType(
-        response.headers.get('content-type') || rawBlob.type,
-        resolvedFilename,
-    );
-
-    const blob =
-        rawBlob.type === resolvedType
-            ? rawBlob
-            : new Blob([await rawBlob.arrayBuffer()], { type: resolvedType });
-
-    return {
-        blob,
-        filename: resolvedFilename,
-    };
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = '_token';
+    csrfInput.value = token;
+    form.appendChild(csrfInput);
 };
 
 const showPdfLoadingOverlay = (): (() => void) => {
@@ -296,26 +212,37 @@ export const downloadFileFromPost = async (
     payload: DownloadPayload,
     defaultFilename: string,
 ): Promise<void> => {
+    void defaultFilename;
+
     const hideOverlay = showPdfLoadingOverlay();
 
     try {
-        const { blob, filename } = await requestFileFromPost(
-            url,
-            payload,
-            defaultFilename,
-        );
+        const iframeName = `download-frame-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const iframe = document.createElement('iframe');
+        iframe.name = iframeName;
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
 
-        const blobUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        form.target = iframeName;
+        form.style.display = 'none';
 
-        setTimeout(() => {
-            URL.revokeObjectURL(blobUrl);
-        }, 0);
+        appendCsrfTokenToForm(form);
+        appendPayloadToForm(form, payload);
+
+        document.body.appendChild(form);
+        form.submit();
+        form.remove();
+
+        window.setTimeout(() => {
+            iframe.remove();
+        }, 30000);
+
+        await new Promise<void>((resolve) => {
+            window.setTimeout(resolve, 1200);
+        });
     } finally {
         hideOverlay();
     }
@@ -325,53 +252,22 @@ export const downloadFileFromGet = async (
     url: string,
     defaultFilename: string,
 ): Promise<void> => {
+    void defaultFilename;
+
     const hideOverlay = showPdfLoadingOverlay();
 
     try {
-        const response = await fetch(url, {
-            method: 'GET',
-            credentials: 'include',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                Accept: 'application/pdf,application/octet-stream,*/*',
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error(`Download failed with status ${response.status}`);
-        }
-
-        const contentDisposition = response.headers.get('content-disposition');
-        const filenameFromHeader =
-            extractFilenameFromContentDisposition(contentDisposition);
-        const resolvedFilename = sanitizeDownloadFilename(
-            filenameFromHeader || defaultFilename,
-        );
-
-        const rawBlob = await response.blob();
-        const resolvedType = resolveContentType(
-            response.headers.get('content-type') || rawBlob.type,
-            resolvedFilename,
-        );
-
-        const blob =
-            rawBlob.type === resolvedType
-                ? rawBlob
-                : new Blob([await rawBlob.arrayBuffer()], {
-                      type: resolvedType,
-                  });
-
-        const blobUrl = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = resolvedFilename;
+        link.href = url;
+        link.download = sanitizeDownloadFilename(defaultFilename);
+        link.rel = 'noopener noreferrer';
         document.body.appendChild(link);
         link.click();
         link.remove();
 
-        setTimeout(() => {
-            URL.revokeObjectURL(blobUrl);
-        }, 0);
+        await new Promise<void>((resolve) => {
+            window.setTimeout(resolve, 900);
+        });
     } finally {
         hideOverlay();
     }
@@ -382,30 +278,43 @@ export const previewFileFromPost = async (
     payload: DownloadPayload,
     defaultFilename: string,
 ): Promise<void> => {
+    void defaultFilename;
+
     const hideOverlay = showPdfLoadingOverlay();
 
     try {
-        const { blob } = await requestFileFromPost(
-            url,
-            payload,
-            defaultFilename,
-        );
-
-        const blobUrl = URL.createObjectURL(blob);
-        const previewWindow = window.open(blobUrl, '_blank');
-
+        const previewWindow = window.open('', '_blank');
         if (!previewWindow || previewWindow.closed) {
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = defaultFilename;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
+            throw new Error('Popup preview terblokir browser.');
         }
 
-        setTimeout(() => {
-            URL.revokeObjectURL(blobUrl);
-        }, 60000);
+        const targetName =
+            previewWindow.name ||
+            `preview-window-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        previewWindow.name = targetName;
+
+        previewWindow.document.open();
+        previewWindow.document.write(
+            '<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Memuat pratinjau...</title></head><body style="font-family:Arial,sans-serif;padding:16px;"><p>Memuat pratinjau PDF...</p></body></html>',
+        );
+        previewWindow.document.close();
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        form.target = targetName;
+        form.style.display = 'none';
+
+        appendCsrfTokenToForm(form);
+        appendPayloadToForm(form, payload);
+
+        document.body.appendChild(form);
+        form.submit();
+        form.remove();
+
+        await new Promise<void>((resolve) => {
+            window.setTimeout(resolve, 150);
+        });
     } finally {
         hideOverlay();
     }

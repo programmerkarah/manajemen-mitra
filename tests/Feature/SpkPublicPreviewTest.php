@@ -359,7 +359,7 @@ class SpkPublicPreviewTest extends TestCase
         $this->assertStringContainsString('Rumah Tangga', $response->getContent());
     }
 
-    public function test_public_options_show_document_status_per_penugasan_in_same_month(): void
+    public function test_public_options_show_document_status_consistent_in_same_month(): void
     {
         $tahun = ActiveYearService::get();
 
@@ -509,7 +509,7 @@ class SpkPublicPreviewTest extends TestCase
                 ->values()
                 ->all();
 
-            $this->assertSame(['Belum ada PK', 'PK Final'], $statuses);
+            $this->assertSame(['PK Final', 'PK Final'], $statuses);
         } finally {
             @unlink($signedAbsolutePath);
         }

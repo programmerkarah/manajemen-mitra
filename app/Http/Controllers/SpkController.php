@@ -1447,6 +1447,7 @@ class SpkController extends Controller
             'sensus_kegiatan' => ['nullable', 'string'],
             'recaptcha_token' => ['nullable', 'string', 'max:8192'],
             'aksi' => ['nullable', 'in:preview,download'],
+            'download_token' => ['nullable', 'string', 'max:120'],
         ]);
 
         $hasRecentSessionVerification = $this->hasRecentPublicPreviewSessionVerification(
@@ -1644,12 +1645,13 @@ class SpkController extends Controller
         }
 
         $disposition = ($validated['aksi'] ?? 'preview') === 'download' ? 'attachment' : 'inline';
+        $downloadToken = (string) ($validated['download_token'] ?? '');
 
         if (is_string($protectedPdfPath) && is_file($protectedPdfPath)) {
-            return $this->buildPublicPreviewFileResponse($protectedPdfPath, (string) $responseFilename, $disposition);
+            return $this->buildPublicPreviewFileResponse($protectedPdfPath, (string) $responseFilename, $disposition, $downloadToken);
         }
 
-        return response($protectedPdfContent, 200, [
+        $response = response($protectedPdfContent, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => $disposition.'; filename="'.$responseFilename.'"',
             'Cache-Control' => 'no-cache, must-revalidate',
@@ -1657,6 +1659,8 @@ class SpkController extends Controller
             'Accept-Ranges' => 'bytes',
             'X-Content-Type-Options' => 'nosniff',
         ]);
+
+        return $this->appendPublicPreviewDownloadCookie($response, $disposition, $downloadToken);
     }
 
     private function buildPublicPreviewSessionSignature(string $nama, string $nik, string $telepon4Digit): string
@@ -1857,7 +1861,7 @@ class SpkController extends Controller
         return @mkdir($path, 0777, true) || is_dir($path);
     }
 
-    private function buildPublicPreviewFileResponse(string $filePath, string $responseFilename, string $disposition)
+    private function buildPublicPreviewFileResponse(string $filePath, string $responseFilename, string $disposition, string $downloadToken = '')
     {
         $headers = [
             'Content-Type' => 'application/pdf',
@@ -1868,12 +1872,30 @@ class SpkController extends Controller
         ];
 
         if ($disposition === 'attachment') {
-            return response()->download($filePath, $responseFilename, $headers);
+            $response = response()->download($filePath, $responseFilename, $headers);
+
+            return $this->appendPublicPreviewDownloadCookie($response, $disposition, $downloadToken);
         }
 
-        return response()->file($filePath, $headers + [
+        $response = response()->file($filePath, $headers + [
             'Content-Disposition' => 'inline; filename="'.$responseFilename.'"',
         ]);
+
+        return $this->appendPublicPreviewDownloadCookie($response, $disposition, $downloadToken);
+    }
+
+    private function appendPublicPreviewDownloadCookie($response, string $disposition, string $downloadToken)
+    {
+        if ($disposition !== 'attachment') {
+            return $response;
+        }
+
+        $token = trim($downloadToken);
+        if ($token === '') {
+            return $response;
+        }
+
+        return $response->cookie(cookie('mitra_download_token', $token, 2, '/', null, false, false, false, 'Lax'));
     }
 
     private function isValidPublicPreviewRecaptcha(string $token, ?string $ipAddress = null): bool
@@ -1949,7 +1971,6 @@ class SpkController extends Controller
                 $statusKey = $this->buildPublicPreviewDocumentStatusKey(
                     $periodKey,
                     (string) $kegiatan->jenis_kegiatan,
-                    (int) $kegiatan->id,
                 );
                 $documentStatus = $documentStatusMap[$statusKey] ?? 'Belum ada PK';
 
@@ -2062,7 +2083,6 @@ class SpkController extends Controller
             $statusKey = $this->buildPublicPreviewDocumentStatusKey(
                 $periodKey,
                 (string) $kegiatan->jenis_kegiatan,
-                (int) $kegiatan->id,
             );
 
             $keys[$statusKey] = [
@@ -2106,7 +2126,6 @@ class SpkController extends Controller
             $statusKey = $this->buildPublicPreviewDocumentStatusKey(
                 $periodKey,
                 (string) $kegiatan->jenis_kegiatan,
-                (int) $periode->kegiatan_id,
             );
 
             $groups[$statusKey][] = $document;
@@ -2156,9 +2175,9 @@ class SpkController extends Controller
         return $result;
     }
 
-    private function buildPublicPreviewDocumentStatusKey(string $periodKey, string $jenisKegiatan, int $kegiatanId): string
+    private function buildPublicPreviewDocumentStatusKey(string $periodKey, string $jenisKegiatan): string
     {
-        return $periodKey.'|'.mb_strtolower($jenisKegiatan).'|'.$kegiatanId;
+        return $periodKey.'|'.mb_strtolower($jenisKegiatan);
     }
 
     private function resolvePublicPreviewTargetPekerjaan(AlokasiPetugas $alokasi): string

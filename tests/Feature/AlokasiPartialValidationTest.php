@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
+use App\Models\MasterUnitSampel;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\RateHonor;
@@ -432,6 +433,67 @@ class AlokasiPartialValidationTest extends TestCase
             ->where('copiedAlokasi.0.is_partial_payment', true)
             ->where('copiedAlokasi.0.partial_jumlah_satuan', 1)
             ->where('copiedAlokasi.0.estimasi_honor_partial', fn ($value) => (float) $value === 1083000.0)
+        );
+    }
+
+    public function test_edit_periode_includes_dynamic_unit_sampel_items_for_sensus_ekonomi(): void
+    {
+        [$admin, $adminRole] = $this->makeAdminUser();
+        $tahun = ActiveYearService::get();
+        [$kegiatan] = $this->setupSensusEkonomiKegiatanWithRateHonor($tahun);
+
+        $keluarga = MasterUnitSampel::query()->create([
+            'nama' => 'keluarga',
+            'kode' => 'KLG',
+            'deskripsi' => 'Unit keluarga',
+            'is_active' => true,
+        ]);
+
+        $usaha = MasterUnitSampel::query()->create([
+            'nama' => 'usaha',
+            'kode' => 'USH',
+            'deskripsi' => 'Unit usaha',
+            'is_active' => true,
+        ]);
+
+        $kegiatan->update([
+            'unit_sampel_pencacahan_ids' => [$keluarga->id, $usaha->id],
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '03',
+            'tahun' => $tahun,
+            'jenis_kegiatan' => 'sensus',
+            'status' => 'draft',
+            'tahapan' => 'both',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'jumlah_satuan' => 1,
+            'jumlah_unit_sampel' => 588,
+            'total_honor' => 2500,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get("/alokasi/periode/{$kegiatan->hashed_id}/{$tahun}/03/edit");
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Alokasi/Create')
+            ->where('isEditMode', true)
+            ->where('selectedKegiatan.unit_sampel_pencacahan_items.0.nama', 'keluarga')
+            ->where('selectedKegiatan.unit_sampel_pencacahan_items.1.nama', 'usaha')
         );
     }
 

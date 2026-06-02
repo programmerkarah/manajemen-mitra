@@ -89,46 +89,6 @@ const extractFilename = (contentDisposition: string | null): string => {
 
 const PDF_REQUEST_TIMEOUT_MS = 120000;
 
-const loadingWindowHtml = (action: 'preview' | 'download'): string => {
-    const title =
-        action === 'preview'
-            ? 'Memuat pratinjau PDF...'
-            : 'Menyiapkan unduhan PDF...';
-
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${title}</title></head><body style="font-family:Arial,sans-serif;padding:16px;"><h3 style="margin:0 0 8px 0;">${title}</h3><p id="status-text" style="margin:0 0 10px 0;color:#666;font-size:13px;">Memulai proses...</p><div style="height:10px;border:1px solid #ddd;border-radius:999px;overflow:hidden;background:#f5f5f5;"><div id="progress-bar" style="height:100%;width:0%;background:#16a34a;transition:width .2s ease;"></div></div><p id="progress-label" style="margin:8px 0 0 0;color:#444;font-size:12px;">0%</p><p style="margin-top:12px;color:#666;font-size:12px;">Jangan tutup tab ini sampai proses selesai.</p></body></html>`;
-};
-
-const updateActionWindowStatus = (
-    actionWindow: Window | null,
-    statusText: string,
-    percent?: number,
-): void => {
-    if (!actionWindow || actionWindow.closed) {
-        return;
-    }
-
-    const statusNode = actionWindow.document.getElementById('status-text');
-    if (statusNode) {
-        statusNode.textContent = statusText;
-    }
-
-    if (typeof percent === 'number') {
-        const bounded = Math.max(0, Math.min(100, Math.round(percent)));
-        const progressBar =
-            actionWindow.document.getElementById('progress-bar');
-        const progressLabel =
-            actionWindow.document.getElementById('progress-label');
-
-        if (progressBar) {
-            progressBar.style.width = `${bounded}%`;
-        }
-
-        if (progressLabel) {
-            progressLabel.textContent = `${bounded}%`;
-        }
-    }
-};
-
 export default function PublicPreview({
     survei_periods,
     sensus_kegiatans,
@@ -158,6 +118,11 @@ export default function PublicPreview({
     const [recaptchaReady, setRecaptchaReady] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [downloadProgressOpen, setDownloadProgressOpen] = useState(false);
+    const [downloadProgressPercent, setDownloadProgressPercent] = useState(0);
+    const [downloadProgressStatus, setDownloadProgressStatus] = useState(
+        'Menyiapkan unduhan PDF...',
+    );
 
     useEffect(() => {
         if (!recaptcha_site_key || recaptchaReady) {
@@ -484,11 +449,12 @@ export default function PublicPreview({
             return;
         }
 
-        const actionWindow = openedWindow;
-        if (actionWindow && !actionWindow.closed) {
-            actionWindow.document.open();
-            actionWindow.document.write(loadingWindowHtml(aksi));
-            actionWindow.document.close();
+        const actionWindow = aksi === 'preview' ? openedWindow : null;
+
+        if (aksi === 'download') {
+            setDownloadProgressOpen(true);
+            setDownloadProgressPercent(0);
+            setDownloadProgressStatus('Menyiapkan unduhan PDF...');
         }
 
         setProcessing(true);
@@ -545,6 +511,10 @@ export default function PublicPreview({
                 }
 
                 setErrorMessage(message);
+                if (aksi === 'download') {
+                    setDownloadProgressOpen(false);
+                }
+
                 if (actionWindow && !actionWindow.closed) {
                     actionWindow.close();
                 }
@@ -561,11 +531,10 @@ export default function PublicPreview({
                 const reader = response.body.getReader();
                 const chunks: ArrayBuffer[] = [];
 
-                updateActionWindowStatus(
-                    actionWindow,
-                    'Mengunduh file PDF...',
-                    0,
-                );
+                if (aksi === 'download') {
+                    setDownloadProgressStatus('Mengunduh file PDF...');
+                    setDownloadProgressPercent(0);
+                }
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -582,23 +551,32 @@ export default function PublicPreview({
                         loadedBytes += value.length;
 
                         if (totalBytes > 0) {
-                            updateActionWindowStatus(
-                                actionWindow,
-                                'Mengunduh file PDF...',
-                                (loadedBytes / totalBytes) * 100,
-                            );
-                        } else {
-                            updateActionWindowStatus(
-                                actionWindow,
-                                'Mengunduh file PDF...',
-                            );
+                            const progressValue =
+                                (loadedBytes / totalBytes) * 100;
+
+                            if (aksi === 'download') {
+                                setDownloadProgressStatus(
+                                    'Mengunduh file PDF...',
+                                );
+                                setDownloadProgressPercent(
+                                    Math.max(
+                                        0,
+                                        Math.min(
+                                            100,
+                                            Math.round(progressValue),
+                                        ),
+                                    ),
+                                );
+                            }
                         }
                     }
                 }
 
                 blob = new Blob(chunks, { type: 'application/pdf' });
             } else {
-                updateActionWindowStatus(actionWindow, 'Mengunduh file PDF...');
+                if (aksi === 'download') {
+                    setDownloadProgressStatus('Mengunduh file PDF...');
+                }
                 blob = await response.blob();
             }
 
@@ -614,11 +592,6 @@ export default function PublicPreview({
             );
 
             if (aksi === 'preview') {
-                updateActionWindowStatus(
-                    actionWindow,
-                    'Membuka pratinjau...',
-                    100,
-                );
                 if (actionWindow && !actionWindow.closed) {
                     actionWindow.location.href = objectUrl;
                 } else {
@@ -630,41 +603,30 @@ export default function PublicPreview({
                     fallbackLink.remove();
                 }
             } else {
-                if (actionWindow && !actionWindow.closed) {
-                    updateActionWindowStatus(
-                        actionWindow,
-                        'Memicu proses unduh...',
-                        100,
-                    );
-                    actionWindow.onbeforeunload = null;
-                    const link = actionWindow.document.createElement('a');
-                    link.href = objectUrl;
-                    link.download = fileName;
-                    actionWindow.document.body.appendChild(link);
-                    link.click();
+                setDownloadProgressStatus('Memicu proses unduh...');
+                setDownloadProgressPercent(100);
 
-                    const statusNode =
-                        actionWindow.document.getElementById('status-text');
-                    if (statusNode) {
-                        statusNode.textContent =
-                            'Unduhan berhasil dipicu. Anda dapat menutup tab ini.';
-                    }
-                } else {
-                    const link = document.createElement('a');
-                    link.href = objectUrl;
-                    link.download = fileName;
-                    document.body.appendChild(link);
-                    link.click();
-                    link.remove();
-                }
+                const link = document.createElement('a');
+                link.href = objectUrl;
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+
+                window.setTimeout(() => {
+                    setDownloadProgressOpen(false);
+                }, 900);
             }
 
             setTimeout(() => {
                 URL.revokeObjectURL(objectUrl);
             }, 60000);
         } catch (error) {
+            if (aksi === 'download') {
+                setDownloadProgressOpen(false);
+            }
+
             if (actionWindow && !actionWindow.closed) {
-                actionWindow.onbeforeunload = null;
                 actionWindow.close();
             }
 
@@ -695,7 +657,7 @@ export default function PublicPreview({
 
     return (
         <>
-            <Head title="Preview Perjanjian Kerja" />
+            <Head title={`Riwayat Pekerjaan Survei/Sensus ${active_year}`} />
 
             <div className="flex min-h-screen justify-center bg-neutral-50 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.18),transparent_40%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.2),transparent_40%)] px-4 py-8 text-neutral-900 sm:px-6 lg:px-8 dark:bg-neutral-950 dark:text-neutral-100">
                 <div className="max-w-8xl mx-auto w-full">
@@ -1092,13 +1054,7 @@ export default function PublicPreview({
                                     type="button"
                                     variant="outline"
                                     onClick={() => {
-                                        const popup = window.open('', '_blank');
-                                        if (popup && !popup.closed) {
-                                            popup.onbeforeunload = () => {
-                                                return 'Unduhan sedang diproses. Tunggu hingga selesai.';
-                                            };
-                                        }
-                                        void requestPdf('download', popup);
+                                        void requestPdf('download');
                                     }}
                                     disabled={processing || !canSubmit}
                                     className="min-w-[160px]"
@@ -1107,6 +1063,35 @@ export default function PublicPreview({
                                     {processing ? 'Memproses...' : 'Unduh PDF'}
                                 </Button>
                             </div>
+
+                            {downloadProgressOpen && (
+                                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/55 px-4">
+                                    <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-5 shadow-2xl dark:border-neutral-700 dark:bg-neutral-900">
+                                        <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
+                                            Menyiapkan unduhan PDF...
+                                        </h3>
+                                        <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-300">
+                                            {downloadProgressStatus}
+                                        </p>
+                                        <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700">
+                                            <div
+                                                className="h-full bg-emerald-500 transition-all duration-300 ease-out"
+                                                style={{
+                                                    width: `${downloadProgressPercent}%`,
+                                                }}
+                                            />
+                                        </div>
+                                        <p className="mt-2 text-xs font-medium text-neutral-700 dark:text-neutral-200">
+                                            {downloadProgressPercent}%
+                                        </p>
+                                        <p className="mt-3 text-xs text-neutral-500 dark:text-neutral-400">
+                                            Mohon tunggu. Popup ini tidak bisa
+                                            ditutup sampai unduhan berhasil
+                                            dipicu.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
