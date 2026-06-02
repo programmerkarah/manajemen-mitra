@@ -1955,7 +1955,7 @@ class SpkController extends Controller
         $disposition = (string) $request->query('disposition', 'inline');
         $safeDisposition = $disposition === 'attachment' ? 'attachment' : 'inline';
 
-        return $this->buildPublicPreviewFileResponse($filePath, $safeFilename, $safeDisposition);
+        return $this->buildPublicPreviewFileResponse($filePath, $safeFilename, $safeDisposition, '', 600);
     }
 
     private function ensureDirectoryExists(string $path): bool
@@ -1967,12 +1967,16 @@ class SpkController extends Controller
         return @mkdir($path, 0777, true) || is_dir($path);
     }
 
-    private function buildPublicPreviewFileResponse(string $filePath, string $responseFilename, string $disposition, string $downloadToken = '')
+    private function buildPublicPreviewFileResponse(string $filePath, string $responseFilename, string $disposition, string $downloadToken = '', int $cacheSeconds = 0)
     {
+        $cacheControl = $cacheSeconds > 0
+            ? 'public, max-age='.$cacheSeconds.', immutable'
+            : 'no-cache, must-revalidate';
+
         $headers = [
             'Content-Type' => 'application/pdf',
-            'Cache-Control' => 'no-cache, must-revalidate',
-            'Expires' => '0',
+            'Cache-Control' => $cacheControl,
+            'Expires' => $cacheSeconds > 0 ? gmdate('D, d M Y H:i:s', time() + $cacheSeconds).' GMT' : '0',
             'Accept-Ranges' => 'bytes',
             'X-Content-Type-Options' => 'nosniff',
         ];

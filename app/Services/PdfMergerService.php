@@ -31,6 +31,7 @@ class PdfMergerService
             $pdf->setPrintHeader(false);
             $pdf->setPrintFooter(false);
             $pdf->SetAutoPageBreak(false);
+            $pdf->setCompression(true);
 
             foreach ($pdfPaths as $pdfPath) {
                 // Normalize input path
@@ -65,6 +66,10 @@ class PdfMergerService
             // Output to file - TCPDF Output method signature: Output($name, $dest)
             // F = save to file, return the file name
             $pdf->Output($outputPath, 'F');
+
+            if (file_exists($outputPath)) {
+                self::optimizePdfForWeb($outputPath);
+            }
 
             return file_exists($outputPath);
         } catch (\Exception $e) {
@@ -175,5 +180,49 @@ class PdfMergerService
         }
 
         return null;
+    }
+
+    /**
+     * Optimize generated PDF using Ghostscript when available.
+     * Safe no-op when Ghostscript is not installed or optimization fails.
+     */
+    private static function optimizePdfForWeb(string $filePath): void
+    {
+        if (! file_exists($filePath) || filesize($filePath) < 512000) {
+            return;
+        }
+
+        $gsPath = self::findGhostscript();
+        if (! $gsPath) {
+            return;
+        }
+
+        $optimizedPath = $filePath.'.optimized.pdf';
+
+        $command = sprintf(
+            '%s -dSAFER -dBATCH -dNOPAUSE -dQUIET -sDEVICE=pdfwrite -dCompatibilityLevel=1.5 -dPDFSETTINGS=/ebook -dDetectDuplicateImages=true -dCompressFonts=true -dSubsetFonts=true -dEmbedAllFonts=true -sOutputFile=%s %s',
+            escapeshellarg($gsPath),
+            escapeshellarg($optimizedPath),
+            escapeshellarg($filePath)
+        );
+
+        exec($command, $output, $returnVar);
+
+        if ($returnVar !== 0 || ! file_exists($optimizedPath)) {
+            @unlink($optimizedPath);
+
+            return;
+        }
+
+        $originalSize = (int) filesize($filePath);
+        $optimizedSize = (int) filesize($optimizedPath);
+
+        if ($optimizedSize > 0 && $optimizedSize < ($originalSize * 0.97)) {
+            @rename($optimizedPath, $filePath);
+
+            return;
+        }
+
+        @unlink($optimizedPath);
     }
 }
