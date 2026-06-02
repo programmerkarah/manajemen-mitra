@@ -87,6 +87,8 @@ const extractFilename = (contentDisposition: string | null): string => {
     return 'Preview_SPK.pdf';
 };
 
+const PDF_REQUEST_TIMEOUT_MS = 120000;
+
 export default function PublicPreview({
     survei_periods,
     sensus_kegiatans,
@@ -436,6 +438,14 @@ export default function PublicPreview({
             return;
         }
 
+        const previewWindow =
+            aksi === 'preview' ? window.open('', '_blank') : null;
+        if (aksi === 'preview' && previewWindow) {
+            previewWindow.document.title = 'Memuat pratinjau...';
+            previewWindow.document.body.innerHTML =
+                '<p style="font-family: sans-serif; padding: 16px;">Sedang menyiapkan pratinjau PDF...</p>';
+        }
+
         setProcessing(true);
 
         try {
@@ -457,16 +467,27 @@ export default function PublicPreview({
                 formData.append('sensus_kegiatan', sensusKegiatan);
             }
 
-            const response = await fetch('/mitra', {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken(),
-                    'X-Requested-With': 'XMLHttpRequest',
-                    Accept: 'application/pdf,application/json,*/*',
-                },
-                body: formData,
-            });
+            const controller = new AbortController();
+            const timeoutId = window.setTimeout(() => {
+                controller.abort();
+            }, PDF_REQUEST_TIMEOUT_MS);
+
+            let response: globalThis.Response;
+            try {
+                response = await fetch('/mitra', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                        Accept: 'application/pdf,application/json,*/*',
+                    },
+                    body: formData,
+                    signal: controller.signal,
+                });
+            } finally {
+                window.clearTimeout(timeoutId);
+            }
 
             if (!response.ok) {
                 let message = `Gagal memproses permintaan (${response.status}).`;
@@ -482,6 +503,9 @@ export default function PublicPreview({
                 }
 
                 setErrorMessage(message);
+                if (previewWindow && !previewWindow.closed) {
+                    previewWindow.close();
+                }
                 return;
             }
 
@@ -490,15 +514,17 @@ export default function PublicPreview({
                 response.headers.get('content-disposition'),
             );
             const objectUrl = URL.createObjectURL(
-                new Blob([await blob.arrayBuffer()], {
-                    type: 'application/pdf',
-                }),
+                blob.type === 'application/pdf'
+                    ? blob
+                    : new Blob([await blob.arrayBuffer()], {
+                          type: 'application/pdf',
+                      }),
             );
 
             if (aksi === 'preview') {
-                const previewWindow = window.open(objectUrl, '_blank');
-
-                if (!previewWindow || previewWindow.closed) {
+                if (previewWindow && !previewWindow.closed) {
+                    previewWindow.location.href = objectUrl;
+                } else {
                     const fallbackLink = document.createElement('a');
                     fallbackLink.href = objectUrl;
                     fallbackLink.download = fileName;
@@ -519,12 +545,23 @@ export default function PublicPreview({
                 URL.revokeObjectURL(objectUrl);
             }, 60000);
         } catch (error) {
+            if (previewWindow && !previewWindow.closed) {
+                previewWindow.close();
+            }
+
             if (
                 error instanceof Error &&
                 error.message === 'reCAPTCHA belum siap.'
             ) {
                 setErrorMessage(
                     'reCAPTCHA belum siap. Tunggu sebentar lalu coba lagi.',
+                );
+                return;
+            }
+
+            if (error instanceof DOMException && error.name === 'AbortError') {
+                setErrorMessage(
+                    'Proses melebihi batas waktu. Silakan coba lagi beberapa saat.',
                 );
                 return;
             }

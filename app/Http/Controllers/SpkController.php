@@ -1574,10 +1574,16 @@ class SpkController extends Controller
 
         $responseFilename = null;
         $sourcePdfContent = null;
+        $protectedPdfContent = null;
 
         if ($finalSignedPdf !== null) {
-            $sourcePdfContent = $finalSignedPdf['content'];
             $responseFilename = $finalSignedPdf['filename'];
+
+            if (($finalSignedPdf['is_protected'] ?? false) === true) {
+                $protectedPdfContent = $finalSignedPdf['content'];
+            } else {
+                $sourcePdfContent = $finalSignedPdf['content'];
+            }
         } else {
             $nomorSpkPreview = $this->formatPreviewNomorSpkForPeriode(
                 $periode,
@@ -1603,7 +1609,14 @@ class SpkController extends Controller
             $responseFilename = $pdfPreview['filename'];
         }
 
-        $protectedPdfContent = $this->applyDraftWatermarkAndProtection($sourcePdfContent);
+        if ($protectedPdfContent === null) {
+            $protectedPdfContent = $this->applyDraftWatermarkAndProtection($sourcePdfContent);
+
+            if ($finalSignedPdf !== null && isset($finalSignedPdf['cache_key'])) {
+                $this->storeCachedProtectedPublicPreviewPdf((string) $finalSignedPdf['cache_key'], $protectedPdfContent);
+            }
+        }
+
         $disposition = ($validated['aksi'] ?? 'preview') === 'download' ? 'attachment' : 'inline';
 
         return response($protectedPdfContent, 200, [
@@ -1616,7 +1629,7 @@ class SpkController extends Controller
     }
 
     /**
-     * @return array{filename:string,content:string}|null
+     * @return array{filename:string,content:string,cache_key:string,is_protected:bool}|null
      */
     private function resolveFinalSignedSpkPdfBinaryForPublicPreview(
         PeriodeAlokasi $periode,
@@ -1672,8 +1685,24 @@ class SpkController extends Controller
             return null;
         }
 
+        $cacheKey = $this->buildPublicPreviewProtectedCacheKey($signedPaths);
+
         $baseName = pathinfo((string) $finalSpk->signed_file_path, PATHINFO_FILENAME);
         $safeBaseName = preg_replace('/[^A-Za-z0-9_\-]/', '_', (string) $baseName) ?: 'spk_final';
+
+        $downloadFilename = count($signedPaths) === 1
+            ? 'Preview_'.$safeBaseName.'.pdf'
+            : 'Preview_'.$safeBaseName.'_with_addendum.pdf';
+
+        $cachedProtectedContent = $this->getCachedProtectedPublicPreviewPdf($cacheKey);
+        if ($cachedProtectedContent !== null) {
+            return [
+                'filename' => $downloadFilename,
+                'content' => $cachedProtectedContent,
+                'cache_key' => $cacheKey,
+                'is_protected' => true,
+            ];
+        }
 
         if (count($signedPaths) === 1) {
             $binaryContent = file_get_contents($signedPaths[0]);
@@ -1682,8 +1711,10 @@ class SpkController extends Controller
             }
 
             return [
-                'filename' => 'Preview_'.$safeBaseName.'.pdf',
+                'filename' => $downloadFilename,
                 'content' => $binaryContent,
+                'cache_key' => $cacheKey,
+                'is_protected' => false,
             ];
         }
 
@@ -1707,12 +1738,55 @@ class SpkController extends Controller
             }
 
             return [
-                'filename' => 'Preview_'.$safeBaseName.'_with_addendum.pdf',
+                'filename' => $downloadFilename,
                 'content' => $mergedContent,
+                'cache_key' => $cacheKey,
+                'is_protected' => false,
             ];
         } finally {
             @unlink($mergedPath);
         }
+    }
+
+    /**
+     * @param  array<int,string>  $absolutePdfPaths
+     */
+    private function buildPublicPreviewProtectedCacheKey(array $absolutePdfPaths): string
+    {
+        $fingerprint = collect($absolutePdfPaths)
+            ->map(function (string $path): string {
+                $realPath = realpath($path) ?: $path;
+                $modifiedTime = (string) (@filemtime($path) ?: 0);
+                $fileSize = (string) (@filesize($path) ?: 0);
+
+                return $realPath.'|'.$modifiedTime.'|'.$fileSize;
+            })
+            ->implode('||');
+
+        return hash('sha256', 'public-preview-v2|'.$fingerprint);
+    }
+
+    private function getCachedProtectedPublicPreviewPdf(string $cacheKey): ?string
+    {
+        $cachePath = storage_path('app/temp/public_preview_protected_'.$cacheKey.'.pdf');
+
+        if (! is_file($cachePath)) {
+            return null;
+        }
+
+        $cachedContent = @file_get_contents($cachePath);
+
+        return is_string($cachedContent) && $cachedContent !== '' ? $cachedContent : null;
+    }
+
+    private function storeCachedProtectedPublicPreviewPdf(string $cacheKey, string $protectedPdfContent): void
+    {
+        $tempPath = storage_path('app/temp');
+        if (! file_exists($tempPath)) {
+            mkdir($tempPath, 0777, true);
+        }
+
+        @file_put_contents($tempPath.'/public_preview_protected_'.$cacheKey.'.pdf', $protectedPdfContent);
     }
 
     private function isValidPublicPreviewRecaptcha(string $token, ?string $ipAddress = null): bool
