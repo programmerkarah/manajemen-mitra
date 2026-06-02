@@ -3724,6 +3724,407 @@ class SpkController extends Controller
     }
 
     /**
+     * Merge main SPK PDFs for selected petugas into a single PDF, sorted alphabetically.
+     */
+    public function printSelectedMain(Request $request, string $periodeHashedId)
+    {
+        $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
+
+        if (! $periodeId) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'tanggal_spk' => ['required', 'date'],
+            'preview_items_json' => ['required', 'string'],
+        ]);
+
+        $periode = PeriodeAlokasi::with('kegiatan')->findOrFail($periodeId);
+
+        $previewItems = $this->decodeAndSortPreviewItems((string) $validated['preview_items_json']);
+
+        if ($previewItems->isEmpty()) {
+            return response()->json(['message' => 'Daftar petugas tidak valid.'], 422);
+        }
+
+        $tempPath = storage_path('app/temp');
+        if (! file_exists($tempPath)) {
+            mkdir($tempPath, 0777, true);
+        }
+
+        $individualPaths = [];
+        $timestamp = time().'_'.uniqid();
+
+        foreach ($previewItems as $index => $item) {
+            $petugasId = Hashids::decode($item['petugas_hashed_id'])[0] ?? null;
+
+            if (! $petugasId) {
+                continue;
+            }
+
+            $pdfBinary = $this->buildSpkMainPdfBinary(
+                $periode,
+                (int) $petugasId,
+                (string) $item['nomor_spk'],
+                (string) $validated['tanggal_spk'],
+            );
+
+            if ($pdfBinary === null) {
+                continue;
+            }
+
+            $path = $tempPath.'/print_main_'.$timestamp.'_'.$index.'.pdf';
+            file_put_contents($path, $pdfBinary);
+            $individualPaths[] = $path;
+        }
+
+        if (empty($individualPaths)) {
+            return response()->json(['message' => 'Tidak ada PDF yang dapat dibuat.'], 422);
+        }
+
+        $mergedPath = $tempPath.'/print_main_merged_'.$timestamp.'.pdf';
+        $filename = 'Print_PK_Main_'.$periode->bulan.'_'.$periode->tahun.'.pdf';
+
+        $merged = PdfMergerService::mergePdfFiles($individualPaths, $mergedPath, $filename);
+
+        foreach ($individualPaths as $path) {
+            @unlink($path);
+        }
+
+        if (! $merged || ! file_exists($mergedPath)) {
+            return response()->json(['message' => 'Gagal menggabungkan PDF.'], 500);
+        }
+
+        return response()->file($mergedPath, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Cache-Control' => 'no-cache, must-revalidate',
+            'Expires' => '0',
+        ])->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Merge lampiran PDFs for selected petugas into a single PDF, sorted alphabetically.
+     */
+    public function printSelectedLampiran(Request $request, string $periodeHashedId)
+    {
+        $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
+
+        if (! $periodeId) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'tanggal_spk' => ['required', 'date'],
+            'preview_items_json' => ['required', 'string'],
+        ]);
+
+        $periode = PeriodeAlokasi::with('kegiatan')->findOrFail($periodeId);
+
+        $previewItems = $this->decodeAndSortPreviewItems((string) $validated['preview_items_json']);
+
+        if ($previewItems->isEmpty()) {
+            return response()->json(['message' => 'Daftar petugas tidak valid.'], 422);
+        }
+
+        $tempPath = storage_path('app/temp');
+        if (! file_exists($tempPath)) {
+            mkdir($tempPath, 0777, true);
+        }
+
+        $individualPaths = [];
+        $timestamp = time().'_'.uniqid();
+
+        foreach ($previewItems as $index => $item) {
+            $petugasId = Hashids::decode($item['petugas_hashed_id'])[0] ?? null;
+
+            if (! $petugasId) {
+                continue;
+            }
+
+            $pdfBinary = $this->buildSpkLampiranPdfBinary(
+                $periode,
+                (int) $petugasId,
+                (string) $item['nomor_spk'],
+                (string) $validated['tanggal_spk'],
+            );
+
+            if ($pdfBinary === null) {
+                continue;
+            }
+
+            $path = $tempPath.'/print_lampiran_'.$timestamp.'_'.$index.'.pdf';
+            file_put_contents($path, $pdfBinary);
+            $individualPaths[] = $path;
+        }
+
+        if (empty($individualPaths)) {
+            return response()->json(['message' => 'Tidak ada PDF yang dapat dibuat.'], 422);
+        }
+
+        $mergedPath = $tempPath.'/print_lampiran_merged_'.$timestamp.'.pdf';
+        $filename = 'Print_Lampiran_'.$periode->bulan.'_'.$periode->tahun.'.pdf';
+
+        $merged = PdfMergerService::mergePdfFiles($individualPaths, $mergedPath, $filename);
+
+        foreach ($individualPaths as $path) {
+            @unlink($path);
+        }
+
+        if (! $merged || ! file_exists($mergedPath)) {
+            return response()->json(['message' => 'Gagal menggabungkan PDF.'], 500);
+        }
+
+        return response()->file($mergedPath, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Cache-Control' => 'no-cache, must-revalidate',
+            'Expires' => '0',
+        ])->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Decode and sort preview items from JSON by petugas_nama, falling back to nomor_spk.
+     *
+     * @return Collection<int, array{petugas_hashed_id:string,nomor_spk:string,petugas_nama?:string}>
+     */
+    private function decodeAndSortPreviewItems(string $json): Collection
+    {
+        $decoded = json_decode($json, true);
+
+        if (! is_array($decoded)) {
+            return collect();
+        }
+
+        return collect($decoded)
+            ->filter(fn ($item) => ! empty($item['petugas_hashed_id']) && ! empty($item['nomor_spk']))
+            ->unique('petugas_hashed_id')
+            ->sortBy(fn ($item) => mb_strtolower((string) ($item['petugas_nama'] ?? $item['nomor_spk'])))
+            ->values();
+    }
+
+    /**
+     * Build SPK main (Pasal-based) PDF binary for a single petugas.
+     */
+    private function buildSpkMainPdfBinary(
+        PeriodeAlokasi $periode,
+        int $petugasId,
+        string $nomorSpk,
+        string $tanggalSpk,
+    ): ?string {
+        $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
+            ->whereHas('periodeAlokasi', function ($q) use ($periode): void {
+                $q->where('bulan', $periode->bulan)
+                    ->where('tahun', $periode->tahun)
+                    ->whereIn('status', ['dikirim', 'perubahan']);
+            })
+            ->where('petugas_id', $petugasId)
+            ->get();
+
+        if ($allAlokasi->isEmpty()) {
+            return null;
+        }
+
+        $latestEndDate = null;
+
+        foreach ($allAlokasi as $alokasiItem) {
+            $periodeItem = $alokasiItem->periodeAlokasi;
+            $isPengolahanRole = in_array($alokasiItem->peran, ['pengolahan', 'pengawas_pengolahan']);
+
+            $endDates = $isPengolahanRole
+                ? array_filter([
+                    $periodeItem->jadwal_pengolahan_pencacahan_selesai,
+                    $periodeItem->jadwal_pengolahan_listing_selesai,
+                ])
+                : array_filter([
+                    $periodeItem->tanggal_selesai,
+                    $periodeItem->tanggal_selesai_listing,
+                ]);
+
+            if (! empty($endDates)) {
+                $maxEndDate = max($endDates);
+                if ($latestEndDate === null || $maxEndDate > $latestEndDate) {
+                    $latestEndDate = $maxEndDate;
+                }
+            }
+        }
+
+        if ($latestEndDate === null) {
+            $latestEndDate = Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
+        }
+
+        $calculatedSampaiTanggal = Carbon::parse($latestEndDate)->format('Y-m-d');
+        $petugas = $allAlokasi->first()->petugas;
+        $penandatangan = Penandatangan::active()->ppk()->firstOrFail();
+
+        $totalHonor = 0;
+        $uraianTugas = [];
+        $kegiatanData = [];
+        $bebanAnggaran = '';
+
+        foreach ($allAlokasi as $alokasi) {
+            $kegiatan = $alokasi->periodeAlokasi->kegiatan;
+            $totalHonor += $this->calculateTotalHonor($kegiatan, $alokasi);
+            $uraianTugas = array_merge($uraianTugas, $this->getUraianTugas($kegiatan, $alokasi));
+            $kegiatanData[] = [
+                'kegiatan_id' => $kegiatan->id,
+                'kode_kegiatan' => $kegiatan->kode_kegiatan,
+                'nama_kegiatan' => $kegiatan->nama_kegiatan,
+                'kode_coa' => $kegiatan->kode_coa,
+                'alokasi_id' => $alokasi->id,
+            ];
+
+            if (empty($bebanAnggaran)) {
+                $bebanAnggaran = $this->getBebanAnggaran($kegiatan);
+            }
+        }
+
+        $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
+        $filename = 'Print_PK_Main_'.$sanitizedName.'.pdf';
+
+        $data = [
+            'periode' => $periode,
+            'alokasi' => $allAlokasi->first(),
+            'allAlokasi' => $allAlokasi,
+            'petugas' => $petugas,
+            'kegiatan' => $allAlokasi->first()->periodeAlokasi->kegiatan,
+            'kegiatanData' => $kegiatanData,
+            'nomorSpk' => $nomorSpk,
+            'tanggalSpk' => Carbon::parse($tanggalSpk),
+            'sampaiTanggal' => Carbon::parse($calculatedSampaiTanggal),
+            'tanggalPerpanjangan' => null,
+            'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
+            'peran' => $allAlokasi->first()->peran,
+            'peranLabel' => $this->getPeranLabel($allAlokasi->first()->peran),
+            'totalHonor' => $totalHonor,
+            'uraianTugas' => $uraianTugas,
+            'bebanAnggaran' => $bebanAnggaran,
+            'pdfTitle' => $filename,
+            'workType' => $this->detectWorkType($allAlokasi),
+        ];
+
+        $pdf = Pdf::loadView('spk-main', $data)->setPaper('a4', 'portrait');
+        $pdf->getDomPDF()->set_option('pdfTitle', $filename);
+
+        return $pdf->output() ?: null;
+    }
+
+    /**
+     * Build SPK lampiran PDF binary for a single petugas.
+     */
+    private function buildSpkLampiranPdfBinary(
+        PeriodeAlokasi $periode,
+        int $petugasId,
+        string $nomorSpk,
+        string $tanggalSpk,
+    ): ?string {
+        $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
+            ->whereHas('periodeAlokasi', function ($q) use ($periode): void {
+                $q->where('bulan', $periode->bulan)
+                    ->where('tahun', $periode->tahun)
+                    ->whereIn('status', ['dikirim', 'perubahan']);
+            })
+            ->where('petugas_id', $petugasId)
+            ->get();
+
+        if ($allAlokasi->isEmpty()) {
+            return null;
+        }
+
+        $latestEndDate = null;
+
+        foreach ($allAlokasi as $alokasiItem) {
+            $periodeItem = $alokasiItem->periodeAlokasi;
+            $isPengolahanRole = in_array($alokasiItem->peran, ['pengolahan', 'pengawas_pengolahan']);
+
+            $endDates = $isPengolahanRole
+                ? array_filter([
+                    $periodeItem->jadwal_pengolahan_pencacahan_selesai,
+                    $periodeItem->jadwal_pengolahan_listing_selesai,
+                ])
+                : array_filter([
+                    $periodeItem->tanggal_selesai,
+                    $periodeItem->tanggal_selesai_listing,
+                ]);
+
+            if (! empty($endDates)) {
+                $maxEndDate = max($endDates);
+                if ($latestEndDate === null || $maxEndDate > $latestEndDate) {
+                    $latestEndDate = $maxEndDate;
+                }
+            }
+        }
+
+        if ($latestEndDate === null) {
+            $latestEndDate = Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
+        }
+
+        $petugas = $allAlokasi->first()->petugas;
+        $penandatangan = Penandatangan::active()->ppk()->firstOrFail();
+
+        $totalHonor = 0;
+        $uraianTugas = [];
+        $kegiatanData = [];
+        $bebanAnggaran = '';
+
+        foreach ($allAlokasi as $alokasi) {
+            $kegiatan = $alokasi->periodeAlokasi->kegiatan;
+            $totalHonor += $this->calculateTotalHonor($kegiatan, $alokasi);
+            $uraianTugas = array_merge($uraianTugas, $this->getUraianTugas($kegiatan, $alokasi));
+            $kegiatanData[] = [
+                'kegiatan_id' => $kegiatan->id,
+                'kode_kegiatan' => $kegiatan->kode_kegiatan,
+                'nama_kegiatan' => $kegiatan->nama_kegiatan,
+                'kode_coa' => $kegiatan->kode_coa,
+                'alokasi_id' => $alokasi->id,
+            ];
+
+            if (empty($bebanAnggaran)) {
+                $bebanAnggaran = $this->getBebanAnggaran($kegiatan);
+            }
+        }
+
+        $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
+        $filename = 'Print_Lampiran_'.$sanitizedName.'.pdf';
+
+        $data = [
+            'periode' => $periode,
+            'alokasi' => $allAlokasi->first(),
+            'allAlokasi' => $allAlokasi,
+            'petugas' => $petugas,
+            'kegiatan' => $allAlokasi->first()->periodeAlokasi->kegiatan,
+            'kegiatanData' => $kegiatanData,
+            'nomorSpk' => $nomorSpk,
+            'tanggalSpk' => Carbon::parse($tanggalSpk),
+            'sampaiTanggal' => Carbon::parse(Carbon::parse($latestEndDate)->format('Y-m-d')),
+            'tanggalPerpanjangan' => null,
+            'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
+            'peran' => $allAlokasi->first()->peran,
+            'peranLabel' => $this->getPeranLabel($allAlokasi->first()->peran),
+            'totalHonor' => $totalHonor,
+            'uraianTugas' => $uraianTugas,
+            'bebanAnggaran' => $bebanAnggaran,
+            'pdfTitle' => $filename,
+            'workType' => $this->detectWorkType($allAlokasi),
+        ];
+
+        // Render main first just for page count offset
+        $pdfMain = Pdf::loadView('spk-main', $data)->setPaper('a4', 'portrait');
+        $pdfMain->output();
+        $data['pageNumberOffset'] = max(0, (int) $pdfMain->getDomPDF()->getCanvas()->get_page_count());
+
+        $data = $this->withLampiranContext($data);
+
+        $lampiranView = $this->resolveLampiranView($data['kegiatan'], $data['peran']);
+        $lampiranPaper = $this->resolveLampiranPaperOrientation($data['kegiatan'], $data['peran']);
+
+        $pdf = Pdf::loadView($lampiranView, $data)->setPaper('a4', $lampiranPaper);
+        $pdf->getDomPDF()->set_option('pdfTitle', $filename);
+
+        return $pdf->output() ?: null;
+    }
+
+    /**
      * Preview SPK for a petugas in a periode
      */
     public function previewSpk(Request $request, string $periodeHashedId, string $petugasHashedId)

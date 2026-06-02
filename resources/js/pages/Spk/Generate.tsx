@@ -11,7 +11,7 @@ import {
     previewFileFromPost,
 } from '@/utils/downloadUtils';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Download, FileText, Loader2 } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Loader2, Printer } from 'lucide-react';
 import { useState } from 'react';
 
 interface Petugas {
@@ -83,6 +83,9 @@ export default function Generate({
     const [selectedPetugas, setSelectedPetugas] = useState<string[]>([]);
     const [processing, setProcessing] = useState(false);
     const [previewAllProcessing, setPreviewAllProcessing] = useState(false);
+    const [printMainProcessing, setPrintMainProcessing] = useState(false);
+    const [printLampiranProcessing, setPrintLampiranProcessing] =
+        useState(false);
     const [showFormModal, setShowFormModal] = useState(false);
     const [modalMessage, setModalMessage] = useState('');
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -277,6 +280,93 @@ export default function Generate({
                 'Gagal mengunduh file preview Perjanjian Kerja (lampiran).',
             );
             setShowFormModal(true);
+        }
+    };
+
+    const buildSortedPrintItems = (): {
+        petugas_hashed_id: string;
+        nomor_spk: string;
+        petugas_nama: string;
+    }[] => {
+        return [...petugas_list]
+            .filter((a) => selectedPetugas.includes(a.petugas.hashed_id))
+            .sort((a, b) => a.petugas.nama.localeCompare(b.petugas.nama, 'id'))
+            .map((a) => ({
+                petugas_hashed_id: a.petugas.hashed_id,
+                nomor_spk: getNomorSpkForAlokasi(a),
+                petugas_nama: a.petugas.nama,
+            }));
+    };
+
+    const handlePrintSelectedMain = async () => {
+        if (selectedPetugas.length === 0) {
+            setModalMessage('Pilih minimal 1 petugas terlebih dahulu.');
+            setShowFormModal(true);
+            return;
+        }
+
+        if (!formData.tanggal_spk) {
+            setModalMessage(
+                'Lengkapi Tanggal Perjanjian Kerja terlebih dahulu.',
+            );
+            setShowFormModal(true);
+            return;
+        }
+
+        setPrintMainProcessing(true);
+
+        try {
+            await previewFileFromPost(
+                `/spk/periode/${periode.hashed_id}/print-selected-main`,
+                {
+                    tanggal_spk: formData.tanggal_spk,
+                    preview_items_json: JSON.stringify(buildSortedPrintItems()),
+                },
+                `Print_PK_Main_${periode.bulan_label}_${periode.tahun}.pdf`,
+            );
+        } catch {
+            setModalMessage(
+                'Gagal membuka PDF Perjanjian Kerja untuk petugas terpilih.',
+            );
+            setShowFormModal(true);
+        } finally {
+            setPrintMainProcessing(false);
+        }
+    };
+
+    const handlePrintSelectedLampiran = async () => {
+        if (selectedPetugas.length === 0) {
+            setModalMessage('Pilih minimal 1 petugas terlebih dahulu.');
+            setShowFormModal(true);
+            return;
+        }
+
+        if (!formData.tanggal_spk) {
+            setModalMessage(
+                'Lengkapi Tanggal Perjanjian Kerja terlebih dahulu.',
+            );
+            setShowFormModal(true);
+            return;
+        }
+
+        setPrintLampiranProcessing(true);
+
+        try {
+            await previewFileFromPost(
+                `/spk/periode/${periode.hashed_id}/print-selected-lampiran`,
+                {
+                    tanggal_spk: formData.tanggal_spk,
+                    preview_items_json: JSON.stringify(buildSortedPrintItems()),
+                },
+                `Print_Lampiran_${periode.bulan_label}_${periode.tahun}.pdf`,
+            );
+        } catch {
+            setModalMessage(
+                'Gagal membuka PDF Lampiran untuk petugas terpilih.',
+            );
+            setShowFormModal(true);
+        } finally {
+            setPrintLampiranProcessing(false);
         }
     };
 
@@ -724,6 +814,54 @@ export default function Generate({
                     <div className="flex flex-wrap justify-end gap-4">
                         <Button variant="outline" asChild>
                             <Link href="/spk">Batal</Link>
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={handlePrintSelectedMain}
+                            disabled={
+                                printMainProcessing ||
+                                selectedPetugas.length === 0 ||
+                                !formData.tanggal_spk ||
+                                has_draft_periode
+                            }
+                            className="gap-2"
+                            title="Buka PDF PK Main untuk petugas terpilih (urut abjad), siap cetak"
+                        >
+                            {printMainProcessing ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Menyiapkan PK...
+                                </>
+                            ) : (
+                                <>
+                                    <Printer className="h-4 w-4" />
+                                    Print PK ({selectedPetugas.length})
+                                </>
+                            )}
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={handlePrintSelectedLampiran}
+                            disabled={
+                                printLampiranProcessing ||
+                                selectedPetugas.length === 0 ||
+                                !formData.tanggal_spk ||
+                                has_draft_periode
+                            }
+                            className="gap-2"
+                            title="Buka PDF Lampiran untuk petugas terpilih (urut abjad), siap cetak"
+                        >
+                            {printLampiranProcessing ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Menyiapkan Lampiran...
+                                </>
+                            ) : (
+                                <>
+                                    <Printer className="h-4 w-4" />
+                                    Print Lampiran ({selectedPetugas.length})
+                                </>
+                            )}
                         </Button>
                         <Button
                             variant="outline"

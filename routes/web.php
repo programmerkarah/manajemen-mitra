@@ -676,6 +676,8 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview-main', [SpkController::class, 'previewSpkMain'])->name('spk.preview.main');
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview-lampiran', [SpkController::class, 'previewSpkLampiran'])->name('spk.preview.lampiran');
         Route::post('spk/periode/{periodeHashedId}/preview-all', [SpkController::class, 'previewAllSpk'])->name('spk.preview.all');
+        Route::post('spk/periode/{periodeHashedId}/print-selected-main', [SpkController::class, 'printSelectedMain'])->name('spk.print.selected.main');
+        Route::post('spk/periode/{periodeHashedId}/print-selected-lampiran', [SpkController::class, 'printSelectedLampiran'])->name('spk.print.selected.lampiran');
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview-addendum', [SpkController::class, 'previewAddendum'])->name('spk.preview-addendum');
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/generate', [SpkController::class, 'generateSpk'])->name('spk.generate');
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/generate-addendum', [SpkController::class, 'generateAddendum'])->name('spk.generate-addendum');
