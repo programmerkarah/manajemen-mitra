@@ -202,7 +202,8 @@ class SpkGenerateScopeTest extends TestCase
         $names = $petugasList->pluck('petugas.nama')->all();
 
         $this->assertContains('Sakernas Mei', $names);
-        $this->assertNotContains('awyujon', $names);
-        $this->assertCount(1, $names);
+        $this->assertContains('awyujon', $names);
+        $this->assertNotContains('Triana Putri', $names);
         $this->assertCount(2, $names);
+    }
 }
