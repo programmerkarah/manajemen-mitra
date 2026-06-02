@@ -1544,7 +1544,7 @@ class SpkController extends Controller
             ->whereHas('periodeAlokasi', function ($query) use ($periode, $jenisKegiatan, $selectedKegiatanId): void {
                 $query->where('tahun', $periode->tahun)
                     ->where('bulan', $periode->bulan)
-                    ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+                    ->whereIn('status', ['dikirim', 'perubahan'])
                     ->whereHas('kegiatan', function ($kegiatanQuery) use ($jenisKegiatan, $selectedKegiatanId): void {
                         $kegiatanQuery->where('jenis_kegiatan', $jenisKegiatan);
 
@@ -1766,7 +1766,7 @@ class SpkController extends Controller
             })
             ->whereHas('periodeAlokasi', function ($query) use ($activeYear): void {
                 $query->where('tahun', $activeYear)
-                    ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan']);
+                    ->whereIn('status', ['dikirim', 'perubahan']);
             })
             ->get();
 

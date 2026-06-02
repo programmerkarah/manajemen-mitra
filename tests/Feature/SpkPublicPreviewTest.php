@@ -509,7 +509,7 @@ class SpkPublicPreviewTest extends TestCase
                 ->values()
                 ->all();
 
-            $this->assertSame(['PK Draft', 'PK Final'], $statuses);
+            $this->assertSame(['Belum ada PK', 'PK Final'], $statuses);
         } finally {
             @unlink($signedAbsolutePath);
         }
