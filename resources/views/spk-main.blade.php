@@ -226,7 +226,7 @@
         .signature-name-collapsed {
             margin-top: 0;
             margin-bottom: 0;
-            line-height: 1.3;
+            line-height: 1;
         }
     </style>
 </head>

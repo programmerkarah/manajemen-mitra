@@ -130,7 +130,7 @@
 
         .signature-name.signature-name-collapsed {
             margin-bottom: 0;
-            line-height: 1.3;
+            line-height: 1;
         }
 
         .signature-nip {
