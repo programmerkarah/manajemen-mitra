@@ -1610,7 +1610,13 @@ class SpkController extends Controller
             $responseFilename = $pdfPreview['filename'];
         }
 
-        if ($protectedPdfContent === null) {
+        if ($protectedPdfContent === null && $protectedPdfPath === null) {
+            if (! is_string($sourcePdfContent) || $sourcePdfContent === '') {
+                return response()->json([
+                    'message' => 'File preview tidak tersedia. Silakan coba beberapa saat lagi.',
+                ], 422);
+            }
+
             $protectedPdfContent = $this->applyDraftWatermarkAndProtection($sourcePdfContent);
 
             if ($finalSignedPdf !== null && isset($finalSignedPdf['cache_key'])) {
@@ -1726,8 +1732,8 @@ class SpkController extends Controller
         }
 
         $tempPath = storage_path('app/temp');
-        if (! file_exists($tempPath)) {
-            mkdir($tempPath, 0777, true);
+        if (! $this->ensureDirectoryExists($tempPath)) {
+            return null;
         }
 
         $token = time().'_'.uniqid();
@@ -1787,11 +1793,20 @@ class SpkController extends Controller
     private function storeCachedProtectedPublicPreviewPdf(string $cacheKey, string $protectedPdfContent): void
     {
         $tempPath = storage_path('app/temp');
-        if (! file_exists($tempPath)) {
-            mkdir($tempPath, 0777, true);
+        if (! $this->ensureDirectoryExists($tempPath)) {
+            return;
         }
 
         @file_put_contents($tempPath.'/public_preview_protected_'.$cacheKey.'.pdf', $protectedPdfContent);
+    }
+
+    private function ensureDirectoryExists(string $path): bool
+    {
+        if (is_dir($path)) {
+            return true;
+        }
+
+        return @mkdir($path, 0777, true) || is_dir($path);
     }
 
     private function buildPublicPreviewFileResponse(string $filePath, string $responseFilename, string $disposition)
@@ -2208,8 +2223,8 @@ class SpkController extends Controller
     private function applyDraftWatermarkAndProtection(string $pdfBinary): string
     {
         $tempPath = storage_path('app/temp');
-        if (! file_exists($tempPath)) {
-            mkdir($tempPath, 0777, true);
+        if (! $this->ensureDirectoryExists($tempPath)) {
+            return $pdfBinary;
         }
 
         $token = time().'_'.uniqid();
