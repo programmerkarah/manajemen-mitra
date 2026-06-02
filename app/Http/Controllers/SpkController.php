@@ -2007,8 +2007,7 @@ class SpkController extends Controller
         string $periodKey,
         ?string $jenisKegiatan = null,
         ?int $kegiatanId = null,
-    ): string
-    {
+    ): string {
         [$tahun, $bulan] = explode('-', $periodKey);
 
         $documents = Spk::query()
