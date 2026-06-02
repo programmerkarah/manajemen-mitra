@@ -207,11 +207,6 @@
             margin-bottom: 0;
         }
 
-        .signature-name-wrap.signature-name-wrap-collapsed {
-            margin-top: 0;
-            margin-bottom: 0;
-        }
-
         .signature-name-collapsed {
             margin-top: 0;
             margin-bottom: 0;
@@ -410,13 +405,13 @@
         <div class="signature-row">
             <div class="signature-left">
                 <p><strong>PIHAK KEDUA</strong></p>
-                <p class="signature-name-wrap {{ $signatureNamePihakKedua['collapsed'] ? 'signature-name-wrap-collapsed' : '' }}">
+                <p class="signature-name-wrap">
                     <span class="signature-name {{ $signatureNamePihakKedua['collapsed'] ? 'signature-name-collapsed' : '' }}">{!! $signatureNamePihakKedua['display'] !!}</span>
                 </p>
             </div>
             <div class="signature-right">
                 <p><strong>PIHAK PERTAMA</strong></p>
-                <p class="signature-name-wrap {{ $signatureNamePihakPertama['collapsed'] ? 'signature-name-wrap-collapsed' : '' }}">
+                <p class="signature-name-wrap">
                     <span class="signature-name {{ $signatureNamePihakPertama['collapsed'] ? 'signature-name-collapsed' : '' }}">{!! $signatureNamePihakPertama['display'] !!}</span>
                 </p>
             </div>

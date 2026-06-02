@@ -213,10 +213,6 @@
             padding: 0 20px;
         }
 
-        .signature-col.signature-col-collapsed .signature-title {
-            margin-bottom: 0;
-        }
-
         .signature-title {
             font-weight: bold;
             margin-bottom: 80px;
@@ -905,11 +901,11 @@
         <!-- Signatures -->
         <div class="signature">
             <div class="signature-row">
-                <div class="signature-col {{ $signatureNamePihakKedua['collapsed'] ? 'signature-col-collapsed' : '' }}">
+                <div class="signature-col">
                     <div class="signature-title">PIHAK KEDUA,</div>
                     <div class="signature-name {{ $signatureNamePihakKedua['collapsed'] ? 'signature-name-collapsed' : '' }}">{!! $signatureNamePihakKedua['display'] !!}</div>
                 </div>
-                <div class="signature-col {{ $signatureNamePihakPertama['collapsed'] ? 'signature-col-collapsed' : '' }}">
+                <div class="signature-col">
                     <div class="signature-title">PIHAK PERTAMA,</div>
                     <div class="signature-name {{ $signatureNamePihakPertama['collapsed'] ? 'signature-name-collapsed' : '' }}">{!! $signatureNamePihakPertama['display'] !!}</div>
                 </div>
