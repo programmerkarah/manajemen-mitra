@@ -3878,8 +3878,10 @@ class SpkController extends Controller
         }
 
         $tempPath = storage_path('app/temp');
-        if (! file_exists($tempPath)) {
-            mkdir($tempPath, 0777, true);
+        if (! $this->ensureDirectoryExists($tempPath)) {
+            return response()->json([
+                'message' => 'Folder sementara tidak tersedia. Silakan coba lagi.',
+            ], 500);
         }
 
         $individualPaths = [];

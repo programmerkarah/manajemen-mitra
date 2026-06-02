@@ -448,9 +448,24 @@ export const previewFileFromPost = async (
             });
 
             if (!response.ok) {
-                throw new Error(
-                    `Server mengembalikan status ${response.status}.`,
-                );
+                let message = `Server mengembalikan status ${response.status}.`;
+
+                try {
+                    const errorPayload = (await response.json()) as {
+                        message?: string;
+                    };
+
+                    if (
+                        errorPayload.message &&
+                        errorPayload.message.trim() !== ''
+                    ) {
+                        message = errorPayload.message;
+                    }
+                } catch {
+                    // Keep fallback status message when response body is not JSON.
+                }
+
+                throw new Error(message);
             }
 
             const payloadJson = (await response.json()) as {
