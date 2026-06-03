@@ -278,33 +278,37 @@ class SpkController extends Controller
         $perPage = 15;
         $currentPage = $request->get('page', 1);
         $offset = ($currentPage - 1) * $perPage;
+        $paginatedPeriodeList = $groupedByMonth->slice($offset, $perPage)->values();
 
-        $paginatedItems = $groupedByMonth->slice($offset, $perPage)->values();
-        $total = $groupedByMonth->count();
-
-        $paginator = new LengthAwarePaginator(
-            $paginatedItems,
-            $total,
+        $periodeListPaginator = new LengthAwarePaginator(
+            $paginatedPeriodeList,
+            $groupedByMonth->count(),
             $perPage,
             $currentPage,
-            ['path' => $request->url(), 'query' => $request->query()]
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
         );
-
-        // Encrypt sensitive data
-        $encryptedData = encryptData($paginatedItems);
 
         return Inertia::render('Spk/Index', [
             'periodeList' => [
-                'encrypted' => $encryptedData,
+                'encrypted' => encryptData($paginatedPeriodeList->all()),
                 'meta' => [
-                    'current_page' => $paginator->currentPage(),
-                    'last_page' => $paginator->lastPage(),
-                    'per_page' => $paginator->perPage(),
-                    'total' => $paginator->total(),
-                    'from' => $paginator->firstItem(),
-                    'to' => $paginator->lastItem(),
+                    'current_page' => $periodeListPaginator->currentPage(),
+                    'last_page' => $periodeListPaginator->lastPage(),
+                    'per_page' => $periodeListPaginator->perPage(),
+                    'total' => $periodeListPaginator->total(),
+                    'from' => $periodeListPaginator->firstItem(),
+                    'to' => $periodeListPaginator->lastItem(),
                 ],
-                'links' => $paginator->linkCollection()->toArray(),
+                'links' => $periodeListPaginator->linkCollection()->map(function ($link) {
+                    return [
+                        'url' => $link['url'],
+                        'label' => $link['label'],
+                        'active' => $link['active'],
+                    ];
+                })->all(),
             ],
             'filters' => [
                 'encrypted' => encryptFilters($validated),
@@ -2794,7 +2798,7 @@ class SpkController extends Controller
         // Format bulan with leading zero
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
-        $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
+        $allPeriodeInMonth = PeriodeAlokasi::whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
             ->where('tahun', $tahun)
             ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
             ->pluck('id');
@@ -2828,10 +2832,7 @@ class SpkController extends Controller
         // Check if any petugas in this month already have addendum
         // Use proper query with whereHas for accurate checking
         $petugasWithAddendum = Spk::where('addendum_number', '>', 0)
-            ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                $q->where('bulan', $bulanFormatted)
-                    ->where('tahun', $tahun);
-            })
+            ->where('tanggal_spk', '<=', $periode->tanggal_mulai ?? $periode->created_at ?? now())
             ->distinct()
             ->pluck('petugas_id')
             ->toArray();
@@ -2847,13 +2848,7 @@ class SpkController extends Controller
                 $firstAlokasi = $alokasiGroup->first();
 
                 // Get existing SPK for this petugas in this month
-                $existingSpk = Spk::whereHas('alokasiPetugas', function ($q) use ($firstAlokasi, $bulanFormatted, $tahun) {
-                    $q->where('petugas_id', $firstAlokasi->petugas_id)
-                        ->whereHas('periodeAlokasi', function ($q2) use ($bulanFormatted, $tahun) {
-                            $q2->where('bulan', $bulanFormatted)
-                                ->where('tahun', $tahun);
-                        });
-                })
+                $existingSpk = Spk::where('petugas_id', $firstAlokasi->petugas_id)
                     ->where('addendum_number', 0) // Get original SPK only
                     ->first();
 
@@ -2863,10 +2858,6 @@ class SpkController extends Controller
 
                 // Get latest document (original SPK or latest addendum) to compare with current state
                 $latestDocument = Spk::where('petugas_id', $firstAlokasi->petugas_id)
-                    ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                        $q->where('bulan', $bulanFormatted)
-                            ->where('tahun', $tahun);
-                    })
                     ->orderBy('addendum_number', 'desc')
                     ->orderBy('created_at', 'desc')
                     ->first();
@@ -2902,6 +2893,20 @@ class SpkController extends Controller
                     ->values()
                     ->toArray();
 
+                $currentAlokasiIds = $effectiveAlokasiByKegiatan
+                    ->pluck('id')
+                    ->map(static fn ($alokasiId) => (int) $alokasiId)
+                    ->sort()
+                    ->values()
+                    ->toArray();
+
+                $latestAlokasiIds = collect($latestSnapshot)
+                    ->pluck('alokasi_id')
+                    ->map(static fn ($alokasiId) => (int) $alokasiId)
+                    ->sort()
+                    ->values()
+                    ->toArray();
+
                 // Calculate current total honor
                 $currentTotalHonor = $effectiveAlokasiByKegiatan->sum(function ($alokasi) {
                     return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
@@ -2912,26 +2917,20 @@ class SpkController extends Controller
 
                 // Check if addendum is needed:
                 // 1. periode_alokasi_ids changed (new kegiatan added or removed)
-                // 2. OR nilai_kontrak changed
+                // 2. OR effective alokasi IDs changed within the same kegiatan
+                // 3. OR nilai_kontrak changed
                 $periodeIdsChanged = $latestPeriodeIds !== $currentPeriodeIds;
+                $alokasiIdsChanged = $latestAlokasiIds !== $currentAlokasiIds;
                 $nilaiKontrakChanged = abs($latestNilaiKontrak - $currentTotalHonor) > 0.01;
 
-                $needsAddendum = $periodeIdsChanged || $nilaiKontrakChanged;
+                $needsAddendum = $periodeIdsChanged || $alokasiIdsChanged || $nilaiKontrakChanged;
 
                 // Only show petugas who need addendum
                 if (! $needsAddendum) {
                     return null;
                 }
 
-                // Check if there's any change after latest document was created
-                $hasChangeAfterLatestDocument = $this->hasAllocationDeltaAfterReferenceForPetugas(
-                    $firstAlokasi->petugas_id,
-                    $bulanFormatted,
-                    (int) $tahun,
-                    $latestDocument->created_at,
-                );
-
-                if (! $hasChangeAfterLatestDocument) {
+                if (! $needsAddendum) {
                     return null;
                 }
 
@@ -2950,7 +2949,12 @@ class SpkController extends Controller
                             'kegiatan_nama' => $alokasi->periodeAlokasi->kegiatan->nama_kegiatan,
                             'peran' => $alokasi->peran,
                         ];
-                    })->values()->all();
+                    })
+                    ->unique(function (array $item): string {
+                        return $item['kegiatan_kode'].'|'.$item['peran'];
+                    })
+                    ->values()
+                    ->all();
 
                 // Get last addendum number for this petugas
                 $lastAddendum = Spk::where('parent_spk_id', $existingSpk->id)
@@ -3095,7 +3099,7 @@ class SpkController extends Controller
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
         // Get all periode in the same month with status 'dikirim' and 'perubahan'
-        $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
+        $allPeriodeInMonth = PeriodeAlokasi::whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
             ->where('tahun', $tahun)
             ->whereIn('status', ['dikirim', 'perubahan'])
             ->pluck('id');
@@ -4335,15 +4339,13 @@ class SpkController extends Controller
         ]);
 
         $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
+        $periodeBulanFormatted = str_pad((string) ((int) $periode->bulan), 2, '0', STR_PAD_LEFT);
+        $scopePeriodeIds = $this->resolveSpkScopePeriodeIds($periode, ['dikirim', 'perubahan']);
 
         // Get all alokasi for this petugas in the same month
         // For regular SPK (non-addendum): use effective status 'dikirim' and 'perubahan'
         $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
-            ->whereHas('periodeAlokasi', function ($q) use ($periode) {
-                $q->where('bulan', $periode->bulan)
-                    ->where('tahun', $periode->tahun)
-                    ->whereIn('status', ['dikirim', 'perubahan']);
-            })
+            ->whereIn('periode_alokasi_id', $scopePeriodeIds->all())
             ->where('petugas_id', $petugasId)
             ->get();
 
@@ -4387,11 +4389,7 @@ class SpkController extends Controller
         // Get all alokasi for this petugas in the same month
         // For regular SPK (non-addendum): use effective status 'dikirim' and 'perubahan'
         $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
-            ->whereHas('periodeAlokasi', function ($q) use ($periode) {
-                $q->where('bulan', $periode->bulan)
-                    ->where('tahun', $periode->tahun)
-                    ->whereIn('status', ['dikirim', 'perubahan']);
-            })
+            ->whereIn('periode_alokasi_id', $scopePeriodeIds->all())
             ->where('petugas_id', $petugasId)
             ->get();
 
@@ -5316,7 +5314,12 @@ class SpkController extends Controller
                 'kegiatan_nama' => $alokasi->periodeAlokasi->kegiatan->nama_kegiatan,
                 'peran' => $alokasi->peran,
             ];
-        })->values()->all();
+        })
+            ->unique(function (array $item): string {
+                return $item['kegiatan_kode'].'|'.$item['peran'];
+            })
+            ->values()
+            ->all();
 
         return [
             'alokasi_id' => $firstAlokasi->id,
@@ -6843,10 +6846,10 @@ class SpkController extends Controller
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
         // Get all validated periode in the same month.
-        // Addendum can be needed not only by revisions, but also by newly added kegiatan.
-        $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
+        // Only dikirim, disetujui and perubahan are valid for SPK purposes; direvisi and draft are ignored.
+        $allPeriodeInMonth = PeriodeAlokasi::whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
             ->where('tahun', $tahun)
-            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+            ->whereIn('status', ['dikirim', 'disetujui', 'perubahan'])
             ->pluck('id');
 
         if ($allPeriodeInMonth->isEmpty()) {
@@ -6864,12 +6867,10 @@ class SpkController extends Controller
             ->with(['petugas'])
             ->get();
 
-        // Get petugas who already have addendum
+        // Get petugas who already have addendum in THIS month only
         $petugasWithAddendum = Spk::where('addendum_number', '>', 0)
-            ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                $q->where('bulan', $bulanFormatted)
-                    ->where('tahun', $tahun);
-            })
+            ->whereYear('tanggal_spk', $tahun)
+            ->whereMonth('tanggal_spk', (int) $bulan)
             ->distinct()
             ->pluck('petugas_id')
             ->toArray();
@@ -6881,12 +6882,10 @@ class SpkController extends Controller
                 continue;
             }
 
+            // Original SPK for this petugas — not scoped to this month intentionally:
+            // the original SPK may have been issued in a prior month (cross-month revision).
             $originalSpk = Spk::where('petugas_id', $petugasId)
                 ->where('addendum_number', 0)
-                ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                    $q->where('bulan', $bulanFormatted)
-                        ->where('tahun', $tahun);
-                })
                 ->orderBy('created_at', 'asc')
                 ->first();
 
@@ -6918,22 +6917,20 @@ class SpkController extends Controller
     {
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
-        // Get all periode in month with any status
-        $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
+        // Get all periode in month – only dikirim, disetujui and perubahan are valid for SPK purposes; direvisi and draft are ignored.
+        $allPeriodeInMonth = PeriodeAlokasi::whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
             ->where('tahun', $tahun)
-            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+            ->whereIn('status', ['dikirim', 'disetujui', 'perubahan'])
             ->pluck('id');
 
         if ($allPeriodeInMonth->isEmpty()) {
             return false;
         }
 
-        // Get petugas who already have addendum
+        // Get petugas who already have addendum in THIS month only
         $petugasWithAddendum = Spk::where('addendum_number', '>', 0)
-            ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                $q->where('bulan', $bulanFormatted)
-                    ->where('tahun', $tahun);
-            })
+            ->whereYear('tanggal_spk', $tahun)
+            ->whereMonth('tanggal_spk', (int) $bulan)
             ->distinct()
             ->pluck('petugas_id')
             ->toArray();
@@ -6942,15 +6939,13 @@ class SpkController extends Controller
             return false;
         }
 
-        // For each petugas with addendum, check if there are changes
+        // For each petugas with addendum in this month, check if there are newer changes
         foreach ($petugasWithAddendum as $petugasId) {
-            // Get latest addendum for this petugas in this month
+            // Latest addendum for this petugas in this month
             $latestAddendum = Spk::where('petugas_id', $petugasId)
                 ->where('addendum_number', '>', 0)
-                ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                    $q->where('bulan', $bulanFormatted)
-                        ->where('tahun', $tahun);
-                })
+                ->whereYear('tanggal_spk', $tahun)
+                ->whereMonth('tanggal_spk', (int) $bulan)
                 ->orderBy('addendum_number', 'desc')
                 ->orderBy('created_at', 'desc')
                 ->first();
@@ -6987,21 +6982,23 @@ class SpkController extends Controller
         int $tahun,
         string $referenceType = 'original_spk',
     ): array {
-        $referenceDocument = Spk::query()
+        // Scope reference document to this specific month/year
+        $baseQuery = Spk::query()
             ->where('petugas_id', $petugasId)
-            ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                $q->where('bulan', $bulanFormatted)
-                    ->where('tahun', $tahun);
-            });
+            ->whereYear('tanggal_spk', $tahun)
+            ->whereMonth('tanggal_spk', (int) $bulanFormatted);
 
         if ($referenceType === 'latest_addendum') {
-            $referenceDocument = $referenceDocument
+            // Latest addendum must be in this month
+            $referenceDocument = (clone $baseQuery)
                 ->where('addendum_number', '>', 0)
                 ->orderBy('addendum_number', 'desc')
                 ->orderBy('created_at', 'desc')
                 ->first();
         } else {
-            $referenceDocument = $referenceDocument
+            // Original SPK is NOT month-scoped: cross-month revisions reference a prior month's SPK.
+            $referenceDocument = Spk::query()
+                ->where('petugas_id', $petugasId)
                 ->where('addendum_number', 0)
                 ->orderBy('created_at', 'asc')
                 ->first();
@@ -7074,7 +7071,7 @@ class SpkController extends Controller
         $newKegiatanKeys = array_values(array_diff($currentKeys, $referenceKeys));
         $removedKegiatanKeys = array_values(array_diff($referenceKeys, $currentKeys));
 
-        $hasNewKegiatanAdded = ! empty($newKegiatanKeys) || ! empty($newAllocationIds);
+        $hasNewKegiatanAdded = ! empty($newKegiatanKeys);
         $hasAllocationChange = ! empty($removedKegiatanKeys)
             || ! empty($removedAllocationIds);
 
@@ -7106,7 +7103,7 @@ class SpkController extends Controller
     }
 
     /**
-    * @return array<int, array{alokasi_id:int,peran:?string,jumlah_satuan:int,jumlah_satuan_listing:int,total_honor:float,total_honor_listing:float}>
+     * @return array<int, array{alokasi_id:int,peran:?string,jumlah_satuan:int,jumlah_satuan_listing:int,total_honor:float,total_honor_listing:float}>
      */
     private function buildEffectiveAllocationSnapshotForPetugasFromDocument(
         int $petugasId,
@@ -7125,9 +7122,8 @@ class SpkController extends Controller
             ->whereHas('petugas', function ($q) {
                 $q->where('jenis_petugas', 'non-organik');
             })
-            ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                $q->where('bulan', $bulanFormatted)
-                    ->where('tahun', $tahun)
+            ->whereHas('periodeAlokasi', function ($q) use ($tahun) {
+                $q->where('tahun', $tahun)
                     ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan']);
             })
             ->with('periodeAlokasi:id,kegiatan_id,status,created_at')
@@ -7194,6 +7190,7 @@ class SpkController extends Controller
             }
 
             if (
+                $current['alokasi_id'] !== $reference['alokasi_id'] ||
                 $current['peran'] !== $reference['peran'] ||
                 $current['jumlah_satuan'] !== $reference['jumlah_satuan'] ||
                 $current['jumlah_satuan_listing'] !== $reference['jumlah_satuan_listing'] ||
@@ -7210,7 +7207,7 @@ class SpkController extends Controller
     /**
      * Build latest effective allocation snapshot keyed by kegiatan_id.
      *
-    * @return array<int, array{alokasi_id:int,peran:?string,jumlah_satuan:int,jumlah_satuan_listing:int,total_honor:float,total_honor_listing:float}>
+     * @return array<int, array{alokasi_id:int,peran:?string,jumlah_satuan:int,jumlah_satuan_listing:int,total_honor:float,total_honor_listing:float}>
      */
     private function buildEffectiveAllocationSnapshotForPetugas(
         int $petugasId,
@@ -7225,9 +7222,9 @@ class SpkController extends Controller
                 $q->where('jenis_petugas', 'non-organik');
             })
             ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun, $upToCreatedAt) {
-                $q->where('bulan', $bulanFormatted)
+                $q->whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
                     ->where('tahun', $tahun)
-                    ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan']);
+                    ->whereIn('status', ['dikirim', 'disetujui', 'perubahan']);
 
                 // When checking reference state, only get allocations that existed before
                 if ($upToCreatedAt) {
@@ -7241,30 +7238,17 @@ class SpkController extends Controller
             return [];
         }
 
-        // Group by kegiatan and get effective allocation per kegiatan
-        // Priority: perubahan > direvisi > disetujui > dikirim
+        // Group by kegiatan and get effective allocation per kegiatan.
+        // Priority: perubahan > disetujui > dikirim (direvisi and draft are not valid for SPK).
         $snapshot = $alokasiQuery
             ->groupBy(function ($alokasi) {
                 return $alokasi->periodeAlokasi?->kegiatan_id;
             })
             ->map(function ($kegiatanGroup) {
-                // Apply priority: perubahan > direvisi > disetujui > dikirim
-                $perubahan = $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'perubahan');
-                if ($perubahan) {
-                    $effective = $perubahan;
-                } else {
-                    $direvisi = $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'direvisi');
-                    if ($direvisi) {
-                        $effective = $direvisi;
-                    } else {
-                        $disetujui = $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'disetujui');
-                        if ($disetujui) {
-                            $effective = $disetujui;
-                        } else {
-                            $effective = $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'dikirim');
-                        }
-                    }
-                }
+                // Apply priority: perubahan > disetujui > dikirim
+                $effective = $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'perubahan')
+                    ?? $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'disetujui')
+                    ?? $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'dikirim');
 
                 if (! $effective || ! $this->isMeaningfulAllocation($effective)) {
                     return null;
