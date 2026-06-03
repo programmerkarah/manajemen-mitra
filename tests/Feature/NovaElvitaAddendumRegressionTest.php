@@ -552,7 +552,9 @@ class NovaElvitaAddendumRegressionTest extends TestCase
             'created_by' => $creator->id,
         ]);
 
-        $response = $this->get('/spk/periode/'.$periodePerubahanUbinan->hashed_id.'/addendum?bulan=5&tahun='.$tahun.'&mode=addendum');
+        $response = $this->post('/spk/periode/'.$periodePerubahanUbinan->hashed_id.'/addendum', [
+            'payload' => encryptData(['bulan' => 5, 'tahun' => $tahun, 'mode' => 'addendum']),
+        ]);
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page->component('Spk/Addendum'));
 

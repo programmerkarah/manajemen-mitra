@@ -13,7 +13,7 @@ import {
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { encryptFilters } from '@/utils/encryption';
+import { encryptData, encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     CheckCircle,
@@ -617,17 +617,26 @@ export default function Index({
                                                             <Button
                                                                 size="sm"
                                                                 variant="default"
-                                                                asChild
                                                                 className="w-full justify-start gap-1"
+                                                                onClick={() =>
+                                                                    router.post(
+                                                                        `/spk/periode/${monthData.primary_periode_hashed_id}/addendum`,
+                                                                        {
+                                                                            payload:
+                                                                                encryptData(
+                                                                                    {
+                                                                                        bulan: monthData.bulan,
+                                                                                        tahun: monthData.tahun,
+                                                                                        mode: 'addendum',
+                                                                                    },
+                                                                                ),
+                                                                        },
+                                                                    )
+                                                                }
                                                             >
-                                                                <Link
-                                                                    href={`/spk/periode/${monthData.primary_periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}&mode=addendum`}
-                                                                >
-                                                                    <FileEdit className="h-3.5 w-3.5" />
-                                                                    Addendum
-                                                                    Perjanjian
-                                                                    Kerja
-                                                                </Link>
+                                                                <FileEdit className="h-3.5 w-3.5" />
+                                                                Addendum
+                                                                Perjanjian Kerja
                                                             </Button>
                                                         )}
 
@@ -643,16 +652,26 @@ export default function Index({
                                                             <Button
                                                                 size="sm"
                                                                 variant="default"
-                                                                asChild
                                                                 className="w-full justify-start gap-1 bg-purple-600 hover:bg-purple-700"
+                                                                onClick={() =>
+                                                                    router.post(
+                                                                        `/spk/periode/${monthData.primary_periode_hashed_id}/addendum`,
+                                                                        {
+                                                                            payload:
+                                                                                encryptData(
+                                                                                    {
+                                                                                        bulan: monthData.bulan,
+                                                                                        tahun: monthData.tahun,
+                                                                                        mode: 'regenerate',
+                                                                                    },
+                                                                                ),
+                                                                        },
+                                                                    )
+                                                                }
                                                             >
-                                                                <Link
-                                                                    href={`/spk/periode/${monthData.primary_periode_hashed_id}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}&mode=regenerate`}
-                                                                >
-                                                                    <FileEdit className="h-3.5 w-3.5" />
-                                                                    Re-generate
-                                                                    Addendum
-                                                                </Link>
+                                                                <FileEdit className="h-3.5 w-3.5" />
+                                                                Re-generate
+                                                                Addendum
                                                             </Button>
                                                         )}
                                                 </div>
@@ -824,13 +843,25 @@ export default function Index({
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
-                                                            asChild
+                                                            onClick={() =>
+                                                                router.post(
+                                                                    `/spk/periode/${periodeHashedId}/addendum`,
+                                                                    {
+                                                                        payload:
+                                                                            encryptData(
+                                                                                {
+                                                                                    bulan: monthData.bulan,
+                                                                                    tahun: monthData.tahun,
+                                                                                    mode: monthData.has_addendum_changes
+                                                                                        ? 'regenerate'
+                                                                                        : 'addendum',
+                                                                                },
+                                                                            ),
+                                                                    },
+                                                                )
+                                                            }
                                                         >
-                                                            <Link
-                                                                href={`/spk/periode/${periodeHashedId}/addendum?bulan=${monthData.bulan}&tahun=${monthData.tahun}&mode=${monthData.has_addendum_changes ? 'regenerate' : 'addendum'}`}
-                                                            >
-                                                                <FileEdit className="h-3.5 w-3.5" />
-                                                            </Link>
+                                                            <FileEdit className="h-3.5 w-3.5" />
                                                         </Button>
                                                     )}
                                             </div>

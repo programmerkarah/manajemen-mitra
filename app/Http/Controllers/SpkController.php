@@ -2778,12 +2778,16 @@ class SpkController extends Controller
     public function createAddendum(Request $request, string $periodeHashedId): Response|RedirectResponse
     {
         $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
-        $bulan = $request->input('bulan');
-        $tahun = $request->input('tahun');
-        $requestedMode = $request->input('mode');
+
+        // Decrypt POST payload
+        $payload = decryptData($request->input('payload'));
+
+        $bulan = $payload['bulan'] ?? null;
+        $tahun = $payload['tahun'] ?? null;
+        $requestedMode = $payload['mode'] ?? null;
 
         if (! $periodeId || ! $bulan || ! $tahun) {
-            abort(404);
+            abort(403);
         }
 
         $periode = PeriodeAlokasi::with('kegiatan')->findOrFail($periodeId);
