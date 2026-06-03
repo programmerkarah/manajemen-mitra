@@ -206,12 +206,6 @@ class AnalisisControllerTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        $petugasOrganik = Petugas::factory()->create([
-            'nama' => 'Petugas Sensus Analisis Organik',
-            'jenis_petugas' => 'organik',
-            'status' => 'aktif',
-        ]);
-
         $petugasZeroHonor = Petugas::factory()->create([
             'nama' => 'Petugas Sensus Analisis Zero Honor',
             'jenis_petugas' => 'non-organik',
@@ -256,27 +250,12 @@ class AnalisisControllerTest extends TestCase
 
             AlokasiPetugas::factory()->create([
                 'periode_alokasi_id' => $periode->id,
-                'petugas_id' => $petugasOrganik->id,
-                'status_kepegawaian' => 'organik',
-                'total_honor' => 250000,
+                'petugas_id' => $petugasZeroHonor->id,
+                'status_kepegawaian' => 'non_organik',
+                'total_honor' => 0,
                 'total_honor_listing' => 0,
             ]);
         }
-
-        $periodeZeroHonor = PeriodeAlokasi::factory()->create([
-            'kegiatan_id' => $kegiatanZeroHonor->id,
-            'bulan' => '6',
-            'tahun' => $currentYear,
-            'status' => 'dikirim',
-        ]);
-
-        AlokasiPetugas::factory()->create([
-            'periode_alokasi_id' => $periodeZeroHonor->id,
-            'petugas_id' => $petugasZeroHonor->id,
-            'status_kepegawaian' => 'non_organik',
-            'total_honor' => 0,
-            'total_honor_listing' => 0,
-        ]);
 
         $response = $this->actingAs($user)
             ->get(route('analisis.petugas'))
@@ -284,27 +263,30 @@ class AnalisisControllerTest extends TestCase
 
         $props = $response->original->getData()['page']['props'];
         $detail = collect($props['petugasAlokasiDetail'])->firstWhere('petugas_nama', 'Petugas Sensus Analisis');
-        $detailOrganik = collect($props['petugasAlokasiDetail'])->firstWhere('petugas_nama', 'Petugas Sensus Analisis Organik');
         $detailZeroHonor = collect($props['petugasAlokasiDetail'])->firstWhere('petugas_nama', 'Petugas Sensus Analisis Zero Honor');
-        $alokasiBulan = collect($props['alokasiPerBulan'])->firstWhere('bulan', 6);
 
         $this->assertNotNull($detail);
-        $this->assertNotNull($detailOrganik);
         $this->assertNotNull($detailZeroHonor);
-        $this->assertEquals(50000, $detail['honor'][6]);
+        $this->assertEquals(0, $detail['honor'][6]);
         $this->assertEquals(100000, $detail['honor'][7]);
-        $this->assertEquals(100000, $detail['honor'][8]);
+        $this->assertEquals(150000, $detail['honor'][8]);
         $this->assertEquals(250000, $detail['total_honor']);
-        $this->assertEquals(50000, $detailOrganik['honor'][6]);
-        $this->assertEquals(100000, $detailOrganik['honor'][7]);
-        $this->assertEquals(100000, $detailOrganik['honor'][8]);
-        $this->assertEquals(250000, $detailOrganik['total_honor']);
         $this->assertEquals(0, $detailZeroHonor['honor'][6]);
         $this->assertEquals(0, $detailZeroHonor['total_honor']);
 
-        $this->assertNotNull($alokasiBulan);
-        $this->assertSame(3, $alokasiBulan['jumlah_petugas']);
-        $this->assertSame(2, $alokasiBulan['jumlah_kegiatan']);
+        $alokasiJuni = collect($props['alokasiPerBulan'])->firstWhere('bulan', 6);
+        $alokasiJuli = collect($props['alokasiPerBulan'])->firstWhere('bulan', 7);
+        $alokasiAgustus = collect($props['alokasiPerBulan'])->firstWhere('bulan', 8);
+
+        $this->assertNotNull($alokasiJuni);
+        $this->assertNotNull($alokasiJuli);
+        $this->assertNotNull($alokasiAgustus);
+        $this->assertSame(2, $alokasiJuni['jumlah_petugas']);
+        $this->assertSame(2, $alokasiJuli['jumlah_petugas']);
+        $this->assertSame(2, $alokasiAgustus['jumlah_petugas']);
+        $this->assertSame(1, $alokasiJuni['jumlah_kegiatan']);
+        $this->assertSame(1, $alokasiJuli['jumlah_kegiatan']);
+        $this->assertSame(1, $alokasiAgustus['jumlah_kegiatan']);
     }
 
     public function test_admin_can_access_analisis_pulsa(): void

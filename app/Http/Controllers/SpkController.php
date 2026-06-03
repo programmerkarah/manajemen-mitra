@@ -2915,7 +2915,7 @@ class SpkController extends Controller
                     (int) $firstAlokasi->petugas_id,
                     $bulanFormatted,
                     $tahun,
-                    'original_spk',
+                    (int) $latestDocument->addendum_number > 0 ? 'latest_addendum' : 'original_spk',
                 );
 
                 if (! (

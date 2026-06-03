@@ -221,12 +221,12 @@ class DashboardTest extends TestCase
             $this->assertEquals(2, $chartJune['petugas_count']);
             $this->assertEquals(1, $chartJune['kegiatan_count']);
             $this->assertEquals(2, $monitoringJune['kegiatan_1_2']);
-            $this->assertEquals(50000, $honorPerPetugas['per_bulan']['Jun']);
+            $this->assertEquals(0, $honorPerPetugas['per_bulan']['Jun']);
             $this->assertEquals(100000, $honorPerPetugas['per_bulan']['Jul']);
-            $this->assertEquals(100000, $honorPerPetugas['per_bulan']['Aug']);
-            $this->assertEquals(50000, $honorPerPetugasOrganik['per_bulan']['Jun']);
+            $this->assertEquals(150000, $honorPerPetugas['per_bulan']['Aug']);
+            $this->assertEquals(0, $honorPerPetugasOrganik['per_bulan']['Jun']);
             $this->assertEquals(100000, $honorPerPetugasOrganik['per_bulan']['Jul']);
-            $this->assertEquals(100000, $honorPerPetugasOrganik['per_bulan']['Aug']);
+            $this->assertEquals(150000, $honorPerPetugasOrganik['per_bulan']['Aug']);
 
             $juni = $honorInequalityData->firstWhere('month', 'Jun');
             $juli = $honorInequalityData->firstWhere('month', 'Jul');
@@ -235,9 +235,81 @@ class DashboardTest extends TestCase
             $this->assertNotNull($juni);
             $this->assertNotNull($juli);
             $this->assertNotNull($agustus);
-            $this->assertEquals(50000, $juni['rata_rata_honor']);
+            $this->assertEquals(0, $juni['rata_rata_honor']);
             $this->assertEquals(100000, $juli['rata_rata_honor']);
-            $this->assertEquals(100000, $agustus['rata_rata_honor']);
+            $this->assertEquals(150000, $agustus['rata_rata_honor']);
+        } finally {
+            Carbon::setTestNow($previousNow);
+        }
+    }
+
+    public function test_dashboard_counts_june_zero_honor_sensus_allocation_but_honor_remains_zero(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $previousNow = Carbon::getTestNow();
+        Carbon::setTestNow(Carbon::create(2026, 8, 15, 12, 0, 0));
+
+        try {
+            $year = 2026;
+
+            $kegiatan = Kegiatan::factory()->create([
+                'status' => 'aktif',
+                'jenis_kegiatan' => 'sensus',
+                'nama_kegiatan' => 'Sensus Ekonomi 2026',
+                'tahun_anggaran' => $year,
+                'tanggal_mulai' => '2026-06-15',
+                'tanggal_selesai' => '2026-08-31',
+            ]);
+
+            $petugas = Petugas::factory()->create([
+                'nama' => 'Petugas SE Zero Juni',
+                'status' => 'aktif',
+                'jenis_petugas' => 'non-organik',
+            ]);
+
+            foreach ([6, 7, 8] as $bulan) {
+                $bulanValue = $bulan === 6 ? '6' : str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
+
+                $periode = PeriodeAlokasi::factory()->create([
+                    'kegiatan_id' => $kegiatan->id,
+                    'tahun' => $year,
+                    'bulan' => $bulanValue,
+                    'status' => 'dikirim',
+                ]);
+
+                AlokasiPetugas::query()->create([
+                    'periode_alokasi_id' => $periode->id,
+                    'petugas_id' => $petugas->id,
+                    'jumlah_satuan' => 1,
+                    'total_honor' => $bulan === 6 ? 0 : 250000,
+                    'total_honor_listing' => 0,
+                    'peran' => 'pcl_ppl',
+                    'status_kepegawaian' => 'non_organik',
+                ]);
+            }
+
+            $response = $this->get(route('dashboard'));
+            $response->assertOk();
+
+            $props = $response->original->getData()['page']['props'];
+            $honorPerPetugas = collect($props['honorPerPetugas'])->firstWhere('petugas_id', $petugas->id);
+            $chartJune = collect($props['chartData'])->firstWhere('month', 'Jun');
+            $monitoringJune = collect($props['petugasMonitoringData'])->firstWhere('month', 'Jun');
+            $juneInequality = collect($props['honorInequalityData'])->firstWhere('month', 'Jun');
+
+            $this->assertNotNull($honorPerPetugas);
+            $this->assertNotNull($chartJune);
+            $this->assertNotNull($monitoringJune);
+            $this->assertNotNull($juneInequality);
+
+            $this->assertEquals(1, $chartJune['petugas_count']);
+            $this->assertEquals(1, $monitoringJune['kegiatan_1_2']);
+            $this->assertEquals(0, $honorPerPetugas['per_bulan']['Jun']);
+            $this->assertEquals(100000, $honorPerPetugas['per_bulan']['Jul']);
+            $this->assertEquals(150000, $honorPerPetugas['per_bulan']['Aug']);
+            $this->assertEquals(0, $juneInequality['rata_rata_honor']);
         } finally {
             Carbon::setTestNow($previousNow);
         }

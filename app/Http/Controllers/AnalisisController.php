@@ -127,6 +127,7 @@ class AnalisisController extends Controller
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
                 ->whereIn('periode_alokasi.bulan', $bulanCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
+                ->where('petugas.jenis_petugas', 'non-organik')
                 ->whereRaw($this->allocationOrHonorExistsClause());
             $this->applyEffectivePeriode($jumlahPetugas);
             $jumlahPetugas = $jumlahPetugas->distinct('alokasi_petugas.petugas_id')
@@ -137,6 +138,7 @@ class AnalisisController extends Controller
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
                 ->whereIn('periode_alokasi.bulan', $bulanCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
+                ->where('petugas.jenis_petugas', 'non-organik')
                 ->whereRaw($this->allocationOrHonorExistsClause());
             $this->applyEffectivePeriode($jumlahKegiatan);
             $jumlahKegiatan = $jumlahKegiatan->distinct('periode_alokasi.kegiatan_id')
@@ -209,6 +211,7 @@ class AnalisisController extends Controller
             ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
             ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
             ->where('periode_alokasi.tahun', $currentYear)
+            ->where('petugas.jenis_petugas', 'non-organik')
             ->whereRaw($this->allocationOrHonorExistsClause());
         $this->applyEffectivePeriode($petugasAlokasiRaw);
         $petugasAlokasiRaw = $petugasAlokasiRaw->select(
@@ -218,8 +221,9 @@ class AnalisisController extends Controller
         )
             ->selectRaw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as jumlah_kegiatan')
             ->selectRaw("COALESCE(SUM(CASE
-                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.2
-                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) IN (7, 8) THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
+                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN 0
+                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 7 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
+                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 8 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.6
                 ELSE COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)
             END), 0) as total_honor")
             ->groupBy('petugas.id', 'petugas.nama', 'periode_alokasi.bulan')
@@ -739,8 +743,9 @@ class AnalisisController extends Controller
         }
 
         return match ($bulan) {
-            6 => (float) $baseHonor * 0.2,
-            7, 8 => (float) $baseHonor * 0.4,
+            6 => 0.0,
+            7 => (float) $baseHonor * 0.4,
+            8 => (float) $baseHonor * 0.6,
             default => 0.0,
         };
     }

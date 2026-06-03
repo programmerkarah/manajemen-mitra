@@ -610,14 +610,25 @@ class DashboardController extends Controller
             $monthName = Carbon::create($currentYear, $month, 1)->format('M');
             $monthFormatted = str_pad((string) $month, 2, '0', STR_PAD_LEFT);
             $monthCandidates = $this->resolveBulanCandidates($monthFormatted);
+            $isSensusHonorRolloutMonth = in_array($month, [6, 7, 8], true);
 
             // Count total petugas allocated for this month (exclude honor=0)
             $totalPetugasAlokasi = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+                ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
                 ->whereIn('periode_alokasi.bulan', $monthCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
-                ->whereRaw('(alokasi_petugas.total_honor + COALESCE(alokasi_petugas.total_honor_listing, 0)) > 0')
+                ->where(function ($query) use ($isSensusHonorRolloutMonth) {
+                    $query->whereRaw('(alokasi_petugas.total_honor + COALESCE(alokasi_petugas.total_honor_listing, 0)) > 0');
+
+                    if ($isSensusHonorRolloutMonth) {
+                        $query->orWhere(function ($sensusQuery) {
+                            $sensusQuery->where('kegiatan.jenis_kegiatan', 'sensus')
+                                ->whereRaw('LOWER(kegiatan.nama_kegiatan) LIKE ?', ['%sensus ekonomi%']);
+                        });
+                    }
+                })
                 ->distinct('alokasi_petugas.petugas_id')
                 ->count('alokasi_petugas.petugas_id');
 
@@ -636,10 +647,20 @@ class DashboardController extends Controller
             // Get all alokasi for this month (exclude honor=0)
             $alokasiThisMonth = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+                ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
                 ->whereIn('periode_alokasi.bulan', $monthCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
-                ->whereRaw('(alokasi_petugas.total_honor + COALESCE(alokasi_petugas.total_honor_listing, 0)) > 0')
+                ->where(function ($query) use ($isSensusHonorRolloutMonth) {
+                    $query->whereRaw('(alokasi_petugas.total_honor + COALESCE(alokasi_petugas.total_honor_listing, 0)) > 0');
+
+                    if ($isSensusHonorRolloutMonth) {
+                        $query->orWhere(function ($sensusQuery) {
+                            $sensusQuery->where('kegiatan.jenis_kegiatan', 'sensus')
+                                ->whereRaw('LOWER(kegiatan.nama_kegiatan) LIKE ?', ['%sensus ekonomi%']);
+                        });
+                    }
+                })
                 ->select('alokasi_petugas.petugas_id', DB::raw('COUNT(*) as jumlah_kegiatan'))
                 ->groupBy('alokasi_petugas.petugas_id')
                 ->get();
@@ -1001,8 +1022,9 @@ class DashboardController extends Controller
     private function getSensusHonorWeight(int $month): float
     {
         return match ($month) {
-            6 => 0.2,
-            7, 8 => 0.4,
+            6 => 0.0,
+            7 => 0.4,
+            8 => 0.6,
             default => 1.0,
         };
     }

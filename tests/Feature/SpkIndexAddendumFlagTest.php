@@ -756,4 +756,115 @@ class SpkIndexAddendumFlagTest extends TestCase
         $this->assertFalse((bool) ($mei['has_incomplete_addendum'] ?? true));
         $this->assertFalse((bool) ($mei['has_addendum_changes'] ?? true));
     }
+
+    public function test_may_addendum_hides_button_after_latest_addendum_matches_current_snapshot(): void
+    {
+        $this->withoutMiddleware();
+
+        $tahun = ActiveYearService::get();
+        $bulan = '05';
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Nova Elvita',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $periodeDikirim = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $alokasiDikirim = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeDikirim->id,
+            'petugas_id' => $petugas->id,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 300000,
+            'total_honor_listing' => 0,
+            'jumlah_satuan' => 3,
+            'jumlah_satuan_listing' => 0,
+        ]);
+
+        $creator = User::factory()->create();
+
+        $originalSpk = Spk::query()->create([
+            'nomor_spk' => 'SPK/ORI/MEI/NOVA',
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasiDikirim->id,
+            'alokasi_petugas_ids' => [$alokasiDikirim->id],
+            'addendum_number' => 0,
+            'nomor_urut_base' => 101,
+            'tanggal_spk' => "{$tahun}-05-04",
+            'tanggal_mulai_kerja' => "{$tahun}-05-01",
+            'tanggal_selesai_kerja' => "{$tahun}-05-31",
+            'uraian_pekerjaan' => 'Perjanjian kerja Mei',
+            'nilai_kontrak' => 300000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'created_by' => $creator->id,
+        ]);
+
+        $periodePerubahan = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'status' => 'perubahan',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $alokasiPerubahan = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodePerubahan->id,
+            'petugas_id' => $petugas->id,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 400000,
+            'total_honor_listing' => 0,
+            'jumlah_satuan' => 4,
+            'jumlah_satuan_listing' => 0,
+        ]);
+
+        Spk::query()->create([
+            'nomor_spk' => 'SPK/ORI/MEI/NOVA/ADD-1',
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasiPerubahan->id,
+            'alokasi_petugas_ids' => [$alokasiPerubahan->id],
+            'parent_spk_id' => $originalSpk->id,
+            'addendum_number' => 1,
+            'nomor_urut_base' => 101,
+            'tanggal_spk' => "{$tahun}-05-15",
+            'tanggal_mulai_kerja' => "{$tahun}-05-01",
+            'tanggal_selesai_kerja' => "{$tahun}-05-31",
+            'uraian_pekerjaan' => 'Addendum kerja',
+            'nilai_kontrak' => 400000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'created_by' => $creator->id,
+        ]);
+
+        $response = $this->get('/spk');
+        $response->assertStatus(200);
+
+        $page = $response->viewData('page');
+        $periodeList = decryptData($page['props']['periodeList']['encrypted'] ?? null);
+
+        $mei = collect($periodeList)->first(function (array $item) use ($tahun) {
+            return (int) ($item['tahun'] ?? 0) === (int) $tahun
+                && (int) ($item['bulan'] ?? 0) === 5;
+        });
+
+        $this->assertNotNull($mei);
+        $this->assertFalse((bool) ($mei['has_new_kegiatan_after_spk'] ?? true));
+        $this->assertFalse((bool) ($mei['has_incomplete_addendum'] ?? true));
+        $this->assertFalse((bool) ($mei['has_addendum_changes'] ?? true));
+    }
 }
