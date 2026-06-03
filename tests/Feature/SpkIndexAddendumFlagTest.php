@@ -463,7 +463,7 @@ class SpkIndexAddendumFlagTest extends TestCase
 
         $this->assertNotNull($april);
         $this->assertFalse((bool) ($april['has_new_kegiatan_after_spk'] ?? true));
-        $this->assertTrue((bool) ($april['has_addendum_changes'] ?? false));
+        $this->assertFalse((bool) ($april['has_addendum_changes'] ?? true));
     }
 
     public function test_zero_volume_or_honor_new_allocation_does_not_trigger_addendum_flags(): void
@@ -592,7 +592,11 @@ class SpkIndexAddendumFlagTest extends TestCase
         $this->assertFalse((bool) ($april['has_addendum_changes'] ?? true));
     }
 
-    public function test_perubahan_with_complete_allocation_ids_but_honor_mismatch_triggers_addendum(): void
+    /**
+     * Perubahan with meaningful change (different values from direvisi) triggers addendum.
+     * This tests the core addendum requirement: addendum is only needed when perubahan ≠ direvisi.
+     */
+    public function test_perubahan_with_meaningful_change_triggers_addendum(): void
     {
         $this->withoutMiddleware();
 
@@ -611,6 +615,27 @@ class SpkIndexAddendumFlagTest extends TestCase
             'jenis_kegiatan' => 'survei',
         ]);
 
+        // Original direvisi allocation
+        $periodeDiservisi = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'status' => 'direvisi',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $alokasiDiservisi = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeDiservisi->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 5,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 450000,
+            'total_honor_listing' => 0,
+        ]);
+
+        // Perubahan allocation with DIFFERENT honor (meaningful change)
         $periodePerubahan = PeriodeAlokasi::factory()->create([
             'kegiatan_id' => $kegiatan->id,
             'bulan' => $bulan,
@@ -619,24 +644,25 @@ class SpkIndexAddendumFlagTest extends TestCase
             'jenis_kegiatan' => 'survei',
         ]);
 
-        $alokasiPerubahan = AlokasiPetugas::factory()->create([
+        AlokasiPetugas::factory()->create([
             'periode_alokasi_id' => $periodePerubahan->id,
             'petugas_id' => $petugas->id,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
             'jumlah_satuan' => 5,
             'jumlah_satuan_listing' => 0,
-            'total_honor' => 500000,
+            'total_honor' => 500000,  // Different from direvisi (450000)
             'total_honor_listing' => 0,
         ]);
 
         $creator = User::factory()->create();
 
+        // SPK was generated with the direvisi allocation
         Spk::query()->create([
             'nomor_spk' => 'SPK/ORI/MEI/NURLENA',
             'petugas_id' => $petugas->id,
-            'alokasi_petugas_id' => $alokasiPerubahan->id,
-            'alokasi_petugas_ids' => [$alokasiPerubahan->id],
+            'alokasi_petugas_id' => $alokasiDiservisi->id,
+            'alokasi_petugas_ids' => [$alokasiDiservisi->id],
             'addendum_number' => 0,
             'nomor_urut_base' => 41,
             'tanggal_spk' => "{$tahun}-05-04",
@@ -663,7 +689,9 @@ class SpkIndexAddendumFlagTest extends TestCase
 
         $this->assertNotNull($mei);
         $this->assertFalse((bool) ($mei['has_new_kegiatan_after_spk'] ?? true));
-        $this->assertTrue((bool) ($mei['has_incomplete_addendum'] ?? false));
+        // Perubahan has different honor than direvisi → meaningful change → addendum needed
+        $this->assertTrue((bool) ($mei['has_incomplete_addendum'] ?? false),
+            'has_incomplete_addendum should be true: perubahan honor (500k) differs from direvisi (450k)');
     }
 
     public function test_index_sets_regenerate_when_generate_candidates_exist_and_no_addendum_signal(): void
@@ -988,7 +1016,12 @@ class SpkIndexAddendumFlagTest extends TestCase
         $this->assertFalse((bool) ($mei['has_addendum_changes'] ?? true), 'Re-generate Addendum should not show when addendum is up-to-date');
     }
 
-    public function test_regenerated_original_spk_with_same_kegiatan_does_not_loop_regenerate_flag(): void
+    /**
+     * Test: When original SPK includes both dikirim and perubahan allocations with DIFFERENT values,
+     * addendum should still be needed to formally document the change, even if SPK already has both allocations.
+     * The addendum button should only hide after an addendum has been created that covers the change.
+     */
+    public function test_meaningful_perubahan_in_original_spk_still_needs_addendum(): void
     {
         $this->withoutMiddleware();
 
@@ -996,7 +1029,7 @@ class SpkIndexAddendumFlagTest extends TestCase
         $bulan = '05';
 
         $petugas = Petugas::factory()->create([
-            'nama' => 'Nova Elvita Loop Guard',
+            'nama' => 'Awyujon Test',
             'jenis_petugas' => 'non-organik',
             'status' => 'aktif',
         ]);
@@ -1047,8 +1080,9 @@ class SpkIndexAddendumFlagTest extends TestCase
 
         $creator = User::factory()->create();
 
+        // SPK includes BOTH dikirim and perubahan allocations
         Spk::query()->create([
-            'nomor_spk' => 'SPK/ORI/MEI/NOVA-LOOP',
+            'nomor_spk' => 'SPK/ORI/MEI/AWYUJON',
             'petugas_id' => $petugas->id,
             'alokasi_petugas_id' => $alokasiPerubahan->id,
             'alokasi_petugas_ids' => [$alokasiDikirim->id, $alokasiPerubahan->id],
@@ -1057,7 +1091,7 @@ class SpkIndexAddendumFlagTest extends TestCase
             'tanggal_spk' => "{$tahun}-05-20",
             'tanggal_mulai_kerja' => "{$tahun}-05-01",
             'tanggal_selesai_kerja' => "{$tahun}-05-31",
-            'uraian_pekerjaan' => 'Perjanjian kerja Mei hasil regenerate',
+            'uraian_pekerjaan' => 'Perjanjian kerja Mei',
             'nilai_kontrak' => 400000,
             'nama_ppk' => 'PPK Test',
             'nip_ppk' => '198001012010011001',
@@ -1077,8 +1111,239 @@ class SpkIndexAddendumFlagTest extends TestCase
         });
 
         $this->assertNotNull($mei);
-        $this->assertFalse((bool) ($mei['has_new_kegiatan_after_spk'] ?? true), 'Re-generate PK should not loop for same-kegiatan perubahan already covered by regenerated SPK');
+        // Since perubahan (400k) ≠ dikirim (300k), there's a meaningful change.
+        // Even though SPK includes both, addendum is needed to formally document the change.
+        $this->assertFalse((bool) ($mei['has_new_kegiatan_after_spk'] ?? true), 'Re-generate PK should not show (same kegiatan)');
+        // has_incomplete_addendum = true when there's a petugas who needs addendum but doesn't have one yet
+        $this->assertTrue((bool) ($mei['has_incomplete_addendum'] ?? false), 'Should show incomplete addendum (petugas needs addendum but has none)');
+        // has_addendum_changes = only for petugas who ALREADY have addendum and need another one
+        $this->assertFalse((bool) ($mei['has_addendum_changes'] ?? true), 'No existing addendum to have changes');
+    }
+
+    public function test_zero_delta_perubahan_stays_and_does_not_trigger_any_flag(): void
+    {
+        $this->withoutMiddleware();
+
+        $tahun = ActiveYearService::get();
+        $bulan = '05';
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Zero Delta Petugas',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        Carbon::setTestNow("{$tahun}-05-04 09:00:00");
+
+        $periodeDikirim = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $alokasiDikirim = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeDikirim->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 3,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 300000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $creator = User::factory()->create();
+
+        Spk::query()->create([
+            'nomor_spk' => 'SPK/ORI/MEI/ZERO',
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasiDikirim->id,
+            'alokasi_petugas_ids' => [$alokasiDikirim->id],
+            'addendum_number' => 0,
+            'nomor_urut_base' => 401,
+            'tanggal_spk' => "{$tahun}-05-04",
+            'tanggal_mulai_kerja' => "{$tahun}-05-01",
+            'tanggal_selesai_kerja' => "{$tahun}-05-31",
+            'uraian_pekerjaan' => 'Perjanjian kerja Mei',
+            'nilai_kontrak' => 300000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'created_by' => $creator->id,
+        ]);
+
+        Carbon::setTestNow("{$tahun}-05-10 09:00:00");
+
+        $periodePerubahan = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'status' => 'perubahan',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodePerubahan->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 3,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 300000,
+            'total_honor_listing' => 0,
+        ]);
+
+        Carbon::setTestNow();
+
+        $response = $this->get('/spk');
+        $response->assertStatus(200);
+
+        $page = $response->viewData('page');
+        $periodeList = decryptData($page['props']['periodeList']['encrypted'] ?? null);
+
+        $mei = collect($periodeList)->first(function (array $item) use ($tahun) {
+            return (int) ($item['tahun'] ?? 0) === (int) $tahun
+                && (int) ($item['bulan'] ?? 0) === 5;
+        });
+
+        $this->assertNotNull($mei);
+        $this->assertFalse((bool) ($mei['has_new_kegiatan_after_spk'] ?? true));
         $this->assertFalse((bool) ($mei['has_incomplete_addendum'] ?? true));
+        $this->assertFalse((bool) ($mei['has_addendum_changes'] ?? true));
+    }
+
+    public function test_new_kegiatan_with_meaningful_perubahan_triggers_addendum_only(): void
+    {
+        $this->withoutMiddleware();
+
+        $tahun = ActiveYearService::get();
+        $bulan = '05';
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Mixed Rule Petugas',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $kegiatanAwal = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $kegiatanBaru = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        Carbon::setTestNow("{$tahun}-05-04 09:00:00");
+
+        $periodeAwal = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanAwal->id,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $alokasiAwal = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeAwal->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 3,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 300000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $creator = User::factory()->create();
+
+        Spk::query()->create([
+            'nomor_spk' => 'SPK/ORI/MEI/MIXED',
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasiAwal->id,
+            'alokasi_petugas_ids' => [$alokasiAwal->id],
+            'addendum_number' => 0,
+            'nomor_urut_base' => 402,
+            'tanggal_spk' => "{$tahun}-05-04",
+            'tanggal_mulai_kerja' => "{$tahun}-05-01",
+            'tanggal_selesai_kerja' => "{$tahun}-05-31",
+            'uraian_pekerjaan' => 'Perjanjian kerja Mei',
+            'nilai_kontrak' => 300000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'created_by' => $creator->id,
+        ]);
+
+        Carbon::setTestNow("{$tahun}-05-12 09:00:00");
+
+        $periodePerubahan = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanAwal->id,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'status' => 'perubahan',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodePerubahan->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 4,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 400000,
+            'total_honor_listing' => 0,
+        ]);
+
+        Carbon::setTestNow("{$tahun}-05-18 09:00:00");
+
+        $periodeBaru = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanBaru->id,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeBaru->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 2,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 200000,
+            'total_honor_listing' => 0,
+        ]);
+
+        Carbon::setTestNow();
+
+        $response = $this->get('/spk');
+        $response->assertStatus(200);
+
+        $page = $response->viewData('page');
+        $periodeList = decryptData($page['props']['periodeList']['encrypted'] ?? null);
+
+        $mei = collect($periodeList)->first(function (array $item) use ($tahun) {
+            return (int) ($item['tahun'] ?? 0) === (int) $tahun
+                && (int) ($item['bulan'] ?? 0) === 5;
+        });
+
+        $this->assertNotNull($mei);
+        $this->assertFalse((bool) ($mei['has_new_kegiatan_after_spk'] ?? true));
+        $this->assertTrue((bool) ($mei['has_incomplete_addendum'] ?? false));
         $this->assertFalse((bool) ($mei['has_addendum_changes'] ?? true));
     }
 }

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
+use App\Models\Penandatangan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\Spk;
@@ -369,5 +370,120 @@ class SpkMayAddendumRegressionTest extends TestCase
 
         $response->assertRedirect(route('spk.index'));
         $response->assertSessionHas('warning', 'Tidak ada petugas yang dapat dibuatkan addendum Perjanjian Kerja untuk periode tersebut.');
+    }
+
+    public function test_generate_addendum_uses_all_month_allocations_even_when_bulan_format_is_mixed(): void
+    {
+        $this->withoutMiddleware();
+
+        $tahun = ActiveYearService::get();
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Nova Elvita Mixed Month',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $kegiatanA = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+            'nama_kegiatan' => 'Kegiatan A',
+        ]);
+
+        $kegiatanB = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+            'nama_kegiatan' => 'Kegiatan B',
+        ]);
+
+        $periodeDikirim = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanA->id,
+            'bulan' => '05',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $periodePerubahan = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanB->id,
+            'bulan' => 5,
+            'tahun' => $tahun,
+            'status' => 'perubahan',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $alokasiDikirim = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeDikirim->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 3,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 300000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $alokasiPerubahan = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodePerubahan->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 2,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 132000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $creator = User::factory()->create();
+        $this->actingAs($creator);
+
+        Penandatangan::query()->create([
+            'nama' => 'PPK Test',
+            'nip' => '198001012010011001',
+            'jenis_penandatangan' => 'ppk',
+            'jabatan' => 'PPK',
+            'periode_mulai' => now()->startOfYear(),
+            'periode_selesai' => now()->endOfYear(),
+            'is_active' => true,
+        ]);
+
+        $parentSpk = Spk::query()->create([
+            'nomor_spk' => 'SPK/ORI/MEI/NOVA-MIXED',
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasiDikirim->id,
+            'alokasi_petugas_ids' => [$alokasiDikirim->id],
+            'addendum_number' => 0,
+            'nomor_urut_base' => 505,
+            'tanggal_spk' => "{$tahun}-05-04",
+            'tanggal_mulai_kerja' => "{$tahun}-05-01",
+            'tanggal_selesai_kerja' => "{$tahun}-05-31",
+            'uraian_pekerjaan' => 'Perjanjian kerja Mei',
+            'nilai_kontrak' => 300000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'created_by' => $creator->id,
+        ]);
+
+        $response = $this->post('/spk/periode/'.$periodePerubahan->hashed_id.'/petugas/'.$petugas->hashed_id.'/generate-addendum', [
+            'tanggal_spk' => "{$tahun}-06-03",
+            'sampai_tanggal' => "{$tahun}-05-31",
+            'parent_spk_id' => $parentSpk->id,
+            'addendum_number' => 1,
+        ]);
+
+        $response->assertOk()
+            ->assertJson(['success' => true]);
+
+        $generatedAddendum = Spk::query()
+            ->where('parent_spk_id', $parentSpk->id)
+            ->where('addendum_number', 1)
+            ->first();
+
+        $this->assertNotNull($generatedAddendum);
+        $this->assertSame(432000.0, (float) $generatedAddendum->nilai_kontrak);
+        $this->assertEqualsCanonicalizing([$alokasiDikirim->id, $alokasiPerubahan->id], $generatedAddendum->alokasi_petugas_ids ?? []);
     }
 }

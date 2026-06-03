@@ -2727,50 +2727,17 @@ class SpkController extends Controller
         }
 
         if ($isRegenerate) {
-            $bulanFormatted = str_pad((string) $periode->bulan, 2, '0', STR_PAD_LEFT);
+            $eligibleRegeneratePetugasIds = $this->resolveSpkActionDecisionsForMonth((int) $periode->tahun, (int) $periode->bulan)
+                ->filter(fn (array $item): bool => (bool) ($item['should_regenerate'] ?? false))
+                ->pluck('petugas_id')
+                ->map(static fn ($petugasId) => (int) $petugasId)
+                ->unique()
+                ->all();
 
-            $petugasList = $petugasList->filter(function (array $item) use ($bulanFormatted, $periode) {
+            $petugasList = $petugasList->filter(function (array $item) use ($eligibleRegeneratePetugasIds) {
                 $petugasId = (int) ($item['petugas']['id'] ?? 0);
-                if ($petugasId <= 0) {
-                    return false;
-                }
 
-                $hasSameMonthOriginalSpk = Spk::query()
-                    ->where('petugas_id', $petugasId)
-                    ->whereYear('tanggal_spk', (int) $periode->tahun)
-                    ->whereMonth('tanggal_spk', (int) $periode->bulan)
-                    ->where('addendum_number', 0)
-                    ->exists();
-
-                $hasExistingAddendum = Spk::query()
-                    ->where('petugas_id', $petugasId)
-                    ->whereYear('tanggal_spk', (int) $periode->tahun)
-                    ->whereMonth('tanggal_spk', (int) $periode->bulan)
-                    ->where('addendum_number', '>', 0)
-                    ->exists();
-
-                if ($hasExistingAddendum) {
-                    return false;
-                }
-
-                if (! $hasSameMonthOriginalSpk) {
-                    return true;
-                }
-
-                $delta = $this->analyzeAllocationDeltaForPetugas(
-                    $petugasId,
-                    $bulanFormatted,
-                    (int) $periode->tahun,
-                    'same_month_original_spk',
-                );
-
-                return $delta['is_allocation_incomplete']
-                    && (
-                        $delta['has_new_kegiatan_added']
-                        || $delta['has_allocation_change']
-                        || $delta['has_perubahan_status']
-                        || $delta['has_honor_mismatch']
-                    );
+                return in_array($petugasId, $eligibleRegeneratePetugasIds, true);
             })->values();
         }
 
@@ -3022,11 +2989,12 @@ class SpkController extends Controller
     }
 
     /**
-     * Build addendum candidate summary for a month using the same rules as createAddendum petugas_list.
+     * Build the effective addendum allocation set for a petugas in one month.
      *
-     * @return Collection<int, array{petugas_id:int,has_addendum:bool}>
+     * This uses the same month scope for preview and final generation, then reduces
+     * each kegiatan to a single effective allocation so the output stays consistent.
      */
-    private function resolveAddendumCandidatesForMonth(int $tahun, int $bulan): Collection
+    private function getEffectiveAddendumAlokasiForPetugas(int $petugasId, int $tahun, int $bulan): Collection
     {
         $bulanFormatted = str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
 
@@ -3039,169 +3007,38 @@ class SpkController extends Controller
             return collect();
         }
 
-        $petugasWithAllocation = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
-            ->whereHas('petugas', function ($q) {
+        $allAlokasi = AlokasiPetugas::query()
+            ->whereIn('periode_alokasi_id', $allPeriodeInMonth)
+            ->where('petugas_id', $petugasId)
+            ->whereHas('petugas', function ($q): void {
                 $q->where('jenis_petugas', 'non-organik');
             })
-            ->where(function ($query) {
-                $query->where('total_honor', '>', 0)
-                    ->orWhere('total_honor_listing', '>', 0);
-            })
-            ->pluck('petugas_id')
-            ->unique();
-
-        if ($petugasWithAllocation->isEmpty()) {
-            return collect();
-        }
-
-        $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
-            ->whereIn('petugas_id', $petugasWithAllocation)
-            ->with(['petugas', 'periodeAlokasi.kegiatan'])
+            ->with(['petugas', 'periodeAlokasi.kegiatan.rateHonors.satuan'])
             ->get()
             ->filter(function ($alokasi) {
-                return $alokasi->petugas && $alokasi->petugas->jenis_petugas === 'non-organik';
+                return $alokasi->getEffectiveCombinedHonor() > 0;
             });
 
         if ($allAlokasi->isEmpty()) {
             return collect();
         }
 
-        $petugasWithAddendum = Spk::where('addendum_number', '>', 0)
-            ->where(function ($q) use ($tahun, $bulan) {
-                $q->where(function ($q2) use ($tahun, $bulan) {
-                    $q2->whereYear('tanggal_spk', $tahun)
-                        ->whereMonth('tanggal_spk', $bulan);
-                })->orWhereHas('parentSpk', function ($q2) use ($tahun, $bulan) {
-                    $q2->whereYear('tanggal_spk', $tahun)
-                        ->whereMonth('tanggal_spk', $bulan);
-                });
-            })
-            ->distinct()
-            ->pluck('petugas_id')
-            ->toArray();
+        return $this->getEffectiveAlokasiByKegiatan($allAlokasi)->values();
+    }
 
-        return $allAlokasi->groupBy('petugas_id')
-            ->map(function ($alokasiGroup) use ($bulanFormatted, $tahun, $petugasWithAddendum) {
-                $firstAlokasi = $alokasiGroup->first();
-
-                if (! $firstAlokasi) {
-                    return null;
-                }
-
-                $existingSpk = Spk::where('petugas_id', $firstAlokasi->petugas_id)
-                    ->where('addendum_number', 0)
-                    ->whereYear('tanggal_spk', $tahun)
-                    ->whereMonth('tanggal_spk', (int) $bulanFormatted)
-                    ->orderBy('created_at', 'asc')
-                    ->first();
-
-                if (! $existingSpk) {
-                    return null;
-                }
-
-                // Also search addendums via parent_spk_id to handle addendums created on a different date
-                $latestDocument = Spk::where('petugas_id', $firstAlokasi->petugas_id)
-                    ->where(function ($q) use ($existingSpk, $tahun, $bulanFormatted) {
-                        $q->where(function ($q2) use ($tahun, $bulanFormatted) {
-                            $q2->whereYear('tanggal_spk', $tahun)
-                                ->whereMonth('tanggal_spk', (int) $bulanFormatted);
-                        })->orWhere('parent_spk_id', $existingSpk->id);
-                    })
-                    ->orderBy('addendum_number', 'desc')
-                    ->orderBy('created_at', 'desc')
-                    ->first();
-
-                if (! $latestDocument) {
-                    return null;
-                }
-
-                $delta = $this->analyzeAllocationDeltaForPetugas(
-                    (int) $firstAlokasi->petugas_id,
-                    $bulanFormatted,
-                    $tahun,
-                    (int) $latestDocument->addendum_number > 0 ? 'latest_addendum' : 'original_spk',
-                );
-
-                if (! (
-                    $delta['has_new_kegiatan_added']
-                    || $delta['has_allocation_change']
-                    || $delta['has_perubahan_status']
-                    || $delta['is_allocation_incomplete']
-                    || $delta['has_honor_mismatch']
-                )) {
-                    return null;
-                }
-
-                $latestSnapshot = $this->buildEffectiveAllocationSnapshotForPetugasFromDocument(
-                    (int) $firstAlokasi->petugas_id,
-                    $latestDocument,
-                    $bulanFormatted,
-                    $tahun,
-                );
-
-                $effectiveAlokasiByKegiatan = $this->getEffectiveAlokasiByKegiatan($alokasiGroup);
-
-                $currentTotalHonor = $effectiveAlokasiByKegiatan->sum(function ($alokasi) {
-                    return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
-                });
-
-                if ($currentTotalHonor <= 0) {
-                    return null;
-                }
-
-                $latestNilaiKontrak = (float) $latestDocument->nilai_kontrak;
-
-                // Compare by kegiatan_id to detect truly new kegiatan
-                // (ignores same-kegiatan re-allocation under a new perubahan period)
-                $latestKegiatanIds = array_keys($latestSnapshot);
-                $newKegiatanIds = array_values(
-                    array_diff($effectiveAlokasiByKegiatan->keys()->map(fn ($k) => (int) $k)->all(), $latestKegiatanIds)
-                );
-                $isAllocationIncomplete = ! empty($newKegiatanIds);
-
-                // Honor comparison only for existing kegiatan to avoid false mismatch from new kegiatan
-                $honorOfExistingKegiatan = (float) collect($latestKegiatanIds)->sum(function ($kegiatanId) use ($effectiveAlokasiByKegiatan) {
-                    $alokasi = $effectiveAlokasiByKegiatan->get($kegiatanId);
-
-                    return $alokasi ? (float) ($alokasi->total_honor ?? 0) + (float) ($alokasi->total_honor_listing ?? 0) : 0.0;
-                });
-                $nilaiKontrakChanged = abs($latestNilaiKontrak - $honorOfExistingKegiatan) > 0.01;
-
-                // has_perubahan_status: only true for MEANINGFUL perubahan:
-                // - Case A: new kegiatan (not in SPK) added via perubahan status
-                // - Case B: honor mismatch for existing kegiatan AND a perubahan period exists
-                // - Case C: petugas already has an addendum — any allocation change triggers another
-                $petugasHasExistingAddendum = in_array((int) $firstAlokasi->petugas_id, $petugasWithAddendum, true);
-                $hasPerubahanStatus = false;
-
-                foreach ($newKegiatanIds as $newKegiatanId) {
-                    $newAlokasi = $effectiveAlokasiByKegiatan->get($newKegiatanId);
-                    if ($newAlokasi && ($newAlokasi->periodeAlokasi->status ?? null) === 'perubahan') {
-                        $hasPerubahanStatus = true;
-                        break;
-                    }
-                }
-
-                if (! $hasPerubahanStatus && $nilaiKontrakChanged) {
-                    $hasPerubahanStatus = $effectiveAlokasiByKegiatan->contains(
-                        fn ($a) => ($a->periodeAlokasi->status ?? null) === 'perubahan'
-                    );
-                }
-
-                if (! $hasPerubahanStatus && $petugasHasExistingAddendum && ($isAllocationIncomplete || $nilaiKontrakChanged)) {
-                    $hasPerubahanStatus = true;
-                }
-
-                $needsAddendum = $hasPerubahanStatus
-                    && ($isAllocationIncomplete || $nilaiKontrakChanged);
-
-                if (! $needsAddendum) {
-                    return null;
-                }
-
+    /**
+     * Build addendum candidate summary for a month using the same rules as createAddendum petugas_list.
+     *
+     * @return Collection<int, array{petugas_id:int,has_addendum:bool}>
+     */
+    private function resolveAddendumCandidatesForMonth(int $tahun, int $bulan): Collection
+    {
+        return $this->resolveSpkActionDecisionsForMonth($tahun, $bulan)
+            ->filter(fn (array $item): bool => (bool) ($item['should_addendum'] ?? false))
+            ->map(function (array $item) {
                 return [
-                    'petugas_id' => (int) $firstAlokasi->petugas_id,
-                    'has_addendum' => $petugasHasExistingAddendum,
+                    'petugas_id' => (int) ($item['petugas_id'] ?? 0),
+                    'has_addendum' => (bool) ($item['has_addendum'] ?? false),
                 ];
             })
             ->filter()
@@ -3217,6 +3054,38 @@ class SpkController extends Controller
         $totalHonor = (float) ($alokasi->total_honor ?? 0) + (float) ($alokasi->total_honor_listing ?? 0);
 
         return $totalVolume > 0 && $totalHonor > 0;
+    }
+
+    /**
+     * Determine whether two allocation snapshots differ on any kegiatan that exists in both snapshots.
+     *
+     * New kegiatan are intentionally ignored here so they can be handled by regenerate logic.
+     *
+     * @param  array<int, array{alokasi_id:int,periode_alokasi_id:int,peran:?string,jumlah_satuan:int,jumlah_satuan_listing:int,total_honor:float,total_honor_listing:float}>  $referenceSnapshot
+     * @param  array<int, array{alokasi_id:int,periode_alokasi_id:int,peran:?string,jumlah_satuan:int,jumlah_satuan_listing:int,total_honor:float,total_honor_listing:float}>  $currentSnapshot
+     */
+    private function hasMeaningfulAllocationSnapshotDelta(array $referenceSnapshot, array $currentSnapshot): bool
+    {
+        foreach (array_intersect(array_keys($referenceSnapshot), array_keys($currentSnapshot)) as $kegiatanId) {
+            $reference = $referenceSnapshot[$kegiatanId] ?? null;
+            $current = $currentSnapshot[$kegiatanId] ?? null;
+
+            if (! $reference || ! $current) {
+                continue;
+            }
+
+            if (
+                $current['peran'] !== $reference['peran'] ||
+                $current['jumlah_satuan'] !== $reference['jumlah_satuan'] ||
+                $current['jumlah_satuan_listing'] !== $reference['jumlah_satuan_listing'] ||
+                abs($current['total_honor'] - $reference['total_honor']) > 0.01 ||
+                abs($current['total_honor_listing'] - $reference['total_honor_listing']) > 0.01
+            ) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -3259,15 +3128,7 @@ class SpkController extends Controller
             ->whereIn('status', ['dikirim', 'perubahan'])
             ->pluck('id');
 
-        // Get all alokasi for this petugas in the same month (from 'dikirim' and 'perubahan')
-        $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
-            ->where('petugas_id', $petugasId)
-            ->with(['periodeAlokasi.kegiatan.rateHonors.satuan'])
-            ->get();
-
-        $allAlokasi = $allAlokasi->filter(function ($alokasi) {
-            return $alokasi->getEffectiveCombinedHonor() > 0;
-        })->values();
+        $allAlokasi = $this->getEffectiveAddendumAlokasiForPetugas($petugasId, $tahun, (int) $bulan);
 
         // Calculate total honor (from both 'dikirim' and 'perubahan' status)
         $totalHonor = $allAlokasi->sum(function ($alokasi) {
@@ -3575,19 +3436,7 @@ class SpkController extends Controller
             $tahun = $periode->tahun;
             $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
-            $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
-                ->where('tahun', $tahun)
-                ->whereIn('status', ['dikirim', 'perubahan'])
-                ->pluck('id');
-
-            $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
-                ->where('petugas_id', $petugasId)
-                ->with(['periodeAlokasi.kegiatan.rateHonors.satuan'])
-                ->get();
-
-            $allAlokasi = $allAlokasi->filter(function ($alokasi) {
-                return $alokasi->getEffectiveCombinedHonor() > 0;
-            })->values();
+            $allAlokasi = $this->getEffectiveAddendumAlokasiForPetugas($petugasId, $tahun, (int) $bulan);
 
             $mainAlokasi = $allAlokasi->first();
 
@@ -6910,11 +6759,11 @@ class SpkController extends Controller
     }
 
     /**
-     * Resolve regenerate candidates for a month using the same filtering logic as create() regenerate petugas_list.
+     * Build shared SPK action decisions for each petugas in a month.
      *
-     * @return Collection<int, int>
+     * @return Collection<int, array{petugas_id:int,has_addendum:bool,should_regenerate:bool,should_addendum:bool}>
      */
-    private function resolveRegenerateCandidatesForMonth(int $tahun, int $bulan): Collection
+    private function resolveSpkActionDecisionsForMonth(int $tahun, int $bulan): Collection
     {
         $bulanFormatted = str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
 
@@ -6927,6 +6776,191 @@ class SpkController extends Controller
             return collect();
         }
 
+        $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
+            ->whereHas('petugas', function ($q) {
+                $q->where('jenis_petugas', 'non-organik');
+            })
+            ->where(function ($query) {
+                $query->where('total_honor', '>', 0)
+                    ->orWhere('total_honor_listing', '>', 0);
+            })
+            ->with(['petugas', 'periodeAlokasi.kegiatan'])
+            ->get()
+            ->filter(function ($alokasi) {
+                return $alokasi->petugas && $alokasi->petugas->jenis_petugas === 'non-organik';
+            });
+
+        if ($allAlokasi->isEmpty()) {
+            return collect();
+        }
+
+        return $allAlokasi->groupBy('petugas_id')
+            ->map(function (Collection $alokasiGroup) use ($tahun, $bulanFormatted) {
+                $firstAlokasi = $alokasiGroup->first();
+
+                if (! $firstAlokasi) {
+                    return null;
+                }
+
+                $petugasId = (int) $firstAlokasi->petugas_id;
+
+                $existingSpk = Spk::query()
+                    ->where('petugas_id', $petugasId)
+                    ->where('addendum_number', 0)
+                    ->whereYear('tanggal_spk', $tahun)
+                    ->whereMonth('tanggal_spk', (int) $bulanFormatted)
+                    ->orderBy('created_at', 'asc')
+                    ->first();
+
+                // Scope hasExistingAddendum to the existingSpk chain only.
+                // A petugas with multiple original SPKs in the same month (e.g. one for
+                // January allocations and another for February allocations but dated Jan-30)
+                // must not have addendums from the wrong chain counted here.
+                $hasExistingAddendum = $existingSpk
+                    ? Spk::where('parent_spk_id', $existingSpk->id)
+                        ->where('addendum_number', '>', 0)
+                        ->exists()
+                    : false;
+
+                if (! $existingSpk) {
+                    return [
+                        'petugas_id' => $petugasId,
+                        'has_addendum' => false,
+                        'should_regenerate' => true,
+                        'should_addendum' => false,
+                    ];
+                }
+
+                $delta = $this->analyzeAllocationDeltaForPetugas(
+                    $petugasId,
+                    $bulanFormatted,
+                    $tahun,
+                    'same_month_original_spk',
+                );
+
+                $shouldRegenerate = ! $hasExistingAddendum
+                    && $delta['is_allocation_incomplete']
+                    && $delta['has_new_kegiatan_added']
+                    && ! $delta['has_allocation_change'];
+
+                // Scope latestDocument to the existingSpk chain only (original + its addendums).
+                // Do NOT include other original SPKs that happen to share the same calendar month,
+                // as those may contain allocations from a different month scope.
+                $latestDocument = Spk::query()
+                    ->where('petugas_id', $petugasId)
+                    ->where(function ($q) use ($existingSpk) {
+                        $q->where('id', $existingSpk->id)
+                            ->orWhere('parent_spk_id', $existingSpk->id);
+                    })
+                    ->orderBy('addendum_number', 'desc')
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+
+                if (! $latestDocument) {
+                    return [
+                        'petugas_id' => $petugasId,
+                        'has_addendum' => $hasExistingAddendum,
+                        'should_regenerate' => $shouldRegenerate,
+                        'should_addendum' => false,
+                    ];
+                }
+
+                $latestSnapshot = $this->buildEffectiveAllocationSnapshotForPetugasFromDocument(
+                    $petugasId,
+                    $latestDocument,
+                    $bulanFormatted,
+                    $tahun,
+                );
+
+                $effectiveAlokasiByKegiatan = $this->getEffectiveAlokasiByKegiatan($alokasiGroup);
+                $currentTotalHonor = $effectiveAlokasiByKegiatan->sum(function ($alokasi) {
+                    return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
+                });
+
+                if ($currentTotalHonor <= 0) {
+                    return [
+                        'petugas_id' => $petugasId,
+                        'has_addendum' => $hasExistingAddendum,
+                        'should_regenerate' => false,
+                        'should_addendum' => false,
+                    ];
+                }
+
+                $currentSnapshot = $effectiveAlokasiByKegiatan
+                    ->mapWithKeys(function ($alokasi, $kegiatanId) {
+                        return [
+                            (int) $kegiatanId => [
+                                'alokasi_id' => (int) ($alokasi->id ?? 0),
+                                'periode_alokasi_id' => (int) ($alokasi->periode_alokasi_id ?? 0),
+                                'peran' => $alokasi?->peran,
+                                'jumlah_satuan' => (int) ($alokasi->jumlah_satuan ?? 0),
+                                'jumlah_satuan_listing' => (int) ($alokasi->jumlah_satuan_listing ?? 0),
+                                'total_honor' => (float) ($alokasi->total_honor ?? 0),
+                                'total_honor_listing' => (float) ($alokasi->total_honor_listing ?? 0),
+                            ],
+                        ];
+                    })
+                    ->all();
+
+                // Detect meaningful perubahan change by comparing perubahan vs direvisi allocations
+                // for the same kegiatan. This is more accurate than comparing document snapshots
+                // because document may already contain both direvisi and perubahan allocations.
+                $hasMeaningfulPerubahanChange = $this->detectMeaningfulPerubahanChange($alokasiGroup);
+
+                // Build current snapshot for comparison
+                $currentSnapshot = $effectiveAlokasiByKegiatan
+                    ->mapWithKeys(function ($alokasi, $kegiatanId) {
+                        return [
+                            (int) $kegiatanId => [
+                                'alokasi_id' => (int) ($alokasi->id ?? 0),
+                                'periode_alokasi_id' => (int) ($alokasi->periode_alokasi_id ?? 0),
+                                'peran' => $alokasi?->peran,
+                                'jumlah_satuan' => (int) ($alokasi->jumlah_satuan ?? 0),
+                                'jumlah_satuan_listing' => (int) ($alokasi->jumlah_satuan_listing ?? 0),
+                                'total_honor' => (float) ($alokasi->total_honor ?? 0),
+                                'total_honor_listing' => (float) ($alokasi->total_honor_listing ?? 0),
+                            ],
+                        ];
+                    })
+                    ->all();
+
+                // Check if the change is already covered by an existing ADDENDUM (not original SPK).
+                // Original SPK may incorrectly include perubahan allocations due to timing,
+                // but we still need an addendum to formally document the change.
+                // Only suppress addendum button if there's already an addendum that covers the change.
+                $isChangeAlreadyCovered = false;
+                if ($hasExistingAddendum && $latestDocument && $latestDocument->addendum_number > 0) {
+                    $documentSnapshot = $this->buildEffectiveAllocationSnapshotForPetugasFromDocument(
+                        $petugasId,
+                        $latestDocument,
+                        $bulanFormatted,
+                        $tahun,
+                    );
+
+                    // Check if snapshots match (kegiatan-wise comparison)
+                    $isChangeAlreadyCovered = $this->snapshotsMatch($documentSnapshot, $currentSnapshot);
+                }
+
+                // Addendum is only needed when there's a meaningful change in perubahan allocations
+                // AND the change is not yet covered by an existing document (addendum or regenerated SPK).
+                return [
+                    'petugas_id' => $petugasId,
+                    'has_addendum' => $hasExistingAddendum,
+                    'should_regenerate' => $shouldRegenerate,
+                    'should_addendum' => $hasMeaningfulPerubahanChange && ! $isChangeAlreadyCovered,
+                ];
+            })
+            ->filter()
+            ->values();
+    }
+
+    /**
+     * Resolve regenerate candidates for a month using the same filtering logic as create() regenerate petugas_list.
+     *
+     * @return Collection<int, int>
+     */
+    private function resolveRegenerateCandidatesForMonth(int $tahun, int $bulan): Collection
+    {
         $existingSpks = Spk::where('addendum_number', 0)
             ->whereYear('tanggal_spk', $tahun)
             ->whereMonth('tanggal_spk', $bulan)
@@ -6936,80 +6970,9 @@ class SpkController extends Controller
             return collect();
         }
 
-        $allAlokasi = AlokasiPetugas::select('alokasi_petugas.*')
-            ->whereIn('periode_alokasi_id', $allPeriodeInMonth)
-            ->whereHas('petugas', function ($q) {
-                $q->where('jenis_petugas', 'non-organik');
-            })
-            ->where(function ($query) {
-                $query->where('total_honor', '>', 0)
-                    ->orWhere('total_honor_listing', '>', 0);
-            })
-            ->with([
-                'petugas:id,nama,nik,jenis_petugas',
-                'periodeAlokasi:id,kegiatan_id,jenis_kegiatan,status',
-                'periodeAlokasi.kegiatan:id,kode_kegiatan,nama_kegiatan',
-            ])
-            ->get();
-
-        if ($allAlokasi->isEmpty()) {
-            return collect();
-        }
-
-        $petugasList = $allAlokasi->groupBy('petugas_id')
-            ->map(fn (Collection $alokasiGroup) => $this->buildGeneratePetugasListItem($alokasiGroup));
-
-        return $petugasList->filter(function (array $item) use ($bulanFormatted, $tahun, $bulan) {
-            $petugasId = (int) ($item['petugas']['id'] ?? 0);
-            if ($petugasId <= 0) {
-                return false;
-            }
-
-            $hasSameMonthOriginalSpk = Spk::query()
-                ->where('petugas_id', $petugasId)
-                ->whereYear('tanggal_spk', $tahun)
-                ->whereMonth('tanggal_spk', $bulan)
-                ->where('addendum_number', 0)
-                ->exists();
-
-            $hasExistingAddendum = Spk::query()
-                ->where('petugas_id', $petugasId)
-                ->where('addendum_number', '>', 0)
-                ->where(function ($q) use ($tahun, $bulan) {
-                    $q->where(function ($q2) use ($tahun, $bulan) {
-                        $q2->whereYear('tanggal_spk', $tahun)
-                            ->whereMonth('tanggal_spk', $bulan);
-                    })->orWhereHas('parentSpk', function ($q2) use ($tahun, $bulan) {
-                        $q2->whereYear('tanggal_spk', $tahun)
-                            ->whereMonth('tanggal_spk', $bulan);
-                    });
-                })
-                ->exists();
-
-            if ($hasExistingAddendum) {
-                return false;
-            }
-
-            if (! $hasSameMonthOriginalSpk) {
-                return true;
-            }
-
-            $delta = $this->analyzeAllocationDeltaForPetugas(
-                $petugasId,
-                $bulanFormatted,
-                $tahun,
-                'same_month_original_spk',
-            );
-
-            return $delta['is_allocation_incomplete']
-                && (
-                    $delta['has_new_kegiatan_added']
-                    || $delta['has_allocation_change']
-                    || $delta['has_perubahan_status']
-                    || $delta['has_honor_mismatch']
-                );
-        })
-            ->pluck('petugas.id')
+        return $this->resolveSpkActionDecisionsForMonth($tahun, $bulan)
+            ->filter(fn (array $item): bool => (bool) ($item['should_regenerate'] ?? false))
+            ->pluck('petugas_id')
             ->map(static fn ($petugasId) => (int) $petugasId)
             ->unique()
             ->values();
@@ -7103,68 +7066,20 @@ class SpkController extends Controller
             ];
         }
 
-        $referenceAllocationIds = collect($referenceSnapshot)
-            ->pluck('alokasi_id')
-            ->map(static fn ($alokasiId) => (int) $alokasiId)
-            ->filter(fn (int $alokasiId) => $alokasiId > 0)
-            ->sort()
-            ->values()
-            ->all();
-
-        $currentAllocationIds = collect($currentSnapshot)
-            ->pluck('alokasi_id')
-            ->map(static fn ($alokasiId) => (int) $alokasiId)
-            ->filter(fn (int $alokasiId) => $alokasiId > 0)
-            ->sort()
-            ->values()
-            ->all();
-
-        $referencePeriodeAlokasiIds = collect($referenceSnapshot)
-            ->pluck('periode_alokasi_id')
-            ->map(static fn ($periodeAlokasiId) => (int) $periodeAlokasiId)
-            ->filter(fn (int $periodeAlokasiId) => $periodeAlokasiId > 0)
-            ->sort()
-            ->values()
-            ->all();
-
-        $currentPeriodeAlokasiIds = collect($currentSnapshot)
-            ->pluck('periode_alokasi_id')
-            ->map(static fn ($periodeAlokasiId) => (int) $periodeAlokasiId)
-            ->filter(fn (int $periodeAlokasiId) => $periodeAlokasiId > 0)
-            ->sort()
-            ->values()
-            ->all();
-
-        $newAllocationIds = array_values(array_diff($currentAllocationIds, $referenceAllocationIds));
-        $removedAllocationIds = array_values(array_diff($referenceAllocationIds, $currentAllocationIds));
-
-        $newPeriodeAlokasiIds = array_values(array_diff($currentPeriodeAlokasiIds, $referencePeriodeAlokasiIds));
-
-        $hasPerubahanStatus = ! empty($newPeriodeAlokasiIds)
-            && PeriodeAlokasi::query()
-                ->whereIn('id', $newPeriodeAlokasiIds)
-                ->where('status', 'perubahan')
-                ->exists();
-
         $currentTotalHonor = collect($currentSnapshot)->sum(function (array $item): float {
             return (float) ($item['total_honor'] ?? 0) + (float) ($item['total_honor_listing'] ?? 0);
         });
         $hasHonorMismatch = abs($currentTotalHonor - (float) $referenceDocument->nilai_kontrak) > 0.01;
-        $isAllocationIncomplete = ! empty($newPeriodeAlokasiIds);
-
         $referenceKeys = array_keys($referenceSnapshot);
         $currentKeys = array_keys($currentSnapshot);
 
         $newKegiatanKeys = array_values(array_diff($currentKeys, $referenceKeys));
-        $removedKegiatanKeys = array_values(array_diff($referenceKeys, $currentKeys));
-
         $hasNewKegiatanAdded = ! empty($newKegiatanKeys);
-        $hasAllocationChange = ! empty($removedKegiatanKeys)
-            || ! empty($removedAllocationIds)
-            || ! empty($newAllocationIds);
 
-        $commonKeys = array_intersect($referenceKeys, $currentKeys);
-        foreach ($commonKeys as $kegiatanId) {
+        $hasAllocationChange = false;
+        $hasPerubahanStatus = false;
+
+        foreach (array_intersect($referenceKeys, $currentKeys) as $kegiatanId) {
             $reference = $referenceSnapshot[$kegiatanId] ?? null;
             $current = $currentSnapshot[$kegiatanId] ?? null;
 
@@ -7172,68 +7087,52 @@ class SpkController extends Controller
                 continue;
             }
 
+            $currentStatus = PeriodeAlokasi::query()
+                ->whereKey((int) ($current['periode_alokasi_id'] ?? 0))
+                ->value('status');
+
+            if ($currentStatus === 'perubahan') {
+                $hasPerubahanStatus = true;
+            }
+
             if (
-                $current['peran'] !== $reference['peran'] ||
-                $current['jumlah_satuan'] !== $reference['jumlah_satuan'] ||
-                $current['jumlah_satuan_listing'] !== $reference['jumlah_satuan_listing'] ||
-                abs($current['total_honor'] - $reference['total_honor']) > 0.01 ||
-                abs($current['total_honor_listing'] - $reference['total_honor_listing']) > 0.01
+                $current['alokasi_id'] !== $reference['alokasi_id'] &&
+                $currentStatus !== 'perubahan'
+            ) {
+                $hasNewKegiatanAdded = true;
+            }
+
+            if (
+                $currentStatus === 'perubahan' &&
+                (
+                    $current['peran'] !== $reference['peran'] ||
+                    $current['jumlah_satuan'] !== $reference['jumlah_satuan'] ||
+                    $current['jumlah_satuan_listing'] !== $reference['jumlah_satuan_listing'] ||
+                    abs($current['total_honor'] - $reference['total_honor']) > 0.01 ||
+                    abs($current['total_honor_listing'] - $reference['total_honor_listing']) > 0.01
+                )
             ) {
                 $hasAllocationChange = true;
-                break;
             }
         }
 
-        return [
-            'has_new_kegiatan_added' => $hasNewKegiatanAdded,
-            'has_allocation_change' => $hasAllocationChange,
-            'has_perubahan_status' => $hasPerubahanStatus,
-            'is_allocation_incomplete' => $isAllocationIncomplete,
-            'has_honor_mismatch' => $hasHonorMismatch,
-        ];
-
-        $hasPerubahanStatus = AlokasiPetugas::query()
-            ->where('petugas_id', $petugasId)
-            ->whereIn('id', $currentAllocationIds)
-            ->whereHas('periodeAlokasi', function ($q) {
-                $q->where('status', 'perubahan');
-            })
-            ->exists();
-
-        $currentTotalHonor = collect($currentSnapshot)->sum(function (array $item): float {
-            return (float) ($item['total_honor'] ?? 0) + (float) ($item['total_honor_listing'] ?? 0);
-        });
-        $hasHonorMismatch = abs($currentTotalHonor - (float) $referenceDocument->nilai_kontrak) > 0.01;
-        $isAllocationIncomplete = ! empty($newPeriodeAlokasiIds);
-
-        $referenceKeys = array_keys($referenceSnapshot);
-        $currentKeys = array_keys($currentSnapshot);
-
-        $newKegiatanKeys = array_values(array_diff($currentKeys, $referenceKeys));
-        $removedKegiatanKeys = array_values(array_diff($referenceKeys, $currentKeys));
-
-        $hasNewKegiatanAdded = ! empty($newKegiatanKeys);
-        $hasAllocationChange = ! empty($removedKegiatanKeys)
-            || ! empty($removedAllocationIds);
-
-        $commonKeys = array_intersect($referenceKeys, $currentKeys);
-        foreach ($commonKeys as $kegiatanId) {
-            $reference = $referenceSnapshot[$kegiatanId] ?? null;
+        foreach (array_diff($currentKeys, $referenceKeys) as $kegiatanId) {
             $current = $currentSnapshot[$kegiatanId] ?? null;
 
-            if (! $reference || ! $current) {
+            if (! $current) {
                 continue;
             }
 
-            if (
-                $current['peran'] !== $reference['peran'] ||
-                $current['jumlah_satuan'] !== $reference['jumlah_satuan'] ||
-                $current['jumlah_satuan_listing'] !== $reference['jumlah_satuan_listing'] ||
-                abs($current['total_honor'] - $reference['total_honor']) > 0.01 ||
-                abs($current['total_honor_listing'] - $reference['total_honor_listing']) > 0.01
-            ) {
-                $hasAllocationChange = true;
-                break;
+            $currentStatus = PeriodeAlokasi::query()
+                ->whereKey((int) ($current['periode_alokasi_id'] ?? 0))
+                ->value('status');
+
+            if ($currentStatus === 'perubahan') {
+                $hasPerubahanStatus = true;
+            }
+
+            if ($currentStatus !== 'perubahan') {
+                $hasNewKegiatanAdded = true;
             }
         }
 
@@ -7241,7 +7140,7 @@ class SpkController extends Controller
             'has_new_kegiatan_added' => $hasNewKegiatanAdded,
             'has_allocation_change' => $hasAllocationChange,
             'has_perubahan_status' => $hasPerubahanStatus,
-            'is_allocation_incomplete' => $isAllocationIncomplete,
+            'is_allocation_incomplete' => $hasNewKegiatanAdded,
             'has_honor_mismatch' => $hasHonorMismatch,
         ];
     }
@@ -7308,6 +7207,102 @@ class SpkController extends Controller
             ->filter()
             ->sortKeys()
             ->all();
+    }
+
+    /**
+     * Detect if there's a meaningful change between perubahan and direvisi allocations.
+     *
+     * A meaningful change means the perubahan allocation has different values
+     * (peran, jumlah_satuan, total_honor) compared to the corresponding direvisi
+     * allocation for the same kegiatan.
+     *
+     * This is more accurate than comparing document snapshots because the document
+     * may already contain both direvisi and perubahan allocations for the same kegiatan.
+     */
+    private function detectMeaningfulPerubahanChange(Collection $alokasiGroup): bool
+    {
+        // Group allocations by kegiatan_id
+        $byKegiatan = $alokasiGroup->groupBy(function ($alokasi) {
+            return $alokasi->periodeAlokasi?->kegiatan_id;
+        });
+
+        foreach ($byKegiatan as $kegiatanAlokasi) {
+            // Find perubahan allocation for this kegiatan
+            $perubahan = $kegiatanAlokasi->first(function ($alokasi) {
+                return ($alokasi->periodeAlokasi?->status ?? '') === 'perubahan';
+            });
+
+            if (! $perubahan) {
+                continue;
+            }
+
+            // Find corresponding direvisi allocation for the same kegiatan
+            $direvisi = $kegiatanAlokasi->first(function ($alokasi) {
+                return ($alokasi->periodeAlokasi?->status ?? '') === 'direvisi';
+            });
+
+            // If no direvisi exists, check disetujui or dikirim as reference
+            $reference = $direvisi
+                ?? $kegiatanAlokasi->first(fn ($a) => ($a->periodeAlokasi?->status ?? '') === 'disetujui')
+                ?? $kegiatanAlokasi->first(fn ($a) => ($a->periodeAlokasi?->status ?? '') === 'dikirim');
+
+            if (! $reference) {
+                // perubahan exists but no reference - this is a new kegiatan via perubahan
+                // which should also trigger addendum
+                continue;
+            }
+
+            // Compare perubahan vs reference (direvisi/disetujui/dikirim)
+            if (
+                $perubahan->peran !== $reference->peran ||
+                (int) ($perubahan->jumlah_satuan ?? 0) !== (int) ($reference->jumlah_satuan ?? 0) ||
+                (int) ($perubahan->jumlah_satuan_listing ?? 0) !== (int) ($reference->jumlah_satuan_listing ?? 0) ||
+                abs((float) ($perubahan->total_honor ?? 0) - (float) ($reference->total_honor ?? 0)) > 0.01 ||
+                abs((float) ($perubahan->total_honor_listing ?? 0) - (float) ($reference->total_honor_listing ?? 0)) > 0.01
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if two allocation snapshots match (have same effective values).
+     *
+     * @param  array<int, array{alokasi_id:int,periode_alokasi_id:int,peran:?string,jumlah_satuan:int,jumlah_satuan_listing:int,total_honor:float,total_honor_listing:float}>  $snapshot1
+     * @param  array<int, array{alokasi_id:int,periode_alokasi_id:int,peran:?string,jumlah_satuan:int,jumlah_satuan_listing:int,total_honor:float,total_honor_listing:float}>  $snapshot2
+     */
+    private function snapshotsMatch(array $snapshot1, array $snapshot2): bool
+    {
+        // Different kegiatan sets = not matching (compare sorted keys to ignore order)
+        $keys1 = array_keys($snapshot1);
+        $keys2 = array_keys($snapshot2);
+        sort($keys1);
+        sort($keys2);
+        if ($keys1 !== $keys2) {
+            return false;
+        }
+
+        foreach ($snapshot1 as $kegiatanId => $data1) {
+            $data2 = $snapshot2[$kegiatanId] ?? null;
+            if (! $data2) {
+                return false;
+            }
+
+            // Compare effective values (ignore alokasi_id and periode_alokasi_id which may differ)
+            if (
+                $data1['peran'] !== $data2['peran'] ||
+                $data1['jumlah_satuan'] !== $data2['jumlah_satuan'] ||
+                $data1['jumlah_satuan_listing'] !== $data2['jumlah_satuan_listing'] ||
+                abs($data1['total_honor'] - $data2['total_honor']) > 0.01 ||
+                abs($data1['total_honor_listing'] - $data2['total_honor_listing']) > 0.01
+            ) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function hasAllocationDeltaAfterReferenceForPetugas(int $petugasId, string $bulanFormatted, int $tahun, DateTimeInterface|string|null $referenceCreatedAt): bool

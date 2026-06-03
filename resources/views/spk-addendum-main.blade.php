@@ -7,7 +7,7 @@
     <style>
         @page {
             size: A4;
-            margin: 3cm 3cm 3cm 4cm;
+            margin: 0;
         }
 
         @font-face {
@@ -34,6 +34,12 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
         }
 
         body {
