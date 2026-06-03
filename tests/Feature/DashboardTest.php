@@ -215,7 +215,7 @@ class DashboardTest extends TestCase
             $honorInequalityData = collect($props['honorInequalityData']);
 
             $this->assertNotNull($honorPerPetugas);
-            $this->assertNotNull($honorPerPetugasOrganik);
+            $this->assertNull($honorPerPetugasOrganik);
             $this->assertNotNull($chartJune);
             $this->assertNotNull($monitoringJune);
             $this->assertEquals(2, $chartJune['petugas_count']);
@@ -224,9 +224,6 @@ class DashboardTest extends TestCase
             $this->assertEquals(0, $honorPerPetugas['per_bulan']['Jun']);
             $this->assertEquals(100000, $honorPerPetugas['per_bulan']['Jul']);
             $this->assertEquals(150000, $honorPerPetugas['per_bulan']['Aug']);
-            $this->assertEquals(0, $honorPerPetugasOrganik['per_bulan']['Jun']);
-            $this->assertEquals(100000, $honorPerPetugasOrganik['per_bulan']['Jul']);
-            $this->assertEquals(150000, $honorPerPetugasOrganik['per_bulan']['Aug']);
 
             $juni = $honorInequalityData->firstWhere('month', 'Jun');
             $juli = $honorInequalityData->firstWhere('month', 'Jul');

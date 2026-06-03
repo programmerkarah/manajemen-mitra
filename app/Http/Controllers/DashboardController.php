@@ -696,6 +696,7 @@ class DashboardController extends Controller
                 ->whereIn('periode_alokasi.bulan', $monthCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan'])
+                ->where('petugas.jenis_petugas', 'non-organik')
                 ->select(
                     'alokasi_petugas.petugas_id',
                     'periode_alokasi.kegiatan_id',
