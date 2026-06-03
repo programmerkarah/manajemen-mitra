@@ -2779,12 +2779,20 @@ class SpkController extends Controller
     {
         $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
 
-        // Decrypt POST payload
-        $payload = decryptData($request->input('payload'));
+        // Support both GET (encrypted query param, for browser refresh) and POST (encrypted body).
+        // Falls back to plain query params when no encrypted payload is present (e.g. direct URL access).
+        $rawPayload = $request->input('payload');
 
-        $bulan = $payload['bulan'] ?? null;
-        $tahun = $payload['tahun'] ?? null;
-        $requestedMode = $payload['mode'] ?? null;
+        if ($rawPayload) {
+            $payload = decryptData($rawPayload);
+            $bulan = $payload['bulan'] ?? null;
+            $tahun = $payload['tahun'] ?? null;
+            $requestedMode = $payload['mode'] ?? null;
+        } else {
+            $bulan = $request->query('bulan');
+            $tahun = $request->query('tahun');
+            $requestedMode = $request->query('mode');
+        }
 
         if (! $periodeId || ! $bulan || ! $tahun) {
             abort(403);

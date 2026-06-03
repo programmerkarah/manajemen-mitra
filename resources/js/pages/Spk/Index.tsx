@@ -619,17 +619,19 @@ export default function Index({
                                                                 variant="default"
                                                                 className="w-full justify-start gap-1"
                                                                 onClick={() =>
-                                                                    router.post(
+                                                                    router.visit(
                                                                         `/spk/periode/${monthData.primary_periode_hashed_id}/addendum`,
                                                                         {
-                                                                            payload:
-                                                                                encryptData(
-                                                                                    {
-                                                                                        bulan: monthData.bulan,
-                                                                                        tahun: monthData.tahun,
-                                                                                        mode: 'addendum',
-                                                                                    },
-                                                                                ),
+                                                                            data: {
+                                                                                payload:
+                                                                                    encryptData(
+                                                                                        {
+                                                                                            bulan: monthData.bulan,
+                                                                                            tahun: monthData.tahun,
+                                                                                            mode: 'addendum',
+                                                                                        },
+                                                                                    ),
+                                                                            },
                                                                         },
                                                                     )
                                                                 }
@@ -654,17 +656,19 @@ export default function Index({
                                                                 variant="default"
                                                                 className="w-full justify-start gap-1 bg-purple-600 hover:bg-purple-700"
                                                                 onClick={() =>
-                                                                    router.post(
+                                                                    router.visit(
                                                                         `/spk/periode/${monthData.primary_periode_hashed_id}/addendum`,
                                                                         {
-                                                                            payload:
-                                                                                encryptData(
-                                                                                    {
-                                                                                        bulan: monthData.bulan,
-                                                                                        tahun: monthData.tahun,
-                                                                                        mode: 'regenerate',
-                                                                                    },
-                                                                                ),
+                                                                            data: {
+                                                                                payload:
+                                                                                    encryptData(
+                                                                                        {
+                                                                                            bulan: monthData.bulan,
+                                                                                            tahun: monthData.tahun,
+                                                                                            mode: 'regenerate',
+                                                                                        },
+                                                                                    ),
+                                                                            },
                                                                         },
                                                                     )
                                                                 }
@@ -844,19 +848,21 @@ export default function Index({
                                                             size="sm"
                                                             variant="outline"
                                                             onClick={() =>
-                                                                router.post(
+                                                                router.visit(
                                                                     `/spk/periode/${periodeHashedId}/addendum`,
                                                                     {
-                                                                        payload:
-                                                                            encryptData(
-                                                                                {
-                                                                                    bulan: monthData.bulan,
-                                                                                    tahun: monthData.tahun,
-                                                                                    mode: monthData.has_addendum_changes
-                                                                                        ? 'regenerate'
-                                                                                        : 'addendum',
-                                                                                },
-                                                                            ),
+                                                                        data: {
+                                                                            payload:
+                                                                                encryptData(
+                                                                                    {
+                                                                                        bulan: monthData.bulan,
+                                                                                        tahun: monthData.tahun,
+                                                                                        mode: monthData.has_addendum_changes
+                                                                                            ? 'regenerate'
+                                                                                            : 'addendum',
+                                                                                    },
+                                                                                ),
+                                                                        },
                                                                     },
                                                                 )
                                                             }

@@ -269,15 +269,13 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                                 Generate Addendum Perjanjian Kerja
                             </h2>
                         </div>
-                        <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-1">
                             <div>
                                 <span className="font-medium">Kegiatan:</span>{' '}
                                 {periode.kegiatan.nama_kegiatan}
                             </div>
-                            <div>
-                                <span className="font-medium">Kode:</span>{' '}
-                                {periode.kegiatan.kode_kegiatan}
-                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
                             <div>
                                 <span className="font-medium">Periode:</span>{' '}
                                 {periode.bulan_label} {periode.tahun}

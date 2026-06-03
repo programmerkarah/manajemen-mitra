@@ -7,7 +7,7 @@
     <style>
         @page {
             size: A4;
-            margin: 0;
+            margin: 2cm 2.5cm 2cm 2.5cm;
         }
 
         @font-face {
