@@ -167,7 +167,7 @@ class SpkMayAddendumRegressionTest extends TestCase
         $this->assertSame('SPK/ORI/MEI/NURLENA', $petugasList->first()['existing_spk_nomor']);
     }
 
-    public function test_may_revision_after_april_spk_shows_addendum_and_populates_petugas_list(): void
+    public function test_may_revision_after_april_spk_does_not_show_addendum_without_may_original_spk(): void
     {
         $this->withoutMiddleware();
 
@@ -262,19 +262,112 @@ class SpkMayAddendumRegressionTest extends TestCase
 
         $this->assertNotNull($mei);
         $this->assertFalse((bool) ($mei['has_new_kegiatan_after_spk'] ?? true));
-        $this->assertTrue(
-            (bool) ($mei['has_incomplete_addendum'] ?? false)
-                || (bool) ($mei['has_addendum_changes'] ?? false),
-        );
+        $this->assertFalse((bool) ($mei['has_incomplete_addendum'] ?? true));
+        $this->assertFalse((bool) ($mei['has_addendum_changes'] ?? true));
 
         $addendumResponse = $this->get('/spk/periode/'.$periodeMei->hashed_id.'/addendum?bulan=5&tahun='.$tahun);
-        $addendumResponse->assertStatus(200);
-        $addendumResponse->assertInertia(fn ($page) => $page->component('Spk/Addendum'));
+        $addendumResponse->assertRedirect(route('spk.index'));
+        $addendumResponse->assertSessionHas('warning', 'Tidak ada petugas yang dapat dibuatkan addendum Perjanjian Kerja untuk periode tersebut.');
+    }
 
-        $petugasList = collect($addendumResponse->inertiaProps('petugas_list'));
+    public function test_addendum_url_redirects_when_month_has_no_eligible_petugas(): void
+    {
+        $this->withoutMiddleware();
 
-        $this->assertCount(1, $petugasList);
-        $this->assertSame('Nurlena', $petugasList->first()['petugas']['nama']);
-        $this->assertSame('SPK/ORI/APRIL/NURLENA', $petugasList->first()['existing_spk_nomor']);
+        $tahun = ActiveYearService::get();
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Nova Elvita',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $periodeDikirim = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => 5,
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $periodePerubahan = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => 5,
+            'tahun' => $tahun,
+            'status' => 'perubahan',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $alokasiDikirim = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeDikirim->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 3,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 300000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $alokasiPerubahan = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodePerubahan->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 4,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 400000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $creator = User::factory()->create();
+
+        $originalSpk = Spk::query()->create([
+            'nomor_spk' => 'SPK/ORI/MEI/NOVA-URL',
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasiDikirim->id,
+            'alokasi_petugas_ids' => [$alokasiDikirim->id],
+            'addendum_number' => 0,
+            'nomor_urut_base' => 404,
+            'tanggal_spk' => "{$tahun}-05-04",
+            'tanggal_mulai_kerja' => "{$tahun}-05-01",
+            'tanggal_selesai_kerja' => "{$tahun}-05-31",
+            'uraian_pekerjaan' => 'Perjanjian kerja Mei',
+            'nilai_kontrak' => 300000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'created_by' => $creator->id,
+        ]);
+
+        Spk::query()->create([
+            'nomor_spk' => 'SPK/ORI/MEI/NOVA-URL/ADD-1',
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasiPerubahan->id,
+            'alokasi_petugas_ids' => [$alokasiPerubahan->id],
+            'parent_spk_id' => $originalSpk->id,
+            'addendum_number' => 1,
+            'nomor_urut_base' => 404,
+            'tanggal_spk' => "{$tahun}-06-03",
+            'tanggal_mulai_kerja' => "{$tahun}-05-01",
+            'tanggal_selesai_kerja' => "{$tahun}-05-31",
+            'uraian_pekerjaan' => 'Addendum kerja Mei',
+            'nilai_kontrak' => 400000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'created_by' => $creator->id,
+        ]);
+
+        $response = $this->get('/spk/periode/'.$periodePerubahan->hashed_id.'/addendum?bulan=5&tahun='.$tahun.'&mode=addendum');
+
+        $response->assertRedirect(route('spk.index'));
+        $response->assertSessionHas('warning', 'Tidak ada petugas yang dapat dibuatkan addendum Perjanjian Kerja untuk periode tersebut.');
     }
 }
