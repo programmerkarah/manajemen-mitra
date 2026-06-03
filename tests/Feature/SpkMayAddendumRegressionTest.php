@@ -17,6 +17,156 @@ class SpkMayAddendumRegressionTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_addendum_mode_ignores_addendum_history_from_other_months(): void
+    {
+        $this->withoutMiddleware();
+
+        $tahun = ActiveYearService::get();
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Nurlena Rustam',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $creator = User::factory()->create();
+
+        Carbon::setTestNow("{$tahun}-03-03 08:00:00");
+
+        $periodeMaret = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => 3,
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $alokasiMaret = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeMaret->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 2,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 200000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $spkMaret = Spk::query()->create([
+            'nomor_spk' => 'SPK/ORI/MARET/NURLENA',
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasiMaret->id,
+            'alokasi_petugas_ids' => [$alokasiMaret->id],
+            'addendum_number' => 0,
+            'nomor_urut_base' => 21,
+            'tanggal_spk' => "{$tahun}-03-03",
+            'tanggal_mulai_kerja' => "{$tahun}-03-01",
+            'tanggal_selesai_kerja' => "{$tahun}-03-31",
+            'uraian_pekerjaan' => 'Perjanjian kerja Maret',
+            'nilai_kontrak' => 200000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'created_by' => $creator->id,
+        ]);
+
+        Spk::query()->create([
+            'nomor_spk' => 'SPK/ORI/MARET/NURLENA/ADD-1',
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasiMaret->id,
+            'alokasi_petugas_ids' => [$alokasiMaret->id],
+            'parent_spk_id' => $spkMaret->id,
+            'addendum_number' => 1,
+            'nomor_urut_base' => 21,
+            'tanggal_spk' => "{$tahun}-03-20",
+            'tanggal_mulai_kerja' => "{$tahun}-03-01",
+            'tanggal_selesai_kerja' => "{$tahun}-03-31",
+            'uraian_pekerjaan' => 'Addendum Maret',
+            'nilai_kontrak' => 240000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'created_by' => $creator->id,
+        ]);
+
+        Carbon::setTestNow("{$tahun}-05-04 09:00:00");
+
+        $periodeMeiDikirim = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => 5,
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $alokasiMeiDikirim = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeMeiDikirim->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 3,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 300000,
+            'total_honor_listing' => 0,
+        ]);
+
+        Spk::query()->create([
+            'nomor_spk' => 'SPK/ORI/MEI/NURLENA',
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasiMeiDikirim->id,
+            'alokasi_petugas_ids' => [$alokasiMeiDikirim->id],
+            'addendum_number' => 0,
+            'nomor_urut_base' => 31,
+            'tanggal_spk' => "{$tahun}-05-04",
+            'tanggal_mulai_kerja' => "{$tahun}-05-01",
+            'tanggal_selesai_kerja' => "{$tahun}-05-31",
+            'uraian_pekerjaan' => 'Perjanjian kerja Mei',
+            'nilai_kontrak' => 300000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'created_by' => $creator->id,
+        ]);
+
+        $periodeMeiPerubahan = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => 5,
+            'tahun' => $tahun,
+            'status' => 'perubahan',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeMeiPerubahan->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 4,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 400000,
+            'total_honor_listing' => 0,
+        ]);
+
+        Carbon::setTestNow();
+
+        $response = $this->get('/spk/periode/'.$periodeMeiPerubahan->hashed_id.'/addendum?bulan=5&tahun='.$tahun.'&mode=addendum');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page->component('Spk/Addendum'));
+
+        $petugasList = collect($response->inertiaProps('petugas_list'));
+
+        $this->assertCount(1, $petugasList);
+        $this->assertSame('Nurlena Rustam', $petugasList->first()['petugas']['nama']);
+        $this->assertSame('SPK/ORI/MEI/NURLENA', $petugasList->first()['existing_spk_nomor']);
+    }
+
     public function test_may_revision_after_april_spk_shows_addendum_and_populates_petugas_list(): void
     {
         $this->withoutMiddleware();
