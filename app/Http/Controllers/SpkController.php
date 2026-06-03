@@ -2726,45 +2726,42 @@ class SpkController extends Controller
             $usesSuffixForNewPetugas = $nextNumberUsedElsewhere;
         }
 
-        $existingAlokasiIds = collect();
         if ($isRegenerate) {
-            $existingAlokasiIds = $existingSpks
-                ->flatMap(function (Spk $spk): array {
-                    $baselineAlokasiIds = $spk->alokasi_petugas_ids ?? [];
-
-                    if (empty($baselineAlokasiIds)) {
-                        $baselineAlokasiIds = [$spk->alokasi_petugas_id];
-                    }
-
-                    return array_map('intval', $baselineAlokasiIds);
-                })
-                ->unique()
-                ->values();
-        }
-
-        if ($existingAlokasiIds->isNotEmpty()) {
             $bulanFormatted = str_pad((string) $periode->bulan, 2, '0', STR_PAD_LEFT);
 
-            $petugasList = $petugasList->filter(function (array $item) use ($existingAlokasiIds, $bulanFormatted, $periode) {
-                $alokasiIds = collect($item['alokasi_ids'] ?? [$item['alokasi_id']])
-                    ->map(fn ($id) => (int) $id)
-                    ->values();
-
-                $isAllocationIncomplete = $alokasiIds->diff($existingAlokasiIds)->isNotEmpty();
-                if (! $isAllocationIncomplete) {
-                    return false;
-                }
-
+            $petugasList = $petugasList->filter(function (array $item) use ($bulanFormatted, $periode) {
                 $petugasId = (int) ($item['petugas']['id'] ?? 0);
                 if ($petugasId <= 0) {
                     return false;
+                }
+
+                $hasSameMonthOriginalSpk = Spk::query()
+                    ->where('petugas_id', $petugasId)
+                    ->whereYear('tanggal_spk', (int) $periode->tahun)
+                    ->whereMonth('tanggal_spk', (int) $periode->bulan)
+                    ->where('addendum_number', 0)
+                    ->exists();
+
+                $hasExistingAddendum = Spk::query()
+                    ->where('petugas_id', $petugasId)
+                    ->whereYear('tanggal_spk', (int) $periode->tahun)
+                    ->whereMonth('tanggal_spk', (int) $periode->bulan)
+                    ->where('addendum_number', '>', 0)
+                    ->exists();
+
+                if ($hasExistingAddendum) {
+                    return false;
+                }
+
+                if (! $hasSameMonthOriginalSpk) {
+                    return true;
                 }
 
                 $delta = $this->analyzeAllocationDeltaForPetugas(
                     $petugasId,
                     $bulanFormatted,
                     (int) $periode->tahun,
-                    'original_spk',
+                    'same_month_original_spk',
                 );
 
                 return $delta['is_allocation_incomplete']
@@ -7018,23 +7015,6 @@ class SpkController extends Controller
             return collect();
         }
 
-        $existingAlokasiIds = $existingSpks
-            ->flatMap(function (Spk $spk): array {
-                $baselineAlokasiIds = $spk->alokasi_petugas_ids ?? [];
-
-                if (empty($baselineAlokasiIds)) {
-                    $baselineAlokasiIds = [$spk->alokasi_petugas_id];
-                }
-
-                return array_map('intval', $baselineAlokasiIds);
-            })
-            ->unique()
-            ->values();
-
-        if ($existingAlokasiIds->isEmpty()) {
-            return collect();
-        }
-
         $allAlokasi = AlokasiPetugas::select('alokasi_petugas.*')
             ->whereIn('periode_alokasi_id', $allPeriodeInMonth)
             ->whereHas('petugas', function ($q) {
@@ -7058,26 +7038,39 @@ class SpkController extends Controller
         $petugasList = $allAlokasi->groupBy('petugas_id')
             ->map(fn (Collection $alokasiGroup) => $this->buildGeneratePetugasListItem($alokasiGroup));
 
-        return $petugasList->filter(function (array $item) use ($existingAlokasiIds, $bulanFormatted, $tahun) {
-            $alokasiIds = collect($item['alokasi_ids'] ?? [$item['alokasi_id']])
-                ->map(fn ($id) => (int) $id)
-                ->values();
-
-            $isAllocationIncomplete = $alokasiIds->diff($existingAlokasiIds)->isNotEmpty();
-            if (! $isAllocationIncomplete) {
-                return false;
-            }
-
+        return $petugasList->filter(function (array $item) use ($bulanFormatted, $tahun, $bulan) {
             $petugasId = (int) ($item['petugas']['id'] ?? 0);
             if ($petugasId <= 0) {
                 return false;
+            }
+
+            $hasSameMonthOriginalSpk = Spk::query()
+                ->where('petugas_id', $petugasId)
+                ->whereYear('tanggal_spk', $tahun)
+                ->whereMonth('tanggal_spk', $bulan)
+                ->where('addendum_number', 0)
+                ->exists();
+
+            $hasExistingAddendum = Spk::query()
+                ->where('petugas_id', $petugasId)
+                ->whereYear('tanggal_spk', $tahun)
+                ->whereMonth('tanggal_spk', $bulan)
+                ->where('addendum_number', '>', 0)
+                ->exists();
+
+            if ($hasExistingAddendum) {
+                return false;
+            }
+
+            if (! $hasSameMonthOriginalSpk) {
+                return true;
             }
 
             $delta = $this->analyzeAllocationDeltaForPetugas(
                 $petugasId,
                 $bulanFormatted,
                 $tahun,
-                'original_spk',
+                'same_month_original_spk',
             );
 
             return $delta['is_allocation_incomplete']
@@ -7117,6 +7110,11 @@ class SpkController extends Controller
                 ->where('addendum_number', '>', 0)
                 ->orderBy('addendum_number', 'desc')
                 ->orderBy('created_at', 'desc')
+                ->first();
+        } elseif ($referenceType === 'same_month_original_spk') {
+            $referenceDocument = (clone $baseQuery)
+                ->where('addendum_number', 0)
+                ->orderBy('created_at', 'asc')
                 ->first();
         } else {
             // Original SPK is NOT month-scoped: cross-month revisions reference a prior month's SPK.
