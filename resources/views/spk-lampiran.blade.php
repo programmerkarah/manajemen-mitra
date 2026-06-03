@@ -207,7 +207,7 @@
             @endforeach
             <tr>
                 <!-- <td colspan="2" class="table-footer"><strong>TOTAL NILAI PERJANJIAN</strong></td> -->
-                <td colspan="5" class="table-footer" style="text-align: center;"><strong>Terbilang: {{ terbilang($totalHonor) }} rupiah</strong></td>
+                <td colspan="5" class="table-footer" style="text-align: center;"><em>Terbilang: {{ terbilang($totalHonor) }} rupiah</em></td>
                 <td colspan="2" class ="table-footer" style="text-align: right;"><strong>Rp {{ number_format($totalHonor, 0, ',', '.') }}</strong></td>
                 <td></td>
             </tr>

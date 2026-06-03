@@ -56,7 +56,7 @@ class SpkController extends Controller
         $query = PeriodeAlokasi::query()
             ->with([
                 'kegiatan:id,kode_kegiatan,nama_kegiatan,jenis_kegiatan,tahun_anggaran',
-                'alokasiPetugas:id,periode_alokasi_id,petugas_id,total_honor,total_honor_listing',
+                'alokasiPetugas:id,periode_alokasi_id,petugas_id,total_honor,total_honor_listing,is_partial_payment,estimasi_honor_partial,is_partial_payment_listing,estimasi_honor_partial_listing',
                 'alokasiPetugas.petugas:id,nama,nik,jenis_petugas',
                 'spk:spk.id,alokasi_petugas_id,addendum_number,regeneration_count,spk.created_at',
             ])
@@ -132,10 +132,10 @@ class SpkController extends Controller
                         return $kegiatanAlokasi->first(fn ($a) => $a->periodeAlokasi->status === 'dikirim');
                     })->filter();
 
-                    // Only include petugas if they have positive honor
-                    $hasPositiveHonor = $effectiveAlokasi->contains(function ($alokasi) {
-                        return ($alokasi->total_honor ?? 0) > 0 || ($alokasi->total_honor_listing ?? 0) > 0;
-                    });
+                    // Only include petugas if they have positive effective honor (respects partial payment)
+                    $hasPositiveHonor = $effectiveAlokasi->contains(
+                        fn ($alokasi) => $this->hasPositiveEffectiveHonor($alokasi)
+                    );
 
                     return $hasPositiveHonor ? [$effectiveAlokasi->first()->petugas_id] : [];
                 })
@@ -182,8 +182,8 @@ class SpkController extends Controller
                     });
                 })
                 ->filter(function ($alokasi) {
-                    // Only include allocations with positive honor
-                    return ($alokasi->total_honor ?? 0) > 0 || ($alokasi->total_honor_listing ?? 0) > 0;
+                    // Only include allocations with positive effective honor (respects partial payment)
+                    return $this->hasPositiveEffectiveHonor($alokasi);
                 })
                 ->groupBy(function ($alokasi) {
                     return $alokasi->periodeAlokasi->kegiatan_id;
@@ -2626,7 +2626,7 @@ class SpkController extends Controller
         $hasDraftPeriode = $this->hasDraftPeriodeInSpkScope($periode);
 
         // Get all unique non-organik petugas from the SPK scope.
-        // Only include alokasi with total_honor > 0 (either pencacahan or listing)
+        // Only include alokasi with effective honor > 0 (respects partial payment)
         $allAlokasi = AlokasiPetugas::select('alokasi_petugas.*')
             ->whereIn('periode_alokasi_id', $scopePeriodeIds)
             ->whereHas('petugas', function ($q) {
@@ -2634,14 +2634,17 @@ class SpkController extends Controller
             })
             ->where(function ($query) {
                 $query->where('total_honor', '>', 0)
-                    ->orWhere('total_honor_listing', '>', 0);
+                    ->orWhere('total_honor_listing', '>', 0)
+                    ->orWhere('estimasi_honor_partial', '>', 0)
+                    ->orWhere('estimasi_honor_partial_listing', '>', 0);
             })
             ->with([
                 'petugas:id,nama,nik,jenis_petugas',
                 'periodeAlokasi:id,kegiatan_id,jenis_kegiatan,status',
                 'periodeAlokasi.kegiatan:id,kode_kegiatan,nama_kegiatan',
             ])
-            ->get();
+            ->get()
+            ->filter(fn (AlokasiPetugas $alokasi) => $this->hasPositiveEffectiveHonor($alokasi));
 
         // Group by petugas_id and aggregate their data
         $petugasList = $allAlokasi->groupBy('petugas_id')
@@ -4124,12 +4127,9 @@ class SpkController extends Controller
         string $nomorSpk,
         string $tanggalSpk,
     ): ?string {
+        $scopePeriodeIds = $this->resolveSpkScopePeriodeIds($periode, ['dikirim', 'perubahan']);
         $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
-            ->whereHas('periodeAlokasi', function ($q) use ($periode): void {
-                $q->where('bulan', $periode->bulan)
-                    ->where('tahun', $periode->tahun)
-                    ->whereIn('status', ['dikirim', 'perubahan']);
-            })
+            ->whereIn('periode_alokasi_id', $scopePeriodeIds)
             ->where('petugas_id', $petugasId)
             ->get();
 
@@ -4230,12 +4230,9 @@ class SpkController extends Controller
         string $nomorSpk,
         string $tanggalSpk,
     ): ?string {
+        $scopePeriodeIds = $this->resolveSpkScopePeriodeIds($periode, ['dikirim', 'perubahan']);
         $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
-            ->whereHas('periodeAlokasi', function ($q) use ($periode): void {
-                $q->where('bulan', $periode->bulan)
-                    ->where('tahun', $periode->tahun)
-                    ->whereIn('status', ['dikirim', 'perubahan']);
-            })
+            ->whereIn('periode_alokasi_id', $scopePeriodeIds)
             ->where('petugas_id', $petugasId)
             ->get();
 
@@ -4756,15 +4753,12 @@ class SpkController extends Controller
         ]);
 
         $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
+        $scopePeriodeIds = $this->resolveSpkScopePeriodeIds($periode, ['dikirim', 'perubahan']);
 
         // Get all alokasi for this petugas in the same month
         // For regular SPK (non-addendum): use effective status 'dikirim' and 'perubahan'
         $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
-            ->whereHas('periodeAlokasi', function ($q) use ($periode) {
-                $q->where('bulan', $periode->bulan)
-                    ->where('tahun', $periode->tahun)
-                    ->whereIn('status', ['dikirim', 'perubahan']);
-            })
+            ->whereIn('periode_alokasi_id', $scopePeriodeIds)
             ->where('petugas_id', $petugasId)
             ->get();
 
@@ -4810,11 +4804,7 @@ class SpkController extends Controller
         // Get all alokasi for this petugas in the same month
         // For regular SPK (non-addendum): use effective status 'dikirim' and 'perubahan'
         $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
-            ->whereHas('periodeAlokasi', function ($q) use ($periode) {
-                $q->where('bulan', $periode->bulan)
-                    ->where('tahun', $periode->tahun)
-                    ->whereIn('status', ['dikirim', 'perubahan']);
-            })
+            ->whereIn('periode_alokasi_id', $scopePeriodeIds)
             ->where('petugas_id', $petugasId)
             ->get();
 
@@ -4919,15 +4909,12 @@ class SpkController extends Controller
         ]);
 
         $periode = PeriodeAlokasi::with(['kegiatan', 'alokasiPetugas.petugas'])->findOrFail($periodeId);
+        $scopePeriodeIds = $this->resolveSpkScopePeriodeIds($periode, ['dikirim', 'perubahan']);
 
         // Get all alokasi for this petugas in the same month
         // For regular SPK (non-addendum): use effective status 'dikirim' and 'perubahan'
         $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
-            ->whereHas('periodeAlokasi', function ($q) use ($periode) {
-                $q->where('bulan', $periode->bulan)
-                    ->where('tahun', $periode->tahun)
-                    ->whereIn('status', ['dikirim', 'perubahan']);
-            })
+            ->whereIn('periode_alokasi_id', $scopePeriodeIds)
             ->where('petugas_id', $petugasId)
             ->get();
 
@@ -4970,12 +4957,9 @@ class SpkController extends Controller
 
         // Get all alokasi for this petugas in the same month
         // For regular SPK (non-addendum): use 'dikirim' and 'direvisi' status
+        $scopePeriodeIdsRevisi = $this->resolveSpkScopePeriodeIds($periode, ['dikirim', 'direvisi']);
         $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
-            ->whereHas('periodeAlokasi', function ($q) use ($periode) {
-                $q->where('bulan', $periode->bulan)
-                    ->where('tahun', $periode->tahun)
-                    ->whereIn('status', ['dikirim', 'direvisi']);
-            })
+            ->whereIn('periode_alokasi_id', $scopePeriodeIdsRevisi)
             ->where('petugas_id', $petugasId)
             ->get();
 
@@ -5094,13 +5078,10 @@ class SpkController extends Controller
         $nextNomorUrut = $this->getNextNomorUrutForPeriode($periode);
         $nomorSpk = $this->formatNomorSpkForPeriode($periode, $nextNomorUrut);
 
-        // Get all alokasi for this petugas in the same month
+        // Get all alokasi for this petugas in the same month (excluding Sensus Ekonomi in regular flow)
+        $scopePeriodeIds = $this->resolveSpkScopePeriodeIds($periode, ['dikirim', 'disetujui', 'perubahan']);
         $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
-            ->whereHas('periodeAlokasi', function ($q) use ($periode) {
-                $q->where('bulan', $periode->bulan)
-                    ->where('tahun', $periode->tahun)
-                    ->whereIn('status', ['dikirim', 'disetujui', 'perubahan']);
-            })
+            ->whereIn('periode_alokasi_id', $scopePeriodeIds)
             ->where('petugas_id', $petugasId)
             ->get();
 
@@ -5320,7 +5301,7 @@ class SpkController extends Controller
         $firstAlokasi = $alokasiGroup->first();
 
         $totalHonor = $alokasiGroup->sum(function (AlokasiPetugas $alokasi) {
-            return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
+            return $alokasi->getEffectiveCombinedHonor();
         });
 
         $kegiatanList = $alokasiGroup->map(function (AlokasiPetugas $alokasi): array {
@@ -5352,6 +5333,11 @@ class SpkController extends Controller
             'kegiatan_list' => $kegiatanList,
             'total_honor' => $totalHonor,
         ];
+    }
+
+    private function hasPositiveEffectiveHonor(AlokasiPetugas $alokasi): bool
+    {
+        return $alokasi->getEffectiveCombinedHonor() > 0;
     }
 
     /**
@@ -5450,7 +5436,8 @@ class SpkController extends Controller
             $query->whereKey($periode->id);
         } else {
             $query->whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
-                ->where('tahun', $periode->tahun);
+                ->where('tahun', $periode->tahun)
+                ->whereHas('kegiatan', fn ($q) => $q->where('jenis_kegiatan', '!=', 'sensus'));
         }
 
         if ($statuses !== []) {
@@ -5471,6 +5458,7 @@ class SpkController extends Controller
         return PeriodeAlokasi::whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
             ->where('tahun', $periode->tahun)
             ->where('status', 'draft')
+            ->whereHas('kegiatan', fn ($q) => $q->where('jenis_kegiatan', '!=', 'sensus'))
             ->exists();
     }
 
@@ -6782,6 +6770,7 @@ class SpkController extends Controller
         $allPeriodeInMonth = PeriodeAlokasi::whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
             ->where('tahun', $tahun)
             ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+            ->whereHas('kegiatan', fn ($q) => $q->where('jenis_kegiatan', '!=', 'sensus'))
             ->pluck('id');
 
         if ($allPeriodeInMonth->isEmpty()) {
@@ -7383,7 +7372,8 @@ class SpkController extends Controller
             ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun, $upToCreatedAt) {
                 $q->whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
                     ->where('tahun', $tahun)
-                    ->whereIn('status', ['dikirim', 'disetujui', 'perubahan']);
+                    ->whereIn('status', ['dikirim', 'disetujui', 'perubahan'])
+                    ->whereHas('kegiatan', fn ($qq) => $qq->where('jenis_kegiatan', '!=', 'sensus'));
 
                 // When checking reference state, only get allocations that existed before
                 if ($upToCreatedAt) {
