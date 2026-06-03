@@ -42,7 +42,7 @@
             line-height: 1.15;
             letter-spacing: -0.02em;
             color: #000;
-            margin: 0;
+            margin: 1.5cm 2.5cm 1.5cm 2.5cm;
         }
 
         .header {

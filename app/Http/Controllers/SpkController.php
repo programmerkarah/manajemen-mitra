@@ -3158,8 +3158,15 @@ class SpkController extends Controller
         }
 
         $petugasWithAddendum = Spk::where('addendum_number', '>', 0)
-            ->whereYear('tanggal_spk', $tahun)
-            ->whereMonth('tanggal_spk', $bulan)
+            ->where(function ($q) use ($tahun, $bulan) {
+                $q->where(function ($q2) use ($tahun, $bulan) {
+                    $q2->whereYear('tanggal_spk', $tahun)
+                        ->whereMonth('tanggal_spk', $bulan);
+                })->orWhereHas('parentSpk', function ($q2) use ($tahun, $bulan) {
+                    $q2->whereYear('tanggal_spk', $tahun)
+                        ->whereMonth('tanggal_spk', $bulan);
+                });
+            })
             ->distinct()
             ->pluck('petugas_id')
             ->toArray();
@@ -3183,9 +3190,14 @@ class SpkController extends Controller
                     return null;
                 }
 
+                // Also search addendums via parent_spk_id to handle addendums created on a different date
                 $latestDocument = Spk::where('petugas_id', $firstAlokasi->petugas_id)
-                    ->whereYear('tanggal_spk', $tahun)
-                    ->whereMonth('tanggal_spk', (int) $bulanFormatted)
+                    ->where(function ($q) use ($existingSpk, $tahun, $bulanFormatted) {
+                        $q->where(function ($q2) use ($tahun, $bulanFormatted) {
+                            $q2->whereYear('tanggal_spk', $tahun)
+                                ->whereMonth('tanggal_spk', (int) $bulanFormatted);
+                        })->orWhere('parent_spk_id', $existingSpk->id);
+                    })
                     ->orderBy('addendum_number', 'desc')
                     ->orderBy('created_at', 'desc')
                     ->first();
@@ -3198,7 +3210,7 @@ class SpkController extends Controller
                     (int) $firstAlokasi->petugas_id,
                     $bulanFormatted,
                     $tahun,
-                    'original_spk',
+                    (int) $latestDocument->addendum_number > 0 ? 'latest_addendum' : 'original_spk',
                 );
 
                 if (! (
@@ -7053,9 +7065,16 @@ class SpkController extends Controller
 
             $hasExistingAddendum = Spk::query()
                 ->where('petugas_id', $petugasId)
-                ->whereYear('tanggal_spk', $tahun)
-                ->whereMonth('tanggal_spk', $bulan)
                 ->where('addendum_number', '>', 0)
+                ->where(function ($q) use ($tahun, $bulan) {
+                    $q->where(function ($q2) use ($tahun, $bulan) {
+                        $q2->whereYear('tanggal_spk', $tahun)
+                            ->whereMonth('tanggal_spk', $bulan);
+                    })->orWhereHas('parentSpk', function ($q2) use ($tahun, $bulan) {
+                        $q2->whereYear('tanggal_spk', $tahun)
+                            ->whereMonth('tanggal_spk', $bulan);
+                    });
+                })
                 ->exists();
 
             if ($hasExistingAddendum) {
@@ -7105,9 +7124,25 @@ class SpkController extends Controller
             ->whereMonth('tanggal_spk', (int) $bulanFormatted);
 
         if ($referenceType === 'latest_addendum') {
-            // Latest addendum must be in this month
-            $referenceDocument = (clone $baseQuery)
+            // Find original SPK for this month first, then find latest addendum via parent_spk_id.
+            // This correctly handles addendums whose tanggal_spk is outside the contract month.
+            $originalSpkForMonth = (clone $baseQuery)
+                ->where('addendum_number', 0)
+                ->orderBy('created_at', 'asc')
+                ->first();
+
+            $referenceDocument = Spk::query()
+                ->where('petugas_id', $petugasId)
                 ->where('addendum_number', '>', 0)
+                ->where(function ($q) use ($originalSpkForMonth, $tahun, $bulanFormatted) {
+                    $q->where(function ($q2) use ($tahun, $bulanFormatted) {
+                        $q2->whereYear('tanggal_spk', $tahun)
+                            ->whereMonth('tanggal_spk', (int) $bulanFormatted);
+                    });
+                    if ($originalSpkForMonth) {
+                        $q->orWhere('parent_spk_id', $originalSpkForMonth->id);
+                    }
+                })
                 ->orderBy('addendum_number', 'desc')
                 ->orderBy('created_at', 'desc')
                 ->first();
