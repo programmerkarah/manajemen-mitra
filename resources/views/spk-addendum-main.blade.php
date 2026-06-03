@@ -204,7 +204,7 @@
         }
 
         .signature-name-wrap {
-            margin-top: 48px;
+            margin-top: 80px;
             margin-bottom: 0;
         }
 
