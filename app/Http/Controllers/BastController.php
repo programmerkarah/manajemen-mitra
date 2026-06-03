@@ -3682,7 +3682,7 @@ class BastController extends Controller
         Collection $allSpks,
         string $nomorBast,
         DateTimeInterface|string $tanggalBerakhir,
-        Penandatangan $ppk,
+        object $ppk,
         ?array $seInput = null,
         ?bool $isSensusEkonomi = null
     ): array {
