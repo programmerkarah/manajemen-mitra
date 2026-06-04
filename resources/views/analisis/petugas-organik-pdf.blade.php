@@ -109,6 +109,37 @@
     </div>
 
     <div class="table-section">
+        <h2>Ringkasan Indikator Kinerja Pegawai</h2>
+        @php
+            $performanceCounts = collect($bebanKerjaDetail)->groupBy('performance_status');
+            $performanceSummary = [
+                ['status' => 'overload',          'label' => 'Overload (> 3 kegiatan/bulan)',       'color' => '#dc2626'],
+                ['status' => 'optimal',           'label' => 'Optimal (1–3 kegiatan/bulan)',        'color' => '#16a34a'],
+                ['status' => 'normal',            'label' => 'Normal (= 1 kegiatan/bulan)',         'color' => '#2563eb'],
+                ['status' => 'under_performance', 'label' => 'Under Performance (< 1 kegiatan/bln)','color' => '#d97706'],
+            ];
+        @endphp
+        <table class="striped" style="width:340px">
+            <thead>
+                <tr>
+                    <th>Indikator</th>
+                    <th style="width:100px">Jumlah Pegawai</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($performanceSummary as $perf)
+                    <tr>
+                        <td style="color:{{ $perf['color'] }};font-weight:600">{{ $perf['label'] }}</td>
+                        <td class="text-center" style="font-weight:600;color:{{ $perf['color'] }}">
+                            {{ $performanceCounts->get($perf['status'], collect())->count() }}
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+
+    <div class="table-section">
         <h2>Ringkasan Tabel Beban Kerja</h2>
         <table class="panel-grid">
             <tbody>

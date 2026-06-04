@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import { Check, Copy, Download, X } from 'lucide-react';
+import { AlertCircle, Check, Copy, Download, Users, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
     CartesianGrid,
@@ -15,7 +15,9 @@ import {
     LineChart,
     Pie,
     PieChart,
+    PieSectorShapeProps,
     ResponsiveContainer,
+    Sector,
     XAxis,
     YAxis,
 } from 'recharts';
@@ -310,6 +312,82 @@ interface Props {
     currentYear: number;
 }
 
+const RADIAN = Math.PI / 180;
+
+function renderActivePieShape(
+    props: PieSectorShapeProps,
+    clickedIndex?: number,
+) {
+    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } =
+        props;
+    if (props.index !== clickedIndex) {
+        return (
+            <Sector
+                cx={cx}
+                cy={cy}
+                innerRadius={innerRadius}
+                outerRadius={outerRadius}
+                startAngle={startAngle}
+                endAngle={endAngle}
+                fill={fill}
+                stroke="none"
+            />
+        );
+    }
+    const { name, value, percent } = props;
+    const midAngle = (startAngle + endAngle) / 2;
+    const sin = Math.sin(-RADIAN * midAngle);
+    const cos = Math.cos(-RADIAN * midAngle);
+    const expandedOuter = outerRadius + 8;
+    const sx = cx + (expandedOuter + 2) * cos;
+    const sy = cy + (expandedOuter + 2) * sin;
+    const mx = cx + (expandedOuter + 20) * cos;
+    const my = cy + (expandedOuter + 20) * sin;
+    const ex = mx + (cos >= 0 ? 1 : -1) * 18;
+    const ey = my;
+    const anchor = cos >= 0 ? 'start' : 'end';
+    return (
+        <g>
+            <Sector
+                cx={cx}
+                cy={cy}
+                innerRadius={innerRadius}
+                outerRadius={expandedOuter}
+                startAngle={startAngle}
+                endAngle={endAngle}
+                fill={fill}
+                stroke="none"
+            />
+            <path
+                d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`}
+                stroke={fill}
+                fill="none"
+                strokeWidth={1.5}
+            />
+            <circle cx={ex} cy={ey} r={3} fill={fill} />
+            <text
+                x={ex + (cos >= 0 ? 6 : -6)}
+                y={ey - 3}
+                textAnchor={anchor}
+                fill={fill}
+                fontSize={11}
+                fontWeight={600}
+            >
+                {name}
+            </text>
+            <text
+                x={ex + (cos >= 0 ? 6 : -6)}
+                y={ey + 11}
+                textAnchor={anchor}
+                fill="#9ca3af"
+                fontSize={10}
+            >
+                {value} ({(percent * 100).toFixed(1)}%)
+            </text>
+        </g>
+    );
+}
+
 export default function AnalisisPetugas({
     distribusiJenisKelamin,
     distribusiKecamatan,
@@ -327,6 +405,21 @@ export default function AnalisisPetugas({
     totalPetugas,
     currentYear,
 }: Props) {
+    const [activePieJenisKelaminIndex, setActivePieJenisKelaminIndex] =
+        useState<number | undefined>(undefined);
+    const [activePieUsiaIndex, setActivePieUsiaIndex] = useState<
+        number | undefined
+    >(undefined);
+    const [activePieKecamatanIndex, setActivePieKecamatanIndex] = useState<
+        number | undefined
+    >(undefined);
+    const [activePieDesaIndex, setActivePieDesaIndex] = useState<
+        number | undefined
+    >(undefined);
+    const [activePiePendidikanIndex, setActivePiePendidikanIndex] = useState<
+        number | undefined
+    >(undefined);
+
     const [kegiatanFilter, setKegiatanFilter] = useState<string>('');
     const [searchPetugas, setSearchPetugas] = useState('');
     const [selectedPetugasIds, setSelectedPetugasIds] = useState<string[]>([]);
@@ -714,6 +807,107 @@ export default function AnalisisPetugas({
                     </button>
                 </div>
 
+                {/* KPI Cards */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {(
+                        [
+                            {
+                                label: 'Total Petugas Aktif',
+                                value: totalPetugas,
+                                sub: 'Petugas non-organik aktif',
+                                subColor:
+                                    'text-neutral-500 dark:text-neutral-400',
+                                barPct: 100,
+                                barColor: '#3b82f6',
+                                icon: (
+                                    <Users className="h-5 w-5 text-blue-500" />
+                                ),
+                            },
+                            {
+                                label: 'Sudah Dialokasikan',
+                                value:
+                                    totalPetugas -
+                                    petugasBelumDialokasikan.length,
+                                sub: `${totalPetugas > 0 ? Math.round(((totalPetugas - petugasBelumDialokasikan.length) / totalPetugas) * 100) : 0}% dari total petugas`,
+                                subColor: 'text-green-600 dark:text-green-400',
+                                barPct:
+                                    totalPetugas > 0
+                                        ? Math.round(
+                                              ((totalPetugas -
+                                                  petugasBelumDialokasikan.length) /
+                                                  totalPetugas) *
+                                                  100,
+                                          )
+                                        : 0,
+                                barColor: '#22c55e',
+                                icon: (
+                                    <Users className="h-5 w-5 text-green-500" />
+                                ),
+                            },
+                            {
+                                label: 'Belum Dialokasikan',
+                                value: petugasBelumDialokasikan.length,
+                                sub: 'Belum ada alokasi kegiatan',
+                                subColor:
+                                    petugasBelumDialokasikan.length > 0
+                                        ? 'text-amber-600 dark:text-amber-400'
+                                        : 'text-neutral-500 dark:text-neutral-400',
+                                barPct:
+                                    totalPetugas > 0
+                                        ? Math.round(
+                                              (petugasBelumDialokasikan.length /
+                                                  totalPetugas) *
+                                                  100,
+                                          )
+                                        : 0,
+                                barColor: '#f59e0b',
+                                icon: (
+                                    <AlertCircle className="h-5 w-5 text-amber-500" />
+                                ),
+                            },
+                            {
+                                label: 'Total Alokasi Tahun',
+                                value: totalAlokasiTahun,
+                                sub: 'Kumulatif slot alokasi bulanan',
+                                subColor:
+                                    'text-neutral-500 dark:text-neutral-400',
+                                barPct: 100,
+                                barColor: '#8b5cf6',
+                                icon: (
+                                    <Users className="h-5 w-5 text-purple-500" />
+                                ),
+                            },
+                        ] as const
+                    ).map((card) => (
+                        <div
+                            key={card.label}
+                            className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50"
+                        >
+                            <div className="mb-3 flex items-center justify-between">
+                                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                                    {card.label}
+                                </p>
+                                {card.icon}
+                            </div>
+                            <p className="text-2xl font-bold text-neutral-900 dark:text-white">
+                                {card.value}
+                            </p>
+                            <p className={`mt-0.5 text-xs ${card.subColor}`}>
+                                {card.sub}
+                            </p>
+                            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700">
+                                <div
+                                    className="h-full rounded-full transition-all duration-500"
+                                    style={{
+                                        width: `${card.barPct}%`,
+                                        backgroundColor: card.barColor,
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
                 {/* Charts Row */}
                 <div className="grid gap-6 lg:grid-cols-2">
                     {/* Jenis Kelamin */}
@@ -723,8 +917,21 @@ export default function AnalisisPetugas({
                         </h3>
                         {distribusiJenisKelaminChartData.length > 0 ? (
                             <div className="space-y-4">
-                                <ResponsiveContainer width="100%" height={220}>
-                                    <PieChart>
+                                <ResponsiveContainer width="100%" height={260}>
+                                    <PieChart
+                                        style={{ overflow: 'visible' }}
+                                        margin={{
+                                            top: 10,
+                                            right: 70,
+                                            bottom: 10,
+                                            left: 70,
+                                        }}
+                                        onClick={() =>
+                                            setActivePieJenisKelaminIndex(
+                                                undefined,
+                                            )
+                                        }
+                                    >
                                         <Pie
                                             data={
                                                 distribusiJenisKelaminChartData
@@ -735,8 +942,24 @@ export default function AnalisisPetugas({
                                             cy="50%"
                                             innerRadius={35}
                                             outerRadius={78}
-                                            label={false}
                                             labelLine={false}
+                                            shape={(p: PieSectorShapeProps) =>
+                                                renderActivePieShape(
+                                                    p,
+                                                    activePieJenisKelaminIndex,
+                                                )
+                                            }
+                                            onClick={(_, idx, e) => {
+                                                e.stopPropagation();
+                                                setActivePieJenisKelaminIndex(
+                                                    idx ===
+                                                        activePieJenisKelaminIndex
+                                                        ? undefined
+                                                        : idx,
+                                                );
+                                            }}
+                                            cursor="pointer"
+                                            stroke="none"
                                         >
                                             {distribusiJenisKelaminChartData.map(
                                                 (_, index) => (
@@ -752,9 +975,6 @@ export default function AnalisisPetugas({
                                                 ),
                                             )}
                                         </Pie>
-                                        <ChartTooltip
-                                            content={<GlassTooltipContent />}
-                                        />
                                     </PieChart>
                                 </ResponsiveContainer>
                                 <PieLegendList
@@ -775,8 +995,19 @@ export default function AnalisisPetugas({
                         </h3>
                         {distribusiUsia.some((d) => d.count > 0) ? (
                             <div className="space-y-4">
-                                <ResponsiveContainer width="100%" height={220}>
-                                    <PieChart>
+                                <ResponsiveContainer width="100%" height={260}>
+                                    <PieChart
+                                        style={{ overflow: 'visible' }}
+                                        margin={{
+                                            top: 10,
+                                            right: 70,
+                                            bottom: 10,
+                                            left: 70,
+                                        }}
+                                        onClick={() =>
+                                            setActivePieUsiaIndex(undefined)
+                                        }
+                                    >
                                         <Pie
                                             data={usiaChartData}
                                             dataKey="count"
@@ -785,8 +1016,23 @@ export default function AnalisisPetugas({
                                             cy="50%"
                                             innerRadius={35}
                                             outerRadius={78}
-                                            label={false}
                                             labelLine={false}
+                                            shape={(p: PieSectorShapeProps) =>
+                                                renderActivePieShape(
+                                                    p,
+                                                    activePieUsiaIndex,
+                                                )
+                                            }
+                                            onClick={(_, idx, e) => {
+                                                e.stopPropagation();
+                                                setActivePieUsiaIndex(
+                                                    idx === activePieUsiaIndex
+                                                        ? undefined
+                                                        : idx,
+                                                );
+                                            }}
+                                            cursor="pointer"
+                                            stroke="none"
                                         >
                                             {usiaChartData.map((_, index) => (
                                                 <Cell
@@ -800,9 +1046,6 @@ export default function AnalisisPetugas({
                                                 />
                                             ))}
                                         </Pie>
-                                        <ChartTooltip
-                                            content={<GlassTooltipContent />}
-                                        />
                                     </PieChart>
                                 </ResponsiveContainer>
                                 <PieLegendList
@@ -826,8 +1069,21 @@ export default function AnalisisPetugas({
                         </h3>
                         {distribusiKecamatan.length > 0 ? (
                             <div className="space-y-4">
-                                <ResponsiveContainer width="100%" height={220}>
-                                    <PieChart>
+                                <ResponsiveContainer width="100%" height={260}>
+                                    <PieChart
+                                        style={{ overflow: 'visible' }}
+                                        margin={{
+                                            top: 10,
+                                            right: 70,
+                                            bottom: 10,
+                                            left: 70,
+                                        }}
+                                        onClick={() =>
+                                            setActivePieKecamatanIndex(
+                                                undefined,
+                                            )
+                                        }
+                                    >
                                         <Pie
                                             data={distribusiKecamatanChartData}
                                             dataKey="count"
@@ -836,8 +1092,24 @@ export default function AnalisisPetugas({
                                             cy="50%"
                                             innerRadius={35}
                                             outerRadius={78}
-                                            label={false}
                                             labelLine={false}
+                                            shape={(p: PieSectorShapeProps) =>
+                                                renderActivePieShape(
+                                                    p,
+                                                    activePieKecamatanIndex,
+                                                )
+                                            }
+                                            onClick={(_, idx, e) => {
+                                                e.stopPropagation();
+                                                setActivePieKecamatanIndex(
+                                                    idx ===
+                                                        activePieKecamatanIndex
+                                                        ? undefined
+                                                        : idx,
+                                                );
+                                            }}
+                                            cursor="pointer"
+                                            stroke="none"
                                         >
                                             {distribusiKecamatanChartData.map(
                                                 (_, index) => (
@@ -853,9 +1125,6 @@ export default function AnalisisPetugas({
                                                 ),
                                             )}
                                         </Pie>
-                                        <ChartTooltip
-                                            content={<GlassTooltipContent />}
-                                        />
                                     </PieChart>
                                 </ResponsiveContainer>
                                 <PieLegendList
@@ -881,8 +1150,19 @@ export default function AnalisisPetugas({
                         </div>
                         {distribusiDesaKelurahanChartData.length > 0 ? (
                             <div className="space-y-4">
-                                <ResponsiveContainer width="100%" height={220}>
-                                    <PieChart>
+                                <ResponsiveContainer width="100%" height={260}>
+                                    <PieChart
+                                        style={{ overflow: 'visible' }}
+                                        margin={{
+                                            top: 10,
+                                            right: 70,
+                                            bottom: 10,
+                                            left: 70,
+                                        }}
+                                        onClick={() =>
+                                            setActivePieDesaIndex(undefined)
+                                        }
+                                    >
                                         <Pie
                                             data={
                                                 distribusiDesaKelurahanChartData
@@ -893,8 +1173,23 @@ export default function AnalisisPetugas({
                                             cy="50%"
                                             innerRadius={35}
                                             outerRadius={78}
-                                            label={false}
                                             labelLine={false}
+                                            shape={(p: PieSectorShapeProps) =>
+                                                renderActivePieShape(
+                                                    p,
+                                                    activePieDesaIndex,
+                                                )
+                                            }
+                                            onClick={(_, idx, e) => {
+                                                e.stopPropagation();
+                                                setActivePieDesaIndex(
+                                                    idx === activePieDesaIndex
+                                                        ? undefined
+                                                        : idx,
+                                                );
+                                            }}
+                                            cursor="pointer"
+                                            stroke="none"
                                         >
                                             {distribusiDesaKelurahanChartData.map(
                                                 (_, index) => (
@@ -910,9 +1205,6 @@ export default function AnalisisPetugas({
                                                 ),
                                             )}
                                         </Pie>
-                                        <ChartTooltip
-                                            content={<GlassTooltipContent />}
-                                        />
                                     </PieChart>
                                 </ResponsiveContainer>
 
@@ -934,8 +1226,21 @@ export default function AnalisisPetugas({
                         </h3>
                         {distribusiPendidikan.length > 0 ? (
                             <div className="space-y-4">
-                                <ResponsiveContainer width="100%" height={220}>
-                                    <PieChart>
+                                <ResponsiveContainer width="100%" height={260}>
+                                    <PieChart
+                                        style={{ overflow: 'visible' }}
+                                        margin={{
+                                            top: 10,
+                                            right: 70,
+                                            bottom: 10,
+                                            left: 70,
+                                        }}
+                                        onClick={() =>
+                                            setActivePiePendidikanIndex(
+                                                undefined,
+                                            )
+                                        }
+                                    >
                                         <Pie
                                             data={distribusiPendidikanChartData}
                                             dataKey="count"
@@ -944,8 +1249,24 @@ export default function AnalisisPetugas({
                                             cy="50%"
                                             innerRadius={35}
                                             outerRadius={78}
-                                            label={false}
                                             labelLine={false}
+                                            shape={(p: PieSectorShapeProps) =>
+                                                renderActivePieShape(
+                                                    p,
+                                                    activePiePendidikanIndex,
+                                                )
+                                            }
+                                            onClick={(_, idx, e) => {
+                                                e.stopPropagation();
+                                                setActivePiePendidikanIndex(
+                                                    idx ===
+                                                        activePiePendidikanIndex
+                                                        ? undefined
+                                                        : idx,
+                                                );
+                                            }}
+                                            cursor="pointer"
+                                            stroke="none"
                                         >
                                             {distribusiPendidikanChartData.map(
                                                 (_, index) => (
@@ -961,9 +1282,6 @@ export default function AnalisisPetugas({
                                                 ),
                                             )}
                                         </Pie>
-                                        <ChartTooltip
-                                            content={<GlassTooltipContent />}
-                                        />
                                     </PieChart>
                                 </ResponsiveContainer>
                                 <PieLegendList
@@ -1115,32 +1433,49 @@ export default function AnalisisPetugas({
                     </div>
                     <div className="mb-4">
                         <ResponsiveContainer width="100%" height={250}>
-                            <LineChart data={alokasiChartData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" fontSize={12} />
-                                <YAxis fontSize={12} />
+                            <LineChart
+                                data={alokasiChartData}
+                                margin={{
+                                    top: 0,
+                                    right: 0,
+                                    left: -20,
+                                    bottom: 0,
+                                }}
+                            >
+                                <CartesianGrid
+                                    strokeDasharray="3 3"
+                                    stroke="rgba(128,128,128,0.15)"
+                                />
+                                <XAxis
+                                    dataKey="name"
+                                    fontSize={11}
+                                    tickLine={false}
+                                />
+                                <YAxis
+                                    fontSize={11}
+                                    tickLine={false}
+                                    allowDecimals={false}
+                                />
                                 <ChartTooltip
                                     content={<GlassTooltipContent />}
                                 />
-                                <Legend />
+                                <Legend wrapperStyle={{ fontSize: '11px' }} />
                                 <Line
                                     type="monotone"
                                     dataKey="jumlah_petugas"
                                     stroke="#3b82f6"
                                     name="Jumlah Petugas"
                                     strokeWidth={2}
-                                    dot={{ r: 3 }}
-                                    activeDot={{ r: 5 }}
-                                ></Line>
+                                    dot={false}
+                                />
                                 <Line
                                     type="monotone"
                                     dataKey="jumlah_kegiatan"
                                     stroke="#22c55e"
                                     name="Jumlah Kegiatan"
                                     strokeWidth={2}
-                                    dot={{ r: 3 }}
-                                    activeDot={{ r: 5 }}
-                                ></Line>
+                                    dot={false}
+                                />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
@@ -1565,17 +1900,35 @@ export default function AnalisisPetugas({
                                     Jumlah Kegiatan per Bulan
                                 </p>
                                 <ResponsiveContainer width="100%" height={250}>
-                                    <LineChart data={multiPetugasChartData}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="name" fontSize={12} />
+                                    <LineChart
+                                        data={multiPetugasChartData}
+                                        margin={{
+                                            top: 0,
+                                            right: 0,
+                                            left: -20,
+                                            bottom: 0,
+                                        }}
+                                    >
+                                        <CartesianGrid
+                                            strokeDasharray="3 3"
+                                            stroke="rgba(128,128,128,0.15)"
+                                        />
+                                        <XAxis
+                                            dataKey="name"
+                                            fontSize={11}
+                                            tickLine={false}
+                                        />
                                         <YAxis
-                                            fontSize={12}
+                                            fontSize={11}
+                                            tickLine={false}
                                             allowDecimals={false}
                                         />
                                         <ChartTooltip
                                             content={<GlassTooltipContent />}
                                         />
-                                        <Legend />
+                                        <Legend
+                                            wrapperStyle={{ fontSize: '11px' }}
+                                        />
                                         {selectedPetugasIds.map((id, idx) => {
                                             const p = petugasList.find(
                                                 (pt) => String(pt.id) === id,
@@ -1595,6 +1948,7 @@ export default function AnalisisPetugas({
                                                         `Petugas ${id}`
                                                     }
                                                     strokeWidth={2}
+                                                    dot={false}
                                                 />
                                             );
                                         })}
@@ -1606,11 +1960,27 @@ export default function AnalisisPetugas({
                                     Total Honor per Bulan
                                 </p>
                                 <ResponsiveContainer width="100%" height={250}>
-                                    <LineChart data={multiPetugasChartData}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="name" fontSize={12} />
+                                    <LineChart
+                                        data={multiPetugasChartData}
+                                        margin={{
+                                            top: 0,
+                                            right: 0,
+                                            left: 10,
+                                            bottom: 0,
+                                        }}
+                                    >
+                                        <CartesianGrid
+                                            strokeDasharray="3 3"
+                                            stroke="rgba(128,128,128,0.15)"
+                                        />
+                                        <XAxis
+                                            dataKey="name"
+                                            fontSize={11}
+                                            tickLine={false}
+                                        />
                                         <YAxis
-                                            fontSize={12}
+                                            fontSize={11}
+                                            tickLine={false}
                                             domain={[0, honorAxisConfig.max]}
                                             ticks={honorAxisConfig.ticks}
                                             allowDecimals={false}
@@ -1663,7 +2033,9 @@ export default function AnalisisPetugas({
                                                 );
                                             }}
                                         />
-                                        <Legend />
+                                        <Legend
+                                            wrapperStyle={{ fontSize: '11px' }}
+                                        />
                                         {selectedPetugasIds.map((id, idx) => {
                                             const p = petugasList.find(
                                                 (pt) => String(pt.id) === id,
@@ -1683,6 +2055,7 @@ export default function AnalisisPetugas({
                                                         `Petugas ${id}`
                                                     }
                                                     strokeWidth={2}
+                                                    dot={false}
                                                 />
                                             );
                                         })}

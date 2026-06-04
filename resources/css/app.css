@@ -195,6 +195,14 @@
         scrollbar-color: rgb(82 82 82 / 0.5) transparent;
     }
 
+    /* Recharts: remove focus outline on SVG click */
+    .recharts-wrapper,
+    .recharts-wrapper *,
+    .recharts-wrapper svg,
+    .recharts-wrapper svg * {
+        outline: none !important;
+    }
+
     /* Recharts Tooltip Dark Mode Support */
     :root {
         --color-bg: white;

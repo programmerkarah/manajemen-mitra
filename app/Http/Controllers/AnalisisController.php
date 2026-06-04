@@ -577,14 +577,14 @@ class AnalisisController extends Controller
     {
         $currentYear = (int) date('Y');
 
-        // SK per bulan
+        // ── SK per bulan ──────────────────────────────────────────────────────
         $skPerBulan = [];
         for ($bulan = 1; $bulan <= 12; $bulan++) {
             $data = SkKpa::query()
                 ->where('bulan', $bulan)
                 ->where('tahun', $currentYear)
                 ->selectRaw('COUNT(*) as total')
-                ->selectRaw("SUM(CASE WHEN status = 'draft' AND (is_signed = 0 OR is_signed IS NULL) THEN 1 ELSE 0 END) as draft")
+                ->selectRaw("SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft")
                 ->selectRaw("SUM(CASE WHEN status = 'diterbitkan' AND (is_signed = 0 OR is_signed IS NULL) THEN 1 ELSE 0 END) as diterbitkan")
                 ->selectRaw('SUM(CASE WHEN is_signed = 1 THEN 1 ELSE 0 END) as ditandatangani')
                 ->first();
@@ -598,7 +598,7 @@ class AnalisisController extends Controller
             ];
         }
 
-        // SPK per bulan (based on tanggal_spk)
+        // ── SPK per bulan ─────────────────────────────────────────────────────
         $spkPerBulan = [];
         for ($bulan = 1; $bulan <= 12; $bulan++) {
             $data = Spk::query()
@@ -617,19 +617,97 @@ class AnalisisController extends Controller
             ];
         }
 
-        // Summary totals
+        // ── Summary KPI ───────────────────────────────────────────────────────
         $skTotal = SkKpa::query()->where('tahun', $currentYear)->count();
         $skDiterbitkan = SkKpa::query()->where('tahun', $currentYear)->where('status', 'diterbitkan')->count();
+        $skDraft = SkKpa::query()->where('tahun', $currentYear)->where('status', 'draft')->count();
         $spkTotal = Spk::query()->whereYear('tanggal_spk', $currentYear)->count();
         $spkDiterbitkan = Spk::query()->whereYear('tanggal_spk', $currentYear)->where('status', 'diterbitkan')->count();
+        $spkDraft = Spk::query()->whereYear('tanggal_spk', $currentYear)->where('status', 'draft')->count();
+
+        // ── SK progress per kegiatan ──────────────────────────────────────────
+        $kegiatanAktif = Kegiatan::query()
+            ->where('tahun_anggaran', $currentYear)
+            ->whereNotIn('status', ['dibatalkan'])
+            ->select('id', 'nama_kegiatan', 'kode_kegiatan', 'jenis_kegiatan')
+            ->orderBy('nama_kegiatan')
+            ->get();
+
+        $skStatsByKegiatan = DB::table('sk_kpa')
+            ->where('tahun', $currentYear)
+            ->whereNull('deleted_at')
+            ->selectRaw("kegiatan_id,
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft,
+                SUM(CASE WHEN status = 'diterbitkan' THEN 1 ELSE 0 END) as diterbitkan,
+                SUM(CASE WHEN is_signed = 1 THEN 1 ELSE 0 END) as ditandatangani")
+            ->groupBy('kegiatan_id')
+            ->get()
+            ->keyBy('kegiatan_id');
+
+        $kelengkapanSKPerKegiatan = $kegiatanAktif->map(function ($kegiatan) use ($skStatsByKegiatan) {
+            $sk = $skStatsByKegiatan->get($kegiatan->id);
+            $total = $sk ? (int) $sk->total : 0;
+            $draft = $sk ? (int) $sk->draft : 0;
+            $diterbitkan = $sk ? (int) $sk->diterbitkan : 0;
+            $ditandatangani = $sk ? (int) $sk->ditandatangani : 0;
+
+            $statusDokumen = 'belum';
+            if ($total > 0) {
+                $statusDokumen = ($draft === 0 && $total > 0) ? 'lengkap' : 'sebagian';
+            }
+
+            return [
+                'kegiatan_id' => $kegiatan->id,
+                'nama_kegiatan' => $kegiatan->nama_kegiatan,
+                'kode_kegiatan' => $kegiatan->kode_kegiatan,
+                'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
+                'total_sk' => $total,
+                'sk_draft' => $draft,
+                'sk_diterbitkan' => $diterbitkan,
+                'sk_ditandatangani' => $ditandatangani,
+                'status_dokumen' => $statusDokumen,
+            ];
+        })->sortBy(function ($item) {
+            return match ($item['status_dokumen']) {
+                'belum' => 0,
+                'sebagian' => 1,
+                'lengkap' => 2,
+            };
+        })->values()->all();
+
+        // ── SK draft yang sudah lama (> 14 hari) ─────────────────────────────
+        $skDraftLama = SkKpa::query()
+            ->where('tahun', $currentYear)
+            ->where('status', 'draft')
+            ->where('created_at', '<', now()->subDays(14))
+            ->with('kegiatan:id,nama_kegiatan,kode_kegiatan')
+            ->orderBy('created_at')
+            ->limit(20)
+            ->get()
+            ->map(function ($sk) {
+                return [
+                    'id' => $sk->id,
+                    'kegiatan_nama' => $sk->kegiatan?->nama_kegiatan ?? '-',
+                    'kegiatan_kode' => $sk->kegiatan?->kode_kegiatan ?? '-',
+                    'bulan' => (int) $sk->bulan,
+                    'tahun' => (int) $sk->tahun,
+                    'umur_hari' => (int) now()->diffInDays($sk->created_at),
+                ];
+            })
+            ->all();
 
         return Inertia::render('Analisis/Dokumen', [
             'skPerBulan' => $skPerBulan,
             'spkPerBulan' => $spkPerBulan,
             'skTotal' => $skTotal,
             'skDiterbitkan' => $skDiterbitkan,
+            'skDraft' => $skDraft,
             'spkTotal' => $spkTotal,
             'spkDiterbitkan' => $spkDiterbitkan,
+            'spkDraft' => $spkDraft,
+            'kelengkapanSKPerKegiatan' => $kelengkapanSKPerKegiatan,
+            'skDraftLama' => $skDraftLama,
             'currentYear' => $currentYear,
         ]);
     }
@@ -640,6 +718,7 @@ class AnalisisController extends Controller
     public function umum(): Response
     {
         $currentYear = (int) date('Y');
+        $currentMonth = (int) now()->month;
 
         // Utilisasi Anggaran per Kegiatan
         $utilisasiAnggaran = Kegiatan::query()
@@ -713,8 +792,9 @@ class AnalisisController extends Controller
             $data = $data
                 ->selectRaw('COUNT(DISTINCT alokasi_petugas.petugas_id) as jumlah_petugas')
                 ->selectRaw("COALESCE(SUM(CASE
-                    WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.2
-                    WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) IN (7, 8) THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
+                    WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN 0
+                    WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 7 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
+                    WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 8 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.6
                     ELSE COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)
                 END), 0) as total_honor")
                 ->selectRaw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as total_kegiatan')
@@ -728,11 +808,99 @@ class AnalisisController extends Controller
             ];
         }
 
+        // KPI Summary
+        $totalPaguAll = (float) collect($utilisasiAnggaran)->sum('total_pagu');
+        $totalTerpakaiAll = (float) collect($utilisasiAnggaran)->sum('total_terpakai');
+
+        $totalPetugasAktifQuery = DB::table('alokasi_petugas')
+            ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+            ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+            ->where('periode_alokasi.tahun', $currentYear)
+            ->where('petugas.jenis_petugas', 'non-organik')
+            ->whereRaw($this->nonZeroHonorClause().' > 0');
+        $this->applyEffectivePeriode($totalPetugasAktifQuery);
+        $totalPetugasAktif = $totalPetugasAktifQuery
+            ->distinct('alokasi_petugas.petugas_id')
+            ->count('alokasi_petugas.petugas_id');
+
+        $totalKegiatanAktif = Kegiatan::query()
+            ->where('tahun_anggaran', $currentYear)
+            ->whereNotIn('status', ['dibatalkan'])
+            ->count();
+
+        $ringkasanKPI = [
+            'total_pagu' => $totalPaguAll,
+            'total_terpakai' => $totalTerpakaiAll,
+            'serapan_persen' => $totalPaguAll > 0 ? round(($totalTerpakaiAll / $totalPaguAll) * 100, 1) : 0,
+            'total_petugas_aktif' => $totalPetugasAktif,
+            'total_kegiatan_aktif' => $totalKegiatanAktif,
+        ];
+
+        // Ringkasan per jenis kegiatan
+        $ringkasanJenisKegiatan = collect($utilisasiAnggaran)
+            ->groupBy('jenis_kegiatan')
+            ->map(function ($items, $jenis) {
+                $pagu = (float) collect($items)->sum('total_pagu');
+                $terpakai = (float) collect($items)->sum('total_terpakai');
+
+                return [
+                    'jenis' => $jenis,
+                    'label' => match ($jenis) {
+                        'sensus' => 'Sensus',
+                        'survei' => 'Survei',
+                        'kompilasi' => 'Kompilasi',
+                        default => ucfirst((string) $jenis),
+                    },
+                    'jumlah_kegiatan' => count($items),
+                    'total_pagu' => $pagu,
+                    'total_terpakai' => $terpakai,
+                    'serapan_persen' => $pagu > 0 ? round(($terpakai / $pagu) * 100, 1) : 0,
+                ];
+            })
+            ->sortByDesc('total_pagu')
+            ->values()
+            ->all();
+
+        // Top 10 petugas penyerap honor terbesar (s.d. bulan berjalan, dengan bobot sensus)
+        $topPetugasQuery = DB::table('alokasi_petugas')
+            ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+            ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+            ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
+            ->where('periode_alokasi.tahun', $currentYear)
+            ->whereRaw('CAST(periode_alokasi.bulan AS UNSIGNED) <= ?', [$currentMonth])
+            ->where('petugas.jenis_petugas', 'non-organik')
+            ->whereRaw($this->nonZeroHonorClause().' > 0');
+        $this->applyEffectivePeriode($topPetugasQuery);
+        $topPetugas = $topPetugasQuery
+            ->groupBy('alokasi_petugas.petugas_id', 'petugas.nama', 'petugas.jabatan')
+            ->selectRaw('alokasi_petugas.petugas_id, petugas.nama, petugas.jabatan, COUNT(DISTINCT periode_alokasi.kegiatan_id) as jumlah_kegiatan')
+            ->selectRaw("COALESCE(SUM(CASE
+                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN 0
+                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 7 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
+                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 8 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.6
+                ELSE COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)
+            END), 0) as total_honor")
+            ->orderByRaw('total_honor DESC')
+            ->limit(10)
+            ->get()
+            ->map(fn ($item) => [
+                'petugas_id' => $item->petugas_id,
+                'nama' => $item->nama,
+                'jabatan' => $item->jabatan,
+                'jumlah_kegiatan' => (int) $item->jumlah_kegiatan,
+                'total_honor' => (float) $item->total_honor,
+            ])
+            ->all();
+
         return Inertia::render('Analisis/Umum', [
             'utilisasiAnggaran' => $utilisasiAnggaran,
             'distribusiBebanKerja' => $distribusiBebanKerja,
             'trenAlokasi' => $trenAlokasi,
+            'ringkasanKPI' => $ringkasanKPI,
+            'ringkasanJenisKegiatan' => $ringkasanJenisKegiatan,
+            'topPetugas' => $topPetugas,
             'currentYear' => $currentYear,
+            'currentMonth' => $currentMonth,
         ]);
     }
 

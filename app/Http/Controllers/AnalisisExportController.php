@@ -24,6 +24,7 @@ class AnalisisExportController extends Controller
     public function umum(): HttpResponse
     {
         $currentYear = (int) date('Y');
+        $currentMonth = (int) now()->month;
 
         $utilisasiAnggaran = Kegiatan::query()
             ->where('tahun_anggaran', $currentYear)
@@ -43,8 +44,9 @@ class AnalisisExportController extends Controller
 
                 $totalHonor = $totalHonorQuery
                     ->selectRaw("COALESCE(SUM(CASE
-                        WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.2
-                        WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) IN (7, 8) THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
+                        WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN 0
+                        WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 7 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
+                        WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 8 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.6
                         ELSE COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)
                     END), 0) as total")
                     ->value('total');
@@ -97,8 +99,9 @@ class AnalisisExportController extends Controller
             $data = $data
                 ->selectRaw('COUNT(DISTINCT alokasi_petugas.petugas_id) as jumlah_petugas')
                 ->selectRaw("COALESCE(SUM(CASE
-                    WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.2
-                    WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) IN (7, 8) THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
+                    WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN 0
+                    WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 7 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
+                    WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 8 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.6
                     ELSE COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)
                 END), 0) as total_honor")
                 ->selectRaw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as total_kegiatan')
@@ -128,13 +131,45 @@ class AnalisisExportController extends Controller
             1,
         );
 
+        // Top 10 petugas penyerap honor terbesar (s.d. bulan berjalan, dengan bobot sensus)
+        $topPetugasQuery = DB::table('alokasi_petugas')
+            ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+            ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+            ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
+            ->where('periode_alokasi.tahun', $currentYear)
+            ->whereRaw('CAST(periode_alokasi.bulan AS UNSIGNED) <= ?', [$currentMonth])
+            ->where('petugas.jenis_petugas', 'non-organik')
+            ->whereRaw($this->nonZeroHonorClause().' > 0');
+        $this->applyEffectivePeriode($topPetugasQuery);
+        $topPetugas = $topPetugasQuery
+            ->groupBy('alokasi_petugas.petugas_id', 'petugas.nama', 'petugas.jabatan')
+            ->selectRaw('alokasi_petugas.petugas_id, petugas.nama, petugas.jabatan, COUNT(DISTINCT periode_alokasi.kegiatan_id) as jumlah_kegiatan')
+            ->selectRaw("COALESCE(SUM(CASE
+                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN 0
+                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 7 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
+                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 8 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.6
+                ELSE COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)
+            END), 0) as total_honor")
+            ->orderByRaw('total_honor DESC')
+            ->limit(10)
+            ->get()
+            ->map(fn ($item) => [
+                'nama' => $item->nama,
+                'jabatan' => $item->jabatan,
+                'jumlah_kegiatan' => (int) $item->jumlah_kegiatan,
+                'total_honor' => (float) $item->total_honor,
+            ])
+            ->all();
+
         $pdf = Pdf::loadView('analisis.umum-pdf', [
             'utilisasiAnggaran' => $utilisasiAnggaran,
             'distribusiBebanKerja' => $distribusiBebanKerja,
             'trenAlokasi' => $trenAlokasi,
+            'topPetugas' => $topPetugas,
             'pieChartSvg' => $umumPieSvg,
             'lineChartSvg' => $umumLineSvg,
             'currentYear' => $currentYear,
+            'currentMonth' => $currentMonth,
             'tanggalCetak' => now()->timezone(config('app.timezone', 'Asia/Jakarta'))->locale('id')->translatedFormat('d F Y H:i'),
         ])->setPaper('a4', 'landscape');
 
@@ -694,6 +729,7 @@ class AnalisisExportController extends Controller
     {
         $currentYear = (int) date('Y');
 
+        // ── Pulsa per bulan ───────────────────────────────────────────────────
         $pulsaPerBulan = [];
         for ($bulan = 1; $bulan <= 12; $bulan++) {
             $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
@@ -717,6 +753,41 @@ class AnalisisExportController extends Controller
             ];
         }
 
+        // ── Rata-rata per petugas ─────────────────────────────────────────────
+        $rataRataPulsa = PengajuanPulsa::query()
+            ->where('tahun', $currentYear)
+            ->where('status', 'diterima')
+            ->selectRaw('COALESCE(AVG(nominal_disetujui), 0) as rata_rata')
+            ->value('rata_rata');
+
+        // ── Alokasi per bulan (semua status) ──────────────────────────────────
+        $alokasiPulsaPerBulan = [];
+        for ($bulan = 1; $bulan <= 12; $bulan++) {
+            $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+
+            $pulsaStats = PengajuanPulsa::query()
+                ->where('bulan', $bulanFormatted)
+                ->where('tahun', $currentYear)
+                ->selectRaw('COUNT(DISTINCT petugas_id) as jumlah_petugas')
+                ->selectRaw('COUNT(DISTINCT kegiatan_id) as jumlah_kegiatan')
+                ->selectRaw('COUNT(*) as diajukan')
+                ->selectRaw("SUM(CASE WHEN status = 'diterima' THEN 1 ELSE 0 END) as disetujui")
+                ->selectRaw("SUM(CASE WHEN status = 'ditolak' THEN 1 ELSE 0 END) as ditolak")
+                ->selectRaw("SUM(CASE WHEN status = 'dikirim' THEN 1 ELSE 0 END) as menunggu")
+                ->first();
+
+            $alokasiPulsaPerBulan[] = [
+                'bulan' => $bulan,
+                'jumlah_petugas' => (int) $pulsaStats->jumlah_petugas,
+                'jumlah_kegiatan' => (int) $pulsaStats->jumlah_kegiatan,
+                'diajukan' => (int) $pulsaStats->diajukan,
+                'disetujui' => (int) $pulsaStats->disetujui,
+                'ditolak' => (int) $pulsaStats->ditolak,
+                'menunggu' => (int) $pulsaStats->menunggu,
+            ];
+        }
+
+        // ── Distribusi jenis pulsa ────────────────────────────────────────────
         $distribusiJenisPulsa = PengajuanPulsa::query()
             ->where('tahun', $currentYear)
             ->where('status', 'diterima')
@@ -728,6 +799,12 @@ class AnalisisExportController extends Controller
                 'count' => (int) $item->count,
                 'total' => (float) $item->total,
             ])->all();
+
+        // ── KPI summary ───────────────────────────────────────────────────────
+        $totalNominal = collect($pulsaPerBulan)->sum('total_nominal');
+        $totalDisetujui = collect($pulsaPerBulan)->sum('total_disetujui');
+        $totalPengajuan = collect($pulsaPerBulan)->sum('total_pengajuan');
+        $approvalRate = $totalNominal > 0 ? round(($totalDisetujui / $totalNominal) * 100) : 0;
 
         $pulsaPieSvg = $this->buildPieChartSvg($distribusiJenisPulsa, 'jenis', 'total', 'Komposisi Nominal Disetujui per Jenis Pulsa');
         $pulsaLineSvg = $this->buildLineChartSvg(
@@ -745,7 +822,13 @@ class AnalisisExportController extends Controller
 
         $pdf = Pdf::loadView('analisis.pulsa-pdf', [
             'pulsaPerBulan' => $pulsaPerBulan,
+            'rataRataPulsa' => round((float) $rataRataPulsa),
+            'alokasiPulsaPerBulan' => $alokasiPulsaPerBulan,
             'distribusiJenisPulsa' => $distribusiJenisPulsa,
+            'totalNominal' => $totalNominal,
+            'totalDisetujui' => $totalDisetujui,
+            'totalPengajuan' => $totalPengajuan,
+            'approvalRate' => $approvalRate,
             'pieChartSvg' => $pulsaPieSvg,
             'lineChartSvg' => $pulsaLineSvg,
             'currentYear' => $currentYear,
@@ -762,13 +845,14 @@ class AnalisisExportController extends Controller
     {
         $currentYear = (int) date('Y');
 
+        // ── SK per bulan ──────────────────────────────────────────────────────
         $skPerBulan = [];
         for ($bulan = 1; $bulan <= 12; $bulan++) {
             $data = SkKpa::query()
                 ->where('bulan', $bulan)
                 ->where('tahun', $currentYear)
                 ->selectRaw('COUNT(*) as total')
-                ->selectRaw("SUM(CASE WHEN status = 'draft' AND (is_signed = 0 OR is_signed IS NULL) THEN 1 ELSE 0 END) as draft")
+                ->selectRaw("SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft")
                 ->selectRaw("SUM(CASE WHEN status = 'diterbitkan' AND (is_signed = 0 OR is_signed IS NULL) THEN 1 ELSE 0 END) as diterbitkan")
                 ->selectRaw('SUM(CASE WHEN is_signed = 1 THEN 1 ELSE 0 END) as ditandatangani')
                 ->first();
@@ -782,6 +866,7 @@ class AnalisisExportController extends Controller
             ];
         }
 
+        // ── SPK per bulan ─────────────────────────────────────────────────────
         $spkPerBulan = [];
         for ($bulan = 1; $bulan <= 12; $bulan++) {
             $data = Spk::query()
@@ -800,29 +885,105 @@ class AnalisisExportController extends Controller
             ];
         }
 
+        // ── Summary KPI ───────────────────────────────────────────────────────
         $skTotal = SkKpa::query()->where('tahun', $currentYear)->count();
+        $skDiterbitkan = SkKpa::query()->where('tahun', $currentYear)->where('status', 'diterbitkan')->count();
+        $skDraft = SkKpa::query()->where('tahun', $currentYear)->where('status', 'draft')->count();
         $spkTotal = Spk::query()->whereYear('tanggal_spk', $currentYear)->count();
+        $spkDiterbitkan = Spk::query()->whereYear('tanggal_spk', $currentYear)->where('status', 'diterbitkan')->count();
+        $spkDraft = Spk::query()->whereYear('tanggal_spk', $currentYear)->where('status', 'draft')->count();
+
+        // ── SK progress per kegiatan ──────────────────────────────────────────
+        $kegiatanAktif = Kegiatan::query()
+            ->where('tahun_anggaran', $currentYear)
+            ->whereNotIn('status', ['dibatalkan'])
+            ->select('id', 'nama_kegiatan', 'kode_kegiatan', 'jenis_kegiatan')
+            ->orderBy('nama_kegiatan')
+            ->get();
+
+        $skStatsByKegiatan = DB::table('sk_kpa')
+            ->where('tahun', $currentYear)
+            ->whereNull('deleted_at')
+            ->selectRaw("kegiatan_id,
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft,
+                SUM(CASE WHEN status = 'diterbitkan' THEN 1 ELSE 0 END) as diterbitkan,
+                SUM(CASE WHEN is_signed = 1 THEN 1 ELSE 0 END) as ditandatangani")
+            ->groupBy('kegiatan_id')
+            ->get()
+            ->keyBy('kegiatan_id');
+
+        $kelengkapanSKPerKegiatan = $kegiatanAktif->map(function ($kegiatan) use ($skStatsByKegiatan) {
+            $sk = $skStatsByKegiatan->get($kegiatan->id);
+            $total = $sk ? (int) $sk->total : 0;
+            $draft = $sk ? (int) $sk->draft : 0;
+            $diterbitkan = $sk ? (int) $sk->diterbitkan : 0;
+            $ditandatangani = $sk ? (int) $sk->ditandatangani : 0;
+
+            $statusDokumen = 'Belum Ada SK';
+            if ($total > 0) {
+                $statusDokumen = ($draft === 0) ? 'Diterbitkan' : 'Ada Draft';
+            }
+
+            return [
+                'nama_kegiatan' => $kegiatan->nama_kegiatan,
+                'kode_kegiatan' => $kegiatan->kode_kegiatan,
+                'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
+                'total_sk' => $total,
+                'sk_draft' => $draft,
+                'sk_diterbitkan' => $diterbitkan,
+                'sk_ditandatangani' => $ditandatangani,
+                'status_dokumen' => $statusDokumen,
+            ];
+        })->sortBy(function ($item) {
+            return match ($item['status_dokumen']) {
+                'Belum Ada SK' => 0,
+                'Ada Draft' => 1,
+                default => 2,
+            };
+        })->values()->all();
+
+        // ── SK draft lama (> 14 hari) ─────────────────────────────────────────
+        $skDraftLama = SkKpa::query()
+            ->where('tahun', $currentYear)
+            ->where('status', 'draft')
+            ->where('created_at', '<', now()->subDays(14))
+            ->with('kegiatan:id,nama_kegiatan,kode_kegiatan')
+            ->orderBy('created_at')
+            ->limit(20)
+            ->get()
+            ->map(function ($sk) {
+                return [
+                    'kegiatan_nama' => $sk->kegiatan?->nama_kegiatan ?? '-',
+                    'kegiatan_kode' => $sk->kegiatan?->kode_kegiatan ?? '-',
+                    'bulan' => (int) $sk->bulan,
+                    'tahun' => (int) $sk->tahun,
+                    'umur_hari' => (int) now()->diffInDays($sk->created_at),
+                ];
+            })
+            ->all();
 
         $dokumenPieSvg = $this->buildPieChartSvg([
-            ['label' => 'SK Draft', 'value' => collect($skPerBulan)->sum('draft')],
-            ['label' => 'SK Diterbitkan', 'value' => collect($skPerBulan)->sum('diterbitkan')],
-            ['label' => 'SK Ditandatangani', 'value' => collect($skPerBulan)->sum('ditandatangani')],
-        ], 'label', 'value', 'Komposisi Status Dokumen SK');
+            ['label' => 'SK Draft', 'value' => $skDraft],
+            ['label' => 'SK Diterbitkan', 'value' => $skDiterbitkan],
+            ['label' => 'SPK Draft', 'value' => $spkDraft],
+            ['label' => 'SPK Diterbitkan', 'value' => $spkDiterbitkan],
+        ], 'label', 'value', 'Status Dokumen SK & SPK');
 
         $dokumenLineSvg = $this->buildLineChartSvg(
             array_map(function ($index) use ($skPerBulan, $spkPerBulan) {
                 return [
                     'label' => $this->monthName($index + 1),
-                    'sk_total' => (int) ($skPerBulan[$index]['total'] ?? 0),
-                    'spk_total' => (int) ($spkPerBulan[$index]['total'] ?? 0),
+                    'sk_diterbitkan' => (int) (($skPerBulan[$index]['diterbitkan'] ?? 0) + ($skPerBulan[$index]['ditandatangani'] ?? 0)),
+                    'spk_diterbitkan' => (int) ($spkPerBulan[$index]['diterbitkan'] ?? 0),
                 ];
             }, array_keys($skPerBulan)),
             'label',
             [
-                ['key' => 'sk_total', 'label' => 'Total SK', 'color' => '#3b82f6'],
-                ['key' => 'spk_total', 'label' => 'Total SPK', 'color' => '#f59e0b'],
+                ['key' => 'sk_diterbitkan', 'label' => 'SK Diterbitkan', 'color' => '#22c55e'],
+                ['key' => 'spk_diterbitkan', 'label' => 'SPK Diterbitkan', 'color' => '#3b82f6'],
             ],
-            'Tren Dokumen SK dan SPK per Bulan',
+            'Tren Dokumen Diterbitkan per Bulan',
             0,
         );
 
@@ -830,7 +991,13 @@ class AnalisisExportController extends Controller
             'skPerBulan' => $skPerBulan,
             'spkPerBulan' => $spkPerBulan,
             'skTotal' => $skTotal,
+            'skDiterbitkan' => $skDiterbitkan,
+            'skDraft' => $skDraft,
             'spkTotal' => $spkTotal,
+            'spkDiterbitkan' => $spkDiterbitkan,
+            'spkDraft' => $spkDraft,
+            'kelengkapanSKPerKegiatan' => $kelengkapanSKPerKegiatan,
+            'skDraftLama' => $skDraftLama,
             'pieChartSvg' => $dokumenPieSvg,
             'lineChartSvg' => $dokumenLineSvg,
             'currentYear' => $currentYear,

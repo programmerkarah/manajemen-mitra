@@ -58,6 +58,36 @@
         </table>
     </div>
 
+    {{-- Top 10 Petugas --}}
+    @if(count($topPetugas) > 0)
+    <div class="no-break">
+        <h2>10 Petugas dengan Honor Tertinggi</h2>
+        <p class="meta">Petugas non-organik s.d. {{ \Carbon\Carbon::createFromDate($currentYear, $currentMonth, 1)->locale('id')->translatedFormat('F Y') }} (dengan bobot alokasi SE2026)</p>
+        <table class="striped">
+            <thead>
+                <tr>
+                    <th style="width:30px">No</th>
+                    <th>Nama Petugas</th>
+                    <th>Jabatan</th>
+                    <th class="text-center" style="width:80px">Kegiatan</th>
+                    <th class="amount" style="width:150px">Total Honor</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($topPetugas as $i => $p)
+                    <tr>
+                        <td class="number">{{ $i + 1 }}</td>
+                        <td class="font-bold">{{ $p['nama'] }}</td>
+                        <td>{{ $p['jabatan'] ?? '-' }}</td>
+                        <td class="text-center">{{ $p['jumlah_kegiatan'] }}</td>
+                        <td class="amount">Rp {{ number_format($p['total_honor'], 0, ',', '.') }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+    @endif
+
     {{-- Tren Alokasi Bulanan --}}
     <div class="no-break">
         <h2>Tren Alokasi Bulanan</h2>

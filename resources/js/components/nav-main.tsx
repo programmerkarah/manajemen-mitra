@@ -29,13 +29,21 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
         }
     };
 
+    const isSubItemActive = (
+        href: NonNullable<import('@inertiajs/react').InertiaLinkProps['href']>,
+    ) => {
+        const resolved = resolveUrl(href);
+        const url = page.url;
+        return (
+            url === resolved ||
+            url.startsWith(resolved + '/') ||
+            url.startsWith(resolved + '?')
+        );
+    };
+
     const getInitialOpenItem = () => {
         for (const item of items) {
-            if (
-                item.items?.some((sub) =>
-                    page.url.startsWith(resolveUrl(sub.href)),
-                )
-            ) {
+            if (item.items?.some((sub) => isSubItemActive(sub.href))) {
                 return item.title;
             }
         }
@@ -79,10 +87,8 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                                 >
                                                     <SidebarMenuSubButton
                                                         asChild
-                                                        isActive={page.url.startsWith(
-                                                            resolveUrl(
-                                                                subItem.href,
-                                                            ),
+                                                        isActive={isSubItemActive(
+                                                            subItem.href,
                                                         )}
                                                     >
                                                         <Link
