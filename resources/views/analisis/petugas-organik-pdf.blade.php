@@ -237,9 +237,12 @@
             <tbody>
                 @forelse($bebanKerjaDetail as $index => $item)
                     @php
-                        $badgeClass = $item['performance_status'] === 'overload'
-                            ? 'badge-red'
-                            : ($item['performance_status'] === 'under_performance' ? 'badge-amber' : 'badge-green');
+                        $badgeClass = match ($item['performance_status']) {
+                            'overload' => 'badge-red',
+                            'optimal' => 'badge-green',
+                            'normal' => 'badge-blue',
+                            default => 'badge-amber',
+                        };
                     @endphp
                     <tr>
                         <td class="text-center">{{ $index + 1 }}</td>
