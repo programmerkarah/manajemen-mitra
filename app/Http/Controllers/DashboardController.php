@@ -663,7 +663,7 @@ class DashboardController extends Controller
                         });
                     }
                 })
-                ->select('alokasi_petugas.petugas_id', DB::raw('COUNT(*) as jumlah_kegiatan'), DB::raw('SUM(COALESCE(alokasi_petugas.jumlah_satuan, 0)) as total_satuan'))
+                ->select('alokasi_petugas.petugas_id', DB::raw('COUNT(*) as jumlah_kegiatan'), DB::raw('SUM(COALESCE(alokasi_petugas.jumlah_satuan, 0) + COALESCE(alokasi_petugas.jumlah_satuan_listing, 0)) as total_satuan'))
                 ->groupBy('alokasi_petugas.petugas_id')
                 ->get();
 
@@ -679,29 +679,33 @@ class DashboardController extends Controller
             $avgKegiatan = 0;
             $maxKegiatan = 0;
             $minKegiatan = 0;
-            $cvKegiatan = 0;
+            $giniKegiatan = 0;
 
             if (count($kegiatanCounts) > 0) {
                 $avgKegiatan = array_sum($kegiatanCounts) / count($kegiatanCounts);
                 $maxKegiatan = max($kegiatanCounts);
                 $minKegiatan = min($kegiatanCounts);
 
-                if (count($kegiatanCounts) > 1 && $avgKegiatan > 0) {
-                    $wVariance = 0;
-                    foreach ($kegiatanCounts as $k) {
-                        $wVariance += ($k - $avgKegiatan) ** 2;
+                $n = count($kegiatanCounts);
+
+                if ($n > 1 && $avgKegiatan > 0) {
+                    $sumAbsDiff = 0;
+                    foreach ($kegiatanCounts as $xi) {
+                        foreach ($kegiatanCounts as $xj) {
+                            $sumAbsDiff += abs($xi - $xj);
+                        }
                     }
-                    $wStdDev = sqrt($wVariance / count($kegiatanCounts));
-                    $cvKegiatan = ($wStdDev / $avgKegiatan) * 100;
+                    $giniKegiatan = ($sumAbsDiff / (2 * $n * $n * $avgKegiatan)) * 100;
                 }
             }
 
             // Satuan-based workload inequality (normalized metric, less biased than kegiatan count
             // since it accounts for actual work volume per kegiatan instead of treating all
             // kegiatan equally regardless of scope).
-            // Only include petugas with satuan > 0 to avoid distortion from surveys that
-            // don't record jumlah_satuan (e.g. Susenas) — their 0 values would artificially
-            // inflate the CV without representing true inequality.
+            // total_satuan combines jumlah_satuan + jumlah_satuan_listing so that listing-only
+            // surveys (e.g. Susenas) are represented correctly instead of appearing as 0.
+            // Petugas with combined satuan = 0 are still excluded to avoid noise from
+            // allocations where satuan was never recorded.
             $satuanValues = $alokasiThisMonth
                 ->pluck('total_satuan')
                 ->map(fn ($v) => (int) $v)
@@ -736,7 +740,7 @@ class DashboardController extends Controller
                 'avg_kegiatan' => round($avgKegiatan, 2),
                 'max_kegiatan' => $maxKegiatan,
                 'min_kegiatan' => $minKegiatan,
-                'cv_kegiatan' => round($cvKegiatan, 2),
+                'gini_kegiatan' => round($giniKegiatan, 2),
                 'avg_satuan' => round($avgSatuan, 1),
                 'cv_satuan' => round($cvSatuan, 2),
             ];
@@ -919,7 +923,7 @@ class DashboardController extends Controller
         if ($monthsWithAlokasi->count() > 0) {
             // Use satuan-based CV as the primary inequality metric — it accounts for actual
             // work volume per kegiatan rather than treating all kegiatan with equal weight.
-            $avgCvWorkload = $monthsWithAlokasi->avg('cv_satuan');
+            $avgCvWorkload = $monthsWithAlokasi->avg('gini_kegiatan');
             $avgAvgKegiatan = $monthsWithAlokasi->avg('avg_kegiatan');
             $totalOverload = $monthsWithAlokasi->sum('kegiatan_lebih_5');
             $totalUnderutilized = $monthsWithAlokasi->sum('kegiatan_1_2');
@@ -1179,13 +1183,13 @@ class DashboardController extends Controller
 
         $insights[] = "Rata-rata {$fmtAvg} kegiatan per petugas per bulan{$trendText}.";
 
-        // CV inequality level
-        $cvLevel = $avgCv > 50 ? 'tinggi' : ($avgCv > 30 ? 'sedang' : 'rendah');
+        // Gini inequality level
+        $cvLevel = $avgCv > 40 ? 'tinggi' : ($avgCv > 20 ? 'sedang' : 'rendah');
         $cvVal = round($avgCv, 1);
-        $mostUnequalMonth = $workloadMonthsWithData->sortByDesc('cv_satuan')->first();
+        $mostUnequalMonth = $workloadMonthsWithData->sortByDesc('gini_kegiatan')->first();
         $cvMonthName = $mostUnequalMonth['month'];
-        $cvMonthVal = round((float) ($mostUnequalMonth['cv_satuan'] ?? 0), 1);
-        $insights[] = "Ketimpangan beban rata-rata {$cvLevel} (CV satuan {$cvVal}%). Bulan paling timpang: {$cvMonthName} (CV {$cvMonthVal}%).";
+        $cvMonthVal = round((float) ($mostUnequalMonth['gini_kegiatan'] ?? 0), 1);
+        $insights[] = "Ketimpangan beban rata-rata {$cvLevel} (Gini {$cvVal}%). Bulan paling timpang: {$cvMonthName} (Gini {$cvMonthVal}%).";
 
         // Overload %
         $totalOverload = $workloadMonthsWithData->sum('kegiatan_lebih_5');

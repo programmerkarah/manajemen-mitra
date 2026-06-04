@@ -150,7 +150,7 @@ interface PetugasMonitoringData {
     avg_kegiatan: number;
     max_kegiatan: number;
     min_kegiatan: number;
-    cv_kegiatan: number;
+    gini_kegiatan: number;
     avg_satuan: number;
     cv_satuan: number;
 }
@@ -766,17 +766,17 @@ export default function Dashboard({
                                 currentMonthWorkload.tidak_dialokasikan;
                             const overload =
                                 currentMonthWorkload.kegiatan_lebih_5;
-                            const cv = currentMonthWorkload.cv_satuan;
+                            const cv = currentMonthWorkload.gini_kegiatan;
                             const cvLevel =
-                                cv < 30
+                                cv < 20
                                     ? 'Baik'
-                                    : cv < 50
+                                    : cv < 40
                                       ? 'Sedang'
                                       : 'Tinggi';
                             const cvColor =
-                                cv < 30
+                                cv < 20
                                     ? 'text-green-600 dark:text-green-400'
-                                    : cv < 50
+                                    : cv < 40
                                       ? 'text-amber-600 dark:text-amber-400'
                                       : 'text-red-600 dark:text-red-400';
                             const utilizationPct =
@@ -795,7 +795,7 @@ export default function Dashboard({
                                         <span
                                             className={`text-xs font-medium ${cvColor}`}
                                         >
-                                            CV {cv.toFixed(1)}% — {cvLevel}
+                                            Gini {cv.toFixed(1)}% — {cvLevel}
                                         </span>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -1633,7 +1633,7 @@ export default function Dashboard({
                                         <Line
                                             yAxisId="right"
                                             type="monotone"
-                                            dataKey="cv_satuan"
+                                            dataKey="gini_kegiatan"
                                             stroke="rgb(251, 191, 36)"
                                             strokeWidth={2.5}
                                             strokeDasharray="5 5"
@@ -1641,7 +1641,7 @@ export default function Dashboard({
                                                 fill: 'rgb(251, 191, 36)',
                                                 r: 4,
                                             }}
-                                            name="CV Satuan (%)"
+                                            name="Gini Beban (%)"
                                         />
                                     </ComposedChart>
                                 </ResponsiveContainer>
