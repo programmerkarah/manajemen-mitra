@@ -16,6 +16,7 @@ use App\Models\SkKpa;
 use App\Models\Spk;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -604,7 +605,7 @@ class DashboardController extends Controller
         // Chart data from January to current month
         $chartData = [];
         $petugasMonitoringData = [];
-        $totalPetugasAktif = Petugas::where('status', 'aktif')->count();
+        $totalNonOrganikAktif = Petugas::where('status', 'aktif')->where('jenis_petugas', 'non-organik')->count();
 
         for ($month = 1; $month <= $currentMonth; $month++) {
             $monthName = Carbon::create($currentYear, $month, 1)->format('M');
@@ -644,13 +645,14 @@ class DashboardController extends Controller
                 'kegiatan_count' => $kegiatanCount,
             ];
 
-            // Get all alokasi for this month (exclude honor=0)
+            // Get all alokasi for this month (non-organik only, exclude honor=0)
             $alokasiThisMonth = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
                 ->whereIn('periode_alokasi.bulan', $monthCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
+                ->where('petugas.jenis_petugas', 'non-organik')
                 ->where(function ($query) use ($isSensusHonorRolloutMonth) {
                     $query->whereRaw('(alokasi_petugas.total_honor + COALESCE(alokasi_petugas.total_honor_listing, 0)) > 0');
 
@@ -666,10 +668,33 @@ class DashboardController extends Controller
                 ->get();
 
             // Count by categories
-            $petugasTidakDialokasikan = $totalPetugasAktif - $alokasiThisMonth->count();
+            $petugasTidakDialokasikan = $totalNonOrganikAktif - $alokasiThisMonth->count();
             $petugas1_2Kegiatan = $alokasiThisMonth->filter(fn ($p) => $p->jumlah_kegiatan >= 1 && $p->jumlah_kegiatan <= 2)->count();
             $petugas3_5Kegiatan = $alokasiThisMonth->filter(fn ($p) => $p->jumlah_kegiatan >= 3 && $p->jumlah_kegiatan <= 5)->count();
             $petugasLebih5Kegiatan = $alokasiThisMonth->filter(fn ($p) => $p->jumlah_kegiatan > 5)->count();
+            $totalKegiatanBulanIni = (int) $alokasiThisMonth->sum('jumlah_kegiatan');
+
+            // Workload inequality stats per month
+            $kegiatanCounts = $alokasiThisMonth->pluck('jumlah_kegiatan')->map(fn ($v) => (int) $v)->toArray();
+            $avgKegiatan = 0;
+            $maxKegiatan = 0;
+            $minKegiatan = 0;
+            $cvKegiatan = 0;
+
+            if (count($kegiatanCounts) > 0) {
+                $avgKegiatan = array_sum($kegiatanCounts) / count($kegiatanCounts);
+                $maxKegiatan = max($kegiatanCounts);
+                $minKegiatan = min($kegiatanCounts);
+
+                if (count($kegiatanCounts) > 1 && $avgKegiatan > 0) {
+                    $wVariance = 0;
+                    foreach ($kegiatanCounts as $k) {
+                        $wVariance += ($k - $avgKegiatan) ** 2;
+                    }
+                    $wStdDev = sqrt($wVariance / count($kegiatanCounts));
+                    $cvKegiatan = ($wStdDev / $avgKegiatan) * 100;
+                }
+            }
 
             $petugasMonitoringData[] = [
                 'month' => $monthName,
@@ -677,6 +702,13 @@ class DashboardController extends Controller
                 'kegiatan_1_2' => $petugas1_2Kegiatan,
                 'kegiatan_3_5' => $petugas3_5Kegiatan,
                 'kegiatan_lebih_5' => $petugasLebih5Kegiatan,
+                'total_dialokasikan' => $alokasiThisMonth->count(),
+                'total_kegiatan' => $totalKegiatanBulanIni,
+                'kegiatan_count' => $kegiatanCount,
+                'avg_kegiatan' => round($avgKegiatan, 2),
+                'max_kegiatan' => $maxKegiatan,
+                'min_kegiatan' => $minKegiatan,
+                'cv_kegiatan' => round($cvKegiatan, 2),
             ];
         }
 
@@ -837,6 +869,47 @@ class DashboardController extends Controller
             ];
         }
 
+        // Workload Inequality Summary
+        $workloadInequalitySummary = ['has_data' => false];
+
+        if ($monthsWithAlokasi->count() > 0) {
+            $avgCvWorkload = $monthsWithAlokasi->avg('cv_kegiatan');
+            $avgAvgKegiatan = $monthsWithAlokasi->avg('avg_kegiatan');
+            $totalOverload = $monthsWithAlokasi->sum('kegiatan_lebih_5');
+            $totalUnderutilized = $monthsWithAlokasi->sum('kegiatan_1_2');
+            $totalAllocated = $monthsWithAlokasi->sum('total_dialokasikan');
+            $pctOverload = $totalAllocated > 0 ? ($totalOverload / $totalAllocated) * 100 : 0;
+            $pctUnderutilized = $totalAllocated > 0 ? ($totalUnderutilized / $totalAllocated) * 100 : 0;
+
+            // Recommendation: how many petugas are needed per month to achieve 3-5 kegiatan/petugas
+            $avgTotalKegiatan = $monthsWithAlokasi->avg('total_kegiatan');
+            $avgKegiatanCount = $monthsWithAlokasi->avg('kegiatan_count');
+            $avgAllocated = $monthsWithAlokasi->avg('total_dialokasikan');
+            $maxAllocated = $monthsWithAlokasi->max('total_dialokasikan');
+            $minAllocated = $monthsWithAlokasi->min('total_dialokasikan');
+            $rekomendasiMin = $avgTotalKegiatan > 0 ? (int) ceil($avgTotalKegiatan / 5) : 0;
+            $rekomendasiMax = $avgTotalKegiatan > 0 ? (int) ceil($avgTotalKegiatan / 3) : 0;
+            $utilizationRate = $totalNonOrganikAktif > 0 ? ($avgAllocated / $totalNonOrganikAktif) * 100 : 0;
+
+            $workloadInequalitySummary = [
+                'has_data' => true,
+                'avg_cv' => round((float) $avgCvWorkload, 2),
+                'avg_kegiatan' => round((float) $avgAvgKegiatan, 2),
+                'pct_overload' => round($pctOverload, 1),
+                'pct_underutilized' => round($pctUnderutilized, 1),
+                'total_non_organik_aktif' => $totalNonOrganikAktif,
+                'avg_allocated' => round((float) $avgAllocated, 1),
+                'max_allocated' => (int) $maxAllocated,
+                'min_allocated' => (int) $minAllocated,
+                'avg_total_kegiatan' => round((float) $avgTotalKegiatan, 1),
+                'avg_kegiatan_count' => round((float) $avgKegiatanCount, 1),
+                'rekomendasi_min' => $rekomendasiMin,
+                'rekomendasi_max' => $rekomendasiMax,
+                'utilization_rate' => round($utilizationRate, 1),
+                'insights' => $this->buildWorkloadInsights($monthsWithAlokasi, $currentMonth, (float) $avgCvWorkload, (float) $avgAvgKegiatan, $totalNonOrganikAktif, $rekomendasiMin, $rekomendasiMax, round((float) $utilizationRate, 1)),
+            ];
+        }
+
         // Honor Inequality Summary - Average per month
         $honorInequalitySummary = ['has_data' => false];
 
@@ -860,6 +933,7 @@ class DashboardController extends Controller
                 'koefisien_variasi' => round($avgKoefisienVariasi, 2),
                 'gap_honor' => round($avgGapHonor, 0),
                 'total_petugas' => round($avgTotalPetugas, 0),
+                'insights' => $this->buildHonorInsights($honorMonthsWithData, $currentMonth, $avgRataRataHonor, $avgKoefisienVariasi),
             ];
         }
 
@@ -992,6 +1066,7 @@ class DashboardController extends Controller
             'honorPerPetugas' => $honorPerPetugas,
             'honorMonths' => $monthNames,
             'petugasMonitoringSummary' => $petugasMonitoringSummary,
+            'workloadInequalitySummary' => $workloadInequalitySummary,
             'honorInequalitySummary' => $honorInequalitySummary,
             'mitraReviewSummary' => $mitraReviewSummary,
             'attentionItems' => $attentionItems->values(),
@@ -999,6 +1074,107 @@ class DashboardController extends Controller
             'currentYear' => $currentYear,
             'userRole' => $user->role,
         ]);
+    }
+
+    /**
+     * Build natural-language insight bullets for workload inequality.
+     *
+     * @param  Collection<int, array<string, mixed>>  $workloadMonthsWithData
+     * @return array<int, string>
+     */
+    private function buildWorkloadInsights(
+        Collection $workloadMonthsWithData,
+        int $currentMonth,
+        float $avgCv,
+        float $avgAvgKegiatan,
+        int $totalNonOrganikAktif,
+        int $rekomendasiMin,
+        int $rekomendasiMax,
+        float $utilizationRate,
+    ): array {
+        $insights = [];
+        $monthsWithData = $workloadMonthsWithData->count();
+
+        // Coverage
+        if ($monthsWithData < $currentMonth) {
+            $insights[] = "Data beban kerja tersedia di {$monthsWithData} dari {$currentMonth} bulan berjalan.";
+        } else {
+            $insights[] = "Data beban kerja tersedia di semua {$currentMonth} bulan berjalan.";
+        }
+
+        // Average kegiatan + trend
+        $fmtAvg = number_format($avgAvgKegiatan, 1, ',', '.');
+        $trendText = '';
+
+        if ($workloadMonthsWithData->count() >= 2) {
+            $firstAvg = (float) $workloadMonthsWithData->first()['avg_kegiatan'];
+            $lastAvg = (float) $workloadMonthsWithData->last()['avg_kegiatan'];
+
+            if ($firstAvg > 0) {
+                $trendPct = (($lastAvg - $firstAvg) / $firstAvg) * 100;
+
+                if (abs($trendPct) >= 10) {
+                    $dir = $trendPct > 0 ? 'meningkat' : 'menurun';
+                    $trendText = ' (tren '.$dir.' '.abs(round($trendPct, 0)).'% dari bulan pertama ke terakhir)';
+                }
+            }
+        }
+
+        $insights[] = "Rata-rata {$fmtAvg} kegiatan per petugas per bulan{$trendText}.";
+
+        // CV inequality level
+        $cvLevel = $avgCv > 50 ? 'tinggi' : ($avgCv > 30 ? 'sedang' : 'rendah');
+        $cvVal = round($avgCv, 1);
+        $mostUnequalMonth = $workloadMonthsWithData->sortByDesc('cv_kegiatan')->first();
+        $cvMonthName = $mostUnequalMonth['month'];
+        $cvMonthVal = round((float) $mostUnequalMonth['cv_kegiatan'], 1);
+        $insights[] = "Ketimpangan beban rata-rata {$cvLevel} (CV {$cvVal}%). Bulan paling timpang: {$cvMonthName} (CV {$cvMonthVal}%).";
+
+        // Overload %
+        $totalOverload = $workloadMonthsWithData->sum('kegiatan_lebih_5');
+        $totalAllocated = $workloadMonthsWithData->sum('total_dialokasikan');
+
+        if ($totalAllocated > 0) {
+            $pctOverload = round(($totalOverload / $totalAllocated) * 100, 1);
+
+            if ($pctOverload > 15) {
+                $insights[] = "{$pctOverload}% alokasi petugas overload (>5 kegiatan) — perlu redistribusi segera.";
+            } elseif ($pctOverload > 5) {
+                $insights[] = "{$pctOverload}% alokasi petugas overload (>5 kegiatan) — pantau keberlangsungannya.";
+            } else {
+                $insights[] = "Hanya {$pctOverload}% alokasi petugas yang overload (>5 kegiatan) — beban terkendali.";
+            }
+
+            // Under-utilized %
+            $totalUnderutilized = $workloadMonthsWithData->sum('kegiatan_1_2');
+            $pctUnderutilized = round(($totalUnderutilized / $totalAllocated) * 100, 1);
+
+            if ($pctUnderutilized > 40) {
+                $insights[] = "{$pctUnderutilized}% petugas hanya mendapat 1-2 kegiatan — kapasitas banyak yang belum terpakai.";
+            } elseif ($pctUnderutilized > 20) {
+                $insights[] = "{$pctUnderutilized}% petugas mendapat 1-2 kegiatan — ada ruang untuk penambahan alokasi.";
+            }
+        }
+
+        // Utilization insight
+        $fmtUtil = number_format($utilizationRate, 1, ',', '.');
+        $idlePetugas = $totalNonOrganikAktif - (int) round($workloadMonthsWithData->avg('total_dialokasikan'));
+        $idlePetugas = max(0, $idlePetugas);
+
+        if ($utilizationRate < 50) {
+            $insights[] = "Utilisasi pool mitra rendah ({$fmtUtil}% dari {$totalNonOrganikAktif} non-organik aktif). Rata-rata {$idlePetugas} petugas idle setiap bulan.";
+        } elseif ($utilizationRate < 80) {
+            $insights[] = "Utilisasi pool mitra sedang ({$fmtUtil}% dari {$totalNonOrganikAktif} non-organik aktif). Rata-rata {$idlePetugas} petugas masih bisa dialokasikan.";
+        } else {
+            $insights[] = "Utilisasi pool mitra tinggi ({$fmtUtil}% dari {$totalNonOrganikAktif} non-organik aktif).";
+        }
+
+        // Recommendation
+        if ($rekomendasiMin > 0 && $rekomendasiMax > 0) {
+            $insights[] = "Rekomendasi: alokasikan {$rekomendasiMin}–{$rekomendasiMax} petugas per bulan agar setiap petugas mendapat 3–5 kegiatan (beban optimal).";
+        }
+
+        return $insights;
     }
 
     private function calculateDashboardHonor(
@@ -1028,6 +1204,90 @@ class DashboardController extends Controller
             8 => 0.6,
             default => 1.0,
         };
+    }
+
+    /**
+     * Build a list of natural-language insight bullets for the honor inequality summary.
+     *
+     * @param  Collection<int, array<string, mixed>>  $honorMonthsWithData
+     * @return array<int, string>
+     */
+    private function buildHonorInsights(
+        Collection $honorMonthsWithData,
+        int $currentMonth,
+        float $avgRataRataHonor,
+        float $avgKoefisienVariasi,
+    ): array {
+        $insights = [];
+        $monthsWithData = $honorMonthsWithData->count();
+
+        // Insight 1: Coverage
+        if ($monthsWithData < $currentMonth) {
+            $insights[] = "Data honor tersedia di {$monthsWithData} dari {$currentMonth} bulan berjalan.";
+        } else {
+            $insights[] = "Data honor tersedia di semua {$currentMonth} bulan berjalan.";
+        }
+
+        // Insight 2: Average honor + trend
+        $fmtAvg = number_format((int) $avgRataRataHonor, 0, ',', '.');
+        $trendText = '';
+
+        if ($honorMonthsWithData->count() >= 2) {
+            $firstHonor = (float) $honorMonthsWithData->first()['rata_rata_honor'];
+            $lastHonor = (float) $honorMonthsWithData->last()['rata_rata_honor'];
+
+            if ($firstHonor > 0) {
+                $trendPct = (($lastHonor - $firstHonor) / $firstHonor) * 100;
+
+                if (abs($trendPct) >= 5) {
+                    $dir = $trendPct > 0 ? 'naik' : 'turun';
+                    $trendText = ' (tren '.$dir.' '.abs(round($trendPct, 0)).'% dari bulan pertama ke terakhir)';
+                }
+            }
+        }
+
+        $insights[] = "Rata-rata honor non-organik Rp {$fmtAvg}/bulan{$trendText}.";
+
+        // Insight 3: Inequality level + worst month
+        $cvLevel = $avgKoefisienVariasi > 50 ? 'tinggi' : ($avgKoefisienVariasi > 30 ? 'sedang' : 'rendah');
+        $cvVal = round($avgKoefisienVariasi, 1);
+        $mostUnequalMonth = $honorMonthsWithData->sortByDesc('koefisien_variasi')->first();
+        $cvMonthName = $mostUnequalMonth['month'];
+        $cvMonthVal = round((float) $mostUnequalMonth['koefisien_variasi'], 1);
+        $insights[] = "Tingkat ketimpangan rata-rata {$cvLevel} (CV {$cvVal}%). Distribusi paling timpang di bulan {$cvMonthName} (CV {$cvMonthVal}%).";
+
+        // Insight 4: Dominant honor bracket across all months
+        $bracketTotals = [
+            '0–500 rb' => $honorMonthsWithData->sum('honor_0_500rb'),
+            '501 rb–1,5 jt' => $honorMonthsWithData->sum('honor_501rb_1500rb'),
+            '1,5–2,5 jt' => $honorMonthsWithData->sum('honor_1501rb_2500rb'),
+            '2,5–3,5 jt' => $honorMonthsWithData->sum('honor_2501rb_3500rb'),
+            '>3,5 jt' => $honorMonthsWithData->sum('honor_lebih_3501rb'),
+        ];
+
+        $totalSlots = array_sum($bracketTotals);
+        $dominantBracket = 'tidak tersedia';
+        $dominantPct = 0;
+
+        if ($totalSlots > 0) {
+            arsort($bracketTotals);
+            $dominantBracket = array_key_first($bracketTotals);
+            $dominantPct = round(reset($bracketTotals) / $totalSlots * 100, 0);
+        }
+
+        $insights[] = "Kelompok honor terbanyak di bracket Rp {$dominantBracket} ({$dominantPct}% dari total alokasi).";
+
+        // Insight 5: Highest and lowest month by average honor
+        $highestMonth = $honorMonthsWithData->sortByDesc('rata_rata_honor')->first();
+        $lowestMonth = $honorMonthsWithData->sortBy('rata_rata_honor')->first();
+
+        if ($highestMonth['month'] !== $lowestMonth['month']) {
+            $fmtHighest = number_format((int) $highestMonth['rata_rata_honor'], 0, ',', '.');
+            $fmtLowest = number_format((int) $lowestMonth['rata_rata_honor'], 0, ',', '.');
+            $insights[] = "Rata-rata honor tertinggi di bulan {$highestMonth['month']} (Rp {$fmtHighest}) dan terendah di bulan {$lowestMonth['month']} (Rp {$fmtLowest}).";
+        }
+
+        return $insights;
     }
 
     /**

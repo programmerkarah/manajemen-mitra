@@ -1,4 +1,3 @@
-import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -9,16 +8,12 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import { buildNavItems } from '@/lib/nav-items';
 import { dashboard } from '@/routes';
-import { index as alokasiIndex } from '@/routes/alokasi';
 import { index as bastIndex } from '@/routes/bast';
 import { index as kegiatanIndex } from '@/routes/kegiatan';
 import { index as petugasIndex } from '@/routes/petugas';
-import { index as skKpaIndex } from '@/routes/sk-kpa';
-import { index as spkIndex } from '@/routes/spk';
 import { SharedData, type BreadcrumbItem } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
-    Activity,
     AlertCircle,
     AlertTriangle,
     ArrowRight,
@@ -28,7 +23,6 @@ import {
     ChevronRight,
     Clock,
     Eye,
-    FileSignature,
     FileText,
     Plus,
     ScrollText,
@@ -151,6 +145,12 @@ interface PetugasMonitoringData {
     kegiatan_1_2: number;
     kegiatan_3_5: number;
     kegiatan_lebih_5: number;
+    total_dialokasikan: number;
+    total_kegiatan: number;
+    avg_kegiatan: number;
+    max_kegiatan: number;
+    min_kegiatan: number;
+    cv_kegiatan: number;
 }
 
 interface HonorInequalityData {
@@ -219,6 +219,24 @@ interface PetugasMonitoringSummary {
     kegiatan_lebih_5: number;
 }
 
+interface WorkloadInequalitySummary {
+    has_data: boolean;
+    avg_cv?: number;
+    avg_kegiatan?: number;
+    pct_overload?: number;
+    pct_underutilized?: number;
+    total_non_organik_aktif?: number;
+    avg_allocated?: number;
+    max_allocated?: number;
+    min_allocated?: number;
+    avg_total_kegiatan?: number;
+    avg_kegiatan_count?: number;
+    rekomendasi_min?: number;
+    rekomendasi_max?: number;
+    utilization_rate?: number;
+    insights?: string[];
+}
+
 interface HonorInequalitySummary {
     has_data: boolean;
     rata_rata_honor?: number;
@@ -228,6 +246,7 @@ interface HonorInequalitySummary {
     koefisien_variasi?: number;
     gap_honor?: number;
     total_petugas?: number;
+    insights?: string[];
 }
 
 interface MitraReviewSummary {
@@ -275,6 +294,7 @@ interface DashboardProps {
     }[];
     honorMonths: string[];
     petugasMonitoringSummary: PetugasMonitoringSummary;
+    workloadInequalitySummary: WorkloadInequalitySummary;
     honorInequalitySummary: HonorInequalitySummary;
     mitraReviewSummary: MitraReviewSummary;
     attentionItems: AttentionItem[];
@@ -300,8 +320,6 @@ const monthNames = [
 
 export default function Dashboard({
     stats,
-    additionalStats,
-    recentAlokasi,
     kegiatanBulanIni,
     chartData,
     petugasMonitoringData,
@@ -309,6 +327,7 @@ export default function Dashboard({
     honorPerPetugas,
     honorMonths,
     petugasMonitoringSummary,
+    workloadInequalitySummary,
     honorInequalitySummary,
     mitraReviewSummary,
     attentionItems,
@@ -711,339 +730,370 @@ export default function Dashboard({
                     )}
                 </div>
 
-                {/* Comprehensive Statistics */}
-                <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-                    {/* SK Stats */}
-                    <div className="min-w-0 rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
-                        <div className="mb-3 flex items-center gap-2.5">
-                            <div className="flex-shrink-0 rounded-lg bg-rose-100 p-2.5 dark:bg-rose-900/30">
-                                <FileSignature className="size-4 text-rose-600 dark:text-rose-400" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <h3 className="truncate text-sm font-semibold text-neutral-900 dark:text-white">
-                                    SK Petugas
-                                </h3>
-                                <p className="text-xl font-bold text-neutral-900 dark:text-white">
-                                    {additionalStats.sk.total}
-                                </p>
-                            </div>
-                            <Link href={skKpaIndex().url}>
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="size-7 p-0"
-                                >
-                                    <ArrowRight className="size-3.5" />
-                                </Button>
-                            </Link>
-                        </div>
-                        <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-neutral-600 dark:text-neutral-400">
-                                    Draft
-                                </span>
-                                <span className="font-medium text-neutral-900 dark:text-white">
-                                    {additionalStats.sk.draft}
-                                </span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-neutral-600 dark:text-neutral-400">
-                                    Ditetapkan
-                                </span>
-                                <span className="font-medium text-neutral-900 dark:text-white">
-                                    {additionalStats.sk.diterbitkan}
-                                </span>
-                            </div>
-                            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-700">
-                                <div
-                                    className="h-full rounded-full bg-rose-500 transition-all"
-                                    style={{
-                                        width: `${
-                                            additionalStats.sk.total > 0
-                                                ? Math.round(
-                                                      (additionalStats.sk
-                                                          .diterbitkan /
-                                                          additionalStats.sk
-                                                              .total) *
-                                                          100,
-                                                  )
-                                                : 0
-                                        }%`,
-                                    }}
-                                />
-                            </div>
-                            <p className="text-[10px] text-neutral-500 dark:text-neutral-400">
-                                {additionalStats.sk.total > 0
-                                    ? Math.round(
-                                          (additionalStats.sk.diterbitkan /
-                                              additionalStats.sk.total) *
-                                              100,
-                                      )
-                                    : 0}
-                                % diterbitkan
-                            </p>
-                        </div>
+                {/* Kondisi Ekuitas Mitra — replaces decorative SK/SPK + proportion cards */}
+                <div className="min-w-0 rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="mb-5 border-b border-neutral-200 pb-4 dark:border-neutral-800">
+                        <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
+                            Kondisi Ekuitas Mitra —{' '}
+                            {monthNames[currentMonth - 1]} {currentYear}
+                        </h3>
+                        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                            Apakah beban kerja dan honor sudah terdistribusi
+                            secara adil untuk seluruh mitra non-organik?
+                        </p>
                     </div>
 
-                    {/* SPK Stats */}
-                    <div className="min-w-0 rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
-                        <div className="mb-3 flex items-center gap-2.5">
-                            <div className="flex-shrink-0 rounded-lg bg-orange-100 p-2.5 dark:bg-orange-900/30">
-                                <ScrollText className="size-4 text-orange-600 dark:text-orange-400" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <h3 className="truncate text-sm font-semibold text-neutral-900 dark:text-white">
-                                    Perjanjian Kerja
-                                </h3>
-                                <p className="text-xl font-bold text-neutral-900 dark:text-white">
-                                    {additionalStats.spk.total}
-                                </p>
-                            </div>
-                            <Link href={spkIndex().url}>
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="size-7 p-0"
-                                >
-                                    <ArrowRight className="size-3.5" />
-                                </Button>
-                            </Link>
-                        </div>
-                        <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-neutral-600 dark:text-neutral-400">
-                                    Total Diterbitkan
-                                </span>
-                                <span className="font-medium text-neutral-900 dark:text-white">
-                                    {additionalStats.spk.total}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Detailed Breakdown */}
-                <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {/* Petugas Detail */}
-                    <div className="min-w-0 rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
-                        <div className="mb-3 flex items-center gap-2.5">
-                            <div className="flex-shrink-0 rounded-lg bg-sky-100 p-2.5 dark:bg-sky-900/30">
-                                <Users className="size-4 text-sky-600 dark:text-sky-400" />
-                            </div>
-                            <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-neutral-900 dark:text-white">
-                                Petugas by Jenis
-                            </h3>
-                            {['admin', 'operator', 'pj'].includes(
-                                auth.activeRole?.name ?? '',
-                            ) && (
-                                <Link href={petugasIndex().url}>
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="size-7 p-0"
-                                    >
-                                        <ArrowRight className="size-3.5" />
-                                    </Button>
-                                </Link>
-                            )}
-                        </div>
-                        <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                                    Organik
-                                </span>
-                                <span className="font-medium text-neutral-900 dark:text-white">
-                                    {additionalStats.petugas_detail.organik}
-                                </span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                                    Non-Organik
-                                </span>
-                                <span className="font-medium text-neutral-900 dark:text-white">
-                                    {additionalStats.petugas_detail.non_organik}
-                                </span>
-                            </div>
-                            {additionalStats.petugas_detail.organik +
-                                additionalStats.petugas_detail.non_organik >
-                                0 && (
-                                <>
-                                    <div className="mt-1 flex h-1.5 overflow-hidden rounded-full">
+                    <div className="grid gap-6 lg:grid-cols-2">
+                        {/* Workload Equity */}
+                        {(() => {
+                            const currentMonthWorkload =
+                                petugasMonitoringData[
+                                    petugasMonitoringData.length - 1
+                                ];
+                            const totalPool =
+                                workloadInequalitySummary.total_non_organik_aktif ||
+                                0;
+                            if (!currentMonthWorkload) {
+                                return null;
+                            }
+                            const allocated =
+                                currentMonthWorkload.total_dialokasikan;
+                            const idle =
+                                currentMonthWorkload.tidak_dialokasikan;
+                            const overload =
+                                currentMonthWorkload.kegiatan_lebih_5;
+                            const cv = currentMonthWorkload.cv_kegiatan;
+                            const cvLevel =
+                                cv < 30
+                                    ? 'Baik'
+                                    : cv < 50
+                                      ? 'Sedang'
+                                      : 'Tinggi';
+                            const cvColor =
+                                cv < 30
+                                    ? 'text-green-600 dark:text-green-400'
+                                    : cv < 50
+                                      ? 'text-amber-600 dark:text-amber-400'
+                                      : 'text-red-600 dark:text-red-400';
+                            const utilizationPct =
+                                totalPool > 0
+                                    ? Math.round((allocated / totalPool) * 100)
+                                    : 0;
+                            return (
+                                <div>
+                                    <div className="mb-3 flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Users className="size-4 text-indigo-600 dark:text-indigo-400" />
+                                            <span className="text-sm font-semibold text-neutral-900 dark:text-white">
+                                                Ekuitas Beban Kerja
+                                            </span>
+                                        </div>
+                                        <span
+                                            className={`text-xs font-medium ${cvColor}`}
+                                        >
+                                            CV {cv.toFixed(1)}% — {cvLevel}
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                        <div className="rounded-lg bg-neutral-50 p-3 dark:bg-neutral-800">
+                                            <p className="text-[10px] text-neutral-500 uppercase dark:text-neutral-400">
+                                                Mitra Aktif
+                                            </p>
+                                            <p className="text-2xl font-bold text-neutral-900 dark:text-white">
+                                                {totalPool}
+                                            </p>
+                                            <p className="text-[10px] text-neutral-500 dark:text-neutral-400">
+                                                non-organik
+                                            </p>
+                                        </div>
+                                        <div className="rounded-lg bg-indigo-50 p-3 dark:bg-indigo-900/20">
+                                            <p className="text-[10px] text-indigo-600 uppercase dark:text-indigo-400">
+                                                Dialokasikan
+                                            </p>
+                                            <p className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+                                                {allocated}
+                                            </p>
+                                            <p className="text-[10px] text-indigo-500 dark:text-indigo-400">
+                                                {utilizationPct}% utilisasi
+                                            </p>
+                                        </div>
                                         <div
-                                            className="h-full bg-sky-400"
-                                            style={{
-                                                width: `${(
-                                                    (additionalStats
-                                                        .petugas_detail
-                                                        .organik /
-                                                        (additionalStats
-                                                            .petugas_detail
-                                                            .organik +
-                                                            additionalStats
-                                                                .petugas_detail
-                                                                .non_organik)) *
-                                                    100
-                                                ).toFixed(1)}%`,
-                                            }}
-                                        />
-                                        <div className="h-full flex-1 bg-teal-400" />
-                                    </div>
-                                    <div className="flex gap-3 text-[10px] text-neutral-500 dark:text-neutral-400">
-                                        <span className="flex items-center gap-1">
-                                            <span className="inline-block size-1.5 rounded-full bg-sky-400" />
-                                            Organik
-                                        </span>
-                                        <span className="flex items-center gap-1">
-                                            <span className="inline-block size-1.5 rounded-full bg-teal-400" />
-                                            Non-Organik
-                                        </span>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Kegiatan Detail */}
-                    <div className="min-w-0 rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
-                        <div className="mb-3 flex items-center gap-2.5">
-                            <div className="flex-shrink-0 rounded-lg bg-teal-100 p-2.5 dark:bg-teal-900/30">
-                                <Briefcase className="size-4 text-teal-600 dark:text-teal-400" />
-                            </div>
-                            <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-neutral-900 dark:text-white">
-                                Kegiatan by Jenis
-                            </h3>
-                            <Link href={kegiatanIndex().url}>
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="size-7 p-0"
-                                >
-                                    <ArrowRight className="size-3.5" />
-                                </Button>
-                            </Link>
-                        </div>
-                        <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                                    Sensus
-                                </span>
-                                <span className="font-medium text-neutral-900 dark:text-white">
-                                    {additionalStats.kegiatan_detail.sensus}
-                                </span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                                    Survei
-                                </span>
-                                <span className="font-medium text-neutral-900 dark:text-white">
-                                    {additionalStats.kegiatan_detail.survei}
-                                </span>
-                            </div>
-                            {additionalStats.kegiatan_detail.sensus +
-                                additionalStats.kegiatan_detail.survei >
-                                0 && (
-                                <>
-                                    <div className="mt-1 flex h-1.5 overflow-hidden rounded-full">
+                                            className={`rounded-lg p-3 ${
+                                                idle > totalPool * 0.3
+                                                    ? 'bg-red-50 dark:bg-red-900/20'
+                                                    : 'bg-amber-50 dark:bg-amber-900/20'
+                                            }`}
+                                        >
+                                            <p
+                                                className={`text-[10px] uppercase ${
+                                                    idle > totalPool * 0.3
+                                                        ? 'text-red-600 dark:text-red-400'
+                                                        : 'text-amber-600 dark:text-amber-400'
+                                                }`}
+                                            >
+                                                Idle
+                                            </p>
+                                            <p
+                                                className={`text-2xl font-bold ${
+                                                    idle > totalPool * 0.3
+                                                        ? 'text-red-700 dark:text-red-300'
+                                                        : 'text-amber-700 dark:text-amber-300'
+                                                }`}
+                                            >
+                                                {idle}
+                                            </p>
+                                            <p
+                                                className={`text-[10px] ${
+                                                    idle > totalPool * 0.3
+                                                        ? 'text-red-500 dark:text-red-400'
+                                                        : 'text-amber-500 dark:text-amber-400'
+                                                }`}
+                                            >
+                                                tidak dapat tugas
+                                            </p>
+                                        </div>
                                         <div
-                                            className="h-full bg-teal-400"
-                                            style={{
-                                                width: `${(
-                                                    (additionalStats
-                                                        .kegiatan_detail
-                                                        .sensus /
-                                                        (additionalStats
-                                                            .kegiatan_detail
-                                                            .sensus +
-                                                            additionalStats
-                                                                .kegiatan_detail
-                                                                .survei)) *
-                                                    100
-                                                ).toFixed(1)}%`,
-                                            }}
-                                        />
-                                        <div className="h-full flex-1 bg-emerald-400" />
+                                            className={`rounded-lg p-3 ${
+                                                overload > 0
+                                                    ? 'bg-red-50 dark:bg-red-900/20'
+                                                    : 'bg-green-50 dark:bg-green-900/20'
+                                            }`}
+                                        >
+                                            <p
+                                                className={`text-[10px] uppercase ${
+                                                    overload > 0
+                                                        ? 'text-red-600 dark:text-red-400'
+                                                        : 'text-green-600 dark:text-green-400'
+                                                }`}
+                                            >
+                                                Overload
+                                            </p>
+                                            <p
+                                                className={`text-2xl font-bold ${
+                                                    overload > 0
+                                                        ? 'text-red-700 dark:text-red-300'
+                                                        : 'text-green-700 dark:text-green-300'
+                                                }`}
+                                            >
+                                                {overload}
+                                            </p>
+                                            <p
+                                                className={`text-[10px] ${
+                                                    overload > 0
+                                                        ? 'text-red-500 dark:text-red-400'
+                                                        : 'text-green-500 dark:text-green-400'
+                                                }`}
+                                            >
+                                                &gt;5 kegiatan
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div className="flex gap-3 text-[10px] text-neutral-500 dark:text-neutral-400">
-                                        <span className="flex items-center gap-1">
-                                            <span className="inline-block size-1.5 rounded-full bg-teal-400" />
-                                            Sensus
-                                        </span>
-                                        <span className="flex items-center gap-1">
-                                            <span className="inline-block size-1.5 rounded-full bg-emerald-400" />
-                                            Survei
-                                        </span>
+                                    <div className="mt-3">
+                                        <div className="mb-1 flex justify-between text-[10px] text-neutral-500 dark:text-neutral-400">
+                                            <span>
+                                                Utilisasi mitra bulan ini
+                                            </span>
+                                            <span>{utilizationPct}%</span>
+                                        </div>
+                                        <div className="h-1.5 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-700">
+                                            <div
+                                                className={`h-full rounded-full transition-all ${
+                                                    utilizationPct >= 80
+                                                        ? 'bg-green-500'
+                                                        : utilizationPct >= 50
+                                                          ? 'bg-amber-500'
+                                                          : 'bg-red-500'
+                                                }`}
+                                                style={{
+                                                    width: `${utilizationPct}%`,
+                                                }}
+                                            />
+                                        </div>
                                     </div>
-                                </>
-                            )}
-                        </div>
-                    </div>
+                                </div>
+                            );
+                        })()}
 
-                    {/* Alokasi Detail */}
-                    <div className="min-w-0 rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
-                        <div className="mb-3 flex items-center gap-2.5">
-                            <div className="flex-shrink-0 rounded-lg bg-fuchsia-100 p-2.5 dark:bg-fuchsia-900/30">
-                                <TrendingUp className="size-4 text-fuchsia-600 dark:text-fuchsia-400" />
-                            </div>
-                            <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-neutral-900 dark:text-white">
-                                Alokasi by Status
-                            </h3>
-                            <Link href={alokasiIndex().url}>
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="size-7 p-0"
-                                >
-                                    <ArrowRight className="size-3.5" />
-                                </Button>
-                            </Link>
-                        </div>
-                        <div className="space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                                    Draft
-                                </span>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-medium text-neutral-900 dark:text-white">
-                                        {additionalStats.alokasi_detail.draft}
-                                    </span>
-                                    <StatusBadge
-                                        status="draft"
-                                        showIcon={false}
-                                    />
+                        {/* Honor Equity */}
+                        {(() => {
+                            const currentMonthHonor =
+                                honorInequalityData[
+                                    honorInequalityData.length - 1
+                                ];
+                            if (
+                                !currentMonthHonor ||
+                                currentMonthHonor.total_petugas === 0
+                            ) {
+                                return (
+                                    <div className="flex items-center justify-center rounded-lg border border-dashed border-neutral-300 p-6 dark:border-neutral-700">
+                                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                                            Belum ada data honor bulan ini
+                                        </p>
+                                    </div>
+                                );
+                            }
+                            const cv = currentMonthHonor.koefisien_variasi;
+                            const gap =
+                                currentMonthHonor.honor_tertinggi -
+                                currentMonthHonor.honor_terendah;
+                            const ratio =
+                                currentMonthHonor.honor_terendah > 0
+                                    ? (
+                                          currentMonthHonor.honor_tertinggi /
+                                          currentMonthHonor.honor_terendah
+                                      ).toFixed(1)
+                                    : '∞';
+                            const cvLevel =
+                                cv < 30
+                                    ? 'Baik'
+                                    : cv < 50
+                                      ? 'Sedang'
+                                      : 'Tinggi';
+                            const cvColor =
+                                cv < 30
+                                    ? 'text-green-600 dark:text-green-400'
+                                    : cv < 50
+                                      ? 'text-amber-600 dark:text-amber-400'
+                                      : 'text-red-600 dark:text-red-400';
+                            const fmtCompact = (n: number) =>
+                                new Intl.NumberFormat('id-ID', {
+                                    notation: 'compact',
+                                    maximumFractionDigits: 1,
+                                }).format(n);
+                            return (
+                                <div>
+                                    <div className="mb-3 flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <TrendingUp className="size-4 text-emerald-600 dark:text-emerald-400" />
+                                            <span className="text-sm font-semibold text-neutral-900 dark:text-white">
+                                                Ekuitas Honor
+                                            </span>
+                                        </div>
+                                        <span
+                                            className={`text-xs font-medium ${cvColor}`}
+                                        >
+                                            CV {cv.toFixed(1)}% — {cvLevel}
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                        <div className="rounded-lg bg-neutral-50 p-3 dark:bg-neutral-800">
+                                            <p className="text-[10px] text-neutral-500 uppercase dark:text-neutral-400">
+                                                Mitra Teralokasi
+                                            </p>
+                                            <p className="text-2xl font-bold text-neutral-900 dark:text-white">
+                                                {
+                                                    currentMonthHonor.total_petugas
+                                                }
+                                            </p>
+                                            <p className="text-[10px] text-neutral-500 dark:text-neutral-400">
+                                                bulan ini
+                                            </p>
+                                        </div>
+                                        <div className="rounded-lg bg-emerald-50 p-3 dark:bg-emerald-900/20">
+                                            <p className="text-[10px] text-emerald-600 uppercase dark:text-emerald-400">
+                                                Rata-rata
+                                            </p>
+                                            <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300">
+                                                {fmtCompact(
+                                                    currentMonthHonor.rata_rata_honor,
+                                                )}
+                                            </p>
+                                            <p className="text-[10px] text-emerald-500 dark:text-emerald-400">
+                                                per petugas
+                                            </p>
+                                        </div>
+                                        <div className="rounded-lg bg-sky-50 p-3 dark:bg-sky-900/20">
+                                            <p className="text-[10px] text-sky-600 uppercase dark:text-sky-400">
+                                                Tertinggi
+                                            </p>
+                                            <p className="text-xl font-bold text-sky-700 dark:text-sky-300">
+                                                {fmtCompact(
+                                                    currentMonthHonor.honor_tertinggi,
+                                                )}
+                                            </p>
+                                            <p className="text-[10px] text-sky-500 dark:text-sky-400">
+                                                {ratio}× di atas terendah
+                                            </p>
+                                        </div>
+                                        <div
+                                            className={`rounded-lg p-3 ${
+                                                cv >= 50
+                                                    ? 'bg-red-50 dark:bg-red-900/20'
+                                                    : cv >= 30
+                                                      ? 'bg-amber-50 dark:bg-amber-900/20'
+                                                      : 'bg-green-50 dark:bg-green-900/20'
+                                            }`}
+                                        >
+                                            <p
+                                                className={`text-[10px] uppercase ${cvColor}`}
+                                            >
+                                                Gap Honor
+                                            </p>
+                                            <p
+                                                className={`text-xl font-bold ${
+                                                    cv >= 50
+                                                        ? 'text-red-700 dark:text-red-300'
+                                                        : cv >= 30
+                                                          ? 'text-amber-700 dark:text-amber-300'
+                                                          : 'text-green-700 dark:text-green-300'
+                                                }`}
+                                            >
+                                                {fmtCompact(gap)}
+                                            </p>
+                                            <p
+                                                className={`text-[10px] ${
+                                                    cv >= 50
+                                                        ? 'text-red-500 dark:text-red-400'
+                                                        : cv >= 30
+                                                          ? 'text-amber-500 dark:text-amber-400'
+                                                          : 'text-green-500 dark:text-green-400'
+                                                }`}
+                                            >
+                                                selisih max–min
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {currentMonthHonor.honor_tertinggi > 0 && (
+                                        <div className="mt-3 rounded-lg bg-neutral-50 p-3 dark:bg-neutral-800">
+                                            <p className="mb-2 text-[10px] font-medium text-neutral-600 dark:text-neutral-400">
+                                                Sebaran honor bulan ini
+                                            </p>
+                                            <div className="mb-2 flex items-center justify-between text-[10px] text-neutral-500 dark:text-neutral-400">
+                                                <span className="flex items-center gap-1">
+                                                    <span className="inline-block size-2 rounded-full bg-green-400" />
+                                                    Terendah:{' '}
+                                                    {fmtCompact(
+                                                        currentMonthHonor.honor_terendah,
+                                                    )}
+                                                </span>
+                                                <span>
+                                                    Rata-rata:{' '}
+                                                    {fmtCompact(
+                                                        currentMonthHonor.rata_rata_honor,
+                                                    )}
+                                                </span>
+                                                <span className="flex items-center gap-1">
+                                                    <span className="inline-block size-2 rounded-full bg-red-400" />
+                                                    Tertinggi:{' '}
+                                                    {fmtCompact(
+                                                        currentMonthHonor.honor_tertinggi,
+                                                    )}
+                                                </span>
+                                            </div>
+                                            <div className="relative h-2 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700">
+                                                <div className="absolute h-full w-full rounded-full bg-gradient-to-r from-green-400 to-red-400" />
+                                                <div
+                                                    className="absolute top-0 h-full w-0.5 bg-white dark:bg-neutral-900"
+                                                    style={{
+                                                        left: `${(currentMonthHonor.rata_rata_honor / currentMonthHonor.honor_tertinggi) * 100}%`,
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                                    Dikirim
-                                </span>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-medium text-neutral-900 dark:text-white">
-                                        {additionalStats.alokasi_detail.dikirim}
-                                    </span>
-                                    <StatusBadge
-                                        status="dikirim"
-                                        showIcon={false}
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                                    Direvisi
-                                </span>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-medium text-neutral-900 dark:text-white">
-                                        {
-                                            additionalStats.alokasi_detail
-                                                .direvisi
-                                        }
-                                    </span>
-                                    <StatusBadge
-                                        status="direvisi"
-                                        showIcon={false}
-                                    />
-                                </div>
-                            </div>
-                        </div>
+                            );
+                        })()}
                     </div>
                 </div>
 
@@ -1424,7 +1474,7 @@ export default function Dashboard({
                                     }
                                 </p>
                                 <p className="mt-0.5 text-[10px] text-red-600/70 dark:text-red-400/70">
-                                    Januari - sekarang {currentYear}
+                                    rata-rata per bulan
                                 </p>
                             </div>
 
@@ -1476,6 +1526,394 @@ export default function Dashboard({
                                 </p>
                             </div>
                         </div>
+
+                        {/* Workload Inequality Analysis */}
+                        {workloadInequalitySummary.has_data && (
+                            <div className="mt-6 border-t border-neutral-200 pt-4 dark:border-neutral-800">
+                                <div className="mb-3 flex items-center gap-2">
+                                    <AlertTriangle className="size-3.5 text-amber-500 dark:text-amber-400" />
+                                    <h4 className="text-xs font-semibold tracking-wide text-neutral-700 uppercase dark:text-neutral-300">
+                                        Analisis Ketimpangan Beban Kerja
+                                    </h4>
+                                </div>
+
+                                <ResponsiveContainer width="100%" height={160}>
+                                    <ComposedChart
+                                        data={petugasMonitoringData}
+                                        margin={{
+                                            top: 5,
+                                            right: 40,
+                                            left: 0,
+                                            bottom: 5,
+                                        }}
+                                    >
+                                        <CartesianGrid
+                                            strokeDasharray="3 3"
+                                            stroke="currentColor"
+                                            className="text-neutral-200 dark:text-neutral-700"
+                                            opacity={0.3}
+                                        />
+                                        <XAxis
+                                            dataKey="month"
+                                            stroke="currentColor"
+                                            className="text-neutral-600 dark:text-neutral-400"
+                                            tick={{ fontSize: 11 }}
+                                            tickLine={false}
+                                        />
+                                        <YAxis
+                                            yAxisId="left"
+                                            stroke="currentColor"
+                                            className="text-neutral-600 dark:text-neutral-400"
+                                            tick={{ fontSize: 11 }}
+                                            tickLine={false}
+                                            axisLine={false}
+                                            tickFormatter={(v) =>
+                                                Number(v).toFixed(1)
+                                            }
+                                        />
+                                        <YAxis
+                                            yAxisId="right"
+                                            orientation="right"
+                                            stroke="currentColor"
+                                            className="text-neutral-600 dark:text-neutral-400"
+                                            tick={{ fontSize: 11 }}
+                                            tickLine={false}
+                                            axisLine={false}
+                                            tickFormatter={(v) => `${v}%`}
+                                        />
+                                        <ChartTooltip
+                                            contentStyle={{
+                                                backgroundColor:
+                                                    'var(--color-bg)',
+                                                border: '1px solid var(--color-border)',
+                                                borderRadius: '8px',
+                                                padding: '8px 12px',
+                                            }}
+                                            labelStyle={{
+                                                color: 'var(--color-text)',
+                                                fontWeight: 600,
+                                                marginBottom: '4px',
+                                            }}
+                                            itemStyle={{ fontSize: '12px' }}
+                                            formatter={(rawValue, name) => {
+                                                const value =
+                                                    typeof rawValue === 'number'
+                                                        ? rawValue
+                                                        : undefined;
+                                                if (name === 'CV Beban (%)') {
+                                                    return [
+                                                        (value?.toFixed(1) ??
+                                                            '0') + '%',
+                                                        name,
+                                                    ];
+                                                }
+                                                return [
+                                                    value?.toFixed(2) ?? '0',
+                                                    name,
+                                                ];
+                                            }}
+                                        />
+                                        <Legend
+                                            wrapperStyle={{
+                                                paddingTop: '12px',
+                                            }}
+                                            iconSize={8}
+                                        />
+                                        <Bar
+                                            yAxisId="left"
+                                            dataKey="avg_kegiatan"
+                                            fill="rgba(99, 102, 241, 0.5)"
+                                            name="Rata-rata Kegiatan"
+                                            radius={[3, 3, 0, 0]}
+                                        />
+                                        <Line
+                                            yAxisId="right"
+                                            type="monotone"
+                                            dataKey="cv_kegiatan"
+                                            stroke="rgb(251, 191, 36)"
+                                            strokeWidth={2.5}
+                                            strokeDasharray="5 5"
+                                            dot={{
+                                                fill: 'rgb(251, 191, 36)',
+                                                r: 4,
+                                            }}
+                                            name="CV Beban (%)"
+                                        />
+                                    </ComposedChart>
+                                </ResponsiveContainer>
+
+                                <div className="mt-3 grid grid-cols-3 gap-3">
+                                    <div className="rounded-lg bg-indigo-50 p-3 dark:bg-indigo-900/20">
+                                        <div className="mb-1 flex items-center gap-2">
+                                            <Briefcase className="size-3.5 text-indigo-600 dark:text-indigo-400" />
+                                            <span className="text-[10px] font-medium text-indigo-600 uppercase dark:text-indigo-400">
+                                                Beban Rata-rata
+                                            </span>
+                                        </div>
+                                        <p className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+                                            {(
+                                                workloadInequalitySummary.avg_kegiatan ||
+                                                0
+                                            ).toFixed(1)}
+                                        </p>
+                                        <p className="mt-0.5 text-[10px] text-indigo-600/70 dark:text-indigo-400/70">
+                                            kegiatan/petugas/bulan
+                                        </p>
+                                    </div>
+
+                                    <div
+                                        className={`rounded-lg p-3 ${
+                                            (workloadInequalitySummary.avg_cv ||
+                                                0) > 50
+                                                ? 'bg-red-50 dark:bg-red-900/20'
+                                                : (workloadInequalitySummary.avg_cv ||
+                                                        0) > 30
+                                                  ? 'bg-amber-50 dark:bg-amber-900/20'
+                                                  : 'bg-green-50 dark:bg-green-900/20'
+                                        }`}
+                                    >
+                                        <div className="mb-1 flex items-center gap-2">
+                                            <AlertTriangle
+                                                className={`size-3.5 ${
+                                                    (workloadInequalitySummary.avg_cv ||
+                                                        0) > 50
+                                                        ? 'text-red-600 dark:text-red-400'
+                                                        : (workloadInequalitySummary.avg_cv ||
+                                                                0) > 30
+                                                          ? 'text-amber-600 dark:text-amber-400'
+                                                          : 'text-green-600 dark:text-green-400'
+                                                }`}
+                                            />
+                                            <span
+                                                className={`text-[10px] font-medium uppercase ${
+                                                    (workloadInequalitySummary.avg_cv ||
+                                                        0) > 50
+                                                        ? 'text-red-600 dark:text-red-400'
+                                                        : (workloadInequalitySummary.avg_cv ||
+                                                                0) > 30
+                                                          ? 'text-amber-600 dark:text-amber-400'
+                                                          : 'text-green-600 dark:text-green-400'
+                                                }`}
+                                            >
+                                                CV Ketimpangan
+                                            </span>
+                                        </div>
+                                        <p
+                                            className={`text-2xl font-bold ${
+                                                (workloadInequalitySummary.avg_cv ||
+                                                    0) > 50
+                                                    ? 'text-red-700 dark:text-red-300'
+                                                    : (workloadInequalitySummary.avg_cv ||
+                                                            0) > 30
+                                                      ? 'text-amber-700 dark:text-amber-300'
+                                                      : 'text-green-700 dark:text-green-300'
+                                            }`}
+                                        >
+                                            {(
+                                                workloadInequalitySummary.avg_cv ||
+                                                0
+                                            ).toFixed(1)}
+                                            %
+                                        </p>
+                                        <p
+                                            className={`mt-0.5 text-[10px] ${
+                                                (workloadInequalitySummary.avg_cv ||
+                                                    0) > 50
+                                                    ? 'text-red-600/70 dark:text-red-400/70'
+                                                    : (workloadInequalitySummary.avg_cv ||
+                                                            0) > 30
+                                                      ? 'text-amber-600/70 dark:text-amber-400/70'
+                                                      : 'text-green-600/70 dark:text-green-400/70'
+                                            }`}
+                                        >
+                                            {(workloadInequalitySummary.avg_cv ||
+                                                0) > 50
+                                                ? 'Tinggi (>50%)'
+                                                : (workloadInequalitySummary.avg_cv ||
+                                                        0) > 30
+                                                  ? 'Sedang (30-50%)'
+                                                  : 'Rendah (<30%)'}
+                                        </p>
+                                    </div>
+
+                                    <div
+                                        className={`rounded-lg p-3 ${
+                                            (workloadInequalitySummary.pct_overload ||
+                                                0) > 15
+                                                ? 'bg-red-50 dark:bg-red-900/20'
+                                                : (workloadInequalitySummary.pct_overload ||
+                                                        0) > 5
+                                                  ? 'bg-amber-50 dark:bg-amber-900/20'
+                                                  : 'bg-green-50 dark:bg-green-900/20'
+                                        }`}
+                                    >
+                                        <div className="mb-1 flex items-center gap-2">
+                                            <XCircle
+                                                className={`size-3.5 ${
+                                                    (workloadInequalitySummary.pct_overload ||
+                                                        0) > 15
+                                                        ? 'text-red-600 dark:text-red-400'
+                                                        : (workloadInequalitySummary.pct_overload ||
+                                                                0) > 5
+                                                          ? 'text-amber-600 dark:text-amber-400'
+                                                          : 'text-green-600 dark:text-green-400'
+                                                }`}
+                                            />
+                                            <span
+                                                className={`text-[10px] font-medium uppercase ${
+                                                    (workloadInequalitySummary.pct_overload ||
+                                                        0) > 15
+                                                        ? 'text-red-600 dark:text-red-400'
+                                                        : (workloadInequalitySummary.pct_overload ||
+                                                                0) > 5
+                                                          ? 'text-amber-600 dark:text-amber-400'
+                                                          : 'text-green-600 dark:text-green-400'
+                                                }`}
+                                            >
+                                                % Overload
+                                            </span>
+                                        </div>
+                                        <p
+                                            className={`text-2xl font-bold ${
+                                                (workloadInequalitySummary.pct_overload ||
+                                                    0) > 15
+                                                    ? 'text-red-700 dark:text-red-300'
+                                                    : (workloadInequalitySummary.pct_overload ||
+                                                            0) > 5
+                                                      ? 'text-amber-700 dark:text-amber-300'
+                                                      : 'text-green-700 dark:text-green-300'
+                                            }`}
+                                        >
+                                            {(
+                                                workloadInequalitySummary.pct_overload ||
+                                                0
+                                            ).toFixed(1)}
+                                            %
+                                        </p>
+                                        <p
+                                            className={`mt-0.5 text-[10px] ${
+                                                (workloadInequalitySummary.pct_overload ||
+                                                    0) > 15
+                                                    ? 'text-red-600/70 dark:text-red-400/70'
+                                                    : (workloadInequalitySummary.pct_overload ||
+                                                            0) > 5
+                                                      ? 'text-amber-600/70 dark:text-amber-400/70'
+                                                      : 'text-green-600/70 dark:text-green-400/70'
+                                            }`}
+                                        >
+                                            petugas dengan &gt;5 kegiatan
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Recommendation Card */}
+                                {workloadInequalitySummary.rekomendasi_min !==
+                                    undefined && (
+                                    <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 dark:border-indigo-900/40 dark:bg-indigo-950/20">
+                                        <div className="mb-3 flex items-center gap-2">
+                                            <Briefcase className="size-3.5 text-indigo-600 dark:text-indigo-400" />
+                                            <span className="text-xs font-semibold tracking-wide text-indigo-700 uppercase dark:text-indigo-300">
+                                                Rekomendasi Utilisasi Mitra
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                                            <div className="rounded-lg bg-white/70 p-3 dark:bg-neutral-800/40">
+                                                <p className="mb-0.5 text-[10px] font-medium text-indigo-600 uppercase dark:text-indigo-400">
+                                                    Total Non-Organik
+                                                </p>
+                                                <p className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+                                                    {workloadInequalitySummary.total_non_organik_aktif ||
+                                                        0}
+                                                </p>
+                                                <p className="mt-0.5 text-[10px] text-neutral-500 dark:text-neutral-400">
+                                                    petugas aktif
+                                                </p>
+                                            </div>
+
+                                            <div className="rounded-lg bg-white/70 p-3 dark:bg-neutral-800/40">
+                                                <p className="mb-0.5 text-[10px] font-medium text-indigo-600 uppercase dark:text-indigo-400">
+                                                    Rata-rata Dialokasikan
+                                                </p>
+                                                <p className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+                                                    {(
+                                                        workloadInequalitySummary.avg_allocated ||
+                                                        0
+                                                    ).toFixed(1)}
+                                                </p>
+                                                <p className="mt-0.5 text-[10px] text-neutral-500 dark:text-neutral-400">
+                                                    petugas/bulan &middot;{' '}
+                                                    {(
+                                                        workloadInequalitySummary.utilization_rate ||
+                                                        0
+                                                    ).toFixed(1)}
+                                                    % utilisasi
+                                                </p>
+                                            </div>
+
+                                            <div className="rounded-lg bg-white/70 p-3 dark:bg-neutral-800/40">
+                                                <p className="mb-0.5 text-[10px] font-medium text-indigo-600 uppercase dark:text-indigo-400">
+                                                    Rata-rata Kegiatan/Bulan
+                                                </p>
+                                                <p className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+                                                    {(
+                                                        workloadInequalitySummary.avg_kegiatan_count ||
+                                                        0
+                                                    ).toFixed(1)}
+                                                </p>
+                                                <p className="mt-0.5 text-[10px] text-neutral-500 dark:text-neutral-400">
+                                                    kegiatan tersedia
+                                                </p>
+                                            </div>
+
+                                            <div className="rounded-lg bg-indigo-100/80 p-3 dark:bg-indigo-900/30">
+                                                <p className="mb-0.5 text-[10px] font-medium text-indigo-700 uppercase dark:text-indigo-300">
+                                                    Rekomendasi Alokasi
+                                                </p>
+                                                <p className="text-2xl font-bold text-indigo-800 dark:text-indigo-200">
+                                                    {
+                                                        workloadInequalitySummary.rekomendasi_min
+                                                    }
+                                                    –
+                                                    {
+                                                        workloadInequalitySummary.rekomendasi_max
+                                                    }
+                                                </p>
+                                                <p className="mt-0.5 text-[10px] text-indigo-700/70 dark:text-indigo-300/70">
+                                                    petugas/bulan (3–5
+                                                    kegiatan/org)
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {workloadInequalitySummary.insights &&
+                                    workloadInequalitySummary.insights.length >
+                                        0 && (
+                                        <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50/60 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
+                                            <div className="mb-2 flex items-center gap-2">
+                                                <AlertTriangle className="size-3.5 text-amber-600 dark:text-amber-400" />
+                                                <span className="text-xs font-semibold tracking-wide text-amber-700 uppercase dark:text-amber-300">
+                                                    Ringkasan
+                                                </span>
+                                            </div>
+                                            <ul className="space-y-1.5">
+                                                {workloadInequalitySummary.insights.map(
+                                                    (insight, i) => (
+                                                        <li
+                                                            key={i}
+                                                            className="flex items-start gap-2 text-xs text-amber-800 dark:text-amber-200"
+                                                        >
+                                                            <span className="mt-1 size-1 shrink-0 rounded-full bg-amber-400 dark:bg-amber-500" />
+                                                            {insight}
+                                                        </li>
+                                                    ),
+                                                )}
+                                            </ul>
+                                        </div>
+                                    )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Honor Per Bulan Per Petugas */}
@@ -2117,829 +2555,723 @@ export default function Dashboard({
                                 </div>
                             </div>
                         )}
+
+                        {/* Insights Summary */}
+                        {honorInequalitySummary.has_data &&
+                            honorInequalitySummary.insights &&
+                            honorInequalitySummary.insights.length > 0 && (
+                                <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 dark:border-indigo-900/40 dark:bg-indigo-950/20">
+                                    <div className="mb-2 flex items-center gap-2">
+                                        <TrendingUp className="size-3.5 text-indigo-600 dark:text-indigo-400" />
+                                        <span className="text-xs font-semibold tracking-wide text-indigo-700 uppercase dark:text-indigo-300">
+                                            Ringkasan
+                                        </span>
+                                    </div>
+                                    <ul className="space-y-1.5">
+                                        {honorInequalitySummary.insights.map(
+                                            (insight, i) => (
+                                                <li
+                                                    key={i}
+                                                    className="flex items-start gap-2 text-xs text-indigo-800 dark:text-indigo-200"
+                                                >
+                                                    <span className="mt-1 size-1 shrink-0 rounded-full bg-indigo-400 dark:bg-indigo-500" />
+                                                    {insight}
+                                                </li>
+                                            ),
+                                        )}
+                                    </ul>
+                                </div>
+                            )}
                     </div>
                 </div>
 
-                {/* Recent Activities */}
-                <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-                    {/* Recent Alokasi */}
-                    <div className="flex min-w-0 flex-col rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
-                        <div className="mb-4 border-b border-neutral-200 pb-4 dark:border-neutral-800">
-                            <div className="flex items-center gap-2">
-                                <Activity className="size-4 text-blue-600 dark:text-blue-400" />
-                                <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
-                                    Alokasi Terbaru
+                {/* Kegiatan Bulan Ini */}
+                <div className="flex min-w-0 flex-col rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="mb-4 border-b border-neutral-200 pb-4 dark:border-neutral-800">
+                        <div className="flex min-w-0 items-center justify-between gap-2">
+                            <div className="flex min-w-0 flex-1 items-center gap-2">
+                                <Calendar className="size-4 flex-shrink-0 text-green-600 dark:text-green-400" />
+                                <h3 className="truncate text-base font-semibold text-neutral-900 dark:text-white">
+                                    Kegiatan {monthNames[currentMonth - 1]}{' '}
+                                    {currentYear}
                                 </h3>
                             </div>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <div className="space-y-3">
-                                {recentAlokasi.length > 0 ? (
-                                    recentAlokasi.map((alokasi) => (
-                                        <div
-                                            key={alokasi.id}
-                                            className="min-w-0 rounded-lg border border-neutral-200 bg-white p-3 transition-all hover:border-neutral-300 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-neutral-700"
-                                        >
-                                            <div className="mb-2 flex items-start justify-between gap-3">
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="truncate text-sm font-semibold text-neutral-900 dark:text-white">
-                                                        {alokasi.kegiatan
-                                                            .nama_kegiatan ||
-                                                            alokasi.kegiatan
-                                                                .kode_kegiatan}
-                                                    </div>
-                                                    <div className="mt-0.5 text-xs text-neutral-600 dark:text-neutral-400">
-                                                        Bulan{' '}
-                                                        {
-                                                            monthNames[
-                                                                alokasi.bulan -
-                                                                    1
-                                                            ]
-                                                        }{' '}
-                                                        {alokasi.tahun}
-                                                    </div>
-                                                </div>
-                                                <StatusBadge
-                                                    status={alokasi.status}
-                                                    showIcon={false}
-                                                />
-                                            </div>
-                                            <div className="flex items-center gap-4 text-xs">
-                                                <div className="flex items-center gap-1.5">
-                                                    <div className="size-1.5 rounded-full bg-blue-500"></div>
-                                                    <span className="text-neutral-600 dark:text-neutral-400">
-                                                        Organik:
-                                                    </span>
-                                                    <span className="font-medium text-neutral-900 dark:text-white">
-                                                        {alokasi.jumlah_organik}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <div className="size-1.5 rounded-full bg-green-500"></div>
-                                                    <span className="text-neutral-600 dark:text-neutral-400">
-                                                        Non-Organik:
-                                                    </span>
-                                                    <span className="font-medium text-neutral-900 dark:text-white">
-                                                        {
-                                                            alokasi.jumlah_non_organik
-                                                        }
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-6 text-center dark:border-neutral-700 dark:bg-neutral-900">
-                                        <Activity className="mx-auto size-6 text-neutral-400" />
-                                        <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">
-                                            Belum ada data alokasi
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
+                            <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                                {filteredKegiatanBulanIni.length} /{' '}
+                                {kegiatanBulanIni.length} kegiatan
+                            </span>
                         </div>
                     </div>
-
-                    {/* Kegiatan Bulan Ini */}
-                    <div className="flex min-w-0 flex-col rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
-                        <div className="mb-4 border-b border-neutral-200 pb-4 dark:border-neutral-800">
-                            <div className="flex min-w-0 items-center justify-between gap-2">
-                                <div className="flex min-w-0 flex-1 items-center gap-2">
-                                    <Calendar className="size-4 flex-shrink-0 text-green-600 dark:text-green-400" />
-                                    <h3 className="truncate text-base font-semibold text-neutral-900 dark:text-white">
-                                        Kegiatan {monthNames[currentMonth - 1]}{' '}
-                                        {currentYear}
-                                    </h3>
-                                </div>
-                                <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                                    {filteredKegiatanBulanIni.length} /{' '}
-                                    {kegiatanBulanIni.length} kegiatan
-                                </span>
-                            </div>
+                    <div className="mb-4 space-y-3">
+                        <div className="relative">
+                            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-neutral-400" />
+                            <Input
+                                value={kegiatanSearch}
+                                onChange={(event) =>
+                                    handleKegiatanSearchChange(
+                                        event.target.value,
+                                    )
+                                }
+                                placeholder="Cari nama atau kode kegiatan..."
+                                className="pl-9"
+                            />
                         </div>
-                        <div className="mb-4 space-y-3">
-                            <div className="relative">
-                                <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-neutral-400" />
-                                <Input
-                                    value={kegiatanSearch}
-                                    onChange={(event) =>
-                                        handleKegiatanSearchChange(
-                                            event.target.value,
-                                        )
-                                    }
-                                    placeholder="Cari nama atau kode kegiatan..."
-                                    className="pl-9"
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-3 lg:grid-cols-6">
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={
-                                        kegiatanFilter === 'semua'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() =>
-                                        handleKegiatanFilterChange('semua')
-                                    }
-                                >
-                                    Semua ({kegiatanSummary.semua})
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={
-                                        kegiatanFilter === 'butuh_alokasi'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() =>
-                                        handleKegiatanFilterChange(
-                                            'butuh_alokasi',
-                                        )
-                                    }
-                                >
-                                    Butuh Alokasi (
-                                    {kegiatanSummary.butuh_alokasi})
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={
-                                        kegiatanFilter === 'butuh_sk'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() =>
-                                        handleKegiatanFilterChange('butuh_sk')
-                                    }
-                                >
-                                    Butuh SK ({kegiatanSummary.butuh_sk})
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={
-                                        kegiatanFilter === 'butuh_spk'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() =>
-                                        handleKegiatanFilterChange('butuh_spk')
-                                    }
-                                >
-                                    Butuh SPK ({kegiatanSummary.butuh_spk})
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={
-                                        kegiatanFilter === 'butuh_bast'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() =>
-                                        handleKegiatanFilterChange('butuh_bast')
-                                    }
-                                >
-                                    Butuh BAST ({kegiatanSummary.butuh_bast})
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={
-                                        kegiatanFilter === 'lengkap'
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    onClick={() =>
-                                        handleKegiatanFilterChange('lengkap')
-                                    }
-                                >
-                                    Lengkap ({kegiatanSummary.lengkap})
-                                </Button>
-                            </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-3 lg:grid-cols-6">
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={
+                                    kegiatanFilter === 'semua'
+                                        ? 'default'
+                                        : 'outline'
+                                }
+                                onClick={() =>
+                                    handleKegiatanFilterChange('semua')
+                                }
+                            >
+                                Semua ({kegiatanSummary.semua})
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={
+                                    kegiatanFilter === 'butuh_alokasi'
+                                        ? 'default'
+                                        : 'outline'
+                                }
+                                onClick={() =>
+                                    handleKegiatanFilterChange('butuh_alokasi')
+                                }
+                            >
+                                Butuh Alokasi ({kegiatanSummary.butuh_alokasi})
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={
+                                    kegiatanFilter === 'butuh_sk'
+                                        ? 'default'
+                                        : 'outline'
+                                }
+                                onClick={() =>
+                                    handleKegiatanFilterChange('butuh_sk')
+                                }
+                            >
+                                Butuh SK ({kegiatanSummary.butuh_sk})
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={
+                                    kegiatanFilter === 'butuh_spk'
+                                        ? 'default'
+                                        : 'outline'
+                                }
+                                onClick={() =>
+                                    handleKegiatanFilterChange('butuh_spk')
+                                }
+                            >
+                                Butuh SPK ({kegiatanSummary.butuh_spk})
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={
+                                    kegiatanFilter === 'butuh_bast'
+                                        ? 'default'
+                                        : 'outline'
+                                }
+                                onClick={() =>
+                                    handleKegiatanFilterChange('butuh_bast')
+                                }
+                            >
+                                Butuh BAST ({kegiatanSummary.butuh_bast})
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={
+                                    kegiatanFilter === 'lengkap'
+                                        ? 'default'
+                                        : 'outline'
+                                }
+                                onClick={() =>
+                                    handleKegiatanFilterChange('lengkap')
+                                }
+                            >
+                                Lengkap ({kegiatanSummary.lengkap})
+                            </Button>
                         </div>
-                        <div className="flex-1 overflow-auto">
-                            {filteredKegiatanBulanIni.length > 0 ? (
-                                <div className="space-y-4">
-                                    {paginatedKegiatanBulanIni.map(
-                                        (kegiatan) => {
-                                            const canEditAlokasi = [
-                                                'admin',
-                                                'operator',
-                                                'ketua_tim',
-                                            ].includes(
-                                                auth.activeRole?.name ?? '',
-                                            );
-                                            const canEditSk = [
-                                                'admin',
-                                                'operator',
-                                                'pj',
-                                            ].includes(
-                                                auth.activeRole?.name ?? '',
-                                            );
-                                            const canViewMonthlyDocuments = [
-                                                'admin',
-                                                'operator',
-                                                'pj',
-                                                'approver',
-                                                'ketua_tim',
-                                            ].includes(
-                                                auth.activeRole?.name ?? '',
-                                            );
+                    </div>
+                    <div className="flex-1 overflow-auto">
+                        {filteredKegiatanBulanIni.length > 0 ? (
+                            <div className="space-y-4">
+                                {paginatedKegiatanBulanIni.map((kegiatan) => {
+                                    const canEditAlokasi = [
+                                        'admin',
+                                        'operator',
+                                        'ketua_tim',
+                                    ].includes(auth.activeRole?.name ?? '');
+                                    const canEditSk = [
+                                        'admin',
+                                        'operator',
+                                        'pj',
+                                    ].includes(auth.activeRole?.name ?? '');
+                                    const canViewMonthlyDocuments = [
+                                        'admin',
+                                        'operator',
+                                        'pj',
+                                        'approver',
+                                        'ketua_tim',
+                                    ].includes(auth.activeRole?.name ?? '');
 
-                                            const hasAlokasi =
-                                                !!kegiatan.periode_alokasi
-                                                    ?.has_alokasi;
-                                            const hasSk = !!kegiatan.sk;
-                                            const hasSpk =
-                                                !kegiatan.spk
-                                                    .requires_document ||
-                                                kegiatan.spk.is_complete;
-                                            const hasBast =
-                                                !kegiatan.bast
-                                                    .requires_document ||
-                                                kegiatan.bast.is_complete;
-                                            const bastCreateHref = `/bast/create?bulan=${currentMonth}&tahun=${currentYear}`;
-                                            const bastActionHref = kegiatan.bast
-                                                .is_complete
-                                                ? (kegiatan.bast.detail_url ??
-                                                  bastCreateHref)
-                                                : bastCreateHref;
-                                            const completionCount = [
-                                                hasAlokasi,
-                                                hasSk,
-                                                hasSpk,
-                                                hasBast,
-                                            ].filter(Boolean).length;
+                                    const hasAlokasi =
+                                        !!kegiatan.periode_alokasi?.has_alokasi;
+                                    const hasSk = !!kegiatan.sk;
+                                    const hasSpk =
+                                        !kegiatan.spk.requires_document ||
+                                        kegiatan.spk.is_complete;
+                                    const hasBast =
+                                        !kegiatan.bast.requires_document ||
+                                        kegiatan.bast.is_complete;
+                                    const bastCreateHref = `/bast/create?bulan=${currentMonth}&tahun=${currentYear}`;
+                                    const bastActionHref = kegiatan.bast
+                                        .is_complete
+                                        ? (kegiatan.bast.detail_url ??
+                                          bastCreateHref)
+                                        : bastCreateHref;
+                                    const completionCount = [
+                                        hasAlokasi,
+                                        hasSk,
+                                        hasSpk,
+                                        hasBast,
+                                    ].filter(Boolean).length;
 
-                                            return (
-                                                <div
-                                                    key={kegiatan.id}
-                                                    className={`rounded-lg border bg-white p-4 transition-shadow hover:shadow-sm dark:bg-neutral-900 ${
-                                                        completionCount === 4
-                                                            ? 'border-l-4 border-neutral-200 border-l-green-500 dark:border-neutral-800 dark:border-l-green-600'
-                                                            : completionCount >
-                                                                0
-                                                              ? 'border-l-4 border-neutral-200 border-l-amber-500 dark:border-neutral-800 dark:border-l-amber-600'
-                                                              : 'border-l-4 border-neutral-200 border-l-red-400 dark:border-neutral-800 dark:border-l-red-500'
-                                                    }`}
-                                                >
-                                                    <div className="mb-3 flex items-start justify-between gap-2">
-                                                        <div className="min-w-0 flex-1">
-                                                            <div className="font-medium text-neutral-900 dark:text-white">
-                                                                {
-                                                                    kegiatan.nama_kegiatan
-                                                                }
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex flex-shrink-0 items-center gap-0.5">
-                                                            <Tooltip>
-                                                                <TooltipTrigger
-                                                                    asChild
-                                                                >
-                                                                    <span
-                                                                        className={`flex size-5 cursor-default items-center justify-center rounded-full text-[9px] font-bold ${
-                                                                            hasAlokasi
-                                                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
-                                                                                : 'bg-neutral-100 text-neutral-400 dark:bg-neutral-700 dark:text-neutral-500'
-                                                                        }`}
-                                                                    >
-                                                                        1
-                                                                    </span>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    Alokasi
-                                                                    Petugas
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                            <span
-                                                                className={`mx-0.5 h-px w-3 ${hasSk ? 'bg-green-400' : 'bg-neutral-300 dark:bg-neutral-600'}`}
-                                                            />
-                                                            <Tooltip>
-                                                                <TooltipTrigger
-                                                                    asChild
-                                                                >
-                                                                    <span
-                                                                        className={`flex size-5 cursor-default items-center justify-center rounded-full text-[9px] font-bold ${
-                                                                            hasSk
-                                                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
-                                                                                : 'bg-neutral-100 text-neutral-400 dark:bg-neutral-700 dark:text-neutral-500'
-                                                                        }`}
-                                                                    >
-                                                                        2
-                                                                    </span>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    SK Petugas
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                            <span
-                                                                className={`mx-0.5 h-px w-3 ${hasSpk ? 'bg-green-400' : 'bg-neutral-300 dark:bg-neutral-600'}`}
-                                                            />
-                                                            <Tooltip>
-                                                                <TooltipTrigger
-                                                                    asChild
-                                                                >
-                                                                    <span
-                                                                        className={`flex size-5 cursor-default items-center justify-center rounded-full text-[9px] font-bold ${
-                                                                            hasSpk
-                                                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
-                                                                                : 'bg-neutral-100 text-neutral-400 dark:bg-neutral-700 dark:text-neutral-500'
-                                                                        }`}
-                                                                    >
-                                                                        3
-                                                                    </span>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    Perjanjian
-                                                                    Kerja
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                            <span
-                                                                className={`mx-0.5 h-px w-3 ${hasBast ? 'bg-green-400' : 'bg-neutral-300 dark:bg-neutral-600'}`}
-                                                            />
-                                                            <Tooltip>
-                                                                <TooltipTrigger
-                                                                    asChild
-                                                                >
-                                                                    <span
-                                                                        className={`flex size-5 cursor-default items-center justify-center rounded-full text-[9px] font-bold ${
-                                                                            hasBast
-                                                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
-                                                                                : 'bg-neutral-100 text-neutral-400 dark:bg-neutral-700 dark:text-neutral-500'
-                                                                        }`}
-                                                                    >
-                                                                        4
-                                                                    </span>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    BAST
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </div>
+                                    return (
+                                        <div
+                                            key={kegiatan.id}
+                                            className={`rounded-lg border bg-white p-4 transition-shadow hover:shadow-sm dark:bg-neutral-900 ${
+                                                completionCount === 4
+                                                    ? 'border-l-4 border-neutral-200 border-l-green-500 dark:border-neutral-800 dark:border-l-green-600'
+                                                    : completionCount > 0
+                                                      ? 'border-l-4 border-neutral-200 border-l-amber-500 dark:border-neutral-800 dark:border-l-amber-600'
+                                                      : 'border-l-4 border-neutral-200 border-l-red-400 dark:border-neutral-800 dark:border-l-red-500'
+                                            }`}
+                                        >
+                                            <div className="mb-3 flex items-start justify-between gap-2">
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="font-medium text-neutral-900 dark:text-white">
+                                                        {kegiatan.nama_kegiatan}
                                                     </div>
+                                                </div>
+                                                <div className="flex flex-shrink-0 items-center gap-0.5">
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span
+                                                                className={`flex size-5 cursor-default items-center justify-center rounded-full text-[9px] font-bold ${
+                                                                    hasAlokasi
+                                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                                                                        : 'bg-neutral-100 text-neutral-400 dark:bg-neutral-700 dark:text-neutral-500'
+                                                                }`}
+                                                            >
+                                                                1
+                                                            </span>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            Alokasi Petugas
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                    <span
+                                                        className={`mx-0.5 h-px w-3 ${hasSk ? 'bg-green-400' : 'bg-neutral-300 dark:bg-neutral-600'}`}
+                                                    />
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span
+                                                                className={`flex size-5 cursor-default items-center justify-center rounded-full text-[9px] font-bold ${
+                                                                    hasSk
+                                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                                                                        : 'bg-neutral-100 text-neutral-400 dark:bg-neutral-700 dark:text-neutral-500'
+                                                                }`}
+                                                            >
+                                                                2
+                                                            </span>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            SK Petugas
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                    <span
+                                                        className={`mx-0.5 h-px w-3 ${hasSpk ? 'bg-green-400' : 'bg-neutral-300 dark:bg-neutral-600'}`}
+                                                    />
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span
+                                                                className={`flex size-5 cursor-default items-center justify-center rounded-full text-[9px] font-bold ${
+                                                                    hasSpk
+                                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                                                                        : 'bg-neutral-100 text-neutral-400 dark:bg-neutral-700 dark:text-neutral-500'
+                                                                }`}
+                                                            >
+                                                                3
+                                                            </span>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            Perjanjian Kerja
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                    <span
+                                                        className={`mx-0.5 h-px w-3 ${hasBast ? 'bg-green-400' : 'bg-neutral-300 dark:bg-neutral-600'}`}
+                                                    />
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span
+                                                                className={`flex size-5 cursor-default items-center justify-center rounded-full text-[9px] font-bold ${
+                                                                    hasBast
+                                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                                                                        : 'bg-neutral-100 text-neutral-400 dark:bg-neutral-700 dark:text-neutral-500'
+                                                                }`}
+                                                            >
+                                                                4
+                                                            </span>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            BAST
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </div>
+                                            </div>
 
-                                                    <div className="space-y-2">
-                                                        {/* Alokasi Petugas */}
-                                                        <div className="flex items-center justify-between text-sm">
-                                                            <div className="flex items-center gap-2">
-                                                                <Users className="size-4 text-neutral-500" />
-                                                                <span className="text-neutral-700 dark:text-neutral-300">
-                                                                    Alokasi
-                                                                    Petugas
+                                            <div className="space-y-2">
+                                                {/* Alokasi Petugas */}
+                                                <div className="flex items-center justify-between text-sm">
+                                                    <div className="flex items-center gap-2">
+                                                        <Users className="size-4 text-neutral-500" />
+                                                        <span className="text-neutral-700 dark:text-neutral-300">
+                                                            Alokasi Petugas
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {kegiatan
+                                                            .periode_alokasi
+                                                            ?.has_alokasi ? (
+                                                            <>
+                                                                <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                                                    <CheckCircle className="size-4" />
+                                                                    {
+                                                                        kegiatan
+                                                                            .periode_alokasi
+                                                                            .jumlah_petugas
+                                                                    }{' '}
+                                                                    petugas
                                                                 </span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                {kegiatan
-                                                                    .periode_alokasi
-                                                                    ?.has_alokasi ? (
-                                                                    <>
-                                                                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                                                                            <CheckCircle className="size-4" />
-                                                                            {
-                                                                                kegiatan
-                                                                                    .periode_alokasi
-                                                                                    .jumlah_petugas
-                                                                            }{' '}
-                                                                            petugas
-                                                                        </span>
-                                                                        {canEditAlokasi && (
-                                                                            <Link
-                                                                                href={`/alokasi/periode/${kegiatan.hashed_id}/${currentYear}/${String(currentMonth).padStart(2, '0')}`}
-                                                                            >
-                                                                                <Button
-                                                                                    size="sm"
-                                                                                    variant="ghost"
-                                                                                >
-                                                                                    <Eye className="mr-1 size-3" />
-                                                                                    Lihat
-                                                                                </Button>
-                                                                            </Link>
-                                                                        )}
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                                                                            <AlertTriangle className="size-4" />
-                                                                            Belum
-                                                                            ada
-                                                                        </span>
-                                                                        {canEditAlokasi && (
-                                                                            <Link
-                                                                                href={`/alokasi/create?kegiatan_id=${kegiatan.hashed_id}`}
-                                                                            >
-                                                                                <Button
-                                                                                    size="sm"
-                                                                                    variant="ghost"
-                                                                                >
-                                                                                    <Plus className="mr-1 size-3" />
-                                                                                    Buat
-                                                                                </Button>
-                                                                            </Link>
-                                                                        )}
-                                                                    </>
+                                                                {canEditAlokasi && (
+                                                                    <Link
+                                                                        href={`/alokasi/periode/${kegiatan.hashed_id}/${currentYear}/${String(currentMonth).padStart(2, '0')}`}
+                                                                    >
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                        >
+                                                                            <Eye className="mr-1 size-3" />
+                                                                            Lihat
+                                                                        </Button>
+                                                                    </Link>
                                                                 )}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* SK Petugas */}
-                                                        <div className="flex items-center justify-between text-sm">
-                                                            <div className="flex items-center gap-2">
-                                                                <FileText className="size-4 text-neutral-500" />
-                                                                <span className="text-neutral-700 dark:text-neutral-300">
-                                                                    SK Petugas
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                                                                    <AlertTriangle className="size-4" />
+                                                                    Belum ada
                                                                 </span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                {kegiatan.sk ? (
-                                                                    <>
-                                                                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                                                                            <CheckCircle className="size-4" />
-                                                                            {kegiatan
-                                                                                .sk
-                                                                                .is_signed
-                                                                                ? 'Signed'
-                                                                                : 'Draft'}
-                                                                        </span>
-                                                                        {kegiatan
-                                                                            .sk_meta
-                                                                            .source ===
-                                                                            'periode_terakhir' && (
-                                                                            <span className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                                                                                Periode
-                                                                                terakhir
-                                                                            </span>
-                                                                        )}
-                                                                        {canEditSk && (
-                                                                            <Link
-                                                                                href={`/sk-kpa/${kegiatan.sk.hashed_id}`}
-                                                                            >
-                                                                                <Button
-                                                                                    size="sm"
-                                                                                    variant="ghost"
-                                                                                >
-                                                                                    <Eye className="mr-1 size-3" />
-                                                                                    Lihat
-                                                                                </Button>
-                                                                            </Link>
-                                                                        )}
-                                                                    </>
-                                                                ) : kegiatan
-                                                                      .sk_meta
-                                                                      .show_missing ? (
-                                                                    <>
-                                                                        <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
-                                                                            <XCircle className="size-4" />
-                                                                            Belum
-                                                                            dibuat
-                                                                        </span>
-                                                                        {canEditSk &&
-                                                                            kegiatan
-                                                                                .periode_alokasi
-                                                                                ?.has_alokasi && (
-                                                                                <Link
-                                                                                    href={`/sk-kpa/kegiatan/${kegiatan.hashed_id}/create`}
-                                                                                >
-                                                                                    <Button
-                                                                                        size="sm"
-                                                                                        variant="ghost"
-                                                                                    >
-                                                                                        <Plus className="mr-1 size-3" />
-                                                                                        Buat
-                                                                                    </Button>
-                                                                                </Link>
-                                                                            )}
-                                                                    </>
-                                                                ) : (
-                                                                    <span className="flex items-center gap-1 text-neutral-500 dark:text-neutral-400">
-                                                                        <CheckCircle className="size-4" />
-                                                                        Mengikuti
-                                                                        SK
-                                                                        periode
+                                                                {canEditAlokasi && (
+                                                                    <Link
+                                                                        href={`/alokasi/create?kegiatan_id=${kegiatan.hashed_id}`}
+                                                                    >
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                        >
+                                                                            <Plus className="mr-1 size-3" />
+                                                                            Buat
+                                                                        </Button>
+                                                                    </Link>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* SK Petugas */}
+                                                <div className="flex items-center justify-between text-sm">
+                                                    <div className="flex items-center gap-2">
+                                                        <FileText className="size-4 text-neutral-500" />
+                                                        <span className="text-neutral-700 dark:text-neutral-300">
+                                                            SK Petugas
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {kegiatan.sk ? (
+                                                            <>
+                                                                <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                                                    <CheckCircle className="size-4" />
+                                                                    {kegiatan.sk
+                                                                        .is_signed
+                                                                        ? 'Signed'
+                                                                        : 'Draft'}
+                                                                </span>
+                                                                {kegiatan
+                                                                    .sk_meta
+                                                                    .source ===
+                                                                    'periode_terakhir' && (
+                                                                    <span className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                                                                        Periode
                                                                         terakhir
                                                                     </span>
                                                                 )}
-                                                            </div>
-                                                        </div>
+                                                                {canEditSk && (
+                                                                    <Link
+                                                                        href={`/sk-kpa/${kegiatan.sk.hashed_id}`}
+                                                                    >
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                        >
+                                                                            <Eye className="mr-1 size-3" />
+                                                                            Lihat
+                                                                        </Button>
+                                                                    </Link>
+                                                                )}
+                                                            </>
+                                                        ) : kegiatan.sk_meta
+                                                              .show_missing ? (
+                                                            <>
+                                                                <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                                                                    <XCircle className="size-4" />
+                                                                    Belum dibuat
+                                                                </span>
+                                                                {canEditSk &&
+                                                                    kegiatan
+                                                                        .periode_alokasi
+                                                                        ?.has_alokasi && (
+                                                                        <Link
+                                                                            href={`/sk-kpa/kegiatan/${kegiatan.hashed_id}/create`}
+                                                                        >
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="ghost"
+                                                                            >
+                                                                                <Plus className="mr-1 size-3" />
+                                                                                Buat
+                                                                            </Button>
+                                                                        </Link>
+                                                                    )}
+                                                            </>
+                                                        ) : (
+                                                            <span className="flex items-center gap-1 text-neutral-500 dark:text-neutral-400">
+                                                                <CheckCircle className="size-4" />
+                                                                Mengikuti SK
+                                                                periode terakhir
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
 
-                                                        {/* SPK */}
-                                                        <div className="flex items-center justify-between text-sm">
-                                                            <div className="flex items-center gap-2">
-                                                                <FileText className="size-4 text-neutral-500" />
-                                                                <span className="text-neutral-700 dark:text-neutral-300">
+                                                {/* SPK */}
+                                                <div className="flex items-center justify-between text-sm">
+                                                    <div className="flex items-center gap-2">
+                                                        <FileText className="size-4 text-neutral-500" />
+                                                        <span className="text-neutral-700 dark:text-neutral-300">
+                                                            Perjanjian Kerja
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {!kegiatan.spk
+                                                            .requires_document ? (
+                                                            <span className="flex items-center gap-1 text-neutral-500 dark:text-neutral-400">
+                                                                <CheckCircle className="size-4" />
+                                                                Tidak memerlukan
+                                                                Perjanjian Kerja
+                                                            </span>
+                                                        ) : kegiatan.spk
+                                                              .is_complete ? (
+                                                            <>
+                                                                <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                                                    <CheckCircle className="size-4" />
+                                                                    {
+                                                                        kegiatan
+                                                                            .spk
+                                                                            .count
+                                                                    }{' '}
                                                                     Perjanjian
                                                                     Kerja
                                                                 </span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                {!kegiatan.spk
-                                                                    .requires_document ? (
-                                                                    <span className="flex items-center gap-1 text-neutral-500 dark:text-neutral-400">
-                                                                        <CheckCircle className="size-4" />
-                                                                        Tidak
-                                                                        memerlukan
-                                                                        Perjanjian
-                                                                        Kerja
-                                                                    </span>
-                                                                ) : kegiatan.spk
-                                                                      .is_complete ? (
-                                                                    <>
-                                                                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                                                                            <CheckCircle className="size-4" />
-                                                                            {
+                                                                {canViewMonthlyDocuments &&
+                                                                    kegiatan.spk
+                                                                        .detail_url && (
+                                                                        <Link
+                                                                            href={
                                                                                 kegiatan
                                                                                     .spk
-                                                                                    .count
-                                                                            }{' '}
-                                                                            Perjanjian
-                                                                            Kerja
-                                                                        </span>
-                                                                        {canViewMonthlyDocuments &&
-                                                                            kegiatan
-                                                                                .spk
-                                                                                .detail_url && (
-                                                                                <Link
-                                                                                    href={
-                                                                                        kegiatan
-                                                                                            .spk
-                                                                                            .detail_url
-                                                                                    }
-                                                                                >
-                                                                                    <Button
-                                                                                        size="sm"
-                                                                                        variant="ghost"
-                                                                                    >
-                                                                                        <Eye className="mr-1 size-3" />
-                                                                                        Lihat
-                                                                                        Detail
-                                                                                    </Button>
-                                                                                </Link>
-                                                                            )}
-                                                                    </>
-                                                                ) : kegiatan.spk
-                                                                      .count >
-                                                                  0 ? (
-                                                                    <>
-                                                                        <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                                                                            <AlertTriangle className="size-4" />
-                                                                            {
-                                                                                kegiatan
-                                                                                    .spk
-                                                                                    .count
+                                                                                    .detail_url
                                                                             }
-                                                                            /
-                                                                            {
-                                                                                kegiatan
-                                                                                    .spk
-                                                                                    .required_count
-                                                                            }{' '}
-                                                                            Perjanjian
-                                                                            Kerja
-                                                                        </span>
-                                                                        {canViewMonthlyDocuments &&
-                                                                            kegiatan
-                                                                                .spk
-                                                                                .detail_url && (
-                                                                                <Link
-                                                                                    href={
-                                                                                        kegiatan
-                                                                                            .spk
-                                                                                            .detail_url
-                                                                                    }
-                                                                                >
-                                                                                    <Button
-                                                                                        size="sm"
-                                                                                        variant="ghost"
-                                                                                    >
-                                                                                        <Eye className="mr-1 size-3" />
-                                                                                        Lihat
-                                                                                        Detail
-                                                                                    </Button>
-                                                                                </Link>
-                                                                            )}
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
-                                                                            <XCircle className="size-4" />
-                                                                            Belum
-                                                                            dibuat
-                                                                        </span>
-                                                                        {canViewMonthlyDocuments &&
-                                                                            kegiatan
-                                                                                .spk
-                                                                                .detail_url && (
-                                                                                <Link
-                                                                                    href={
-                                                                                        kegiatan
-                                                                                            .spk
-                                                                                            .detail_url
-                                                                                    }
-                                                                                >
-                                                                                    <Button
-                                                                                        size="sm"
-                                                                                        variant="ghost"
-                                                                                    >
-                                                                                        <Eye className="mr-1 size-3" />
-                                                                                        Lihat
-                                                                                        Detail
-                                                                                    </Button>
-                                                                                </Link>
-                                                                            )}
-                                                                    </>
-                                                                )}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* BAST */}
-                                                        <div className="flex items-center justify-between text-sm">
-                                                            <div className="flex items-center gap-2">
-                                                                <ScrollText className="size-4 text-neutral-500" />
-                                                                <span className="text-neutral-700 dark:text-neutral-300">
-                                                                    BAST
+                                                                        >
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="ghost"
+                                                                            >
+                                                                                <Eye className="mr-1 size-3" />
+                                                                                Lihat
+                                                                                Detail
+                                                                            </Button>
+                                                                        </Link>
+                                                                    )}
+                                                            </>
+                                                        ) : kegiatan.spk.count >
+                                                          0 ? (
+                                                            <>
+                                                                <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                                                                    <AlertTriangle className="size-4" />
+                                                                    {
+                                                                        kegiatan
+                                                                            .spk
+                                                                            .count
+                                                                    }
+                                                                    /
+                                                                    {
+                                                                        kegiatan
+                                                                            .spk
+                                                                            .required_count
+                                                                    }{' '}
+                                                                    Perjanjian
+                                                                    Kerja
                                                                 </span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                {!kegiatan.bast
-                                                                    .requires_document ? (
-                                                                    <span className="flex items-center gap-1 text-neutral-500 dark:text-neutral-400">
-                                                                        <CheckCircle className="size-4" />
-                                                                        Tidak
-                                                                        memerlukan
-                                                                        BAST
-                                                                    </span>
-                                                                ) : kegiatan
-                                                                      .bast
-                                                                      .is_complete ? (
-                                                                    <>
-                                                                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                                                                            <CheckCircle className="size-4" />
-                                                                            {
+                                                                {canViewMonthlyDocuments &&
+                                                                    kegiatan.spk
+                                                                        .detail_url && (
+                                                                        <Link
+                                                                            href={
                                                                                 kegiatan
-                                                                                    .bast
-                                                                                    .count
-                                                                            }{' '}
-                                                                            BAST
-                                                                        </span>
-                                                                        {canViewMonthlyDocuments &&
-                                                                            kegiatan
-                                                                                .bast
-                                                                                .detail_url && (
-                                                                                <Link
-                                                                                    href={
-                                                                                        kegiatan
-                                                                                            .bast
-                                                                                            .detail_url
-                                                                                    }
-                                                                                >
-                                                                                    <Button
-                                                                                        size="sm"
-                                                                                        variant="ghost"
-                                                                                    >
-                                                                                        <Eye className="mr-1 size-3" />
-                                                                                        Lihat
-                                                                                        Detail
-                                                                                    </Button>
-                                                                                </Link>
-                                                                            )}
-                                                                    </>
-                                                                ) : kegiatan
-                                                                      .bast
-                                                                      .count >
-                                                                  0 ? (
-                                                                    <>
-                                                                        <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                                                                            <AlertTriangle className="size-4" />
-                                                                            {
-                                                                                kegiatan
-                                                                                    .bast
-                                                                                    .count
+                                                                                    .spk
+                                                                                    .detail_url
                                                                             }
-                                                                            /
-                                                                            {
+                                                                        >
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="ghost"
+                                                                            >
+                                                                                <Eye className="mr-1 size-3" />
+                                                                                Lihat
+                                                                                Detail
+                                                                            </Button>
+                                                                        </Link>
+                                                                    )}
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                                                                    <XCircle className="size-4" />
+                                                                    Belum dibuat
+                                                                </span>
+                                                                {canViewMonthlyDocuments &&
+                                                                    kegiatan.spk
+                                                                        .detail_url && (
+                                                                        <Link
+                                                                            href={
                                                                                 kegiatan
-                                                                                    .bast
-                                                                                    .required_count
-                                                                            }{' '}
-                                                                            BAST
-                                                                        </span>
-                                                                        {canViewMonthlyDocuments &&
-                                                                            kegiatan
-                                                                                .periode_alokasi
-                                                                                ?.has_alokasi &&
-                                                                            bastActionHref && (
-                                                                                <Link
-                                                                                    href={
-                                                                                        bastActionHref
-                                                                                    }
-                                                                                >
-                                                                                    <Button
-                                                                                        size="sm"
-                                                                                        variant="ghost"
-                                                                                    >
-                                                                                        <Plus className="mr-1 size-3" />
-                                                                                        Buat
-                                                                                    </Button>
-                                                                                </Link>
-                                                                            )}
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
-                                                                            <XCircle className="size-4" />
-                                                                            Belum
-                                                                            dibuat
-                                                                        </span>
-                                                                        {canViewMonthlyDocuments &&
-                                                                            kegiatan
-                                                                                .periode_alokasi
-                                                                                ?.has_alokasi && (
-                                                                                <Link
-                                                                                    href={
-                                                                                        bastActionHref
-                                                                                    }
-                                                                                >
-                                                                                    <Button
-                                                                                        size="sm"
-                                                                                        variant="ghost"
-                                                                                    >
-                                                                                        <Plus className="mr-1 size-3" />
-                                                                                        Buat
-                                                                                    </Button>
-                                                                                </Link>
-                                                                            )}
-                                                                    </>
-                                                                )}
-                                                            </div>
-                                                        </div>
+                                                                                    .spk
+                                                                                    .detail_url
+                                                                            }
+                                                                        >
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="ghost"
+                                                                            >
+                                                                                <Eye className="mr-1 size-3" />
+                                                                                Lihat
+                                                                                Detail
+                                                                            </Button>
+                                                                        </Link>
+                                                                    )}
+                                                            </>
+                                                        )}
                                                     </div>
                                                 </div>
-                                            );
-                                        },
-                                    )}
 
-                                    {totalKegiatanPages > 1 && (
-                                        <div className="flex items-center justify-between border-t border-neutral-200 pt-3 text-xs dark:border-neutral-800">
-                                            <span className="text-neutral-500 dark:text-neutral-400">
-                                                Halaman {currentKegiatanPage}{' '}
-                                                dari {totalKegiatanPages}
-                                            </span>
-                                            <div className="flex items-center gap-2">
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="outline"
-                                                    disabled={
-                                                        currentKegiatanPage <= 1
-                                                    }
-                                                    onClick={() =>
-                                                        setKegiatanPage(
-                                                            (prev) =>
-                                                                Math.max(
-                                                                    prev - 1,
-                                                                    1,
-                                                                ),
-                                                        )
-                                                    }
-                                                >
-                                                    Sebelumnya
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="outline"
-                                                    disabled={
-                                                        currentKegiatanPage >=
-                                                        totalKegiatanPages
-                                                    }
-                                                    onClick={() =>
-                                                        setKegiatanPage(
-                                                            (prev) =>
-                                                                Math.min(
-                                                                    prev + 1,
-                                                                    totalKegiatanPages,
-                                                                ),
-                                                        )
-                                                    }
-                                                >
-                                                    Berikutnya
-                                                </Button>
+                                                {/* BAST */}
+                                                <div className="flex items-center justify-between text-sm">
+                                                    <div className="flex items-center gap-2">
+                                                        <ScrollText className="size-4 text-neutral-500" />
+                                                        <span className="text-neutral-700 dark:text-neutral-300">
+                                                            BAST
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {!kegiatan.bast
+                                                            .requires_document ? (
+                                                            <span className="flex items-center gap-1 text-neutral-500 dark:text-neutral-400">
+                                                                <CheckCircle className="size-4" />
+                                                                Tidak memerlukan
+                                                                BAST
+                                                            </span>
+                                                        ) : kegiatan.bast
+                                                              .is_complete ? (
+                                                            <>
+                                                                <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                                                    <CheckCircle className="size-4" />
+                                                                    {
+                                                                        kegiatan
+                                                                            .bast
+                                                                            .count
+                                                                    }{' '}
+                                                                    BAST
+                                                                </span>
+                                                                {canViewMonthlyDocuments &&
+                                                                    kegiatan
+                                                                        .bast
+                                                                        .detail_url && (
+                                                                        <Link
+                                                                            href={
+                                                                                kegiatan
+                                                                                    .bast
+                                                                                    .detail_url
+                                                                            }
+                                                                        >
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="ghost"
+                                                                            >
+                                                                                <Eye className="mr-1 size-3" />
+                                                                                Lihat
+                                                                                Detail
+                                                                            </Button>
+                                                                        </Link>
+                                                                    )}
+                                                            </>
+                                                        ) : kegiatan.bast
+                                                              .count > 0 ? (
+                                                            <>
+                                                                <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                                                                    <AlertTriangle className="size-4" />
+                                                                    {
+                                                                        kegiatan
+                                                                            .bast
+                                                                            .count
+                                                                    }
+                                                                    /
+                                                                    {
+                                                                        kegiatan
+                                                                            .bast
+                                                                            .required_count
+                                                                    }{' '}
+                                                                    BAST
+                                                                </span>
+                                                                {canViewMonthlyDocuments &&
+                                                                    kegiatan
+                                                                        .periode_alokasi
+                                                                        ?.has_alokasi &&
+                                                                    bastActionHref && (
+                                                                        <Link
+                                                                            href={
+                                                                                bastActionHref
+                                                                            }
+                                                                        >
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="ghost"
+                                                                            >
+                                                                                <Plus className="mr-1 size-3" />
+                                                                                Buat
+                                                                            </Button>
+                                                                        </Link>
+                                                                    )}
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                                                                    <XCircle className="size-4" />
+                                                                    Belum dibuat
+                                                                </span>
+                                                                {canViewMonthlyDocuments &&
+                                                                    kegiatan
+                                                                        .periode_alokasi
+                                                                        ?.has_alokasi && (
+                                                                        <Link
+                                                                            href={
+                                                                                bastActionHref
+                                                                            }
+                                                                        >
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="ghost"
+                                                                            >
+                                                                                <Plus className="mr-1 size-3" />
+                                                                                Buat
+                                                                            </Button>
+                                                                        </Link>
+                                                                    )}
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-8 text-center dark:border-neutral-700 dark:bg-neutral-900">
-                                    <Calendar className="mx-auto size-8 text-neutral-400" />
-                                    <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-                                        Tidak ada kegiatan yang sesuai filter
-                                    </p>
-                                </div>
-                            )}
-                        </div>
+                                    );
+                                })}
+
+                                {totalKegiatanPages > 1 && (
+                                    <div className="flex items-center justify-between border-t border-neutral-200 pt-3 text-xs dark:border-neutral-800">
+                                        <span className="text-neutral-500 dark:text-neutral-400">
+                                            Halaman {currentKegiatanPage} dari{' '}
+                                            {totalKegiatanPages}
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                disabled={
+                                                    currentKegiatanPage <= 1
+                                                }
+                                                onClick={() =>
+                                                    setKegiatanPage((prev) =>
+                                                        Math.max(prev - 1, 1),
+                                                    )
+                                                }
+                                            >
+                                                Sebelumnya
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                disabled={
+                                                    currentKegiatanPage >=
+                                                    totalKegiatanPages
+                                                }
+                                                onClick={() =>
+                                                    setKegiatanPage((prev) =>
+                                                        Math.min(
+                                                            prev + 1,
+                                                            totalKegiatanPages,
+                                                        ),
+                                                    )
+                                                }
+                                            >
+                                                Berikutnya
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-8 text-center dark:border-neutral-700 dark:bg-neutral-900">
+                                <Calendar className="mx-auto size-8 text-neutral-400" />
+                                <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+                                    Tidak ada kegiatan yang sesuai filter
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
