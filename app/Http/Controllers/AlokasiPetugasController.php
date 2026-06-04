@@ -379,12 +379,8 @@ class AlokasiPetugasController extends Controller
 
     private function resolveKegiatanFromPeriodeRoute(string $kegiatanRouteKey, int $tahun, string $bulan): Kegiatan
     {
-        $resolvedKegiatan = $this->resolveKegiatanRouteBinding($kegiatanRouteKey);
-
-        if ($resolvedKegiatan instanceof Kegiatan) {
-            return $resolvedKegiatan;
-        }
-
+        // Try PeriodeAlokasi first so that a periode hash takes priority over a kegiatan hash
+        // when both decode to the same numeric ID (hash collision between the two tables).
         $resolvedPeriode = $this->resolvePeriodeRouteBinding($kegiatanRouteKey);
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
@@ -398,6 +394,13 @@ class AlokasiPetugasController extends Controller
             }
 
             return $resolvedPeriode->kegiatan()->firstOrFail();
+        }
+
+        // Fallback: the route key is a kegiatan hash (older links / direct navigation)
+        $resolvedKegiatan = $this->resolveKegiatanRouteBinding($kegiatanRouteKey);
+
+        if ($resolvedKegiatan instanceof Kegiatan) {
+            return $resolvedKegiatan;
         }
 
         abort(404);

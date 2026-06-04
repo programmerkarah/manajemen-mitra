@@ -699,7 +699,15 @@ class DashboardController extends Controller
             // Satuan-based workload inequality (normalized metric, less biased than kegiatan count
             // since it accounts for actual work volume per kegiatan instead of treating all
             // kegiatan equally regardless of scope).
-            $satuanValues = $alokasiThisMonth->pluck('total_satuan')->map(fn ($v) => (int) $v)->toArray();
+            // Only include petugas with satuan > 0 to avoid distortion from surveys that
+            // don't record jumlah_satuan (e.g. Susenas) — their 0 values would artificially
+            // inflate the CV without representing true inequality.
+            $satuanValues = $alokasiThisMonth
+                ->pluck('total_satuan')
+                ->map(fn ($v) => (int) $v)
+                ->filter(fn ($v) => $v > 0)
+                ->values()
+                ->toArray();
             $avgSatuan = 0;
             $cvSatuan = 0;
 
