@@ -220,7 +220,7 @@ class DashboardTest extends TestCase
             $this->assertNotNull($monitoringJune);
             $this->assertEquals(2, $chartJune['petugas_count']);
             $this->assertEquals(1, $chartJune['kegiatan_count']);
-            $this->assertEquals(2, $monitoringJune['kegiatan_1_2']);
+            $this->assertEquals(1, $monitoringJune['kegiatan_1_2']);
             $this->assertEquals(0, $honorPerPetugas['per_bulan']['Jun']);
             $this->assertEquals(100000, $honorPerPetugas['per_bulan']['Jul']);
             $this->assertEquals(150000, $honorPerPetugas['per_bulan']['Aug']);

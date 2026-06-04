@@ -663,7 +663,7 @@ class DashboardController extends Controller
                         });
                     }
                 })
-                ->select('alokasi_petugas.petugas_id', DB::raw('COUNT(*) as jumlah_kegiatan'))
+                ->select('alokasi_petugas.petugas_id', DB::raw('COUNT(*) as jumlah_kegiatan'), DB::raw('SUM(COALESCE(alokasi_petugas.jumlah_satuan, 0)) as total_satuan'))
                 ->groupBy('alokasi_petugas.petugas_id')
                 ->get();
 
@@ -696,6 +696,26 @@ class DashboardController extends Controller
                 }
             }
 
+            // Satuan-based workload inequality (normalized metric, less biased than kegiatan count
+            // since it accounts for actual work volume per kegiatan instead of treating all
+            // kegiatan equally regardless of scope).
+            $satuanValues = $alokasiThisMonth->pluck('total_satuan')->map(fn ($v) => (int) $v)->toArray();
+            $avgSatuan = 0;
+            $cvSatuan = 0;
+
+            if (count($satuanValues) > 0) {
+                $avgSatuan = array_sum($satuanValues) / count($satuanValues);
+
+                if (count($satuanValues) > 1 && $avgSatuan > 0) {
+                    $sVariance = 0;
+                    foreach ($satuanValues as $s) {
+                        $sVariance += ($s - $avgSatuan) ** 2;
+                    }
+                    $sStdDev = sqrt($sVariance / count($satuanValues));
+                    $cvSatuan = ($sStdDev / $avgSatuan) * 100;
+                }
+            }
+
             $petugasMonitoringData[] = [
                 'month' => $monthName,
                 'tidak_dialokasikan' => $petugasTidakDialokasikan,
@@ -709,6 +729,8 @@ class DashboardController extends Controller
                 'max_kegiatan' => $maxKegiatan,
                 'min_kegiatan' => $minKegiatan,
                 'cv_kegiatan' => round($cvKegiatan, 2),
+                'avg_satuan' => round($avgSatuan, 1),
+                'cv_satuan' => round($cvSatuan, 2),
             ];
         }
 
@@ -736,7 +758,11 @@ class DashboardController extends Controller
                     'kegiatan.jenis_kegiatan',
                     'kegiatan.nama_kegiatan',
                     'alokasi_petugas.total_honor',
-                    'alokasi_petugas.total_honor_listing'
+                    'alokasi_petugas.total_honor_listing',
+                    'alokasi_petugas.is_partial_payment',
+                    'alokasi_petugas.estimasi_honor_partial',
+                    'alokasi_petugas.is_partial_payment_listing',
+                    'alokasi_petugas.estimasi_honor_partial_listing'
                 )
                 ->get();
 
@@ -758,9 +784,17 @@ class DashboardController extends Controller
             $petugasHonor = [];
             foreach ($grouped as $row) {
                 $pid = $row->petugas_id;
+                // Respect is_partial_payment: use estimasi_honor_partial when set,
+                // mirroring AlokasiPetugas::getEffectiveCombinedHonor().
+                $effectiveHonor = ($row->is_partial_payment && $row->estimasi_honor_partial !== null)
+                    ? (float) $row->estimasi_honor_partial
+                    : (float) ($row->total_honor ?? 0);
+                $effectiveHonorListing = ($row->is_partial_payment_listing && $row->estimasi_honor_partial_listing !== null)
+                    ? (float) $row->estimasi_honor_partial_listing
+                    : (float) ($row->total_honor_listing ?? 0);
                 $honor = $this->calculateDashboardHonor(
                     $month,
-                    ($row->total_honor ?? 0) + ($row->total_honor_listing ?? 0),
+                    $effectiveHonor + $effectiveHonorListing,
                     $row->jenis_kegiatan ?? null,
                     $row->nama_kegiatan ?? null,
                 );
@@ -828,6 +862,7 @@ class DashboardController extends Controller
                     'honor_2501rb_3500rb' => $honor2501rb_3500rb,
                     'honor_lebih_3501rb' => $honorLebih3501rb,
                     'total_petugas' => count($honors),
+                    'total_honor_bulan' => round($totalHonor, 0),
                 ];
             } else {
                 $honorInequalityData[] = [
@@ -843,6 +878,7 @@ class DashboardController extends Controller
                     'honor_2501rb_3500rb' => 0,
                     'honor_lebih_3501rb' => 0,
                     'total_petugas' => 0,
+                    'total_honor_bulan' => 0,
                 ];
             }
         }
@@ -873,7 +909,9 @@ class DashboardController extends Controller
         $workloadInequalitySummary = ['has_data' => false];
 
         if ($monthsWithAlokasi->count() > 0) {
-            $avgCvWorkload = $monthsWithAlokasi->avg('cv_kegiatan');
+            // Use satuan-based CV as the primary inequality metric — it accounts for actual
+            // work volume per kegiatan rather than treating all kegiatan with equal weight.
+            $avgCvWorkload = $monthsWithAlokasi->avg('cv_satuan');
             $avgAvgKegiatan = $monthsWithAlokasi->avg('avg_kegiatan');
             $totalOverload = $monthsWithAlokasi->sum('kegiatan_lebih_5');
             $totalUnderutilized = $monthsWithAlokasi->sum('kegiatan_1_2');
@@ -921,6 +959,16 @@ class DashboardController extends Controller
             $avgHonorTerendah = $honorMonthsWithData->avg('honor_terendah');
             $avgStdDeviasi = $honorMonthsWithData->avg('std_deviasi');
             $avgKoefisienVariasi = $honorMonthsWithData->avg('koefisien_variasi');
+
+            // Volume-weighted CV: weight each month by its total honor payout so that
+            // months with more economic activity have proportionally more influence on
+            // the annual inequality summary. Without weighting, a quiet month (few
+            // petugas, possibly noisy CV) would count the same as a peak month.
+            $totalHonorVolume = (float) $honorMonthsWithData->sum('total_honor_bulan');
+            $weightedCvHonor = $totalHonorVolume > 0
+                ? (float) $honorMonthsWithData->sum(fn ($m) => $m['koefisien_variasi'] * $m['total_honor_bulan']) / $totalHonorVolume
+                : (float) $avgKoefisienVariasi;
+
             $avgGapHonor = $avgHonorTertinggi - $avgHonorTerendah;
             $avgTotalPetugas = $honorMonthsWithData->avg('total_petugas');
 
@@ -930,10 +978,11 @@ class DashboardController extends Controller
                 'honor_tertinggi' => round($avgHonorTertinggi, 0),
                 'honor_terendah' => round($avgHonorTerendah, 0),
                 'std_deviasi' => round($avgStdDeviasi, 0),
-                'koefisien_variasi' => round($avgKoefisienVariasi, 2),
+                'koefisien_variasi' => round($weightedCvHonor, 2),
+                'koefisien_variasi_simple' => round($avgKoefisienVariasi, 2),
                 'gap_honor' => round($avgGapHonor, 0),
                 'total_petugas' => round($avgTotalPetugas, 0),
-                'insights' => $this->buildHonorInsights($honorMonthsWithData, $currentMonth, $avgRataRataHonor, $avgKoefisienVariasi),
+                'insights' => $this->buildHonorInsights($honorMonthsWithData, $currentMonth, $avgRataRataHonor, $avgKoefisienVariasi, $weightedCvHonor),
             ];
         }
 
@@ -1125,10 +1174,10 @@ class DashboardController extends Controller
         // CV inequality level
         $cvLevel = $avgCv > 50 ? 'tinggi' : ($avgCv > 30 ? 'sedang' : 'rendah');
         $cvVal = round($avgCv, 1);
-        $mostUnequalMonth = $workloadMonthsWithData->sortByDesc('cv_kegiatan')->first();
+        $mostUnequalMonth = $workloadMonthsWithData->sortByDesc('cv_satuan')->first();
         $cvMonthName = $mostUnequalMonth['month'];
-        $cvMonthVal = round((float) $mostUnequalMonth['cv_kegiatan'], 1);
-        $insights[] = "Ketimpangan beban rata-rata {$cvLevel} (CV {$cvVal}%). Bulan paling timpang: {$cvMonthName} (CV {$cvMonthVal}%).";
+        $cvMonthVal = round((float) ($mostUnequalMonth['cv_satuan'] ?? 0), 1);
+        $insights[] = "Ketimpangan beban rata-rata {$cvLevel} (CV satuan {$cvVal}%). Bulan paling timpang: {$cvMonthName} (CV {$cvMonthVal}%).";
 
         // Overload %
         $totalOverload = $workloadMonthsWithData->sum('kegiatan_lebih_5');
@@ -1217,6 +1266,7 @@ class DashboardController extends Controller
         int $currentMonth,
         float $avgRataRataHonor,
         float $avgKoefisienVariasi,
+        float $weightedKoefisienVariasi,
     ): array {
         $insights = [];
         $monthsWithData = $honorMonthsWithData->count();
@@ -1249,8 +1299,8 @@ class DashboardController extends Controller
         $insights[] = "Rata-rata honor non-organik Rp {$fmtAvg}/bulan{$trendText}.";
 
         // Insight 3: Inequality level + worst month
-        $cvLevel = $avgKoefisienVariasi > 50 ? 'tinggi' : ($avgKoefisienVariasi > 30 ? 'sedang' : 'rendah');
-        $cvVal = round($avgKoefisienVariasi, 1);
+        $cvLevel = $weightedKoefisienVariasi > 50 ? 'tinggi' : ($weightedKoefisienVariasi > 30 ? 'sedang' : 'rendah');
+        $cvVal = round($weightedKoefisienVariasi, 1);
         $mostUnequalMonth = $honorMonthsWithData->sortByDesc('koefisien_variasi')->first();
         $cvMonthName = $mostUnequalMonth['month'];
         $cvMonthVal = round((float) $mostUnequalMonth['koefisien_variasi'], 1);

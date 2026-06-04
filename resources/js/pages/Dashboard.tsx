@@ -151,6 +151,8 @@ interface PetugasMonitoringData {
     max_kegiatan: number;
     min_kegiatan: number;
     cv_kegiatan: number;
+    avg_satuan: number;
+    cv_satuan: number;
 }
 
 interface HonorInequalityData {
@@ -166,6 +168,7 @@ interface HonorInequalityData {
     honor_2501rb_3500rb: number;
     honor_lebih_3501rb: number;
     total_petugas: number;
+    total_honor_bulan: number;
 }
 
 interface KegiatanBulanIni {
@@ -244,6 +247,7 @@ interface HonorInequalitySummary {
     honor_terendah?: number;
     std_deviasi?: number;
     koefisien_variasi?: number;
+    koefisien_variasi_simple?: number;
     gap_honor?: number;
     total_petugas?: number;
     insights?: string[];
@@ -762,7 +766,7 @@ export default function Dashboard({
                                 currentMonthWorkload.tidak_dialokasikan;
                             const overload =
                                 currentMonthWorkload.kegiatan_lebih_5;
-                            const cv = currentMonthWorkload.cv_kegiatan;
+                            const cv = currentMonthWorkload.cv_satuan;
                             const cvLevel =
                                 cv < 30
                                     ? 'Baik'
@@ -1629,7 +1633,7 @@ export default function Dashboard({
                                         <Line
                                             yAxisId="right"
                                             type="monotone"
-                                            dataKey="cv_kegiatan"
+                                            dataKey="cv_satuan"
                                             stroke="rgb(251, 191, 36)"
                                             strokeWidth={2.5}
                                             strokeDasharray="5 5"
@@ -1637,7 +1641,7 @@ export default function Dashboard({
                                                 fill: 'rgb(251, 191, 36)',
                                                 r: 4,
                                             }}
-                                            name="CV Beban (%)"
+                                            name="CV Satuan (%)"
                                         />
                                     </ComposedChart>
                                 </ResponsiveContainer>
