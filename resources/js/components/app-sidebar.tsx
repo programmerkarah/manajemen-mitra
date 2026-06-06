@@ -17,9 +17,9 @@ import { Link, usePage } from '@inertiajs/react';
 import AppLogo from './app-logo';
 
 export function AppSidebar() {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, isSeKetuaTim } = usePage<SharedData>().props;
 
-    const mainNavItems = buildNavItems(auth.activeRole?.name);
+    const mainNavItems = buildNavItems(auth.activeRole?.name, isSeKetuaTim);
 
     return (
         <Sidebar

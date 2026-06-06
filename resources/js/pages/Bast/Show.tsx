@@ -23,6 +23,7 @@ import {
 import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
+    AlertCircle,
     ArrowLeft,
     CheckCircle2,
     Clock3,
@@ -159,8 +160,10 @@ interface SensusReference {
     muatan_input: number | null;
     muatan_prelist: number | null;
     muatan_prelist_unit_sampel?: Record<string, number | null>;
+    target_sls?: number | null;
     fasih_screenshot_path: string | null;
     fasih_screenshot_uploaded_at?: string | null;
+    bapp_termin_ii_complete?: boolean;
 }
 
 interface EligibleWithoutBast {
@@ -202,8 +205,8 @@ const getUnitKey = (unit: { id: number; nama: string }): string =>
     unit.nama.trim().toLowerCase().replace(/\s+/g, '_');
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'BAST', href: '/bast' },
-    { title: 'Detail BAST', href: '#' },
+    { title: 'Berita Acara', href: '/berita-acara' },
+    { title: 'Detail Berita Acara', href: '#' },
 ];
 
 const peranLabelMap: Record<string, string> = {
@@ -257,22 +260,6 @@ export default function Show({
         src: '',
         alt: '',
     });
-    const [savingReference, setSavingReference] = useState(false);
-    const [saveReferenceError, setSaveReferenceError] = useState<string | null>(
-        null,
-    );
-    const [lastReferenceSavedAt, setLastReferenceSavedAt] = useState<
-        string | null
-    >(null);
-    const [realisasiUnitSampel, setRealisasiUnitSampel] = useState<
-        Record<string, string>
-    >(() =>
-        Object.fromEntries(
-            Object.entries(sensus_reference?.realisasi_unit_sampel ?? {}).map(
-                ([unitKey, value]) => [unitKey, String(value)],
-            ),
-        ),
-    );
     const [sharedScreenshotPath, setSharedScreenshotPath] = useState<
         string | null
     >(sensus_reference?.fasih_screenshot_path ?? bast.fasih_screenshot_path);
@@ -285,13 +272,6 @@ export default function Show({
         window.location.hash;
 
     useEffect(() => {
-        setRealisasiUnitSampel(
-            Object.fromEntries(
-                Object.entries(
-                    sensus_reference?.realisasi_unit_sampel ?? {},
-                ).map(([unitKey, value]) => [unitKey, String(value)]),
-            ),
-        );
         setSharedScreenshotPath(
             sensus_reference?.fasih_screenshot_path ??
                 bast.fasih_screenshot_path,
@@ -399,132 +379,6 @@ export default function Show({
         return fallbackMessage;
     };
 
-    const getUnitInputValue = (unitKey: string) =>
-        realisasiUnitSampel[unitKey] ?? '';
-
-    const hasAnyRealisasiValue = Object.values(realisasiUnitSampel).some(
-        (value) => value.trim() !== '',
-    );
-
-    const getPrelistTargetValue = (unitKey: string): string => {
-        const value = sensus_reference?.muatan_prelist_unit_sampel?.[unitKey];
-        if (value === null || value === undefined) {
-            return '-';
-        }
-
-        return String(value);
-    };
-
-    const persistSensusReference = async () => {
-        if (!sensus_reference) {
-            return;
-        }
-
-        const payload = Object.fromEntries(
-            Object.entries(realisasiUnitSampel)
-                .filter(([, value]) => value !== '')
-                .map(([unitKey, value]) => [unitKey, Number(value)]),
-        );
-
-        if (Object.keys(payload).length === 0) {
-            return;
-        }
-
-        setSavingReference(true);
-        setSaveReferenceError(null);
-
-        try {
-            const requestBody: Record<string, unknown> = {
-                spk_id: sensus_reference.spk_id,
-                bulan: sensus_reference.bulan,
-                tahun: sensus_reference.tahun,
-                realisasi_unit_sampel: payload,
-            };
-
-            if (bast.hashed_id) {
-                requestBody.bast_hashed_id = bast.hashed_id;
-            }
-
-            const response = await fetch('/bast/sensus-reference', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': getCsrfToken(),
-                },
-                body: JSON.stringify(requestBody),
-            });
-
-            const result = await response.json().catch(() => null);
-
-            if (!response.ok) {
-                throw new Error(
-                    result?.message ?? 'Gagal menyimpan referensi realisasi.',
-                );
-            }
-
-            setLastReferenceSavedAt(new Date().toLocaleTimeString('id-ID'));
-            reloadDetailData();
-        } catch (error) {
-            const message =
-                error instanceof Error
-                    ? error.message
-                    : 'Gagal menyimpan referensi realisasi.';
-            setSaveReferenceError(message);
-        } finally {
-            setSavingReference(false);
-        }
-    };
-
-    const handleUploadSharedFasihScreenshot = async (
-        event: React.ChangeEvent<HTMLInputElement>,
-    ) => {
-        const file = event.target.files?.[0];
-        if (!file || !sensus_reference) {
-            return;
-        }
-
-        setUploadingTarget('shared-fasih-screenshot');
-
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('spk_id', String(sensus_reference.spk_id));
-            formData.append('bulan', String(sensus_reference.bulan));
-            formData.append('tahun', String(sensus_reference.tahun));
-            formData.append('bast_hashed_id', bast.hashed_id);
-
-            const response = await fetch(
-                '/bast/sensus-reference/upload-fasih-screenshot',
-                {
-                    method: 'POST',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': getCsrfToken(),
-                    },
-                    body: formData,
-                },
-            );
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(
-                    result?.message ??
-                        'Screenshot Fasih tidak berhasil diunggah.',
-                );
-            }
-
-            setSharedScreenshotPath(
-                result?.data?.fasih_screenshot_path ?? null,
-            );
-            reloadDetailData();
-        } finally {
-            setUploadingTarget(null);
-            event.target.value = '';
-        }
-    };
-
     const openDetailByPetugas = (petugasId?: number | null) => {
         handleListLinkClick();
 
@@ -540,7 +394,7 @@ export default function Show({
         });
 
         router.get(
-            '/bast/open-detail',
+            '/berita-acara/open-detail',
             {
                 state,
             },
@@ -613,7 +467,7 @@ export default function Show({
     };
 
     const handleDownloadAll = async () => {
-        const fallbackUrl = `/bast/download-all?bulan=${bulan}&tahun=${tahun}`;
+        const fallbackUrl = `/berita-acara/download-all?bulan=${bulan}&tahun=${tahun}`;
 
         if (permissions.is_ketua_tim) {
             // Ketua tim: always hit backend (user-specific filtered ZIP, no static cache)
@@ -640,7 +494,7 @@ export default function Show({
         setUploadingTarget('main');
 
         router.post(
-            `/bast/${bast.hashed_id}/upload-signed`,
+            `/berita-acara/${bast.hashed_id}/upload-signed`,
             { file },
             {
                 preserveScroll: true,
@@ -648,12 +502,6 @@ export default function Show({
                 onFinish: () => setUploadingTarget(null),
             },
         );
-    };
-
-    const handleUploadFasihScreenshot = (
-        event: React.ChangeEvent<HTMLInputElement>,
-    ) => {
-        void handleUploadSharedFasihScreenshot(event);
     };
 
     const handleGenerateDownloadLampiran = async (item: LampiranItem) => {
@@ -691,15 +539,18 @@ export default function Show({
                 }
             });
 
-            const response = await fetch('/bast/lampiran-action/download', {
-                method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    Accept: 'application/pdf,application/json',
+            const response = await fetch(
+                '/berita-acara/lampiran-action/download',
+                {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        Accept: 'application/pdf,application/json',
+                    },
+                    credentials: 'include',
+                    body: formData,
                 },
-                credentials: 'include',
-                body: formData,
-            });
+            );
 
             if (!response.ok) {
                 const message = await extractErrorMessage(response);
@@ -747,7 +598,7 @@ export default function Show({
 
         try {
             await previewFileFromPost(
-                '/bast/lampiran-action/preview',
+                '/berita-acara/lampiran-action/preview',
                 bast.hashed_id
                     ? {
                           bast_hashed_id: bast.hashed_id,
@@ -774,7 +625,7 @@ export default function Show({
 
         openImagePreview(
             'Screenshot Fasih',
-            `/${sharedScreenshotPath}`,
+            `../storage/${sharedScreenshotPath}`,
             'Screenshot Fasih BAST',
         );
     };
@@ -812,11 +663,15 @@ export default function Show({
                   file,
               };
 
-        router.post('/bast/lampiran-action/upload-signed', uploadPayload, {
-            preserveScroll: true,
-            onSuccess: reloadDetailData,
-            onFinish: () => setUploadingTarget(null),
-        });
+        router.post(
+            '/berita-acara/lampiran-action/upload-signed',
+            uploadPayload,
+            {
+                preserveScroll: true,
+                onSuccess: reloadDetailData,
+                onFinish: () => setUploadingTarget(null),
+            },
+        );
     };
 
     return (
@@ -845,7 +700,7 @@ export default function Show({
                             </Button>
                         )}
                         <Button variant="outline" asChild>
-                            <Link href={`/bast`}>
+                            <Link href={`/berita-acara`}>
                                 <ArrowLeft className="mr-2 h-4 w-4" />
                                 Kembali
                             </Link>
@@ -1129,8 +984,8 @@ export default function Show({
                                                 openFastDownload(
                                                     bast.is_legacy_mode &&
                                                         bast.signed_file_path
-                                                        ? `/bast/${bast.hashed_id}/download-signed`
-                                                        : `/bast/${bast.hashed_id}/download`,
+                                                        ? `/berita-acara/${bast.hashed_id}/download-signed`
+                                                        : `/berita-acara/${bast.hashed_id}/download`,
                                                 )
                                             }
                                         >
@@ -1146,7 +1001,7 @@ export default function Show({
                                                 variant="outline"
                                                 onClick={() =>
                                                     openFastDownload(
-                                                        `/bast/${bast.hashed_id}/download-compiled`,
+                                                        `/berita-acara/${bast.hashed_id}/download-compiled`,
                                                     )
                                                 }
                                             >
@@ -1162,7 +1017,7 @@ export default function Show({
                                                 variant="outline"
                                                 onClick={() =>
                                                     openFastDownload(
-                                                        `/bast/${bast.hashed_id}/download-signed`,
+                                                        `/berita-acara/${bast.hashed_id}/download-signed`,
                                                     )
                                                 }
                                             >
@@ -1179,7 +1034,7 @@ export default function Show({
                                                 variant="outline"
                                                 onClick={() =>
                                                     openFastDownload(
-                                                        `/bast/${bast.hashed_id}/download-signed`,
+                                                        `/berita-acara/${bast.hashed_id}/download-signed`,
                                                     )
                                                 }
                                             >
@@ -1255,38 +1110,68 @@ export default function Show({
                                     <div className="space-y-4">
                                         <div>
                                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                                Realisasi dan Screenshot Fasih
+                                                Data Realisasi & Screenshot
+                                                Fasih (dari BAPP SE2026)
                                             </h3>
                                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                                Input realisasi pendataan Sensus
-                                                Ekonomi 2026 dan unggah
-                                                screenshot aplikasi Fasih
-                                                sebagai bukti. Data ini akan
-                                                disimpan sebagai referensi untuk
-                                                BAST berikutnya dengan petugas
-                                                yang sama, jadi pastikan untuk
-                                                memperbarui jika ada perubahan
-                                                realisasi atau saat mengganti
-                                                screenshot Fasih.
+                                                Data realisasi diambil dari
+                                                penjumlahan BAPP Termin I dan
+                                                II. BAST hanya dapat di-generate
+                                                setelah BAPP Termin II
+                                                diselesaikan.
                                             </p>
                                         </div>
 
+                                        {sensus_reference.bapp_termin_ii_complete ===
+                                            false && (
+                                            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
+                                                <AlertCircle className="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+                                                <p className="text-sm text-amber-800 dark:text-amber-300">
+                                                    BAST Sensus Ekonomi hanya
+                                                    bisa di-generate setelah
+                                                    BAPP Termin II diselesaikan
+                                                    (realisasi + screenshot
+                                                    Fasih lengkap).
+                                                </p>
+                                            </div>
+                                        )}
+
                                         <div className="grid gap-4 md:grid-cols-2">
+                                            {sensus_reference.target_sls !=
+                                                null && (
+                                                <div>
+                                                    <Label>
+                                                        Realisasi SLS/sub-SLS
+                                                    </Label>
+                                                    <Input
+                                                        value={
+                                                            sensus_reference.target_sls
+                                                        }
+                                                        readOnly
+                                                        disabled
+                                                    />
+                                                </div>
+                                            )}
                                             {sensus_reference.unit_sampel_pencacahan_items.map(
                                                 (unit) => {
                                                     const unitKey =
                                                         getUnitKey(unit);
+                                                    const realisasi =
+                                                        sensus_reference
+                                                            .realisasi_unit_sampel?.[
+                                                            unitKey
+                                                        ] ?? '-';
 
                                                     return (
                                                         <div key={unit.id}>
                                                             <Label>
-                                                                Muatan prelist (
+                                                                Realisasi (
                                                                 {unit.nama})
                                                             </Label>
                                                             <Input
-                                                                value={getPrelistTargetValue(
-                                                                    unitKey,
-                                                                )}
+                                                                value={
+                                                                    realisasi
+                                                                }
                                                                 readOnly
                                                                 disabled
                                                             />
@@ -1294,106 +1179,10 @@ export default function Show({
                                                     );
                                                 },
                                             )}
-                                            {sensus_reference.unit_sampel_pencacahan_items.map(
-                                                (unit) => {
-                                                    const unitKey =
-                                                        getUnitKey(unit);
-
-                                                    return (
-                                                        <div
-                                                            key={`realisasi-${unit.id}`}
-                                                        >
-                                                            <Label>
-                                                                Realisasi (
-                                                                {unit.nama})
-                                                            </Label>
-                                                            <Input
-                                                                type="number"
-                                                                min={0}
-                                                                value={getUnitInputValue(
-                                                                    unitKey,
-                                                                )}
-                                                                onChange={(
-                                                                    event,
-                                                                ) => {
-                                                                    setRealisasiUnitSampel(
-                                                                        (
-                                                                            prev,
-                                                                        ) => ({
-                                                                            ...prev,
-                                                                            [unitKey]:
-                                                                                event
-                                                                                    .target
-                                                                                    .value,
-                                                                        }),
-                                                                    );
-                                                                }}
-                                                                onBlur={() => {
-                                                                    void persistSensusReference();
-                                                                }}
-                                                            />
-                                                        </div>
-                                                    );
-                                                },
-                                            )}
                                         </div>
 
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => {
-                                                    void persistSensusReference();
-                                                }}
-                                                disabled={
-                                                    savingReference ||
-                                                    !hasAnyRealisasiValue
-                                                }
-                                            >
-                                                {savingReference
-                                                    ? 'Menyimpan...'
-                                                    : 'Simpan Realisasi'}
-                                            </Button>
-                                        </div>
-                                        <div
-                                            className={`text-xs ${
-                                                saveReferenceError
-                                                    ? 'text-red-600 dark:text-red-400'
-                                                    : 'text-neutral-500 dark:text-neutral-400'
-                                            }`}
-                                        >
-                                            {savingReference
-                                                ? 'Menyimpan perubahan referensi...'
-                                                : saveReferenceError
-                                                  ? saveReferenceError
-                                                  : lastReferenceSavedAt
-                                                    ? `Perubahan realisasi tersimpan pukul ${lastReferenceSavedAt}.`
-                                                    : 'Perubahan realisasi telah disimpan.'}
-                                        </div>
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            <Label
-                                                htmlFor="fasih-screenshot-file"
-                                                className="inline-flex h-11 cursor-pointer items-center justify-center gap-2.5 rounded-xl border-2 border-input bg-white/50 px-5 text-base font-semibold shadow-lg backdrop-blur-sm transition-[color,box-shadow,transform] hover:border-accent-foreground/20 hover:bg-accent hover:text-accent-foreground hover:shadow-xl active:scale-[0.98] dark:bg-neutral-800/60"
-                                            >
-                                                <Upload className="size-5 shrink-0" />
-                                                {uploadingTarget ===
-                                                'fasih-screenshot'
-                                                    ? 'Mengunggah...'
-                                                    : sharedScreenshotPath
-                                                      ? 'Ganti Screenshot Fasih'
-                                                      : 'Pilih Screenshot Fasih'}
-                                            </Label>
-                                            <Input
-                                                id="fasih-screenshot-file"
-                                                type="file"
-                                                accept="image/png,image/jpeg,image/webp"
-                                                onChange={
-                                                    handleUploadFasihScreenshot
-                                                }
-                                                className="hidden"
-                                            />
-                                            {sharedScreenshotPath && (
+                                        {sharedScreenshotPath && (
+                                            <div className="flex flex-wrap items-center gap-3">
                                                 <Button
                                                     type="button"
                                                     variant="ghost"
@@ -1403,10 +1192,11 @@ export default function Show({
                                                     }
                                                 >
                                                     <Eye className="h-4 w-4" />
-                                                    Lihat Screenshot Saat Ini
+                                                    Lihat Screenshot Fasih
+                                                    (Termin II)
                                                 </Button>
-                                            )}
-                                        </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </ContentCard>
                             )}

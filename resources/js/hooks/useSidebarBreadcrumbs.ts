@@ -17,14 +17,14 @@ import { usePage } from '@inertiajs/react';
 export function useSidebarBreadcrumbs(
     breadcrumbs: BreadcrumbItem[],
 ): BreadcrumbItem[] {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, isSeKetuaTim } = usePage<SharedData>().props;
     const page = usePage();
     const activeRoleName = auth.activeRole?.name;
 
     const currentUrl =
         typeof page.url === 'string' ? page.url : String(page.url);
 
-    const navItems = buildNavItems(activeRoleName);
+    const navItems = buildNavItems(activeRoleName, isSeKetuaTim);
 
     for (const item of navItems) {
         if (!item.items || item.items.length === 0) {

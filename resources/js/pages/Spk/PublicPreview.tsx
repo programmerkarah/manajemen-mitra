@@ -1,11 +1,4 @@
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -16,7 +9,16 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Head } from '@inertiajs/react';
-import { Download, Eye } from 'lucide-react';
+import {
+    AlertCircle,
+    CheckCircle2,
+    ChevronDown,
+    Download,
+    Eye,
+    FileText,
+    Loader2,
+    Search,
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 interface OptionItem {
@@ -35,6 +37,9 @@ interface PenugasanItem {
     honor: number;
     honor_label: string;
     document_status: string;
+    bast_status: string;
+    bapp_termin_i_status: string | null;
+    bapp_termin_ii_status: string | null;
 }
 
 interface PublicPreviewProps {
@@ -119,6 +124,9 @@ export default function PublicPreview({
     const [loadingOptions, setLoadingOptions] = useState(false);
     const [recaptchaReady, setRecaptchaReady] = useState(false);
     const [processing, setProcessing] = useState(false);
+    const [dokumenTipe, setDokumenTipe] = useState<
+        'pk' | 'bast' | 'bapp_i' | 'bapp_ii'
+    >('pk');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [documentProgressOpen, setDocumentProgressOpen] = useState(false);
     const [documentProgressPercent, setDocumentProgressPercent] = useState(0);
@@ -128,6 +136,7 @@ export default function PublicPreview({
     const [documentProgressTitle, setDocumentProgressTitle] = useState(
         'Menyiapkan dokumen PDF...',
     );
+    const [expandedStep, setExpandedStep] = useState<1 | 2 | 3 | null>(1);
 
     useEffect(() => {
         if (!recaptcha_site_key || recaptchaReady) {
@@ -186,13 +195,24 @@ export default function PublicPreview({
         setJenisKegiatan('');
         setSurveiPeriode('');
         setSensusKegiatan('');
+        setDokumenTipe('pk');
+        setExpandedStep(1);
     }, [nama, nik, telepon4Digit]);
 
     const availableJenisOptions = useMemo(() => {
         const options: Array<{ value: 'survei' | 'sensus'; label: string }> =
             [];
 
-        if (ownedSurveiPeriods.length > 0) {
+        const periodsWithHonor = ownedSurveiPeriods.filter((period) =>
+            ownedPenugasanList.some(
+                (item) =>
+                    item.jenis_kegiatan === 'survei' &&
+                    item.periode_key === period.value &&
+                    item.honor > 0,
+            ),
+        );
+
+        if (periodsWithHonor.length > 0) {
             options.push({ value: 'survei', label: 'Survei' });
         }
 
@@ -201,7 +221,24 @@ export default function PublicPreview({
         }
 
         return options;
-    }, [ownedSurveiPeriods, ownedSensusKegiatans]);
+    }, [ownedSurveiPeriods, ownedSensusKegiatans, ownedPenugasanList]);
+
+    const filteredSurveiPeriods = useMemo(() => {
+        return ownedSurveiPeriods.filter((period) =>
+            ownedPenugasanList.some(
+                (item) =>
+                    item.jenis_kegiatan === 'survei' &&
+                    item.periode_key === period.value &&
+                    item.honor > 0,
+            ),
+        );
+    }, [ownedSurveiPeriods, ownedPenugasanList]);
+
+    useEffect(() => {
+        if (isOptionsLoaded) {
+            setExpandedStep(2);
+        }
+    }, [isOptionsLoaded]);
 
     const getRecaptchaToken = async (action: string): Promise<string> => {
         if (!recaptcha_site_key) {
@@ -335,12 +372,24 @@ export default function PublicPreview({
         sensusKegiatan,
     ]);
 
+    useEffect(() => {
+        if (!isOptionsLoaded) {
+            return;
+        }
+        if (canSubmit) {
+            setExpandedStep(3);
+        } else {
+            setExpandedStep(2);
+        }
+    }, [canSubmit, isOptionsLoaded]);
+
     const selectedPenugasanList = useMemo(() => {
         if (jenisKegiatan === 'survei' && surveiPeriode) {
             return ownedPenugasanList.filter(
                 (item) =>
                     item.jenis_kegiatan === 'survei' &&
-                    item.periode_key === surveiPeriode,
+                    item.periode_key === surveiPeriode &&
+                    item.honor > 0,
             );
         }
 
@@ -348,7 +397,8 @@ export default function PublicPreview({
             return ownedPenugasanList.filter(
                 (item) =>
                     item.jenis_kegiatan === 'sensus' &&
-                    item.kegiatan_hashed_id === sensusKegiatan,
+                    item.kegiatan_hashed_id === sensusKegiatan &&
+                    item.honor > 0,
             );
         }
 
@@ -410,36 +460,6 @@ export default function PublicPreview({
         selectedPenugasanPeriodLabel,
     ]);
 
-    const selectedPenugasanCardDescription = useMemo(() => {
-        if (jenisKegiatan === 'survei') {
-            if (selectedPenugasanPeriodLabel) {
-                return `Menampilkan penugasan pada bulan ${selectedPenugasanPeriodLabel}.`;
-            } else {
-                return 'Menampilkan penugasan pada periode survei yang dipilih.';
-            }
-        }
-
-        if (jenisKegiatan === 'sensus') {
-            const selectedSensusKegiatanName =
-                selectedPenugasanList[0]?.nama_kegiatan ??
-                ownedSensusKegiatans.find(
-                    (item) => item.value === sensusKegiatan,
-                )?.label;
-
-            return selectedSensusKegiatanName
-                ? `Menampilkan alokasi tugas ${selectedSensusKegiatanName}.`
-                : 'Menampilkan alokasi tugas sensus sesuai kegiatan yang dipilih.';
-        }
-
-        return 'Menampilkan penugasan sesuai periode atau kegiatan yang dipilih.';
-    }, [
-        jenisKegiatan,
-        selectedPenugasanPeriodLabel,
-        selectedPenugasanList,
-        ownedSensusKegiatans,
-        sensusKegiatan,
-    ]);
-
     const requestPdf = async (aksi: 'preview' | 'download'): Promise<void> => {
         setErrorMessage(null);
 
@@ -487,6 +507,18 @@ export default function PublicPreview({
             formData.append('telepon_4_digit', telepon4Digit);
             formData.append('jenis_kegiatan', jenisKegiatan);
             formData.append('aksi', aksi);
+
+            const backendDokumenTipe =
+                dokumenTipe === 'bapp_i' || dokumenTipe === 'bapp_ii'
+                    ? 'bapp'
+                    : dokumenTipe;
+            formData.append('dokumen_tipe', backendDokumenTipe);
+
+            if (dokumenTipe === 'bapp_i') {
+                formData.append('bapp_termin', '1');
+            } else if (dokumenTipe === 'bapp_ii') {
+                formData.append('bapp_termin', '2');
+            }
 
             if (aksi === 'preview') {
                 formData.append('response_mode', 'url');
@@ -703,87 +735,143 @@ export default function PublicPreview({
 
     return (
         <>
-            <Head title={`Riwayat Pekerjaan Survei/Sensus ${active_year}`} />
+            <Head title={`Portal Dokumen Mitra ${active_year}`} />
 
-            <div className="flex min-h-screen justify-center bg-neutral-50 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.18),transparent_40%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.2),transparent_40%)] px-4 py-8 text-neutral-900 sm:px-6 lg:px-8 dark:bg-neutral-950 dark:text-neutral-100">
-                <div className="max-w-8xl mx-auto w-full">
-                    <Card className="border-amber-200/60 dark:border-neutral-700/60">
-                        <CardHeader className="gap-2 border-b border-amber-100/70 pb-5 dark:border-neutral-800">
-                            <p className="text-xs font-semibold tracking-[0.2em] text-amber-700 uppercase dark:text-amber-300">
-                                Layanan Mitra
+            {/* Page shell */}
+            <div className="min-h-screen bg-slate-50/70 dark:bg-[radial-gradient(ellipse_at_top_left,_#0a1f3d_0%,_#0d1e2e_40%,_#061a1a_80%,_#031212_100%)]">
+                {/* Top bar */}
+                <div className="fixed top-0 right-0 left-0 z-50 border-b border-neutral-200/70 bg-white/90 backdrop-blur-md dark:border-white/10 dark:bg-slate-900/85">
+                    <div className="mx-auto flex max-w-6xl items-center gap-4 px-6 py-5 sm:px-10">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 shadow-sm shadow-indigo-500/20">
+                            <FileText className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                            <p className="text-[11px] font-bold tracking-[0.18em] text-indigo-500 uppercase dark:text-indigo-400">
+                                BPS · Layanan Mitra
                             </p>
-                            <CardTitle className="text-2xl">
-                                Riwayat Pekerjaan Survei/Sensus {active_year}.
-                            </CardTitle>
-                            <CardDescription className="text-sm">
-                                Lihat riwayat pekerjaan dan preview perjanjian
-                                kerja tahun {active_year}.
-                            </CardDescription>
-                        </CardHeader>
+                            <h1 className="text-lg leading-tight font-bold text-neutral-900 dark:text-white">
+                                Portal Dokumen Mitra {active_year}
+                            </h1>
+                        </div>
+                    </div>
+                </div>
 
-                        <CardContent className="space-y-6">
-                            {errorMessage && (
-                                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
-                                    {errorMessage}
-                                </div>
+                <div className="mx-auto max-w-6xl space-y-5 px-6 pt-[88px] pb-8 sm:px-10 sm:pb-10">
+                    {/* Error banner */}
+                    {errorMessage && (
+                        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                            <span>{errorMessage}</span>
+                        </div>
+                    )}
+
+                    {/* ── Step 1 · Identitas ──────────────────────────────────── */}
+                    <div className="overflow-hidden rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:backdrop-blur-md">
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setExpandedStep((v) => (v === 1 ? null : 1))
+                            }
+                            className="flex w-full cursor-pointer items-center gap-3 border-b border-neutral-200/60 bg-white/50 px-6 py-4 text-left hover:bg-white/70 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
+                        >
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                                1
+                            </span>
+                            <span className="text-sm font-semibold text-neutral-800 dark:text-white">
+                                Verifikasi Identitas
+                            </span>
+                            {expandedStep !== 1 && loadedPetugasName && (
+                                <span className="ml-2 flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-0.5 text-xs font-semibold text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    {loadedPetugasName}
+                                </span>
                             )}
+                            {isOptionsLoaded ? (
+                                <ChevronDown
+                                    className={`ml-auto h-4 w-4 shrink-0 text-neutral-500 transition-transform duration-200 dark:text-neutral-300 ${
+                                        expandedStep !== 1 ? '' : 'rotate-180'
+                                    }`}
+                                />
+                            ) : (
+                                <ChevronDown className="ml-auto h-4 w-4 shrink-0 rotate-180 text-neutral-500 dark:text-neutral-300" />
+                            )}
+                        </button>
 
-                            <div className="rounded-3xl border border-neutral-200 bg-white/80 p-4 shadow-sm backdrop-blur sm:p-5 dark:border-neutral-800 dark:bg-neutral-900/70">
-                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,450px)_auto] lg:items-end">
+                        {expandedStep === 1 && (
+                            <div className="p-6 sm:p-8">
+                                <div className="grid gap-5 sm:grid-cols-[1fr_1fr_190px]">
                                     <div className="space-y-2">
-                                        <Label htmlFor="nama">
+                                        <Label
+                                            htmlFor="nama"
+                                            className="text-sm font-semibold text-neutral-700 dark:text-neutral-100"
+                                        >
                                             Nama Lengkap
                                         </Label>
                                         <Input
                                             id="nama"
                                             value={nama}
-                                            onChange={(event) =>
-                                                setNama(event.target.value)
+                                            onChange={(e) =>
+                                                setNama(e.target.value)
                                             }
                                             placeholder="Contoh: Sena Susanto"
                                             autoComplete="name"
+                                            className="h-11 text-base"
                                         />
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="nik">NIK</Label>
+                                        <Label
+                                            htmlFor="nik"
+                                            className="text-sm font-semibold text-neutral-700 dark:text-neutral-100"
+                                        >
+                                            NIK
+                                        </Label>
                                         <Input
                                             id="nik"
                                             value={nik}
-                                            onChange={(event) =>
-                                                setNik(event.target.value)
+                                            onChange={(e) =>
+                                                setNik(e.target.value)
                                             }
                                             placeholder="16 digit NIK"
                                             inputMode="numeric"
                                             autoComplete="off"
+                                            className="h-11 text-base"
                                         />
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="telepon-4-digit">
-                                            4 Digit Terakhir No. HP terdaftar di
-                                            SOBAT
+                                        <Label
+                                            htmlFor="telepon-4-digit"
+                                            className="text-sm font-semibold text-neutral-700 dark:text-neutral-100"
+                                        >
+                                            4 Digit Terakhir HP
                                         </Label>
                                         <Input
                                             id="telepon-4-digit"
                                             value={telepon4Digit}
-                                            onChange={(event) =>
+                                            onChange={(e) =>
                                                 setTelepon4Digit(
-                                                    event.target.value
+                                                    e.target.value
                                                         .replace(/\D/g, '')
                                                         .slice(0, 4),
                                                 )
                                             }
-                                            placeholder="Contoh: 1234"
+                                            placeholder="1234"
                                             inputMode="numeric"
                                             maxLength={4}
                                             autoComplete="off"
+                                            className="h-11 text-base"
                                         />
                                     </div>
+                                </div>
 
+                                <p className="mt-3 text-sm text-neutral-500 dark:text-neutral-300">
+                                    Nomor HP yang terdaftar di SOBAT/sistem BPS.
+                                </p>
+
+                                <div className="mt-5 flex flex-wrap items-center gap-4">
                                     <Button
                                         type="button"
-                                        variant="outline"
                                         onClick={() =>
                                             void loadPetugasOptions()
                                         }
@@ -793,82 +881,141 @@ export default function PublicPreview({
                                             (!recaptchaReady &&
                                                 !!recaptcha_site_key)
                                         }
-                                        className="w-full lg:w-auto"
+                                        className="gap-2"
                                     >
-                                        {loadingOptions
-                                            ? 'Memuat Data...'
-                                            : 'Muat Data'}
+                                        {loadingOptions ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                Memuat Data...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Search className="h-4 w-4" />
+                                                Cari Data Saya
+                                            </>
+                                        )}
                                     </Button>
+
+                                    {isOptionsLoaded && loadedPetugasName && (
+                                        <div className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                            <CheckCircle2 className="h-4 w-4 shrink-0" />
+                                            <span>{loadedPetugasName}</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
+                        )}
+                    </div>
 
-                            {loadedPetugasName && (
-                                <div className="rounded-3xl border border-emerald-200 bg-emerald-50/90 px-4 py-4 shadow-sm sm:px-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-                                    <p className="text-xs font-semibold tracking-[0.18em] text-emerald-700 uppercase dark:text-emerald-300">
-                                        Data ditemukan
-                                    </p>
-                                    <div className="mt-1 flex flex-wrap items-center gap-2">
-                                        <span className="text-base font-semibold text-emerald-950 dark:text-emerald-100">
-                                            {loadedPetugasName}
-                                        </span>
-                                    </div>
-                                    <p className="mt-2 text-sm text-emerald-700/90 dark:text-emerald-300/90">
-                                        Pilih jenis kegiatan dan
-                                        periode/kegiatan yang tersedia untuk
-                                        petugas ini.
-                                    </p>
-                                </div>
-                            )}
+                    {/* ── Step 2 · Pilih Kegiatan ─────────────────────────────── */}
+                    {isOptionsLoaded && (
+                        <div className="overflow-hidden rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:backdrop-blur-md">
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    canSubmit
+                                        ? setExpandedStep((v) =>
+                                              v === 2 ? null : 2,
+                                          )
+                                        : undefined
+                                }
+                                className={`flex w-full items-center gap-3 bg-white/50 px-6 py-4 text-left dark:bg-white/5 ${
+                                    canSubmit
+                                        ? 'cursor-pointer hover:bg-white/70 dark:hover:bg-white/10'
+                                        : 'cursor-default'
+                                } ${
+                                    expandedStep === 2
+                                        ? 'border-b border-neutral-200/60 dark:border-white/10'
+                                        : ''
+                                }`}
+                            >
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                                    2
+                                </span>
+                                <span className="text-sm font-semibold text-neutral-800 dark:text-white">
+                                    Pilih Kegiatan
+                                </span>
+                                {expandedStep !== 2 && canSubmit && (
+                                    <span className="ml-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-0.5 text-xs font-semibold text-indigo-700 dark:border-indigo-800/60 dark:bg-indigo-950/40 dark:text-indigo-300">
+                                        {jenisKegiatan === 'survei'
+                                            ? `Survei · ${
+                                                  filteredSurveiPeriods.find(
+                                                      (p) =>
+                                                          p.value ===
+                                                          surveiPeriode,
+                                                  )?.label ?? surveiPeriode
+                                              }`
+                                            : `Sensus · ${
+                                                  ownedSensusKegiatans.find(
+                                                      (k) =>
+                                                          k.value ===
+                                                          sensusKegiatan,
+                                                  )?.label ?? sensusKegiatan
+                                              }`}
+                                    </span>
+                                )}
+                                {canSubmit && (
+                                    <ChevronDown
+                                        className={`ml-auto h-4 w-4 shrink-0 text-neutral-500 transition-transform duration-200 dark:text-neutral-300 ${
+                                            expandedStep !== 2
+                                                ? ''
+                                                : 'rotate-180'
+                                        }`}
+                                    />
+                                )}
+                            </button>
 
-                            {isOptionsLoaded && (
-                                <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-                                    <div className="rounded-3xl border border-neutral-200 bg-white/80 p-4 shadow-sm backdrop-blur sm:p-5 dark:border-neutral-800 dark:bg-neutral-900/70">
-                                        <div className="space-y-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="jenis-kegiatan">
-                                                    Jenis Kegiatan
-                                                </Label>
-                                                <Select
-                                                    value={jenisKegiatan}
-                                                    onValueChange={(
-                                                        value:
-                                                            | 'survei'
-                                                            | 'sensus',
-                                                    ) =>
-                                                        setJenisKegiatan(value)
-                                                    }
-                                                    disabled={
-                                                        !isOptionsLoaded ||
-                                                        availableJenisOptions.length ===
-                                                            0
-                                                    }
+                            {expandedStep === 2 && (
+                                <div className="p-6 sm:p-8">
+                                    <div className="grid gap-5 sm:grid-cols-2">
+                                        <div className="space-y-2">
+                                            <Label
+                                                htmlFor="jenis-kegiatan"
+                                                className="text-sm font-semibold text-neutral-700 dark:text-neutral-100"
+                                            >
+                                                Jenis Kegiatan
+                                            </Label>
+                                            <Select
+                                                value={jenisKegiatan}
+                                                onValueChange={(
+                                                    value: 'survei' | 'sensus',
+                                                ) => setJenisKegiatan(value)}
+                                                disabled={
+                                                    availableJenisOptions.length ===
+                                                    0
+                                                }
+                                            >
+                                                <SelectTrigger
+                                                    id="jenis-kegiatan"
+                                                    className="h-11 text-base"
                                                 >
-                                                    <SelectTrigger id="jenis-kegiatan">
-                                                        <SelectValue placeholder="Pilih jenis kegiatan" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {availableJenisOptions.map(
-                                                            (option) => (
-                                                                <SelectItem
-                                                                    key={
-                                                                        option.value
-                                                                    }
-                                                                    value={
-                                                                        option.value
-                                                                    }
-                                                                >
-                                                                    {
-                                                                        option.label
-                                                                    }
-                                                                </SelectItem>
-                                                            ),
-                                                        )}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
+                                                    <SelectValue placeholder="Pilih jenis kegiatan" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {availableJenisOptions.map(
+                                                        (option) => (
+                                                            <SelectItem
+                                                                key={
+                                                                    option.value
+                                                                }
+                                                                value={
+                                                                    option.value
+                                                                }
+                                                            >
+                                                                {option.label}
+                                                            </SelectItem>
+                                                        ),
+                                                    )}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
 
+                                        {jenisKegiatan && (
                                             <div className="space-y-2">
-                                                <Label htmlFor="opsi-kegiatan">
+                                                <Label
+                                                    htmlFor="opsi-kegiatan"
+                                                    className="text-sm font-semibold text-neutral-700 dark:text-neutral-100"
+                                                >
                                                     {jenisKegiatan === 'survei'
                                                         ? 'Periode Bulan Survei'
                                                         : 'Kegiatan Sensus'}
@@ -877,24 +1024,22 @@ export default function PublicPreview({
                                                 {jenisKegiatan === 'survei' ? (
                                                     <Select
                                                         value={surveiPeriode}
-                                                        onValueChange={(
-                                                            value,
-                                                        ) =>
-                                                            setSurveiPeriode(
-                                                                value,
-                                                            )
+                                                        onValueChange={
+                                                            setSurveiPeriode
                                                         }
                                                         disabled={
-                                                            !isOptionsLoaded ||
-                                                            ownedSurveiPeriods.length ===
-                                                                0
+                                                            filteredSurveiPeriods.length ===
+                                                            0
                                                         }
                                                     >
-                                                        <SelectTrigger id="opsi-kegiatan">
+                                                        <SelectTrigger
+                                                            id="opsi-kegiatan"
+                                                            className="h-11 text-base"
+                                                        >
                                                             <SelectValue placeholder="Pilih periode survei" />
                                                         </SelectTrigger>
                                                         <SelectContent>
-                                                            {ownedSurveiPeriods.map(
+                                                            {filteredSurveiPeriods.map(
                                                                 (period) => (
                                                                     <SelectItem
                                                                         key={
@@ -915,20 +1060,18 @@ export default function PublicPreview({
                                                 ) : (
                                                     <Select
                                                         value={sensusKegiatan}
-                                                        onValueChange={(
-                                                            value,
-                                                        ) =>
-                                                            setSensusKegiatan(
-                                                                value,
-                                                            )
+                                                        onValueChange={
+                                                            setSensusKegiatan
                                                         }
                                                         disabled={
-                                                            !isOptionsLoaded ||
                                                             ownedSensusKegiatans.length ===
-                                                                0
+                                                            0
                                                         }
                                                     >
-                                                        <SelectTrigger id="opsi-kegiatan">
+                                                        <SelectTrigger
+                                                            id="opsi-kegiatan"
+                                                            className="h-11 text-base"
+                                                        >
                                                             <SelectValue placeholder="Pilih kegiatan sensus" />
                                                         </SelectTrigger>
                                                         <SelectContent>
@@ -952,239 +1095,408 @@ export default function PublicPreview({
                                                     </Select>
                                                 )}
                                             </div>
-
-                                            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-600 dark:border-neutral-800 dark:bg-neutral-950/60 dark:text-neutral-300">
-                                                Pilih jenis kegiatan dan periode
-                                                atau kegiatan untuk melihat
-                                                daftar penugasan yang tersedia.
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="overflow-hidden rounded-3xl border border-neutral-200 bg-white/80 shadow-sm backdrop-blur dark:border-neutral-800 dark:bg-neutral-900/70">
-                                        <div className="border-b border-neutral-200 px-4 py-4 sm:px-5 dark:border-neutral-800">
-                                            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">
-                                                {selectedPenugasanCardTitle}
-                                            </h3>
-                                            {selectedPenugasanPeriodLabel && (
-                                                <p className="mt-2 text-sm font-medium text-neutral-700 dark:text-neutral-200">
-                                                    {jenisKegiatan === 'sensus'
-                                                        ? `Periode Pelaksanaan: ${selectedPenugasanPeriodLabel}`
-                                                        : ''}
-                                                </p>
-                                            )}
-                                            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                                                {
-                                                    selectedPenugasanCardDescription
-                                                }
-                                            </p>
-                                        </div>
-
-                                        {selectedPenugasanList.length > 0 ? (
-                                            <div className="overflow-x-auto">
-                                                <table className="min-w-full divide-y divide-neutral-200 text-left text-sm dark:divide-neutral-800">
-                                                    <thead className="bg-neutral-50 dark:bg-neutral-950/60">
-                                                        <tr>
-                                                            <th className="px-4 py-3 font-semibold text-neutral-700 dark:text-neutral-300">
-                                                                Nama Kegiatan
-                                                            </th>
-                                                            <th className="px-4 py-3 font-semibold text-neutral-700 dark:text-neutral-300">
-                                                                Target Pekerjaan
-                                                            </th>
-                                                            <th className="px-4 py-3 font-semibold text-neutral-700 dark:text-neutral-300">
-                                                                Honor
-                                                            </th>
-                                                            <th className="px-4 py-3 font-semibold text-neutral-700 dark:text-neutral-300">
-                                                                Status
-                                                                PK/Addendum
-                                                            </th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                                        {selectedPenugasanList.map(
-                                                            (item) => (
-                                                                <tr
-                                                                    key={
-                                                                        item.id
-                                                                    }
-                                                                    className="bg-white/60 dark:bg-neutral-900/40"
-                                                                >
-                                                                    <td className="px-4 py-3 align-top">
-                                                                        <div className="font-medium text-neutral-900 dark:text-white">
-                                                                            {
-                                                                                item.nama_kegiatan
-                                                                            }
-                                                                        </div>
-                                                                        <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                                            {item.jenis_kegiatan ===
-                                                                            'survei'
-                                                                                ? 'Survei'
-                                                                                : 'Sensus'}
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="px-4 py-3 align-top text-neutral-700 dark:text-neutral-300">
-                                                                        {
-                                                                            item.target_pekerjaan
-                                                                        }
-                                                                    </td>
-                                                                    <td className="px-4 py-3 align-top font-medium text-neutral-900 dark:text-white">
-                                                                        {
-                                                                            item.honor_label
-                                                                        }
-                                                                    </td>
-                                                                    <td className="px-4 py-3 align-top">
-                                                                        <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
-                                                                            {
-                                                                                item.document_status
-                                                                            }
-                                                                        </span>
-                                                                    </td>
-                                                                </tr>
-                                                            ),
-                                                        )}
-                                                    </tbody>
-                                                    <tfoot className="bg-neutral-50 dark:bg-neutral-950/60">
-                                                        <tr>
-                                                            <th
-                                                                colSpan={2}
-                                                                className="px-4 py-3 text-sm font-semibold text-neutral-900 dark:text-white"
-                                                            >
-                                                                Total{' '}
-                                                                {
-                                                                    selectedPenugasanList.length
-                                                                }{' '}
-                                                                penugasan
-                                                            </th>
-                                                            <td className="px-4 py-3 text-sm font-semibold text-neutral-900 dark:text-white">
-                                                                {`Rp ${new Intl.NumberFormat('id-ID').format(selectedPenugasanTotalHonor)}`}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400">
-                                                                Akumulasi honor
-                                                            </td>
-                                                        </tr>
-                                                    </tfoot>
-                                                </table>
-                                            </div>
-                                        ) : (
-                                            <div className="px-4 py-8 text-sm text-neutral-500 sm:px-5 dark:text-neutral-400">
-                                                Pilih jenis kegiatan dan periode
-                                                atau kegiatan untuk menampilkan
-                                                daftar penugasan.
-                                            </div>
                                         )}
                                     </div>
                                 </div>
                             )}
+                        </div>
+                    )}
 
-                            <div className="rounded-xl border border-cyan-200 bg-cyan-50/80 px-4 py-3 text-sm text-cyan-800 dark:border-cyan-900/60 dark:bg-cyan-950/20 dark:text-cyan-300">
-                                Data yang ditampilkan hanya milik petugas yang
-                                diinput.
-                            </div>
+                    {/* ── Step 3 · Penugasan & Dokumen ────────────────────────── */}
+                    {canSubmit && selectedPenugasanList.length > 0 && (
+                        <div className="overflow-hidden rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:backdrop-blur-md">
+                            {/* Step 3 header */}
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setExpandedStep((v) => (v === 3 ? null : 3))
+                                }
+                                className={`flex w-full cursor-pointer items-center gap-3 bg-white/50 px-6 py-4 text-left hover:bg-white/70 dark:bg-white/5 dark:hover:bg-white/10 ${
+                                    expandedStep === 3
+                                        ? 'border-b border-neutral-200/60 dark:border-white/10'
+                                        : ''
+                                }`}
+                            >
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                                    3
+                                </span>
+                                <span className="text-sm font-semibold text-neutral-800 dark:text-white">
+                                    Penugasan &amp; Dokumen
+                                </span>
+                                {expandedStep !== 3 && (
+                                    <span className="ml-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-0.5 text-xs font-semibold text-indigo-700 dark:border-indigo-800/60 dark:bg-indigo-950/40 dark:text-indigo-300">
+                                        {selectedPenugasanCardTitle} &middot;{' '}
+                                        {`Rp ${new Intl.NumberFormat('id-ID').format(selectedPenugasanTotalHonor)}`}
+                                    </span>
+                                )}
+                                <ChevronDown
+                                    className={`ml-auto h-4 w-4 shrink-0 text-neutral-500 transition-transform duration-200 dark:text-neutral-300 ${
+                                        expandedStep !== 3 ? '' : 'rotate-180'
+                                    }`}
+                                />
+                            </button>
 
-                            <div className="flex flex-wrap gap-3 pt-1">
-                                <Button
-                                    type="button"
-                                    onClick={() => {
-                                        void requestPdf('preview');
-                                    }}
-                                    disabled={processing || !canSubmit}
-                                    className="min-w-[160px]"
-                                >
-                                    <Eye className="h-4 w-4" />
-                                    {processing
-                                        ? 'Memproses...'
-                                        : 'Print/Preview PDF'}
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => {
-                                        void requestPdf('download');
-                                    }}
-                                    disabled={processing || !canSubmit}
-                                    className="min-w-[160px]"
-                                >
-                                    <Download className="h-4 w-4" />
-                                    {processing ? 'Memproses...' : 'Unduh PDF'}
-                                </Button>
-                            </div>
-
-                            {documentProgressOpen && (
-                                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/55 px-4">
-                                    <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-5 shadow-2xl dark:border-neutral-700 dark:bg-neutral-900">
-                                        <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
-                                            {documentProgressTitle}
-                                        </h3>
-                                        <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-300">
-                                            {documentProgressStatus}
-                                        </p>
-                                        <div className="mt-5 flex justify-center">
-                                            <div className="relative flex h-36 w-36 items-center justify-center">
-                                                <svg
-                                                    className="h-36 w-36 -rotate-90"
-                                                    viewBox="0 0 140 140"
-                                                    aria-hidden="true"
-                                                >
-                                                    <circle
-                                                        cx="70"
-                                                        cy="70"
-                                                        r={
-                                                            DOCUMENT_PROGRESS_RADIUS
-                                                        }
-                                                        stroke="currentColor"
-                                                        strokeWidth="10"
-                                                        fill="none"
-                                                        className="text-neutral-200 dark:text-neutral-700"
-                                                    />
-                                                    <circle
-                                                        cx="70"
-                                                        cy="70"
-                                                        r={
-                                                            DOCUMENT_PROGRESS_RADIUS
-                                                        }
-                                                        stroke="currentColor"
-                                                        strokeWidth="10"
-                                                        fill="none"
-                                                        strokeLinecap="round"
-                                                        className="text-emerald-500 transition-all duration-300 ease-out"
-                                                        style={{
-                                                            strokeDasharray:
-                                                                DOCUMENT_PROGRESS_CIRCUMFERENCE,
-                                                            strokeDashoffset:
-                                                                DOCUMENT_PROGRESS_CIRCUMFERENCE -
-                                                                (documentProgressPercent /
-                                                                    100) *
-                                                                    DOCUMENT_PROGRESS_CIRCUMFERENCE,
-                                                        }}
-                                                    />
-                                                </svg>
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                                    <span className="text-3xl font-bold text-neutral-900 dark:text-neutral-100">
+                            {expandedStep === 3 && (
+                                <div className="space-y-0 divide-y divide-neutral-200/60 dark:divide-white/10">
+                                    {/* Penugasan section */}
+                                    <div>
+                                        <div className="border-b border-neutral-200/60 bg-white/50 px-6 py-5 dark:border-white/10 dark:bg-white/5">
+                                            <div className="flex flex-wrap items-start justify-between gap-4">
+                                                <div>
+                                                    <h2 className="text-lg font-bold text-neutral-900 dark:text-white">
                                                         {
-                                                            documentProgressPercent
+                                                            selectedPenugasanCardTitle
                                                         }
-                                                        %
+                                                    </h2>
+                                                    {selectedPenugasanPeriodLabel && (
+                                                        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                                                            {jenisKegiatan ===
+                                                            'sensus'
+                                                                ? `Periode: ${selectedPenugasanPeriodLabel}`
+                                                                : selectedPenugasanPeriodLabel}
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex flex-wrap gap-2">
+                                                    <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
+                                                        PK:{' '}
+                                                        {
+                                                            selectedPenugasanList[0]
+                                                                ?.document_status
+                                                        }
                                                     </span>
-                                                    <span className="mt-1 text-[11px] font-medium tracking-[0.2em] text-neutral-500 uppercase dark:text-neutral-400">
-                                                        Progress
+                                                    {selectedPenugasanList[0]
+                                                        ?.bapp_termin_i_status !==
+                                                        null && (
+                                                        <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/30 dark:text-violet-300">
+                                                            BAPP I:{' '}
+                                                            {
+                                                                selectedPenugasanList[0]
+                                                                    ?.bapp_termin_i_status
+                                                            }
+                                                        </span>
+                                                    )}
+                                                    {selectedPenugasanList[0]
+                                                        ?.bapp_termin_ii_status !==
+                                                        null && (
+                                                        <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/30 dark:text-violet-300">
+                                                            BAPP II:{' '}
+                                                            {
+                                                                selectedPenugasanList[0]
+                                                                    ?.bapp_termin_ii_status
+                                                            }
+                                                        </span>
+                                                    )}
+                                                    <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-300">
+                                                        BAST:{' '}
+                                                        {
+                                                            selectedPenugasanList[0]
+                                                                ?.bast_status
+                                                        }
                                                     </span>
                                                 </div>
                                             </div>
                                         </div>
-                                        <p className="mt-3 text-xs text-neutral-500 dark:text-neutral-400">
-                                            Mohon tunggu. Proses di halaman ini
-                                            akan selesai lebih dulu, lalu
-                                            browser akan membuka tab preview
-                                            atau memulai unduh PDF sesuai aksi
-                                            yang dipilih.
-                                        </p>
+
+                                        <div className="overflow-x-auto">
+                                            <table className="min-w-full divide-y divide-neutral-100 dark:divide-neutral-800">
+                                                <thead>
+                                                    <tr className="bg-neutral-50/50 dark:bg-neutral-950/40">
+                                                        <th className="px-6 py-3 text-left text-xs font-bold tracking-wide text-neutral-500 uppercase dark:text-neutral-300">
+                                                            Kegiatan
+                                                        </th>
+                                                        <th className="px-6 py-3 text-left text-xs font-bold tracking-wide text-neutral-500 uppercase dark:text-neutral-300">
+                                                            Target Pekerjaan
+                                                        </th>
+                                                        <th className="px-6 py-3 text-right text-xs font-bold tracking-wide text-neutral-500 uppercase dark:text-neutral-300">
+                                                            Honor
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                                                    {selectedPenugasanList.map(
+                                                        (item) => (
+                                                            <tr
+                                                                key={item.id}
+                                                                className="transition-colors hover:bg-indigo-50/30 dark:hover:bg-white/5"
+                                                            >
+                                                                <td className="px-6 py-4">
+                                                                    <div className="font-semibold text-neutral-900 dark:text-white">
+                                                                        {
+                                                                            item.nama_kegiatan
+                                                                        }
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-6 py-4 text-neutral-700 dark:text-neutral-200">
+                                                                    {
+                                                                        item.target_pekerjaan
+                                                                    }
+                                                                </td>
+                                                                <td className="px-6 py-4 text-right font-bold text-neutral-900 dark:text-white">
+                                                                    {
+                                                                        item.honor_label
+                                                                    }
+                                                                </td>
+                                                            </tr>
+                                                        ),
+                                                    )}
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr className="border-t border-neutral-200 bg-neutral-50/60 dark:border-neutral-800 dark:bg-neutral-950/40">
+                                                        <td
+                                                            colSpan={2}
+                                                            className="px-6 py-4 text-sm font-medium text-neutral-600 dark:text-neutral-300"
+                                                        >
+                                                            Total{' '}
+                                                            {
+                                                                selectedPenugasanList.length
+                                                            }{' '}
+                                                            penugasan
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right text-base font-bold text-neutral-900 dark:text-white">
+                                                            {`Rp ${new Intl.NumberFormat('id-ID').format(selectedPenugasanTotalHonor)}`}
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    {/* Dokumen section */}
+                                    <div className="p-6 sm:p-8">
+                                        <div
+                                            className={`grid gap-3 ${
+                                                jenisKegiatan === 'sensus'
+                                                    ? 'sm:grid-cols-2 lg:grid-cols-4'
+                                                    : 'sm:grid-cols-2'
+                                            }`}
+                                        >
+                                            {/* PK */}
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setDokumenTipe('pk')
+                                                }
+                                                className={`rounded-xl border p-5 text-left transition-all ${
+                                                    dokumenTipe === 'pk'
+                                                        ? 'border-indigo-300 bg-indigo-50 ring-2 ring-indigo-200 dark:border-indigo-700 dark:bg-indigo-950/30 dark:ring-indigo-800'
+                                                        : 'border-neutral-200 bg-white hover:border-indigo-200 hover:bg-indigo-50/40 dark:border-neutral-700 dark:bg-neutral-800/40 dark:hover:border-indigo-800'
+                                                }`}
+                                            >
+                                                <div className="text-[11px] font-bold tracking-widest text-neutral-500 uppercase dark:text-neutral-300"></div>
+                                                <div
+                                                    className={`mt-2 text-sm font-semibold ${
+                                                        dokumenTipe === 'pk'
+                                                            ? 'text-indigo-700 dark:text-indigo-300'
+                                                            : 'text-neutral-700 dark:text-neutral-100'
+                                                    }`}
+                                                >
+                                                    Perjanjian Kerja
+                                                </div>
+                                                <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-300">
+                                                    Kontrak penugasan resmi
+                                                </div>
+                                            </button>
+
+                                            {/* BAPP I */}
+                                            {jenisKegiatan === 'sensus' && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setDokumenTipe('bapp_i')
+                                                    }
+                                                    className={`rounded-xl border p-5 text-left transition-all ${
+                                                        dokumenTipe === 'bapp_i'
+                                                            ? 'border-violet-300 bg-violet-50 ring-2 ring-violet-200 dark:border-violet-700 dark:bg-violet-950/30 dark:ring-violet-800'
+                                                            : 'border-neutral-200 bg-white hover:border-violet-200 hover:bg-violet-50/40 dark:border-neutral-700 dark:bg-neutral-800/40 dark:hover:border-violet-800'
+                                                    }`}
+                                                >
+                                                    <div
+                                                        className={`mt-2 text-sm font-semibold ${
+                                                            dokumenTipe ===
+                                                            'bapp_i'
+                                                                ? 'text-violet-700 dark:text-violet-300'
+                                                                : 'text-neutral-700 dark:text-neutral-100'
+                                                        }`}
+                                                    >
+                                                        Pemeriksaan Tahap I
+                                                    </div>
+                                                    <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-300">
+                                                        Realisasi 40%
+                                                    </div>
+                                                </button>
+                                            )}
+
+                                            {/* BAPP II */}
+                                            {jenisKegiatan === 'sensus' && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setDokumenTipe(
+                                                            'bapp_ii',
+                                                        )
+                                                    }
+                                                    className={`rounded-xl border p-5 text-left transition-all ${
+                                                        dokumenTipe ===
+                                                        'bapp_ii'
+                                                            ? 'border-violet-300 bg-violet-50 ring-2 ring-violet-200 dark:border-violet-700 dark:bg-violet-950/30 dark:ring-violet-800'
+                                                            : 'border-neutral-200 bg-white hover:border-violet-200 hover:bg-violet-50/40 dark:border-neutral-700 dark:bg-neutral-800/40 dark:hover:border-violet-800'
+                                                    }`}
+                                                >
+                                                    <div
+                                                        className={`mt-2 text-sm font-semibold ${
+                                                            dokumenTipe ===
+                                                            'bapp_ii'
+                                                                ? 'text-violet-700 dark:text-violet-300'
+                                                                : 'text-neutral-700 dark:text-neutral-100'
+                                                        }`}
+                                                    >
+                                                        Pemeriksaan Tahap II
+                                                    </div>
+                                                    <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-300">
+                                                        Realisasi 60%
+                                                    </div>
+                                                </button>
+                                            )}
+
+                                            {/* BAST */}
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setDokumenTipe('bast')
+                                                }
+                                                className={`rounded-xl border p-5 text-left transition-all ${
+                                                    dokumenTipe === 'bast'
+                                                        ? 'border-sky-300 bg-sky-50 ring-2 ring-sky-200 dark:border-sky-700 dark:bg-sky-950/30 dark:ring-sky-800'
+                                                        : 'border-neutral-200 bg-white hover:border-sky-200 hover:bg-sky-50/40 dark:border-neutral-700 dark:bg-neutral-800/40 dark:hover:border-sky-800'
+                                                }`}
+                                            >
+                                                <div
+                                                    className={`mt-2 text-sm font-semibold ${
+                                                        dokumenTipe === 'bast'
+                                                            ? 'text-sky-700 dark:text-sky-300'
+                                                            : 'text-neutral-700 dark:text-neutral-100'
+                                                    }`}
+                                                >
+                                                    Serah Terima
+                                                </div>
+                                                <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-300">
+                                                    Penyelesaian pekerjaan
+                                                </div>
+                                            </button>
+                                        </div>
+
+                                        <div className="mt-6 flex flex-wrap gap-3">
+                                            <Button
+                                                type="button"
+                                                onClick={() => {
+                                                    void requestPdf('preview');
+                                                }}
+                                                disabled={
+                                                    processing || !canSubmit
+                                                }
+                                                className="gap-2"
+                                            >
+                                                <Eye className="h-4 w-4" />
+                                                {processing
+                                                    ? 'Memproses...'
+                                                    : 'Print / Preview PDF'}
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() => {
+                                                    void requestPdf('download');
+                                                }}
+                                                disabled={
+                                                    processing || !canSubmit
+                                                }
+                                                className="gap-2"
+                                            >
+                                                <Download className="h-4 w-4" />
+                                                {processing
+                                                    ? 'Memproses...'
+                                                    : 'Unduh PDF'}
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             )}
-                        </CardContent>
-                    </Card>
+                        </div>
+                    )}
+
+                    {/* Privacy note */}
+                    <p className="text-center text-sm text-neutral-500 dark:text-neutral-400">
+                        Data yang ditampilkan hanya milik petugas yang
+                        bersangkutan.
+                    </p>
                 </div>
             </div>
+
+            {/* Progress overlay */}
+            {documentProgressOpen && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/55 px-4">
+                    <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-6 shadow-2xl dark:border-neutral-700 dark:bg-neutral-900">
+                        <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
+                            {documentProgressTitle}
+                        </h3>
+                        <p className="mt-1.5 text-sm text-neutral-500 dark:text-neutral-400">
+                            {documentProgressStatus}
+                        </p>
+                        <div className="mt-5 flex justify-center">
+                            <div className="relative flex h-36 w-36 items-center justify-center">
+                                <svg
+                                    className="h-36 w-36 -rotate-90"
+                                    viewBox="0 0 140 140"
+                                    aria-hidden="true"
+                                >
+                                    <circle
+                                        cx="70"
+                                        cy="70"
+                                        r={DOCUMENT_PROGRESS_RADIUS}
+                                        stroke="currentColor"
+                                        strokeWidth="10"
+                                        fill="none"
+                                        className="text-neutral-200 dark:text-neutral-700"
+                                    />
+                                    <circle
+                                        cx="70"
+                                        cy="70"
+                                        r={DOCUMENT_PROGRESS_RADIUS}
+                                        stroke="currentColor"
+                                        strokeWidth="10"
+                                        fill="none"
+                                        strokeLinecap="round"
+                                        className="text-emerald-500 transition-all duration-300 ease-out"
+                                        style={{
+                                            strokeDasharray:
+                                                DOCUMENT_PROGRESS_CIRCUMFERENCE,
+                                            strokeDashoffset:
+                                                DOCUMENT_PROGRESS_CIRCUMFERENCE -
+                                                (documentProgressPercent /
+                                                    100) *
+                                                    DOCUMENT_PROGRESS_CIRCUMFERENCE,
+                                        }}
+                                    />
+                                </svg>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span className="text-3xl font-bold text-neutral-900 dark:text-neutral-100">
+                                        {documentProgressPercent}%
+                                    </span>
+                                    <span className="mt-1 text-[11px] font-medium tracking-[0.2em] text-neutral-500 uppercase dark:text-neutral-400">
+                                        Progress
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <p className="mt-4 text-xs text-neutral-400 dark:text-neutral-500">
+                            Mohon tunggu. Browser akan membuka tab preview atau
+                            memulai unduh PDF sesuai aksi yang dipilih.
+                        </p>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

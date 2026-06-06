@@ -358,7 +358,7 @@
                 <td style="border: none;"></td>
                 <td style="border: none; vertical-align: top;">Jabatan</td>
                 <td style="border: none; vertical-align: top;">:</td>
-                <td style="border: none; vertical-align: top; text-align: justify;">{{ ucwords(strtolower($jenisPetugas) ?? '-')  . ' ' . $tahunBast }}</td>
+                <td style="border: none; vertical-align: top; text-align: justify;">{{ ucwords(strtolower($jenisPetugas) ?? '-'). ' Badan Pusat Statistik '. ucwords(strtolower($bast->lokasi_kegiatan)) . ' Bulan '. $bulanBast . ' ' . $tahunBast }}</td>
             </tr>
         </table>
         bertindak untuk dan atas namanya sendiri, selanjutnya disebut sebagai <strong>PIHAK KEDUA</strong>.
@@ -445,52 +445,77 @@
                 Dengan ini menyatakan:
             </p>
 
-            <ol style="margin: 10px 0 0 0; padding-left: 0; list-style-position: inside;">
+            @php $nomorPoin = 0; @endphp
+            <table style="border: none; border-collapse: collapse; width: 100%; margin: 10px 0 0 0;">
             @if($isSurvei)
-            <li style="margin: 6px 0; text-align: justify;">
-                <strong>PIHAK KEDUA</strong> telah melaksanakan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan Perjanjian Kerja {{$nomorSpkText}}.
-            </li>
-            <li style="margin: 6px 0; text-align: justify;">
-                <strong>PIHAK KEDUA</strong> telah menyelesaikan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan hasil pemeriksaan dan evaluasi pekerjaan sebagaimana tercantum dalam Lampiran Berita Acara ini.
-            </li>
-            <li style="margin: 6px 0; text-align: justify;">
-                    Berdasarkan angka 2 tersebut di atas, <strong>PIHAK KEDUA</strong> menyerahkan hasil kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} kepada <strong>PIHAK PERTAMA</strong>, dan <strong>PIHAK PERTAMA</strong> menerima hasil pekerjaan tersebut yang telah sesuai dengan seharusnya.
-            </li>
-            <li style="margin: 6px 0; text-align: justify;">
-                Hasil pekerjaan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} sebagaimana dimaksud dalam angka 3 di atas, berupa data hasil kegiatan Survei Badan Pusat Statistik {{$bast->lokasi_kegiatan}} bulan {{ $bulanBast }} {{ $tahunBast }} yang telah diperiksa, sebagaimana tercantum dalam Lampiran Berita Acara ini.
-            </li>
+            @php $nomorPoin++; @endphp
+            <tr>
+                <td style="width: 22px; border: none; vertical-align: top; padding: 3px 5px 6px 0;">{{ $nomorPoin }}.</td>
+                <td style="border: none; text-align: justify; padding: 3px 0 6px 0;"><strong>PIHAK KEDUA</strong> telah melaksanakan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan Perjanjian Kerja {{$nomorSpkText}}.</td>
+            </tr>
+            @php $nomorPoin++; @endphp
+            <tr>
+                <td style="width: 22px; border: none; vertical-align: top; padding: 3px 5px 6px 0;">{{ $nomorPoin }}.</td>
+                <td style="border: none; text-align: justify; padding: 3px 0 6px 0;"><strong>PIHAK KEDUA</strong> telah menyelesaikan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan hasil pemeriksaan dan evaluasi pekerjaan sebagaimana tercantum dalam Lampiran Berita Acara ini.</td>
+            </tr>
+            @php $nomorPoin++; @endphp
+            <tr>
+                <td style="width: 22px; border: none; vertical-align: top; padding: 3px 5px 6px 0;">{{ $nomorPoin }}.</td>
+                <td style="border: none; text-align: justify; padding: 3px 0 6px 0;">Berdasarkan angka 2 tersebut di atas, <strong>PIHAK KEDUA</strong> menyerahkan hasil kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} kepada <strong>PIHAK PERTAMA</strong>, dan <strong>PIHAK PERTAMA</strong> menerima hasil pekerjaan tersebut yang telah sesuai dengan seharusnya.</td>
+            </tr>
+            @php $nomorPoin++; @endphp
+            <tr>
+                <td style="width: 22px; border: none; vertical-align: top; padding: 3px 5px 6px 0;">{{ $nomorPoin }}.</td>
+                <td style="border: none; text-align: justify; padding: 3px 0 6px 0;">Hasil pekerjaan kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} sebagaimana dimaksud dalam angka 3 di atas, berupa data hasil kegiatan Survei Badan Pusat Statistik {{$bast->lokasi_kegiatan}} bulan {{ $bulanBast }} {{ $tahunBast }} yang telah diperiksa, sebagaimana tercantum dalam Lampiran Berita Acara ini.</td>
+            </tr>
             @if($menggunakan_fasih ?? false)
-            <li style="margin: 6px 0; text-align: justify;">
-                <strong>PIHAK KEDUA</strong> menghapus Aplikasi FASIH dan data hasil kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} pada perangkat handphone <strong>PIHAK KEDUA</strong> disaksikan oleh pegawai BPS {{ $bast->lokasi_kegiatan }} yang ditunjuk oleh <strong>PIHAK PERTAMA</strong>.
-            </li>
+            @php $nomorPoin++; @endphp
+            <tr>
+                <td style="width: 22px; border: none; vertical-align: top; padding: 3px 5px 6px 0;">{{ $nomorPoin }}.</td>
+                <td style="border: none; text-align: justify; padding: 3px 0 6px 0;"><strong>PIHAK KEDUA</strong> menghapus Aplikasi FASIH dan data hasil kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} pada perangkat handphone <strong>PIHAK KEDUA</strong> disaksikan oleh pegawai BPS {{ $bast->lokasi_kegiatan }} yang ditunjuk oleh <strong>PIHAK PERTAMA</strong>.</td>
+            </tr>
             @endif
-            <li style="margin: 6px 0; text-align: justify;">
-                Untuk hasil kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} sebagaimana dimaksud pada angka 4 yang memerlukan pemeriksaan lanjutan, akan dilakukan pengecekan, perubahan, dan/atau kunjungan kembali ke lapangan merujuk pada Perjanjian Kerja yang ditandatangani oleh <strong>PARA PIHAK</strong>.
-            </li>
+            @php $nomorPoin++; @endphp
+            <tr>
+                <td style="width: 22px; border: none; vertical-align: top; padding: 3px 5px 6px 0;">{{ $nomorPoin }}.</td>
+                <td style="border: none; text-align: justify; padding: 3px 0 6px 0;">Untuk hasil kegiatan Survei Badan Pusat Statistik Kota Sawahlunto bulan {{ $bulanBast }} {{ $tahunBast }} sebagaimana dimaksud pada angka 4 yang memerlukan pemeriksaan lanjutan, akan dilakukan pengecekan, perubahan, dan/atau kunjungan kembali ke lapangan merujuk pada Perjanjian Kerja yang ditandatangani oleh <strong>PARA PIHAK</strong>.</td>
+            </tr>
             @else
-            <li style="margin: 6px 0; text-align: justify;">
-                <strong>PIHAK KEDUA</strong> telah melaksanakan pekerjaan {{$peran === 'pcl' ? 'Pendataan Lapangan' : 'Pemeriksaan Pendataan Lapangan'}}  {{ $kegiatanText }}2026 pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan Perjanjian Kerja {{ $nomorSpkText }}{{ ($isSensusEkonomi && filled($targetPekerjaanText)) ? ' dengan target pekerjaan yang ditetapkan sebesar ' . $targetPekerjaanText : '' }} selama pendataan 15 Juni 2026 sampai dengan 31 Agustus 2026.
-            </li>
-            <li style="margin: 6px 0; text-align: justify;">
-                <strong>PIHAK KEDUA</strong> telah menyelesaikan pekerjaan {{$peran === 'pcl' ? 'Pendataan Lapangan' : 'Pemeriksaan Pendataan Lapangan'}} {{ $kegiatanText }}2026 pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan hasil pemeriksaan dan evaluasi pekerjaan sebagaimana tercantum dalam lampiran.
-            </li>
-            <li style="margin: 6px 0; text-align: justify;">
-                Berdasarkan angka 2 tersebut di atas, <strong>PIHAK KEDUA</strong> menyerahkan hasil pekerjaan {{$peran === 'pcl' ? 'Pendataan Lapangan' : 'Pemeriksaan Pendataan Lapangan'}} {{ $kegiatanText }}2026 pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} kepada <strong>PIHAK PERTAMA</strong>, dan <strong>PIHAK PERTAMA</strong> menerima hasil pekerjaan tersebut yang telah sesuai dengan seharusnya.
-            </li>
-            <li style="margin: 6px 0; text-align: justify;">
-                Hasil pekerjaan {{$peran === 'pcl' ? 'Pendataan Lapangan' : 'Pemeriksaan Pendataan Lapangan'}} {{ $kegiatanText }}2026 sebagaimana dimaksud dalam angka 3, berupa dokumen hasil {{$peran === 'pcl' ? 'Pendataan Lapangan' : 'Pemeriksaan Pendataan Lapangan'}} {{ $kegiatanText }}2026, sejumlah {{ ($isSensusEkonomi && filled($hasilPekerjaanText)) ? $hasilPekerjaanText : '' }}.
-            </li>
-            <li style="margin: 6px 0; text-align: justify;">
-               {{$peran ==='pcl' ? ' Hasil pekerjaan pendataan lapangan': 'Pekerjaan pemeriksaan'}} sebagaimana dimaksud pada angka 4 yang memerlukan pemeriksaan lanjutan, akan dilakukan pengecekan, perubahan, dan/atau kunjungan kembali ke lapangan merujuk pada perjanjian yang ditandatangani oleh <strong>PARA PIHAK.</strong>
-            </li>
+            @php $nomorPoin++; @endphp
+            <tr>
+                <td style="width: 22px; border: none; vertical-align: top; padding: 3px 5px 6px 0;">{{ $nomorPoin }}.</td>
+                <td style="border: none; text-align: justify; padding: 3px 0 6px 0;"><strong>PIHAK KEDUA</strong> telah melaksanakan pekerjaan {{$peran === 'pcl' ? 'Pendataan Lapangan' : 'Pemeriksaan Pendataan Lapangan'}} {{ $kegiatanText }}2026 pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan Perjanjian Kerja {{ $nomorSpkText }}{{ ($isSensusEkonomi && filled($targetPekerjaanText)) ? ' dengan target pekerjaan yang ditetapkan sebesar ' . $targetPekerjaanText : '' }} selama pendataan 15 Juni 2026 sampai dengan 31 Agustus 2026.</td>
+            </tr>
+            @php $nomorPoin++; @endphp
+            <tr>
+                <td style="width: 22px; border: none; vertical-align: top; padding: 3px 5px 6px 0;">{{ $nomorPoin }}.</td>
+                <td style="border: none; text-align: justify; padding: 3px 0 6px 0;"><strong>PIHAK KEDUA</strong> telah menyelesaikan pekerjaan {{$peran === 'pcl' ? 'Pendataan Lapangan' : 'Pemeriksaan Pendataan Lapangan'}} {{ $kegiatanText }}2026 pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} berdasarkan hasil pemeriksaan dan evaluasi pekerjaan sebagaimana tercantum dalam lampiran.</td>
+            </tr>
+            @php $nomorPoin++; @endphp
+            <tr>
+                <td style="width: 22px; border: none; vertical-align: top; padding: 3px 5px 6px 0;">{{ $nomorPoin }}.</td>
+                <td style="border: none; text-align: justify; padding: 3px 0 6px 0;">Berdasarkan angka 2 tersebut di atas, <strong>PIHAK KEDUA</strong> menyerahkan hasil pekerjaan {{$peran === 'pcl' ? 'Pendataan Lapangan' : 'Pemeriksaan Pendataan Lapangan'}} {{ $kegiatanText }}2026 pada Badan Pusat Statistik {{ $bast->lokasi_kegiatan }} kepada <strong>PIHAK PERTAMA</strong>, dan <strong>PIHAK PERTAMA</strong> menerima hasil pekerjaan tersebut yang telah sesuai dengan seharusnya.</td>
+            </tr>
+            @php $nomorPoin++; @endphp
+            <tr>
+                <td style="width: 22px; border: none; vertical-align: top; padding: 3px 5px 6px 0;">{{ $nomorPoin }}.</td>
+                <td style="border: none; text-align: justify; padding: 3px 0 6px 0;">Hasil pekerjaan {{$peran === 'pcl' ? 'Pendataan Lapangan' : 'Pemeriksaan Pendataan Lapangan'}} {{ $kegiatanText }}2026 sebagaimana dimaksud dalam angka 3, berupa dokumen hasil {{$peran === 'pcl' ? 'Pendataan Lapangan' : 'Pemeriksaan Pendataan Lapangan'}} {{ $kegiatanText }}2026, sejumlah {{ ($isSensusEkonomi && filled($hasilPekerjaanText)) ? $hasilPekerjaanText : '' }}.</td>
+            </tr>
+            @php $nomorPoin++; @endphp
+            <tr>
+                <td style="width: 22px; border: none; vertical-align: top; padding: 3px 5px 6px 0;">{{ $nomorPoin }}.</td>
+                <td style="border: none; text-align: justify; padding: 3px 0 6px 0;">{{$peran === 'pcl' ? 'Hasil pekerjaan pendataan lapangan' : 'Pekerjaan pemeriksaan'}} sebagaimana dimaksud pada angka 4 yang memerlukan pemeriksaan lanjutan, akan dilakukan pengecekan, perubahan, dan/atau kunjungan kembali ke lapangan merujuk pada perjanjian yang ditandatangani oleh <strong>PARA PIHAK.</strong></td>
+            </tr>
             @if($menggunakan_fasih ?? false)
-            <li style="margin: 6px 0; text-align: justify;">
-                <strong>PIHAK KEDUA</strong> menghapus Aplikasi <em>FASIH</em> dan data hasil {{$peran === 'pcl' ? 'Pendataan Lapangan' : 'Pemeriksaan Pendataan Lapangan'}} {{ $kegiatanText }}2026 pada perangkat handphone <strong>PIHAK KEDUA</strong> disaksikan oleh pegawai BPS {{ $bast->lokasi_kegiatan }} yang ditunjuk oleh <strong>PIHAK PERTAMA.</strong>
-            </li>
+            @php $nomorPoin++; @endphp
+            <tr>
+                <td style="width: 22px; border: none; vertical-align: top; padding: 3px 5px 6px 0;">{{ $nomorPoin }}.</td>
+                <td style="border: none; text-align: justify; padding: 3px 0 6px 0;"><strong>PIHAK KEDUA</strong> menghapus Aplikasi <em>FASIH</em> dan data hasil {{$peran === 'pcl' ? 'Pendataan Lapangan' : 'Pemeriksaan Pendataan Lapangan'}} {{ $kegiatanText }}2026 pada perangkat handphone <strong>PIHAK KEDUA</strong> disaksikan oleh pegawai BPS {{ $bast->lokasi_kegiatan }} yang ditunjuk oleh <strong>PIHAK PERTAMA.</strong></td>
+            </tr>
             @endif
             
             @endif
-            </ol>
+            </table>
         </div>
 
         <div style="page-break-inside: avoid;">

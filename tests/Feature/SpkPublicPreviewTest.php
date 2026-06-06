@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\AlokasiPetugas;
 use App\Models\AlokasiPetugasFrameSampel;
+use App\Models\BappSeTermin;
+use App\Models\Bast;
 use App\Models\Kegiatan;
 use App\Models\KegiatanFrameSampel;
 use App\Models\MasterFrameSampel;
@@ -1056,6 +1058,450 @@ class SpkPublicPreviewTest extends TestCase
             'penugasan_list.0.target_pekerjaan',
             '1 SLS/sub-SLS dan/atau 2 rumah tangga/1 usaha',
         );
+    }
+
+    public function test_public_options_includes_bast_and_bapp_status_in_penugasan_list(): void
+    {
+        $tahun = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'sensus',
+            'status' => 'divalidasi',
+            'nama_kegiatan' => 'Sensus Ekonomi 2026',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '05',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'sensus',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas SE Bast',
+            'nik' => '3201000011112222',
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 5,
+            'total_honor' => 250000,
+            'jumlah_satuan_listing' => 0,
+            'total_honor_listing' => 0,
+        ]);
+
+        $response = $this->post(
+            '/mitra/options',
+            [
+                'nama' => 'Petugas SE Bast',
+                'nik' => '3201000011112222',
+                'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
+                'recaptcha_token' => 'test-recaptcha-token',
+            ],
+            [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ]
+        );
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'penugasan_list');
+        $response->assertJsonPath('penugasan_list.0.bast_status', 'Belum ada BAST');
+        $response->assertJsonPath('penugasan_list.0.bapp_termin_i_status', 'Belum ada BAPP');
+        $response->assertJsonPath('penugasan_list.0.bapp_termin_ii_status', 'Belum ada BAPP');
+    }
+
+    public function test_public_options_survei_does_not_include_bapp_status(): void
+    {
+        $tahun = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'divalidasi',
+            'nama_kegiatan' => 'Survei Sosial Ekonomi Bast',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '04',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Survei BastCheck',
+            'nik' => '3201000033334444',
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 3,
+            'total_honor' => 150000,
+            'jumlah_satuan_listing' => 0,
+            'total_honor_listing' => 0,
+        ]);
+
+        $response = $this->post(
+            '/mitra/options',
+            [
+                'nama' => 'Petugas Survei BastCheck',
+                'nik' => '3201000033334444',
+                'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
+                'recaptcha_token' => 'test-recaptcha-token',
+            ],
+            [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ]
+        );
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'penugasan_list');
+        $response->assertJsonPath('penugasan_list.0.bast_status', 'Belum ada BAST');
+        $response->assertJsonPath('penugasan_list.0.bapp_termin_i_status', null);
+        $response->assertJsonPath('penugasan_list.0.bapp_termin_ii_status', null);
+    }
+
+    public function test_public_preview_bast_returns_error_when_bast_not_available(): void
+    {
+        $tahun = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'divalidasi',
+            'nama_kegiatan' => 'Survei BAST Kosong',
+        ]);
+
+        $satuan = Satuan::factory()->create(['nama' => 'Dokumen BAST', 'kode' => 'DBST', 'is_active' => true]);
+        RateHonor::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'posisi' => 'PCL',
+            'jenis_kegiatan' => 'survei',
+            'jenis_penugasan' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'deskripsi' => 'Rate BAST kosong',
+            'satuan_id' => $satuan->id,
+            'rate' => 50000,
+            'tahun_berlaku' => $tahun,
+            'status' => 'aktif',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '07',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas BAST Kosong',
+            'nik' => '3201000055556666',
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 2,
+            'total_honor' => 100000,
+            'jumlah_satuan_listing' => 0,
+            'total_honor_listing' => 0,
+        ]);
+
+        $response = $this->post(
+            '/mitra',
+            [
+                'nama' => 'Petugas BAST Kosong',
+                'nik' => '3201000055556666',
+                'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
+                'jenis_kegiatan' => 'survei',
+                'survei_periode' => sprintf('%d-07', $tahun),
+                'dokumen_tipe' => 'bast',
+                'recaptcha_token' => 'test-recaptcha-token',
+                'aksi' => 'preview',
+            ],
+            [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ]
+        );
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('message', 'BAST belum tersedia untuk penugasan ini.');
+    }
+
+    public function test_public_preview_bast_can_return_pdf_for_valid_request(): void
+    {
+        $tahun = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'divalidasi',
+            'nama_kegiatan' => 'Survei BAST Ada',
+        ]);
+
+        $satuan = Satuan::factory()->create(['nama' => 'Dokumen BAST Ada', 'kode' => 'DBSA', 'is_active' => true]);
+        RateHonor::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'posisi' => 'PCL',
+            'jenis_kegiatan' => 'survei',
+            'jenis_penugasan' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'deskripsi' => 'Rate BAST ada',
+            'satuan_id' => $satuan->id,
+            'rate' => 50000,
+            'tahun_berlaku' => $tahun,
+            'status' => 'aktif',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '08',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas BAST Ada',
+            'nik' => '3201000077778888',
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        $alokasi = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 2,
+            'total_honor' => 100000,
+            'jumlah_satuan_listing' => 0,
+            'total_honor_listing' => 0,
+        ]);
+
+        $bastDir = public_path('bast-export/tests');
+        if (! is_dir($bastDir)) {
+            mkdir($bastDir, 0755, true);
+        }
+
+        $bastRelativePath = 'bast-export/tests/bast_test.pdf';
+        $bastAbsolutePath = public_path($bastRelativePath);
+        file_put_contents($bastAbsolutePath, Pdf::loadHTML('<h1>BAST Test</h1>')->output());
+
+        $spk = Spk::query()->create([
+            'nomor_spk' => 'PPIS/13730/901/K/'.$tahun,
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasi->id,
+            'addendum_number' => 0,
+            'nomor_urut_base' => 901,
+            'tanggal_spk' => now()->toDateString(),
+            'tanggal_mulai_kerja' => now()->startOfMonth()->toDateString(),
+            'tanggal_selesai_kerja' => now()->endOfMonth()->toDateString(),
+            'uraian_pekerjaan' => 'Perjanjian kerja BAST test',
+            'nilai_kontrak' => 100000,
+            'nama_ppk' => 'PPK BAST',
+            'nip_ppk' => '198001012010011002',
+            'signed_file_path' => null,
+            'status' => 'diterbitkan',
+            'created_by' => User::factory()->create()->id,
+        ]);
+
+        try {
+            Bast::query()->create([
+                'spk_id' => $spk->id,
+                'nomor_bast' => 'BAST-TEST-001',
+                'file_path' => $bastRelativePath,
+                'status' => 'draft',
+                'created_by' => User::factory()->create()->id,
+            ]);
+
+            $response = $this->post(
+                '/mitra',
+                [
+                    'nama' => 'Petugas BAST Ada',
+                    'nik' => '3201000077778888',
+                    'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
+                    'jenis_kegiatan' => 'survei',
+                    'survei_periode' => sprintf('%d-08', $tahun),
+                    'dokumen_tipe' => 'bast',
+                    'recaptcha_token' => 'test-recaptcha-token',
+                    'aksi' => 'download',
+                ],
+                [
+                    'Accept' => 'application/pdf',
+                    'X-Requested-With' => 'XMLHttpRequest',
+                ]
+            );
+
+            $response->assertOk();
+            $response->assertHeader('Content-Type', 'application/pdf');
+        } finally {
+            @unlink($bastAbsolutePath);
+        }
+    }
+
+    public function test_public_preview_bapp_returns_error_when_bapp_not_available(): void
+    {
+        $tahun = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'sensus',
+            'status' => 'divalidasi',
+            'nama_kegiatan' => 'Sensus Ekonomi 2026',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '05',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'sensus',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas BAPP Kosong',
+            'nik' => '3201000099990000',
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 3,
+            'total_honor' => 150000,
+            'jumlah_satuan_listing' => 0,
+            'total_honor_listing' => 0,
+        ]);
+
+        $response = $this->post(
+            '/mitra',
+            [
+                'nama' => 'Petugas BAPP Kosong',
+                'nik' => '3201000099990000',
+                'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
+                'jenis_kegiatan' => 'sensus',
+                'sensus_kegiatan' => (string) $kegiatan->id,
+                'dokumen_tipe' => 'bapp',
+                'bapp_termin' => '1',
+                'recaptcha_token' => 'test-recaptcha-token',
+                'aksi' => 'preview',
+            ],
+            [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ]
+        );
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('message', 'BAPP Termin I belum tersedia.');
+    }
+
+    public function test_public_preview_bapp_can_return_pdf_for_sensus(): void
+    {
+        $tahun = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'sensus',
+            'status' => 'divalidasi',
+            'nama_kegiatan' => 'Sensus Ekonomi 2026',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '06',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'sensus',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas BAPP Ada',
+            'nik' => '3201111122223333',
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 3,
+            'total_honor' => 150000,
+            'jumlah_satuan_listing' => 0,
+            'total_honor_listing' => 0,
+        ]);
+
+        $bappDir = storage_path('app/public/bapp-se/tests');
+        if (! is_dir($bappDir)) {
+            mkdir($bappDir, 0755, true);
+        }
+
+        $bappRelativePath = 'bapp-se/tests/bapp_test.pdf';
+        $bappAbsolutePath = storage_path('app/public/'.$bappRelativePath);
+        file_put_contents($bappAbsolutePath, Pdf::loadHTML('<h1>BAPP Test</h1>')->output());
+
+        try {
+            BappSeTermin::query()->create([
+                'petugas_id' => $petugas->id,
+                'termin' => 1,
+                'bulan' => 6,
+                'tahun' => $tahun,
+                'nomor_bapp' => 'BAPP-TEST-001',
+                'file_path' => $bappRelativePath,
+                'created_by' => User::factory()->create()->id,
+            ]);
+
+            $response = $this->post(
+                '/mitra',
+                [
+                    'nama' => 'Petugas BAPP Ada',
+                    'nik' => '3201111122223333',
+                    'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
+                    'jenis_kegiatan' => 'sensus',
+                    'sensus_kegiatan' => (string) $kegiatan->id,
+                    'dokumen_tipe' => 'bapp',
+                    'bapp_termin' => '1',
+                    'recaptcha_token' => 'test-recaptcha-token',
+                    'aksi' => 'download',
+                ],
+                [
+                    'Accept' => 'application/pdf',
+                    'X-Requested-With' => 'XMLHttpRequest',
+                ]
+            );
+
+            $response->assertOk();
+            $response->assertHeader('Content-Type', 'application/pdf');
+        } finally {
+            @unlink($bappAbsolutePath);
+        }
     }
 
     private function lastFourDigits(string $phone): string

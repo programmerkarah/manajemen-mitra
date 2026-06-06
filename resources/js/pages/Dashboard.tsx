@@ -339,9 +339,9 @@ export default function Dashboard({
     currentYear,
     userRole,
 }: DashboardProps) {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, isSeKetuaTim } = usePage<SharedData>().props;
     const accessibleLinks = useMemo(() => {
-        const items = buildNavItems(auth.activeRole?.name);
+        const items = buildNavItems(auth.activeRole?.name, isSeKetuaTim);
         const links = new Set<string>();
 
         const collect = (
@@ -366,11 +366,12 @@ export default function Dashboard({
         collect(items as Array<{ href: string; items?: Array<unknown> }>);
 
         return links;
-    }, [auth.activeRole?.name]);
+    }, [auth.activeRole?.name, isSeKetuaTim]);
 
     const canViewPetugas = accessibleLinks.has('/petugas');
     const canViewKegiatan = accessibleLinks.has('/kegiatan');
-    const canViewBast = accessibleLinks.has('/bast');
+    const canViewBast =
+        accessibleLinks.has('/berita-acara') || accessibleLinks.has('/bapp');
     const activeRoleName = auth.activeRole?.name ?? userRole;
     const canViewHonorPerPetugas = ['admin', 'operator', 'pj'].includes(
         activeRoleName ?? '',
@@ -2738,7 +2739,7 @@ export default function Dashboard({
                                     const hasBast =
                                         !kegiatan.bast.requires_document ||
                                         kegiatan.bast.is_complete;
-                                    const bastCreateHref = `/bast/create?bulan=${currentMonth}&tahun=${currentYear}`;
+                                    const bastCreateHref = `/berita-acara/create?bulan=${currentMonth}&tahun=${currentYear}`;
                                     const bastActionHref = kegiatan.bast
                                         .is_complete
                                         ? (kegiatan.bast.detail_url ??

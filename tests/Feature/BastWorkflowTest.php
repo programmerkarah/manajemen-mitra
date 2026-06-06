@@ -4,10 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\AlokasiPetugas;
 use App\Models\AlokasiPetugasFrameSampel;
+use App\Models\BappSeTermin;
 use App\Models\Bast;
 use App\Models\BastKegiatan;
 use App\Models\BastNumberAllocation;
-use App\Models\BastSensusRealisasiImport;
 use App\Models\Kegiatan;
 use App\Models\KegiatanFrameSampel;
 use App\Models\MasterFrameSampel;
@@ -348,245 +348,6 @@ class BastWorkflowTest extends TestCase
         }));
     }
 
-    public function test_operator_can_import_sensus_realisasi_template(): void
-    {
-        $context = $this->createBastGenerationContext();
-
-        $context['kegiatanOwnCompleted']->update([
-            'nama_kegiatan' => 'Sensus Ekonomi 2026',
-            'jenis_kegiatan' => 'sensus',
-        ]);
-        $context['spk']->update([
-            'nomor_spk' => 'SPK/SE/REF/001',
-            'tanggal_mulai_kerja' => '2026-08-01',
-            'tanggal_selesai_kerja' => '2026-08-31',
-        ]);
-        $context['petugas']->update([
-            'nik' => '1373012345678902',
-            'nama' => 'Petugas Referensi SE',
-        ]);
-        $context['petugas']->update([
-            'nik' => '1373012345678901',
-            'nama' => 'Petugas SE',
-        ]);
-        $context['spk']->update([
-            'nomor_spk' => 'SPK/SE/001',
-            'tanggal_mulai_kerja' => '2026-08-01',
-            'tanggal_selesai_kerja' => '2026-08-31',
-        ]);
-
-        $csv = implode("\n", [
-            'Nomor SPK,NIK Petugas,Nama Petugas,Muatan Prelist (Keluarga),Muatan Prelist (Usaha),Realisasi (Keluarga),Realisasi (Usaha)',
-            'SPK/SE/001,1373012345678901,Petugas SE,200,120,180,90',
-        ]);
-
-        $file = UploadedFile::fake()->createWithContent(
-            'template-realisasi-se.csv',
-            $csv
-        );
-
-        $response = $this
-            ->actingAsWithRole($context['operator'], 'operator')
-            ->post(route('bast.import-sensus-realisasi'), [
-                'file' => $file,
-                'bulan' => 8,
-                'tahun' => 2026,
-            ]);
-
-        $response->assertOk();
-        $response->assertJsonPath('message', 'Template realisasi berhasil diimpor dan disimpan.');
-        $response->assertJsonPath('summary.total_rows', 1);
-        $response->assertJsonPath('rows.0.nomor_spk', 'SPK/SE/001');
-        $response->assertJsonPath('rows.0.nik_petugas', '1373012345678901');
-        $response->assertJsonPath('rows.0.muatan_prelist_keluarga', 200);
-        $response->assertJsonPath('rows.0.muatan_prelist_usaha', 120);
-        $response->assertJsonPath('rows.0.realisasi_keluarga', 180);
-        $response->assertJsonPath('rows.0.realisasi_usaha', 90);
-        $response->assertJsonPath('rows.0.realisasi_unit_sampel.keluarga', 180);
-        $response->assertJsonPath('rows.0.realisasi_unit_sampel.usaha', 90);
-
-        $this->assertDatabaseHas('bast_sensus_realisasi_imports', [
-            'spk_id' => $context['spk']->id,
-            'bulan' => 8,
-            'tahun' => 2026,
-            'nomor_spk' => 'SPK/SE/001',
-            'nik_petugas' => '1373012345678901',
-            'nama_petugas' => 'Petugas SE',
-            'realisasi_keluarga' => 180,
-            'realisasi_usaha' => 90,
-        ]);
-
-        $storedImport = BastSensusRealisasiImport::query()
-            ->where('spk_id', $context['spk']->id)
-            ->where('bulan', 8)
-            ->where('tahun', 2026)
-            ->first();
-
-        $this->assertNotNull($storedImport);
-        $this->assertSame([
-            'keluarga' => 180,
-            'usaha' => 90,
-        ], $storedImport->realisasi_unit_sampel);
-
-        $refreshResponse = $this
-            ->actingAsWithRole($context['operator'], 'operator')
-            ->get(route('bast.create', [
-                'bulan' => 8,
-                'tahun' => 2026,
-                'mode' => 'sensus-ekonomi',
-            ]));
-
-        $refreshResponse->assertOk();
-
-        $page = $refreshResponse->viewData('page');
-        $props = $page['props'];
-        $importedInputs = decryptData($props['imported_sensus_inputs']['encrypted'] ?? '');
-
-        $this->assertSame([
-            'realisasi_unit_sampel' => [
-                'keluarga' => 180,
-                'usaha' => 90,
-            ],
-        ], $importedInputs[$context['spk']->id] ?? null);
-    }
-
-    public function test_operator_cannot_import_sensus_template_when_all_realisasi_are_blank(): void
-    {
-        $context = $this->createBastGenerationContext();
-
-        $csv = implode("\n", [
-            'Nomor SPK,NIK Petugas,Nama Petugas,Muatan Prelist (Keluarga),Muatan Prelist (Usaha),Realisasi (Keluarga),Realisasi (Usaha)',
-            'SPK/SE/001,1373012345678901,Petugas SE,200,120,,',
-        ]);
-
-        $file = UploadedFile::fake()->createWithContent(
-            'template-realisasi-se-blank.csv',
-            $csv
-        );
-
-        $response = $this
-            ->actingAsWithRole($context['operator'], 'operator')
-            ->post(route('bast.import-sensus-realisasi'), [
-                'file' => $file,
-                'bulan' => 8,
-                'tahun' => 2026,
-            ]);
-
-        $response->assertStatus(422);
-        $response->assertJsonPath('message', 'Import gagal: semua baris realisasi kosong. Isi minimal 1 nilai realisasi (keluarga/usaha).');
-    }
-
-    public function test_operator_can_save_shared_sensus_reference_and_reuse_it_in_create_payload(): void
-    {
-        $context = $this->createBastGenerationContext();
-
-        $context['kegiatanOwnCompleted']->update([
-            'nama_kegiatan' => 'Sensus Ekonomi 2026',
-            'jenis_kegiatan' => 'sensus',
-        ]);
-
-        $response = $this
-            ->actingAsWithRole($context['operator'], 'operator')
-            ->post(route('bast.sensus-reference.save'), [
-                'spk_id' => $context['spk']->id,
-                'bulan' => 8,
-                'tahun' => 2026,
-                'realisasi_unit_sampel' => [
-                    'keluarga' => 145,
-                    'usaha' => 66,
-                    'unit_lain' => 12,
-                ],
-            ]);
-
-        $response->assertOk();
-        $response->assertJsonPath('data.realisasi_unit_sampel.keluarga', 145);
-        $response->assertJsonPath('data.realisasi_unit_sampel.usaha', 66);
-        $response->assertJsonPath('data.realisasi_unit_sampel.unit_lain', 12);
-        $response->assertJsonPath('data.muatan_input', 223);
-
-        $storedImport = BastSensusRealisasiImport::query()
-            ->where('spk_id', $context['spk']->id)
-            ->where('bulan', 8)
-            ->where('tahun', 2026)
-            ->first();
-
-        $this->assertNotNull($storedImport);
-        $this->assertSame([
-            'keluarga' => 145,
-            'usaha' => 66,
-            'unit_lain' => 12,
-        ], $storedImport->realisasi_unit_sampel);
-
-        $this->assertSame([
-            'keluarga' => 145,
-            'usaha' => 66,
-            'unit_lain' => 12,
-        ], $storedImport->fresh()->realisasi_unit_sampel);
-    }
-
-    public function test_operator_can_upload_shared_sensus_reference_screenshot(): void
-    {
-        $context = $this->createBastGenerationContext();
-
-        $context['kegiatanOwnCompleted']->update([
-            'nama_kegiatan' => 'Sensus Ekonomi 2026',
-            'jenis_kegiatan' => 'sensus',
-        ]);
-
-        $response = $this
-            ->actingAsWithRole($context['operator'], 'operator')
-            ->post(route('bast.sensus-reference.upload-fasih-screenshot'), [
-                'spk_id' => $context['spk']->id,
-                'bulan' => 8,
-                'tahun' => 2026,
-                'file' => UploadedFile::fake()->image('shared-fasih.png'),
-            ]);
-
-        $response->assertOk();
-        $response->assertJsonPath('message', 'Screenshot Fasih berhasil diunggah.');
-
-        $storedImport = BastSensusRealisasiImport::query()
-            ->where('spk_id', $context['spk']->id)
-            ->where('bulan', 8)
-            ->where('tahun', 2026)
-            ->first();
-
-        $this->assertNotNull($storedImport);
-        $this->assertNotNull($storedImport->fasih_screenshot_path);
-        $this->assertNotNull($storedImport->fasih_screenshot_uploaded_at);
-    }
-
-    public function test_main_fasih_screenshot_upload_syncs_shared_sensus_reference(): void
-    {
-        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
-
-        $bast = $this->generateMainBast($context)->fresh('bastPetugas', 'periodeAlokasi', 'spk');
-        $petugasId = $bast->bastPetugas->first()?->petugas_id;
-
-        $this->assertNotNull($petugasId);
-
-        $this
-            ->actingAsWithRole($context['operator'], 'operator')
-            ->post(route('bast.upload-fasih-screenshot', $bast->hashed_id), [
-                'petugas_id' => $petugasId,
-                'file' => UploadedFile::fake()->image('main-fasih-sync.png'),
-            ])
-            ->assertRedirect();
-
-        $storedImport = BastSensusRealisasiImport::query()
-            ->where('spk_id', $context['spk']->id)
-            ->where('bulan', 4)
-            ->where('tahun', 2026)
-            ->first();
-
-        $this->assertNotNull($storedImport);
-        $this->assertNotNull($storedImport->fasih_screenshot_path);
-        $this->assertSame(
-            $storedImport->fasih_screenshot_path,
-            $bast->fresh()->bastPetugas->first()?->fasih_screenshot_path,
-        );
-    }
-
     public function test_open_detail_preview_uses_shared_sensus_reference_for_selected_period(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-08-20'));
@@ -603,20 +364,17 @@ class BastWorkflowTest extends TestCase
             'tanggal_selesai_kerja' => '2026-08-31',
         ]);
 
-        BastSensusRealisasiImport::query()->create([
+        BappSeTermin::query()->create([
             'spk_id' => $context['spk']->id,
             'petugas_id' => $context['petugas']->id,
+            'termin' => 2,
             'bulan' => 8,
             'tahun' => 2026,
-            'nomor_spk' => $context['spk']->nomor_spk,
-            'nik_petugas' => $context['petugas']->nik,
-            'nama_petugas' => $context['petugas']->nama,
             'realisasi_unit_sampel' => [
                 'keluarga' => 531,
                 'usaha' => 102,
             ],
             'fasih_screenshot_path' => 'bast-export/fasih-screenshot/test-afrina-8.jpeg',
-            'fasih_screenshot_uploaded_at' => now(),
         ]);
 
         $response = $this
@@ -770,7 +528,7 @@ class BastWorkflowTest extends TestCase
 
         $response = $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->withHeader('referer', '/bast/lampiran-action/upload-signed')
+            ->withHeader('referer', '/berita-acara/lampiran-action/upload-signed')
             ->post(route('bast.lampiran.upload-signed'), [
                 'spk_id' => $context['spk']->id,
                 'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
@@ -870,7 +628,7 @@ class BastWorkflowTest extends TestCase
 
         $response = $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->withHeader('referer', '/bast/lampiran-action/upload-fasih-screenshot')
+            ->withHeader('referer', '/berita-acara/lampiran-action/upload-fasih-screenshot')
             ->post(route('bast.lampiran.upload-fasih-screenshot'), [
                 'spk_id' => $context['spk']->id,
                 'kegiatan_id' => $context['kegiatanOwnCompleted']->id,
@@ -1254,18 +1012,36 @@ class BastWorkflowTest extends TestCase
                 })
             );
 
+        BappSeTermin::query()->create([
+            'spk_id' => $context['spk']->id,
+            'petugas_id' => $context['petugas']->id,
+            'termin' => 1,
+            'bulan' => 7,
+            'tahun' => 2026,
+            'realisasi_unit_sampel' => [
+                'keluarga' => 90,
+                'usaha' => 45,
+            ],
+        ]);
+
+        BappSeTermin::query()->create([
+            'spk_id' => $context['spk']->id,
+            'petugas_id' => $context['petugas']->id,
+            'termin' => 2,
+            'bulan' => 8,
+            'tahun' => 2026,
+            'target_sls' => 12,
+            'realisasi_unit_sampel' => [
+                'keluarga' => 90,
+                'usaha' => 45,
+            ],
+            'fasih_screenshot_path' => 'bast-export/fasih-screenshot/test-sensus.jpeg',
+        ]);
+
         $response = $this
             ->actingAsWithRole($context['operator'], 'operator')
             ->post(route('bast.preview-bast'), [
                 'spk_id' => $context['spk']->id,
-                'se_input' => [
-                    'muatan_input' => 270,
-                    'muatan_prelist' => 320,
-                    'realisasi_unit_sampel' => [
-                        'keluarga' => 180,
-                        'usaha' => 90,
-                    ],
-                ],
             ]);
 
         $response->assertOk();

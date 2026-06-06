@@ -51,6 +51,7 @@ export interface SharedData {
     activeYear: number;
     availableYears: number[];
     hasAvailableYears: boolean;
+    isSeKetuaTim: boolean;
     sidebarOpen: boolean;
     flash: {
         success?: string;

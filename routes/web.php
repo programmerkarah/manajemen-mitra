@@ -7,6 +7,7 @@ use App\Http\Controllers\AnalisisExportController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\SsoOAuthController;
+use App\Http\Controllers\BappController;
 use App\Http\Controllers\BastController;
 use App\Http\Controllers\DasarHukumController;
 use App\Http\Controllers\DashboardController;
@@ -614,51 +615,64 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('spk/{spk}/upload-signed', [SpkController::class, 'uploadSigned'])->name('spk.upload-signed');
         Route::get('spk/{spk}', [SpkController::class, 'show'])->name('spk.show');
 
-        // BAST Routes - View (all authenticated)
-        Route::get('bast', [BastController::class, 'index'])->name('bast.index');
-        Route::get('bast/list', [BastController::class, 'listByMonth'])->name('bast.list');
+        // Berita Acara Routes - View (all authenticated)
+        Route::get('berita-acara', [BastController::class, 'index'])->name('bast.index');
+        Route::get('berita-acara/list', [BastController::class, 'listByMonth'])->name('bast.list');
     });
 
     Route::middleware(['active.role:admin,operator'])->group(function () {
-        // BAST static routes must come before {bast} wildcard
-        Route::get('bast/create', [BastController::class, 'create'])->name('bast.create');
-        Route::post('bast/generate-batch', [BastController::class, 'generateBatch'])->name('bast.generate-batch');
-        Route::post('bast/preview-bast', [BastController::class, 'previewForSpk'])->name('bast.preview-bast');
-        Route::get('bast/download-all', [BastController::class, 'downloadAll'])->name('bast.download-all');
-        Route::get('bast/template/sensus-realisasi', [BastController::class, 'downloadSensusRealisasiTemplate'])->name('bast.template.sensus-realisasi');
-        Route::post('bast/import/sensus-realisasi', [BastController::class, 'importSensusRealisasi'])->name('bast.import-sensus-realisasi');
-        Route::get('bast/kegiatan/{kegiatan}/create', [BastController::class, 'createForKegiatan'])->name('bast.create-for-kegiatan');
-        Route::post('bast/preview', [BastController::class, 'preview'])->name('bast.preview');
-        Route::post('bast', [BastController::class, 'store'])->name('bast.store');
-        Route::get('bast/{bast}/edit', [BastController::class, 'edit'])->name('bast.edit');
-        Route::match(['put', 'patch'], 'bast/{bast}/edit', [BastController::class, 'update']);
-        Route::post('bast/{bast}/upload-signed', [BastController::class, 'uploadSigned'])
+        // Berita Acara static routes must come before {bast} wildcard
+        Route::get('berita-acara/create', [BastController::class, 'create'])->name('bast.create');
+        Route::post('berita-acara/generate-batch', [BastController::class, 'generateBatch'])->name('bast.generate-batch');
+        Route::post('berita-acara/preview-bast', [BastController::class, 'previewForSpk'])->name('bast.preview-bast');
+        Route::get('berita-acara/download-all', [BastController::class, 'downloadAll'])->name('bast.download-all');
+        Route::get('berita-acara/kegiatan/{kegiatan}/create', [BastController::class, 'createForKegiatan'])->name('bast.create-for-kegiatan');
+        Route::post('berita-acara/preview', [BastController::class, 'preview'])->name('bast.preview');
+        Route::post('berita-acara', [BastController::class, 'store'])->name('bast.store');
+        Route::get('berita-acara/{bast}/edit', [BastController::class, 'edit'])->name('bast.edit');
+        Route::match(['put', 'patch'], 'berita-acara/{bast}/edit', [BastController::class, 'update']);
+        Route::post('berita-acara/{bast}/upload-signed', [BastController::class, 'uploadSigned'])
             ->where('bast', '[A-Za-z0-9]+')
             ->name('bast.upload-signed');
-        Route::post('bast/{bast}/upload-fasih-screenshot', [BastController::class, 'uploadFasihScreenshot'])
-            ->where('bast', '[A-Za-z0-9]+')
-            ->name('bast.upload-fasih-screenshot');
-        Route::put('bast/{bast}', [BastController::class, 'update'])->name('bast.update');
-        Route::patch('bast/{bast}', [BastController::class, 'update']);
-        Route::delete('bast/{bast}', [BastController::class, 'destroy'])->name('bast.destroy');
+        Route::put('berita-acara/{bast}', [BastController::class, 'update'])->name('bast.update');
+        Route::patch('berita-acara/{bast}', [BastController::class, 'update']);
+        Route::delete('berita-acara/{bast}', [BastController::class, 'destroy'])->name('bast.destroy');
     });
 
     Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
-        Route::post('bast/sensus-reference', [BastController::class, 'saveSensusReference'])->name('bast.sensus-reference.save');
-        Route::post('bast/sensus-reference/upload-fasih-screenshot', [BastController::class, 'uploadSharedSensusFasihScreenshot'])->name('bast.sensus-reference.upload-fasih-screenshot');
-        Route::match(['get', 'post'], 'bast/open-detail', [BastController::class, 'openDetailByPetugas'])
+        Route::match(['get', 'post'], 'berita-acara/open-detail', [BastController::class, 'openDetailByPetugas'])
             ->name('bast.open-detail-by-petugas');
-        Route::post('bast/lampiran-action/preview', [BastController::class, 'previewLampiranByReference'])
+        Route::post('berita-acara/lampiran-action/preview', [BastController::class, 'previewLampiranByReference'])
             ->name('bast.lampiran.preview');
-        Route::post('bast/lampiran-action/download', [BastController::class, 'downloadLampiranByReference'])
+        Route::post('berita-acara/lampiran-action/download', [BastController::class, 'downloadLampiranByReference'])
             ->name('bast.lampiran.download');
-        Route::post('bast/lampiran-action/upload-signed', [BastController::class, 'uploadLampiranSignedByReference'])
+        Route::post('berita-acara/lampiran-action/upload-signed', [BastController::class, 'uploadLampiranSignedByReference'])
             ->name('bast.lampiran.upload-signed');
-        Route::post('bast/lampiran-action/upload-fasih-screenshot', [BastController::class, 'uploadLampiranFasihScreenshotByReference'])
+        Route::post('berita-acara/lampiran-action/upload-fasih-screenshot', [BastController::class, 'uploadLampiranFasihScreenshotByReference'])
             ->name('bast.lampiran.upload-fasih-screenshot');
-        Route::get('bast/{bast}/download', [BastController::class, 'downloadPdf'])->name('bast.download');
-        Route::get('bast/{bast}/download-signed', [BastController::class, 'downloadSignedPdf'])->name('bast.download-signed');
-        Route::get('bast/{bast}/download-compiled', [BastController::class, 'downloadCompiledBast'])->name('bast.download-compiled');
+        Route::get('berita-acara/{bast}/download', [BastController::class, 'downloadPdf'])->name('bast.download');
+        Route::get('berita-acara/{bast}/download-signed', [BastController::class, 'downloadSignedPdf'])->name('bast.download-signed');
+        Route::get('berita-acara/{bast}/download-compiled', [BastController::class, 'downloadCompiledBast'])->name('bast.download-compiled');
+    });
+
+    // BAPP SE2026 Routes
+    Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
+        Route::get('bapp', [BappController::class, 'index'])->name('bapp.index');
+        Route::get('bapp/create', [BappController::class, 'create'])->name('bapp.create');
+        Route::get('bapp/template', [BappController::class, 'downloadTemplate'])->name('bapp.template');
+        Route::get('bapp/termin/{terminHashed}', [BappController::class, 'show'])->name('bapp.show');
+        Route::get('bapp/{bapp}/download', [BappController::class, 'download'])->name('bapp.download');
+        Route::get('bapp/{bapp}/preview', [BappController::class, 'preview'])->name('bapp.preview');
+        Route::get('bapp/{bapp}/download-signed', [BappController::class, 'downloadSigned'])->name('bapp.download-signed');
+        Route::post('bapp/{bapp}/upload-screenshot', [BappController::class, 'uploadFasihScreenshot'])->name('bapp.upload-screenshot');
+        Route::post('bapp/{bapp}/upload-signed', [BappController::class, 'uploadSignedBapp'])->name('bapp.upload-signed');
+    });
+
+    Route::middleware(['active.role:admin,operator'])->group(function () {
+        Route::post('bapp/realisasi', [BappController::class, 'storeRealisasi'])->name('bapp.store-realisasi');
+        Route::post('bapp/import', [BappController::class, 'importRealisasi'])->name('bapp.import');
+        Route::post('bapp/generate', [BappController::class, 'generate'])->name('bapp.generate');
+        Route::post('bapp/generate-batch', [BappController::class, 'generateBatch'])->name('bapp.generate-batch');
     });
 
     // Document Management - Upload signed file (Admin, PJ, Operator can upload)

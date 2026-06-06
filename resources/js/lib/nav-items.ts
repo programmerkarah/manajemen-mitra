@@ -24,7 +24,10 @@ import {
  * Shared between AppSidebar and useSidebarBreadcrumbs so the nav structure
  * is always in sync.
  */
-export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
+export function buildNavItems(
+    activeRoleName: string | undefined,
+    isSeKetuaTim = false,
+): NavItem[] {
     const mainNavItems: NavItem[] = [
         {
             title: 'Dashboard',
@@ -83,7 +86,12 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                         href: '/spk',
                         icon: ClipboardList,
                     },
-                    { title: 'BAST', href: '/bast', icon: FileText },
+                    {
+                        title: 'Berita Acara',
+                        href: '/berita-acara',
+                        icon: FileText,
+                    },
+                    { title: 'BAPP SE2026', href: '/bapp', icon: FileText },
                 ],
             },
             {
@@ -189,7 +197,12 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                         href: '/spk',
                         icon: ClipboardList,
                     },
-                    { title: 'BAST', href: '/bast', icon: FileText },
+                    {
+                        title: 'Berita Acara',
+                        href: '/berita-acara',
+                        icon: FileText,
+                    },
+                    { title: 'BAPP SE2026', href: '/bapp', icon: FileText },
                 ],
             },
             {
@@ -254,7 +267,12 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                     { title: 'Kegiatan', href: '/kegiatan' },
                     { title: 'SK KPA', href: '/sk-kpa' },
                     { title: 'Perjanjian Kerja', href: '/spk' },
-                    { title: 'BAST', href: '/bast' },
+                    ...(isSeKetuaTim
+                        ? [
+                              { title: 'Berita Acara', href: '/berita-acara' },
+                              { title: 'BAPP SE2026', href: '/bapp' },
+                          ]
+                        : []),
                     {
                         title: 'Master Sampel',
                         href: '/master-sampel',
@@ -336,7 +354,11 @@ export function buildNavItems(activeRoleName: string | undefined): NavItem[] {
                         href: '/spk',
                         icon: ClipboardList,
                     },
-                    { title: 'BAST', href: '/bast', icon: FileText },
+                    {
+                        title: 'Berita Acara',
+                        href: '/berita-acara',
+                        icon: FileText,
+                    },
                 ],
             },
             {

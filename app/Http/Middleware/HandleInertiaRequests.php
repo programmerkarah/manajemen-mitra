@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Kegiatan;
 use App\Models\User;
 use App\Services\ActiveYearService;
 use Illuminate\Foundation\Inspiring;
@@ -97,6 +98,7 @@ class HandleInertiaRequests extends Middleware
             'activeYear' => ActiveYearService::get(),
             'availableYears' => ActiveYearService::getAvailableYears(),
             'hasAvailableYears' => ActiveYearService::hasAvailableYears(),
+            'isSeKetuaTim' => $this->isSeKetuaTim($displayUser),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'flash' => [
                 'success' => $request->session()->pull('success'),
@@ -117,5 +119,22 @@ class HandleInertiaRequests extends Middleware
                 ),
             ],
         ];
+    }
+
+    /**
+     * Determine whether the given user is the ketua_tim of the Sensus Ekonomi kegiatan.
+     */
+    private function isSeKetuaTim(?User $user): bool
+    {
+        if (! $user || $user->getActiveRole()?->name !== 'ketua_tim') {
+            return false;
+        }
+
+        $seKegiatan = Kegiatan::query()
+            ->where('jenis_kegiatan', 'sensus')
+            ->where('nama_kegiatan', 'like', '%sensus ekonomi%')
+            ->first();
+
+        return $seKegiatan !== null && $seKegiatan->ketua_tim_user_id === $user->id;
     }
 }

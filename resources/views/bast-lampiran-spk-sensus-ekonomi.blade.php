@@ -259,9 +259,41 @@
             return null;
         }
 
-        $absolutePath = public_path(ltrim(str_replace('\\', '/', (string) $path), '/'));
+        $normalizedPath = ltrim(str_replace('\\', '/', (string) $path), '/');
 
-        return file_exists($absolutePath) ? $absolutePath : null;
+        // Try public_path directly (for files stored in public/ e.g. bast-export/...)
+        $absolutePath = public_path($normalizedPath);
+        if (file_exists($absolutePath)) {
+            return $absolutePath;
+        }
+
+        // Try via public/storage symlink (for files stored via Storage::disk('public'))
+        $symlinkPath = public_path('storage/' . $normalizedPath);
+        if (file_exists($symlinkPath)) {
+            return $symlinkPath;
+        }
+
+        // Try storage/app/public directly (fallback without symlink)
+        $storagePath = storage_path('app/public/' . $normalizedPath);
+        if (file_exists($storagePath)) {
+            return $storagePath;
+        }
+
+        return null;
+    };
+
+    $stripGelar = static function (?string $fullName): string {
+        if (empty($fullName)) {
+            return '';
+        }
+
+        // Remove everything after the first comma (suffixes like ", S.Si., M.Sc.")
+        $name = trim(explode(',', $fullName)[0]);
+
+        // Remove common prefixes like Dr, Drs, Ir, H, Prof (with optional dot)
+        $name = preg_replace('/^(Drs?|Ir\.?|H\.?|Prof\.?)\s+/i', '', $name);
+
+        return trim($name);
     };
 @endphp
 
@@ -427,9 +459,9 @@
                     <td class="signature-box"><div class="signature-space"></div></td>
                 </tr>
                 <tr>
-                    <td class="signature-box"><div class="signature-name">({{ $kegiatan['ketua_tim']['nama'] ?? '-' }})</div></td>
-                    <td class="signature-box"><div class="signature-name">({{ $bast->petugas['nama'] ?? '-' }})</div></td>
-                    <td class="signature-box"><div class="signature-name">({{ $bast->nama_ppk ?? '-' }})</div></td>
+                    <td class="signature-box"><div class="signature-name">{{ strtoupper($kegiatan['ketua_tim']['nama'] ?? '-') }}</div></td>
+                    <td class="signature-box"><div class="signature-name">{{ strtoupper($bast->petugas['nama'] ?? '-') }}</div></td>
+                    <td class="signature-box"><div class="signature-name">{{ strtoupper($stripGelar($bast->nama_ppk ?? null) ?: '-') }}</div></td>
                 </tr>
             </table>
         </div>

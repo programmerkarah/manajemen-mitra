@@ -117,7 +117,7 @@ class BastCreateMonthPetugasListTest extends TestCase
             ]);
         }
 
-        $response = $this->get('/bast/create?bulan=3&tahun='.$tahun);
+        $response = $this->get('/berita-acara/create?bulan=3&tahun='.$tahun);
 
         $response->assertStatus(200);
 
@@ -206,7 +206,7 @@ class BastCreateMonthPetugasListTest extends TestCase
             'created_by' => $creator->id,
         ]);
 
-        $createResponse = $this->get('/bast/create?bulan=4&tahun=2026');
+        $createResponse = $this->get('/berita-acara/create?bulan=4&tahun=2026');
         $createResponse->assertStatus(200);
 
         $createPage = $createResponse->viewData('page');
@@ -215,7 +215,7 @@ class BastCreateMonthPetugasListTest extends TestCase
 
         $this->assertContains('Cici Liani', $petugasDalamDaftar);
 
-        $indexResponse = $this->withSession(['active_year' => 2026])->get('/bast');
+        $indexResponse = $this->withSession(['active_year' => 2026])->get('/berita-acara');
         $indexResponse->assertStatus(200);
 
         $indexPage = $indexResponse->viewData('page');

@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\FilterRequest;
 use App\Models\ActivityLog;
 use App\Models\AlokasiPetugas;
+use App\Models\BappSeTermin;
+use App\Models\Bast;
 use App\Models\Dipa;
 use App\Models\Kegiatan;
 use App\Models\MasterUnitSampel;
@@ -26,6 +28,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -1523,6 +1526,8 @@ class SpkController extends Controller
             'aksi' => ['nullable', 'in:preview,download'],
             'response_mode' => ['nullable', 'in:binary,url'],
             'download_token' => ['nullable', 'string', 'max:120'],
+            'dokumen_tipe' => ['nullable', 'in:pk,bast,bapp'],
+            'bapp_termin' => ['nullable', 'in:1,2'],
         ]);
 
         $hasRecentSessionVerification = $this->hasRecentPublicPreviewSessionVerification(
@@ -1657,6 +1662,21 @@ class SpkController extends Controller
             return response()->json([
                 'message' => 'Petugas tidak memiliki alokasi Perjanjian Kerja yang sesuai kriteria.',
             ], 422);
+        }
+
+        $dokumenTipe = (string) ($validated['dokumen_tipe'] ?? 'pk');
+        $bappTermin = max(1, min(2, (int) ($validated['bapp_termin'] ?? 1)));
+
+        if ($dokumenTipe === 'bast') {
+            return $this->servePublicPreviewBast($petugas, $periode, $selectedKegiatanId, $jenisKegiatan, $validated);
+        }
+
+        if ($dokumenTipe === 'bapp') {
+            if ($jenisKegiatan !== 'sensus') {
+                return response()->json(['message' => 'BAPP hanya tersedia untuk kegiatan sensus.'], 422);
+            }
+
+            return $this->servePublicPreviewBapp($petugas, ActiveYearService::get(), $bappTermin, $validated);
         }
 
         $finalSignedPdf = $this->resolveFinalSignedSpkPdfBinaryForPublicPreview(
@@ -2142,8 +2162,62 @@ class SpkController extends Controller
             $alokasiCollection,
         );
 
+        // Batch-query BAST status grouped by periodKey|jenisKegiatan (same grouping as PK)
+        $alokasiIds = $alokasiCollection->pluck('id')->all();
+
+        $spksForBast = Spk::query()
+            ->whereIn('alokasi_petugas_id', $alokasiIds)
+            ->where('addendum_number', 0)
+            ->get(['id', 'alokasi_petugas_id']);
+
+        $spkIds = $spksForBast->pluck('id')->all();
+
+        $basts = ! empty($spkIds)
+            ? Bast::query()->whereIn('spk_id', $spkIds)->get(['id', 'spk_id', 'file_path', 'signed_file_path', 'main_signed_file_path'])
+            : collect();
+
+        $bastBySpkId = $basts->keyBy('spk_id');
+
+        $alokasiById = $alokasiCollection->keyBy('id');
+        /** @var array<string, Bast|null> $bastStatusByKey */
+        $bastStatusByKey = [];
+
+        foreach ($spksForBast as $spk) {
+            $spkAlokasi = $alokasiById->get($spk->alokasi_petugas_id);
+            $spkPeriode = $spkAlokasi?->periodeAlokasi;
+            $spkKegiatan = $spkPeriode?->kegiatan;
+
+            if (! $spkPeriode || ! $spkKegiatan) {
+                continue;
+            }
+
+            $spkPeriodKey = sprintf('%d-%02d', (int) $spkPeriode->tahun, (int) $spkPeriode->bulan);
+            $spkStatusKey = $this->buildPublicPreviewDocumentStatusKey($spkPeriodKey, (string) $spkKegiatan->jenis_kegiatan);
+
+            $bast = $bastBySpkId->get($spk->id);
+
+            if (! $bast) {
+                continue;
+            }
+
+            $existing = $bastStatusByKey[$spkStatusKey] ?? null;
+
+            // Prefer signed BAST over draft when merging across alokasi in the same group
+            if (! $existing || (($bast->signed_file_path || $bast->main_signed_file_path) && ! $existing->signed_file_path && ! $existing->main_signed_file_path)) {
+                $bastStatusByKey[$spkStatusKey] = $bast;
+            }
+        }
+
+        // Batch-query BAPP status (only needed for sensus)
+        $bapps = BappSeTermin::query()
+            ->where('petugas_id', $petugas->id)
+            ->where('tahun', $activeYear)
+            ->get(['id', 'termin', 'file_path', 'signed_file_path']);
+
+        $bappByTermin = $bapps->keyBy('termin');
+
         $penugasanList = $alokasiCollection
-            ->map(function (AlokasiPetugas $alokasi) use ($documentStatusMap): ?array {
+            ->map(function (AlokasiPetugas $alokasi) use ($documentStatusMap, $bastStatusByKey, $bappByTermin): ?array {
                 $periode = $alokasi->periodeAlokasi;
                 $kegiatan = $periode?->kegiatan;
 
@@ -2158,6 +2232,10 @@ class SpkController extends Controller
                 );
                 $documentStatus = $documentStatusMap[$statusKey] ?? 'Belum ada PK';
 
+                $bast = $bastStatusByKey[$statusKey] ?? null;
+
+                $isSensus = mb_strtolower((string) $kegiatan->jenis_kegiatan) === 'sensus';
+
                 return [
                     'id' => $alokasi->id,
                     'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
@@ -2169,6 +2247,9 @@ class SpkController extends Controller
                     'honor' => (float) $alokasi->getEffectiveCombinedHonor(),
                     'honor_label' => 'Rp '.number_format((float) $alokasi->getEffectiveCombinedHonor(), 0, ',', '.'),
                     'document_status' => $documentStatus,
+                    'bast_status' => $this->getBastStatusLabel($bast),
+                    'bapp_termin_i_status' => $isSensus ? $this->getBappStatusLabel($bappByTermin->get(1)) : null,
+                    'bapp_termin_ii_status' => $isSensus ? $this->getBappStatusLabel($bappByTermin->get(2)) : null,
                 ];
             })
             ->filter()
@@ -2362,6 +2443,176 @@ class SpkController extends Controller
     private function buildPublicPreviewDocumentStatusKey(string $periodKey, string $jenisKegiatan): string
     {
         return $periodKey.'|'.mb_strtolower($jenisKegiatan);
+    }
+
+    /**
+     * @param  array<string,mixed>  $validated
+     */
+    private function servePublicPreviewBast(Petugas $petugas, PeriodeAlokasi $periode, ?int $kegiatanId, string $jenisKegiatan, array $validated): mixed
+    {
+        $alokasi = AlokasiPetugas::query()
+            ->where('petugas_id', $petugas->id)
+            ->whereHas('periodeAlokasi', function ($q) use ($periode, $kegiatanId, $jenisKegiatan): void {
+                $q->where('tahun', $periode->tahun)
+                    ->where('bulan', $periode->bulan)
+                    ->whereIn('status', ['dikirim', 'perubahan'])
+                    ->whereHas('kegiatan', function ($kq) use ($kegiatanId, $jenisKegiatan): void {
+                        $kq->where('jenis_kegiatan', $jenisKegiatan);
+
+                        if ($kegiatanId !== null) {
+                            $kq->where('id', $kegiatanId);
+                        }
+                    });
+            })
+            ->first();
+
+        if (! $alokasi) {
+            return response()->json(['message' => 'Alokasi tidak ditemukan untuk penugasan ini.'], 422);
+        }
+
+        $spk = Spk::query()
+            ->where('alokasi_petugas_id', $alokasi->id)
+            ->where('addendum_number', 0)
+            ->first();
+
+        if (! $spk) {
+            return response()->json(['message' => 'SPK tidak ditemukan untuk penugasan ini.'], 422);
+        }
+
+        $bast = Bast::query()->where('spk_id', $spk->id)->first();
+
+        if (! $bast) {
+            return response()->json(['message' => 'BAST belum tersedia untuk penugasan ini.'], 422);
+        }
+
+        $filePath = $bast->signed_file_path ?: ($bast->main_signed_file_path ?: $bast->file_path);
+
+        if (! $filePath) {
+            return response()->json(['message' => 'File BAST belum dibuat.'], 422);
+        }
+
+        $absolutePath = public_path(ltrim(str_replace('\\', '/', $filePath), '/'));
+
+        if (! file_exists($absolutePath)) {
+            return response()->json(['message' => 'File BAST tidak dapat diakses.'], 422);
+        }
+
+        $content = (string) file_get_contents($absolutePath);
+        $nomor = preg_replace('/[^A-Za-z0-9_\-]/', '-', (string) ($bast->nomor_bast ?? 'BAST'));
+
+        return $this->serveProtectedPublicPreviewContent($content, 'BAST_'.$nomor.'.pdf', $validated);
+    }
+
+    /**
+     * @param  array<string,mixed>  $validated
+     */
+    private function servePublicPreviewBapp(Petugas $petugas, int $tahun, int $termin, array $validated): mixed
+    {
+        $bapp = BappSeTermin::query()
+            ->where('petugas_id', $petugas->id)
+            ->where('tahun', $tahun)
+            ->where('termin', $termin)
+            ->first();
+
+        $terminLabel = $termin === 1 ? 'I' : 'II';
+
+        if (! $bapp) {
+            return response()->json(['message' => "BAPP Termin {$terminLabel} belum tersedia."], 422);
+        }
+
+        $filePath = $bapp->signed_file_path ?: $bapp->file_path;
+
+        if (! $filePath) {
+            return response()->json(['message' => "File BAPP Termin {$terminLabel} belum dibuat."], 422);
+        }
+
+        $absolutePath = Storage::disk('public')->path($filePath);
+
+        if (! file_exists($absolutePath)) {
+            return response()->json(['message' => 'File BAPP tidak dapat diakses.'], 422);
+        }
+
+        $content = (string) file_get_contents($absolutePath);
+        $nomor = preg_replace('/[^A-Za-z0-9_\-]/', '-', (string) ($bapp->nomor_bapp ?? 'BAPP'));
+
+        return $this->serveProtectedPublicPreviewContent($content, 'BAPP_Termin_'.$terminLabel.'_'.$nomor.'.pdf', $validated);
+    }
+
+    /**
+     * Common PDF protection and serving logic for public preview.
+     *
+     * @param  array<string,mixed>  $validated
+     */
+    private function serveProtectedPublicPreviewContent(string $content, string $filename, array $validated): mixed
+    {
+        $protectedContent = $this->applyDraftWatermarkAndProtection($content);
+        $disposition = ($validated['aksi'] ?? 'preview') === 'download' ? 'attachment' : 'inline';
+        $responseMode = (string) ($validated['response_mode'] ?? 'binary');
+        $downloadToken = (string) ($validated['download_token'] ?? '');
+
+        if ($responseMode === 'url' && $disposition === 'inline') {
+            $tempPath = $this->storePublicPreviewTemporaryPdf($protectedContent);
+
+            if (! is_string($tempPath) || ! is_file($tempPath)) {
+                return response()->json(['message' => 'URL preview tidak tersedia.'], 500);
+            }
+
+            $previewUrl = $this->buildPublicPreviewSignedFileUrl($tempPath, $filename, 'inline');
+
+            if (! $previewUrl) {
+                return response()->json(['message' => 'URL preview tidak tersedia.'], 500);
+            }
+
+            return response()->json([
+                'preview_url' => $previewUrl,
+                'filename' => $filename,
+            ]);
+        }
+
+        $response = response($protectedContent, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => $disposition.'; filename="'.$filename.'"',
+            'Cache-Control' => 'no-cache, must-revalidate',
+            'Expires' => '0',
+            'Accept-Ranges' => 'bytes',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+
+        return $this->appendPublicPreviewDownloadCookie($response, $disposition, $downloadToken);
+    }
+
+    private function getBastStatusLabel(?Bast $bast): string
+    {
+        if (! $bast) {
+            return 'Belum ada BAST';
+        }
+
+        if ($bast->signed_file_path || $bast->main_signed_file_path) {
+            return 'BAST Final';
+        }
+
+        if ($bast->file_path) {
+            return 'Draft BAST';
+        }
+
+        return 'Belum ada BAST';
+    }
+
+    private function getBappStatusLabel(?BappSeTermin $bapp): string
+    {
+        if (! $bapp) {
+            return 'Belum ada BAPP';
+        }
+
+        if ($bapp->signed_file_path) {
+            return 'BAPP Final';
+        }
+
+        if ($bapp->file_path) {
+            return 'Draft BAPP';
+        }
+
+        return 'Belum ada BAPP';
     }
 
     private function resolvePublicPreviewTargetPekerjaan(AlokasiPetugas $alokasi): string
@@ -2729,7 +2980,7 @@ class SpkController extends Controller
             $usesSuffixForNewPetugas = $nextNumberUsedElsewhere;
         }
 
-        if ($isRegenerate) {
+        if ($isRegenerate && ! $this->usesPeriodBasedSpkFlow($periode)) {
             $eligibleRegeneratePetugasIds = $this->resolveSpkActionDecisionsForMonth((int) $periode->tahun, (int) $periode->bulan)
                 ->filter(fn (array $item): bool => (bool) ($item['should_regenerate'] ?? false))
                 ->pluck('petugas_id')

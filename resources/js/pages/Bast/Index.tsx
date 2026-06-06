@@ -40,7 +40,9 @@ interface IndexProps {
     can_access_sensus_mode?: boolean;
 }
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'BAST', href: '/bast' }];
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Berita Acara', href: '/berita-acara' },
+];
 
 type SummaryModalType =
     | 'all_spk_periods'
@@ -111,7 +113,7 @@ export default function Index({
     const openDetailByPeriod = (bulan: number, tahun: number) => {
         const state = encryptFilters({ bulan, tahun, mode });
 
-        router.get('/bast/open-detail', {
+        router.get('/berita-acara/open-detail', {
             state,
         });
     };
@@ -136,7 +138,9 @@ export default function Index({
                                     mode === 'regular' ? 'default' : 'outline'
                                 }
                                 onClick={() =>
-                                    router.get('/bast', { mode: 'regular' })
+                                    router.get('/berita-acara', {
+                                        mode: 'regular',
+                                    })
                                 }
                             >
                                 BAST Reguler
@@ -148,7 +152,7 @@ export default function Index({
                                         : 'outline'
                                 }
                                 onClick={() =>
-                                    router.get('/bast', {
+                                    router.get('/berita-acara', {
                                         mode: 'sensus-ekonomi',
                                     })
                                 }
@@ -323,7 +327,7 @@ export default function Index({
                                                             asChild
                                                         >
                                                             <Link
-                                                                href={`/bast/create?bulan=${item.bulan}&tahun=${item.tahun}&mode=${mode}`}
+                                                                href={`/berita-acara/create?bulan=${item.bulan}&tahun=${item.tahun}&mode=${mode}`}
                                                             >
                                                                 <Plus className="mr-1 h-4 w-4" />
                                                                 Generate BAST
@@ -424,7 +428,7 @@ export default function Index({
                                                 !item.all_completed && (
                                                     <Button size="sm" asChild>
                                                         <Link
-                                                            href={`/bast/create?bulan=${item.bulan}&tahun=${item.tahun}&mode=${mode}`}
+                                                            href={`/berita-acara/create?bulan=${item.bulan}&tahun=${item.tahun}&mode=${mode}`}
                                                         >
                                                             <Plus className="h-3.5 w-3.5" />
                                                         </Link>
