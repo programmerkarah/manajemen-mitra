@@ -2162,53 +2162,27 @@ class SpkController extends Controller
             $alokasiCollection,
         );
 
-        // Batch-query BAST status grouped by periodKey|jenisKegiatan (same grouping as PK)
-        $alokasiIds = $alokasiCollection->pluck('id')->all();
-
-        // Also include 'direvisi' alokasi for BAST lookup only.
-        // When a periode is revised, the original periode's status becomes 'direvisi' and a new
-        // one is created. The BAST may still be attached to the original periode's SPK, so we
-        // must include those alokasi when resolving BAST status.
-        $alokasiForBastOnly = AlokasiPetugas::query()
-            ->with(['periodeAlokasi.kegiatan'])
-            ->where('petugas_id', $petugas->id)
-            ->whereHas('periodeAlokasi', function ($query) use ($activeYear): void {
-                $query->where('tahun', $activeYear)->where('status', 'direvisi');
+        // Batch-query BAST status grouped by periodKey|jenisKegiatan.
+        // BAST is 1 per petugas per period — look up directly via spk.petugas_id
+        // to avoid any dependency on alokasi status (dikirim/perubahan/direvisi).
+        $allBasts = Bast::query()
+            ->whereHas('spk', function ($q) use ($petugas, $activeYear): void {
+                $q->where('petugas_id', $petugas->id)
+                    ->whereHas('alokasiPetugas.periodeAlokasi', function ($pq) use ($activeYear): void {
+                        $pq->where('tahun', $activeYear);
+                    });
             })
-            ->get();
+            ->with([
+                'spk.alokasiPetugas.periodeAlokasi.kegiatan',
+            ])
+            ->whereNull('deleted_at')
+            ->get(['id', 'spk_id', 'file_path', 'signed_file_path', 'main_signed_file_path']);
 
-        $allAlokasiIdsForBast = array_merge($alokasiIds, $alokasiForBastOnly->pluck('id')->all());
-        $allAlokasiForBastById = $alokasiCollection->keyBy('id')->merge($alokasiForBastOnly->keyBy('id'));
-
-        // Fetch the latest SPK per alokasi (highest addendum_number) — BAST always
-        // references the latest SPK after the data migration.
-        $allSpksForBast = Spk::query()
-            ->whereIn('alokasi_petugas_id', $allAlokasiIdsForBast)
-            ->orderBy('addendum_number')
-            ->get(['id', 'alokasi_petugas_id', 'addendum_number']);
-
-        // Keep only the highest-addendum SPK per alokasi
-        $latestSpkByAlokasiId = [];
-        foreach ($allSpksForBast as $spkRow) {
-            $latestSpkByAlokasiId[$spkRow->alokasi_petugas_id] = $spkRow;
-        }
-        $spksForBast = collect(array_values($latestSpkByAlokasiId));
-
-        $spkIds = $spksForBast->pluck('id')->all();
-
-        $basts = ! empty($spkIds)
-            ? Bast::query()->whereIn('spk_id', $spkIds)->get(['id', 'spk_id', 'file_path', 'signed_file_path', 'main_signed_file_path'])
-            : collect();
-
-        $bastBySpkId = $basts->keyBy('spk_id');
-
-        $alokasiById = $alokasiCollection->keyBy('id');
         /** @var array<string, Bast|null> $bastStatusByKey */
         $bastStatusByKey = [];
 
-        foreach ($spksForBast as $spk) {
-            $spkAlokasi = $allAlokasiForBastById->get($spk->alokasi_petugas_id);
-            $spkPeriode = $spkAlokasi?->periodeAlokasi;
+        foreach ($allBasts as $bast) {
+            $spkPeriode = $bast->spk?->alokasiPetugas?->periodeAlokasi;
             $spkKegiatan = $spkPeriode?->kegiatan;
 
             if (! $spkPeriode || ! $spkKegiatan) {
@@ -2218,15 +2192,9 @@ class SpkController extends Controller
             $spkPeriodKey = sprintf('%d-%02d', (int) $spkPeriode->tahun, (int) $spkPeriode->bulan);
             $spkStatusKey = $this->buildPublicPreviewDocumentStatusKey($spkPeriodKey, (string) $spkKegiatan->jenis_kegiatan);
 
-            $bast = $bastBySpkId->get($spk->id);
-
-            if (! $bast) {
-                continue;
-            }
-
             $existing = $bastStatusByKey[$spkStatusKey] ?? null;
 
-            // Prefer signed BAST over draft when merging across alokasi in the same group
+            // Prefer signed BAST over draft
             if (! $existing || (($bast->signed_file_path || $bast->main_signed_file_path) && ! $existing->signed_file_path && ! $existing->main_signed_file_path)) {
                 $bastStatusByKey[$spkStatusKey] = $bast;
             }
@@ -2474,56 +2442,21 @@ class SpkController extends Controller
      */
     private function servePublicPreviewBast(Petugas $petugas, PeriodeAlokasi $periode, ?int $kegiatanId, string $jenisKegiatan, array $validated): mixed
     {
-        $alokasi = AlokasiPetugas::query()
-            ->where('petugas_id', $petugas->id)
-            ->whereHas('periodeAlokasi', function ($q) use ($periode, $kegiatanId, $jenisKegiatan): void {
-                $q->where('tahun', $periode->tahun)
-                    ->where('bulan', $periode->bulan)
-                    ->whereIn('status', ['dikirim', 'perubahan'])
-                    ->whereHas('kegiatan', function ($kq) use ($kegiatanId, $jenisKegiatan): void {
-                        $kq->where('jenis_kegiatan', $jenisKegiatan);
-
-                        if ($kegiatanId !== null) {
-                            $kq->where('id', $kegiatanId);
-                        }
+        // BAST is 1 per petugas per period — look up directly via spk.petugas_id.
+        $bast = Bast::query()
+            ->whereHas('spk', function ($q) use ($petugas, $periode, $jenisKegiatan): void {
+                $q->where('petugas_id', $petugas->id)
+                    ->whereHas('alokasiPetugas.periodeAlokasi', function ($pq) use ($periode, $jenisKegiatan): void {
+                        $pq->where('tahun', $periode->tahun)
+                            ->where('bulan', $periode->bulan)
+                            ->whereHas('kegiatan', function ($kq) use ($jenisKegiatan): void {
+                                $kq->where('jenis_kegiatan', $jenisKegiatan);
+                            });
                     });
             })
-            ->get();
-
-        // Prefer alokasi whose SPK has a BAST (prefer signed/final BAST)
-        $spk = null;
-        $bast = null;
-
-        foreach ($alokasi as $a) {
-            $candidate = Spk::query()
-                ->where('alokasi_petugas_id', $a->id)
-                ->orderByDesc('addendum_number')
-                ->first();
-
-            if (! $candidate) {
-                continue;
-            }
-
-            $candidateBast = Bast::query()->where('spk_id', $candidate->id)->first();
-
-            if (! $candidateBast) {
-                continue;
-            }
-
-            // Prefer signed BAST over draft
-            if (
-                ! $bast
-                || (($candidateBast->signed_file_path || $candidateBast->main_signed_file_path)
-                    && ! $bast->signed_file_path && ! $bast->main_signed_file_path)
-            ) {
-                $spk = $candidate;
-                $bast = $candidateBast;
-            }
-        }
-
-        if (! $spk) {
-            return response()->json(['message' => 'Alokasi tidak ditemukan untuk penugasan ini.'], 422);
-        }
+            ->whereNull('deleted_at')
+            ->orderByRaw('(signed_file_path IS NOT NULL OR main_signed_file_path IS NOT NULL) DESC')
+            ->first();
 
         if (! $bast) {
             return response()->json(['message' => 'BAST belum tersedia untuk penugasan ini.'], 422);
