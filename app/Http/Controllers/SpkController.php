@@ -2180,10 +2180,19 @@ class SpkController extends Controller
         $allAlokasiIdsForBast = array_merge($alokasiIds, $alokasiForBastOnly->pluck('id')->all());
         $allAlokasiForBastById = $alokasiCollection->keyBy('id')->merge($alokasiForBastOnly->keyBy('id'));
 
-        $spksForBast = Spk::query()
+        // Fetch the latest SPK per alokasi (highest addendum_number) — BAST always
+        // references the latest SPK after the data migration.
+        $allSpksForBast = Spk::query()
             ->whereIn('alokasi_petugas_id', $allAlokasiIdsForBast)
-            ->where('addendum_number', 0)
-            ->get(['id', 'alokasi_petugas_id']);
+            ->orderBy('addendum_number')
+            ->get(['id', 'alokasi_petugas_id', 'addendum_number']);
+
+        // Keep only the highest-addendum SPK per alokasi
+        $latestSpkByAlokasiId = [];
+        foreach ($allSpksForBast as $spkRow) {
+            $latestSpkByAlokasiId[$spkRow->alokasi_petugas_id] = $spkRow;
+        }
+        $spksForBast = collect(array_values($latestSpkByAlokasiId));
 
         $spkIds = $spksForBast->pluck('id')->all();
 
@@ -2488,7 +2497,7 @@ class SpkController extends Controller
         foreach ($alokasi as $a) {
             $candidate = Spk::query()
                 ->where('alokasi_petugas_id', $a->id)
-                ->where('addendum_number', 0)
+                ->orderByDesc('addendum_number')
                 ->first();
 
             if (! $candidate) {
