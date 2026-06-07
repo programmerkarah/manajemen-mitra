@@ -2165,8 +2165,23 @@ class SpkController extends Controller
         // Batch-query BAST status grouped by periodKey|jenisKegiatan (same grouping as PK)
         $alokasiIds = $alokasiCollection->pluck('id')->all();
 
+        // Also include 'direvisi' alokasi for BAST lookup only.
+        // When a periode is revised, the original periode's status becomes 'direvisi' and a new
+        // one is created. The BAST may still be attached to the original periode's SPK, so we
+        // must include those alokasi when resolving BAST status.
+        $alokasiForBastOnly = AlokasiPetugas::query()
+            ->with(['periodeAlokasi.kegiatan'])
+            ->where('petugas_id', $petugas->id)
+            ->whereHas('periodeAlokasi', function ($query) use ($activeYear): void {
+                $query->where('tahun', $activeYear)->where('status', 'direvisi');
+            })
+            ->get();
+
+        $allAlokasiIdsForBast = array_merge($alokasiIds, $alokasiForBastOnly->pluck('id')->all());
+        $allAlokasiForBastById = $alokasiCollection->keyBy('id')->merge($alokasiForBastOnly->keyBy('id'));
+
         $spksForBast = Spk::query()
-            ->whereIn('alokasi_petugas_id', $alokasiIds)
+            ->whereIn('alokasi_petugas_id', $allAlokasiIdsForBast)
             ->where('addendum_number', 0)
             ->get(['id', 'alokasi_petugas_id']);
 
@@ -2183,7 +2198,7 @@ class SpkController extends Controller
         $bastStatusByKey = [];
 
         foreach ($spksForBast as $spk) {
-            $spkAlokasi = $alokasiById->get($spk->alokasi_petugas_id);
+            $spkAlokasi = $allAlokasiForBastById->get($spk->alokasi_petugas_id);
             $spkPeriode = $spkAlokasi?->periodeAlokasi;
             $spkKegiatan = $spkPeriode?->kegiatan;
 
