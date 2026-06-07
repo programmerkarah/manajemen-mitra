@@ -1504,6 +1504,161 @@ class SpkPublicPreviewTest extends TestCase
         }
     }
 
+    public function test_public_options_shows_bast_status_from_direvisi_periode(): void
+    {
+        // Regression: BAST attached to a 'direvisi' periode's SPK must still be visible
+        // in /mitra when the same period has a replacement 'perubahan' periode alokasi.
+        $tahun = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'divalidasi',
+            'nama_kegiatan' => 'Survei Direvisi BAST Test',
+        ]);
+
+        // Original periode that was revised — its status becomes 'direvisi'
+        $periodeOld = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '02',
+            'tahun' => $tahun,
+            'status' => 'direvisi',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        // Replacement periode — this is what publicPreviewOptions normally includes
+        $periodeNew = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '02',
+            'tahun' => $tahun,
+            'status' => 'perubahan',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Direvisi BAST',
+            'nik' => '3201222233334444',
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        // Alokasi under the old (direvisi) periode — excluded from public preview display
+        $alokasiOld = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeOld->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 4,
+            'total_honor' => 200000,
+            'jumlah_satuan_listing' => 0,
+            'total_honor_listing' => 0,
+        ]);
+
+        // Alokasi under the new (perubahan) periode — included in public preview display
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeNew->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 5,
+            'total_honor' => 250000,
+            'jumlah_satuan_listing' => 0,
+            'total_honor_listing' => 0,
+        ]);
+
+        // SPK and BAST exist only under the old (direvisi) alokasi
+        $spkOld = Spk::query()->create([
+            'nomor_spk' => 'PPIS/13730/701/K/'.$tahun,
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasiOld->id,
+            'addendum_number' => 0,
+            'nomor_urut_base' => 701,
+            'tanggal_spk' => now()->toDateString(),
+            'tanggal_mulai_kerja' => now()->startOfMonth()->toDateString(),
+            'tanggal_selesai_kerja' => now()->endOfMonth()->toDateString(),
+            'uraian_pekerjaan' => 'Perjanjian kerja direvisi BAST test',
+            'nilai_kontrak' => 200000,
+            'nama_ppk' => 'PPK Direvisi',
+            'nip_ppk' => '198001012010011002',
+            'signed_file_path' => null,
+            'status' => 'diterbitkan',
+            'created_by' => User::factory()->create()->id,
+        ]);
+
+        $bastDir = public_path('bast-export/tests');
+        if (! is_dir($bastDir)) {
+            mkdir($bastDir, 0755, true);
+        }
+
+        $bastRelativePath = 'bast-export/tests/bast_direvisi_test.pdf';
+        $bastAbsolutePath = public_path($bastRelativePath);
+        file_put_contents($bastAbsolutePath, Pdf::loadHTML('<h1>BAST Direvisi Test</h1>')->output());
+
+        try {
+            Bast::query()->create([
+                'spk_id' => $spkOld->id,
+                'periode_alokasi_id' => $periodeOld->id,
+                'kegiatan_id' => $kegiatan->id,
+                'tanggal_bast' => now()->toDateString(),
+                'tanggal_serah_terima' => now()->toDateString(),
+                'menggunakan_fasih' => false,
+                'uraian_pekerjaan' => 'Pekerjaan survei BAST direvisi',
+                'nama_ketua_tim' => 'Ketua Tim Test',
+                'nama_ppk' => 'PPK Test',
+                'nip_ppk' => '198001012010011002',
+                'nomor_bast' => 'BAST-DIREVISI-001',
+                'file_path' => $bastRelativePath,
+                'signed_file_path' => null,
+                'status' => 'draft',
+                'created_by' => User::factory()->create()->id,
+            ]);
+
+            $response = $this->post(
+                '/mitra/options',
+                [
+                    'nama' => 'Petugas Direvisi BAST',
+                    'nik' => '3201222233334444',
+                    'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
+                    'recaptcha_token' => 'test-recaptcha-token',
+                ],
+                [
+                    'Accept' => 'application/json',
+                    'X-Requested-With' => 'XMLHttpRequest',
+                ]
+            );
+
+            $response->assertOk();
+            $response->assertJsonCount(1, 'penugasan_list');
+
+            // BAST from the 'direvisi' alokasi must be visible even though that alokasi is excluded
+            $response->assertJsonPath('penugasan_list.0.bast_status', 'Draft BAST');
+
+            // Also verify the BAST can actually be downloaded (not just displayed in status)
+            $downloadResponse = $this->post(
+                '/mitra',
+                [
+                    'nama' => 'Petugas Direvisi BAST',
+                    'nik' => '3201222233334444',
+                    'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
+                    'jenis_kegiatan' => 'survei',
+                    'survei_periode' => sprintf('%d-02', $tahun),
+                    'dokumen_tipe' => 'bast',
+                    'recaptcha_token' => 'test-recaptcha-token',
+                    'aksi' => 'download',
+                ],
+                [
+                    'Accept' => 'application/pdf',
+                    'X-Requested-With' => 'XMLHttpRequest',
+                ]
+            );
+
+            $downloadResponse->assertOk();
+            $downloadResponse->assertHeader('Content-Type', 'application/pdf');
+        } finally {
+            @unlink($bastAbsolutePath);
+        }
+    }
+
     private function lastFourDigits(string $phone): string
     {
         $digits = preg_replace('/\D+/', '', $phone) ?? '';

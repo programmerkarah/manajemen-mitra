@@ -2479,22 +2479,42 @@ class SpkController extends Controller
                         }
                     });
             })
-            ->first();
+            ->get();
 
-        if (! $alokasi) {
-            return response()->json(['message' => 'Alokasi tidak ditemukan untuk penugasan ini.'], 422);
+        // Prefer alokasi whose SPK has a BAST (prefer signed/final BAST)
+        $spk = null;
+        $bast = null;
+
+        foreach ($alokasi as $a) {
+            $candidate = Spk::query()
+                ->where('alokasi_petugas_id', $a->id)
+                ->where('addendum_number', 0)
+                ->first();
+
+            if (! $candidate) {
+                continue;
+            }
+
+            $candidateBast = Bast::query()->where('spk_id', $candidate->id)->first();
+
+            if (! $candidateBast) {
+                continue;
+            }
+
+            // Prefer signed BAST over draft
+            if (
+                ! $bast
+                || (($candidateBast->signed_file_path || $candidateBast->main_signed_file_path)
+                    && ! $bast->signed_file_path && ! $bast->main_signed_file_path)
+            ) {
+                $spk = $candidate;
+                $bast = $candidateBast;
+            }
         }
-
-        $spk = Spk::query()
-            ->where('alokasi_petugas_id', $alokasi->id)
-            ->where('addendum_number', 0)
-            ->first();
 
         if (! $spk) {
-            return response()->json(['message' => 'SPK tidak ditemukan untuk penugasan ini.'], 422);
+            return response()->json(['message' => 'Alokasi tidak ditemukan untuk penugasan ini.'], 422);
         }
-
-        $bast = Bast::query()->where('spk_id', $spk->id)->first();
 
         if (! $bast) {
             return response()->json(['message' => 'BAST belum tersedia untuk penugasan ini.'], 422);
