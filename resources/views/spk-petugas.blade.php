@@ -796,13 +796,13 @@
                         <div class="sub-item sub-item-first">
                             <div class="sub-item-letter">a.</div>
                             <div class="sub-item-content">
-                                mengundurkan diri setelah pelatihan pada kegiatan yang diberikan pelatihan diberikan sanksi sebesar biaya pelatihan tersebut yang dikeluarkan oleh BPS Kota Sawahlunto;
+                                mengundurkan diri setelah pelatihan pada kegiatan yang diberikan pelatihan diberikan sanksi sebesar biaya pelatihan kegiatan tersebut yang dikeluarkan oleh BPS Kota Sawahlunto;
                             </div>
                         </div>
                         <div class="sub-item">
                             <div class="sub-item-letter">b.</div>
                             <div class="sub-item-content">
-                                mengundurkan diri pada saat pelaksanaan pekerjaan lapangan, maka <strong>WAJIB</strong> membayar ganti rugi sebesar Rp{{ number_format($totalHonor, 0, ',', '.') }} ({{ terbilang($totalHonor) }} rupiah).
+                                mengundurkan diri pada saat pelaksanaan pekerjaan lapangan, diberikan sanksi tidak diberikan honorarium atas pekerjaan yang telah dilaksanakan.
                             </div>
                         </div>
                     </div>
