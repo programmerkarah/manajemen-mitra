@@ -30,8 +30,6 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithEvents, WithHeadings, WithStyles, WithTitle
 {
-    private const TEMPLATE_LAST_ROW = 1000;
-
     public function __construct(
         protected ?int $periodeAlokasiId,
         protected string $type = 'create',
@@ -68,6 +66,24 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         }
 
         return $this->kegiatan->jenis_kegiatan === 'survei';
+    }
+
+    private function templateLastRow(): int
+    {
+        $rowCount = Petugas::query()
+            ->where('status', 'aktif')
+            ->count();
+
+        if ($this->type === 'edit' && $this->periodeAlokasiId) {
+            $rowCount = max(
+                $rowCount,
+                AlokasiPetugas::query()
+                    ->where('periode_alokasi_id', $this->periodeAlokasiId)
+                    ->count(),
+            );
+        }
+
+        return max(6, $rowCount + 1);
     }
 
     /**
@@ -705,9 +721,11 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         $requiredCount = 2 + ($hasFrameSampelColumn ? $frameMetadataColumns->count() : 0) + ($hasListing ? 1 : 0) + $requiredPencacahanColumns + ($hasParsial ? 1 : 0);
         $requiredLastCol = chr(ord('A') + $requiredCount - 1);
 
+        $templateLastRow = $this->templateLastRow();
+
         for ($col = 'A'; $col <= $requiredLastCol; $col++) {
-            $sheet->getStyle("{$col}2:{$col}100")->getFill()->setFillType(Fill::FILL_SOLID);
-            $sheet->getStyle("{$col}2:{$col}100")->getFill()->getStartColor()->setARGB('FFFFCCCC');
+            $sheet->getStyle("{$col}2:{$col}{$templateLastRow}")->getFill()->setFillType(Fill::FILL_SOLID);
+            $sheet->getStyle("{$col}2:{$col}{$templateLastRow}")->getFill()->getStartColor()->setARGB('FFFFCCCC');
         }
 
         return [];
@@ -850,7 +868,9 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                     $kodeValidation->setPrompt('Gunakan dropdown untuk memilih jenis penugasan.');
                     $kodeValidation->setFormula1("'Daftar Petugas Aktif'!\$D\$2:\$D\$5");
 
-                    for ($rowNumber = 3; $rowNumber <= 100; $rowNumber++) {
+                    $templateLastRow = $this->templateLastRow();
+
+                    for ($rowNumber = 3; $rowNumber <= $templateLastRow; $rowNumber++) {
                         $mainSheet->getCell('A'.$rowNumber)->setDataValidation(clone $validation);
                         $mainSheet->getCell('B'.$rowNumber)->setDataValidation(clone $kodeValidation);
                     }
@@ -1036,7 +1056,9 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                         $metaValidation->setPrompt('Pilihan metadata mengikuti tingkatan kolom sebelumnya.');
                         $metaValidation->setFormula1((string) $formula);
 
-                        for ($rowNumber = 3; $rowNumber <= self::TEMPLATE_LAST_ROW; $rowNumber++) {
+                        $templateLastRow = $this->templateLastRow();
+
+                        for ($rowNumber = 3; $rowNumber <= $templateLastRow; $rowNumber++) {
                             $validation = clone $metaValidation;
                             $validation->setFormula1($buildFormulaForRow($rowNumber));
                             $mainSheet->getCell($mainColumnLetter.$rowNumber)
@@ -1047,7 +1069,9 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                     $dropdownSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
 
                     $mainTargetStartColumn = 3 + $frameMetadataColumns->count() + ($hasListing ? 1 : 0);
-                    foreach (range(2, self::TEMPLATE_LAST_ROW) as $rowNumber) {
+                    $templateLastRow = $this->templateLastRow();
+
+                    foreach (range(2, $templateLastRow) as $rowNumber) {
                         foreach ($frameTargetColumns as $targetIndex => $_targetColumn) {
                             $formula = $this->buildFrameTargetFormula(
                                 $rowNumber,
