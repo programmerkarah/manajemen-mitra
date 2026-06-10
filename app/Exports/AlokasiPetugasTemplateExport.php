@@ -30,6 +30,8 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArray, WithCustomValueBinder, WithEvents, WithHeadings, WithStyles, WithTitle
 {
+    private const TEMPLATE_LAST_ROW = 1000;
+
     public function __construct(
         protected ?int $periodeAlokasiId,
         protected string $type = 'create',
@@ -1034,7 +1036,7 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                         $metaValidation->setPrompt('Pilihan metadata mengikuti tingkatan kolom sebelumnya.');
                         $metaValidation->setFormula1((string) $formula);
 
-                        for ($rowNumber = 3; $rowNumber <= 100; $rowNumber++) {
+                        for ($rowNumber = 3; $rowNumber <= self::TEMPLATE_LAST_ROW; $rowNumber++) {
                             $validation = clone $metaValidation;
                             $validation->setFormula1($buildFormulaForRow($rowNumber));
                             $mainSheet->getCell($mainColumnLetter.$rowNumber)
@@ -1045,7 +1047,7 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                     $dropdownSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
 
                     $mainTargetStartColumn = 3 + $frameMetadataColumns->count() + ($hasListing ? 1 : 0);
-                    foreach (range(2, 100) as $rowNumber) {
+                    foreach (range(2, self::TEMPLATE_LAST_ROW) as $rowNumber) {
                         foreach ($frameTargetColumns as $targetIndex => $_targetColumn) {
                             $formula = $this->buildFrameTargetFormula(
                                 $rowNumber,

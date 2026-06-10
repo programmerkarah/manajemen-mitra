@@ -370,6 +370,10 @@ class AlokasiTemplateExportRouteTest extends TestCase
         $this->assertSame('list', $metadataValidation->getType());
         $this->assertSame('INDIRECT("DD_C_KDKEC_ROOT")', $metadataValidation->getFormula1());
 
+        $metadataValidationRow101 = $mainSheet->getCell('C101')->getDataValidation();
+        $this->assertSame('list', $metadataValidationRow101->getType());
+        $this->assertSame('INDIRECT("DD_C_KDKEC_ROOT")', $metadataValidationRow101->getFormula1());
+
         $this->assertSame('@', (string) $mainSheet->getStyle('C:C')->getNumberFormat()->getFormatCode());
     }
 
