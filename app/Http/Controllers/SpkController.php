@@ -5827,10 +5827,6 @@ class SpkController extends Controller
         );
         $totalVolumeLabel = $this->formatSensusEkonomiTotalSlsVolumeLabel($selectedRows);
 
-        $terminSatuVolume = '1 SLS/sub-SLS';
-        $terminDuaVolume = '1 SLS/sub-SLS';
-        $totalVolumeLabel = '1 SLS/sub-SLS';
-
         return [
             'groups' => [
                 [
@@ -5903,10 +5899,6 @@ class SpkController extends Controller
             $unitSampelNames
         );
         $totalVolumeLabel = $this->formatSensusEkonomiTotalSlsVolumeLabel($selectedRows);
-
-        $terminSatuVolume = '1 SLS/sub-SLS';
-        $terminDuaVolume = '1 SLS/sub-SLS';
-        $totalVolumeLabel = '1 SLS/sub-SLS';
 
         $wilayahKerja = $alokasi instanceof AlokasiPetugas
             ? $this->buildWilayahKerjaList($alokasi)
@@ -6065,11 +6057,11 @@ class SpkController extends Controller
     {
         $selectedRows = max(0, $selectedRows);
 
-        $terminSatuSelectedRows = (int) round($selectedRows * 0.4, 0, PHP_ROUND_HALF_UP);
+        $terminSatuSelectedRows = (int) ceil($selectedRows * 0.4);
 
         $terminSatuPerUnit = [];
         foreach ($perUnitSampelTotals as $unitId => $total) {
-            $terminSatuPerUnit[$unitId] = (int) round(max(0, $total) * 0.4, 0, PHP_ROUND_HALF_UP);
+            $terminSatuPerUnit[$unitId] = (int) ceil(max(0, $total) * 0.4);
         }
 
         if ($percentage === 40) {

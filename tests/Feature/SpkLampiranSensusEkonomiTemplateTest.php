@@ -2,7 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\SpkController;
+use App\Models\AlokasiPetugas;
+use App\Models\AlokasiPetugasFrameSampel;
+use App\Models\Kegiatan;
+use App\Models\KegiatanFrameSampel;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Tests\TestCase;
 
 class SpkLampiranSensusEkonomiTemplateTest extends TestCase
@@ -132,5 +138,97 @@ class SpkLampiranSensusEkonomiTemplateTest extends TestCase
         $this->assertStringContainsString('II. DAFTAR WILAYAH KERJA', $html);
         $this->assertStringContainsString('Jumlah SLS/Sub-SLS', $html);
         $this->assertStringNotContainsString('Muatan Prelist usaha/keluarga', $html);
+    }
+
+    public function test_sensus_ekonomi_lampiran_payload_keeps_rule_based_volume_labels(): void
+    {
+        $controller = new SpkController();
+
+        $periode = (object) [
+            'tanggal_mulai' => Carbon::parse('2026-06-15'),
+            'tanggal_selesai' => Carbon::parse('2026-08-31'),
+        ];
+
+        $kegiatan = new Kegiatan();
+        $kegiatan->nama_kegiatan = 'Sensus Ekonomi';
+
+        $sensusReflectionMethod = new \ReflectionMethod(SpkController::class, 'buildSensusEkonomiLampiranPayload');
+        $sensusReflectionMethod->setAccessible(true);
+
+        $pmlReflectionMethod = new \ReflectionMethod(SpkController::class, 'buildPmlSensusEkonomiLampiranPayload');
+        $pmlReflectionMethod->setAccessible(true);
+
+        $examples = [
+            [
+                'target_rows' => 3,
+                'termin_one_volume' => '2 SLS/sub-SLS',
+                'termin_two_volume' => '1 SLS/sub-SLS',
+                'total_volume' => 'Seluruh Muatan 3 SLS/sub-SLS',
+            ],
+            [
+                'target_rows' => 4,
+                'termin_one_volume' => '2 SLS/sub-SLS',
+                'termin_two_volume' => '2 SLS/sub-SLS',
+                'total_volume' => 'Seluruh Muatan 4 SLS/sub-SLS',
+            ],
+            [
+                'target_rows' => 20,
+                'termin_one_volume' => '8 SLS/sub-SLS',
+                'termin_two_volume' => '12 SLS/sub-SLS',
+                'total_volume' => 'Seluruh Muatan 20 SLS/sub-SLS',
+            ],
+        ];
+
+        foreach ($examples as $example) {
+            $alokasiItems = collect();
+
+            for ($index = 1; $index <= $example['target_rows']; $index++) {
+                $frameSampel = new KegiatanFrameSampel([
+                    'target_unit_sampel' => [0 => 0],
+                ]);
+
+                $frameAllocation = new AlokasiPetugasFrameSampel([
+                    'kegiatan_frame_sampel_id' => $index,
+                ]);
+                $frameAllocation->setRelation('kegiatanFrameSampel', $frameSampel);
+
+                $alokasi = new AlokasiPetugas();
+                $alokasi->setRelation('frameSampelAllocations', new Collection([$frameAllocation]));
+
+                $alokasiItems->push($alokasi);
+            }
+
+            $firstAlokasi = $alokasiItems->first();
+
+            $payload = $sensusReflectionMethod->invoke(
+                $controller,
+                $periode,
+                [],
+                2500000.0,
+                $kegiatan,
+                $alokasiItems,
+                $firstAlokasi,
+            );
+
+            $pmlResult = $pmlReflectionMethod->invoke(
+                $controller,
+                $periode,
+                [],
+                2500000.0,
+                $kegiatan,
+                $alokasiItems,
+                $firstAlokasi,
+            );
+
+            $this->assertSame($example['termin_one_volume'], $payload['groups'][0]['volume']);
+            $this->assertSame($example['termin_two_volume'], $payload['groups'][1]['volume']);
+            $this->assertSame($example['total_volume'], $payload['total']['volume']);
+            $this->assertSame($example['termin_one_volume'], $pmlResult['groups'][0]['volume']);
+            $this->assertSame($example['termin_two_volume'], $pmlResult['groups'][1]['volume']);
+            $this->assertSame($example['total_volume'], $pmlResult['total']['volume']);
+            $this->assertSame('40%', $payload['groups'][0]['persentase']);
+            $this->assertSame('60%', $payload['groups'][1]['persentase']);
+            $this->assertSame('100%', $payload['total']['persentase']);
+        }
     }
 }
