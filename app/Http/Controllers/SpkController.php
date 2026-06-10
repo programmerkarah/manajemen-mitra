@@ -5800,11 +5800,7 @@ class SpkController extends Controller
 
         $metrics = $this->resolveSensusEkonomiFrameVolumeMetrics($allAlokasi, $alokasi);
         $selectedRows = $metrics['selected_rows'];
-        $perUnitSampelTotals = $metrics['per_unit_sampel_totals'];
-        $unitSampelNames = $metrics['unit_sampel_names'];
-        $baseVolumeLabel = ($selectedRows > 0 || array_sum($perUnitSampelTotals) > 0)
-            ? $this->formatSensusEkonomiVolumeNarrative($selectedRows, $perUnitSampelTotals, $unitSampelNames)
-            : $fallbackVolumeLabel;
+        $frameMuatanTotals = $metrics['frame_muatan_totals'];
 
         $periodeMulai = $periode?->tanggal_mulai;
         $periodeSelesai = $periode?->tanggal_selesai;
@@ -5812,19 +5808,11 @@ class SpkController extends Controller
         $terminSatuAmount = $this->calculateLampiranMilestoneAmount($totalHonor, 0.40);
         $terminDuaAmount = round($totalHonor - $terminSatuAmount, 2);
 
-        $terminSatuMetrics = $this->calculateSensusEkonomiMilestoneMetrics($selectedRows, $perUnitSampelTotals, 40);
-        $terminDuaMetrics = $this->calculateSensusEkonomiMilestoneMetrics($selectedRows, $perUnitSampelTotals, 60);
+        $terminSatuMetrics = $this->calculateSensusEkonomiMilestoneMetrics($selectedRows, $frameMuatanTotals, 40);
+        $terminDuaMetrics = $this->calculateSensusEkonomiMilestoneMetrics($selectedRows, $frameMuatanTotals, 60);
 
-        $terminSatuVolume = $this->formatSensusEkonomiVolumeNarrative(
-            $terminSatuMetrics['selected_rows'],
-            $terminSatuMetrics['per_unit_sampel_totals'],
-            $unitSampelNames
-        );
-        $terminDuaVolume = $this->formatSensusEkonomiVolumeNarrative(
-            $terminDuaMetrics['selected_rows'],
-            $terminDuaMetrics['per_unit_sampel_totals'],
-            $unitSampelNames
-        );
+        $terminSatuVolume = $this->formatSensusEkonomiVolumeNarrative($terminSatuMetrics['selected_rows']);
+        $terminDuaVolume = $this->formatSensusEkonomiVolumeNarrative($terminDuaMetrics['selected_rows']);
         $totalVolumeLabel = $this->formatSensusEkonomiTotalSlsVolumeLabel($selectedRows);
 
         return [
@@ -5876,8 +5864,7 @@ class SpkController extends Controller
     ): array {
         $metrics = $this->resolveSensusEkonomiFrameVolumeMetrics($allAlokasi, $alokasi);
         $selectedRows = $metrics['selected_rows'];
-        $perUnitSampelTotals = $metrics['per_unit_sampel_totals'];
-        $unitSampelNames = $metrics['unit_sampel_names'];
+        $frameMuatanTotals = $metrics['frame_muatan_totals'];
 
         $periodeMulai = $periode?->tanggal_mulai;
         $periodeSelesai = $periode?->tanggal_selesai;
@@ -5885,19 +5872,11 @@ class SpkController extends Controller
         $terminSatuAmount = $this->calculateLampiranMilestoneAmount($totalHonor, 0.40);
         $terminDuaAmount = round($totalHonor - $terminSatuAmount, 2);
 
-        $terminSatuMetrics = $this->calculateSensusEkonomiMilestoneMetrics($selectedRows, $perUnitSampelTotals, 40);
-        $terminDuaMetrics = $this->calculateSensusEkonomiMilestoneMetrics($selectedRows, $perUnitSampelTotals, 60);
+        $terminSatuMetrics = $this->calculateSensusEkonomiMilestoneMetrics($selectedRows, $frameMuatanTotals, 40);
+        $terminDuaMetrics = $this->calculateSensusEkonomiMilestoneMetrics($selectedRows, $frameMuatanTotals, 60);
 
-        $terminSatuVolume = $this->formatSensusEkonomiVolumeNarrative(
-            $terminSatuMetrics['selected_rows'],
-            $terminSatuMetrics['per_unit_sampel_totals'],
-            $unitSampelNames
-        );
-        $terminDuaVolume = $this->formatSensusEkonomiVolumeNarrative(
-            $terminDuaMetrics['selected_rows'],
-            $terminDuaMetrics['per_unit_sampel_totals'],
-            $unitSampelNames
-        );
+        $terminSatuVolume = $this->formatSensusEkonomiVolumeNarrative($terminSatuMetrics['selected_rows']);
+        $terminDuaVolume = $this->formatSensusEkonomiVolumeNarrative($terminDuaMetrics['selected_rows']);
         $totalVolumeLabel = $this->formatSensusEkonomiTotalSlsVolumeLabel($selectedRows);
 
         $wilayahKerja = $alokasi instanceof AlokasiPetugas
@@ -6050,36 +6029,67 @@ class SpkController extends Controller
      * @return array{selected_rows:int,prelist_total:int}
      */
     /**
-     * @param  array<int, int>  $perUnitSampelTotals
-     * @return array{selected_rows: int, per_unit_sampel_totals: array<int, int>}
+     * @param  array<int, int>  $frameMuatanTotals
+     * @return array{selected_rows: int}
      */
-    private function calculateSensusEkonomiMilestoneMetrics(int $selectedRows, array $perUnitSampelTotals, int $percentage): array
+    private function calculateSensusEkonomiMilestoneMetrics(int $selectedRows, array $frameMuatanTotals, int $percentage): array
     {
         $selectedRows = max(0, $selectedRows);
 
-        $terminSatuSelectedRows = (int) ceil($selectedRows * 0.4);
-
-        $terminSatuPerUnit = [];
-        foreach ($perUnitSampelTotals as $unitId => $total) {
-            $terminSatuPerUnit[$unitId] = (int) ceil(max(0, $total) * 0.4);
-        }
+        $terminSatuSelectedRows = $this->calculateSensusEkonomiTermSelectedRows($selectedRows, $frameMuatanTotals);
 
         if ($percentage === 40) {
             return [
                 'selected_rows' => $terminSatuSelectedRows,
-                'per_unit_sampel_totals' => $terminSatuPerUnit,
             ];
-        }
-
-        $terminDuaPerUnit = [];
-        foreach ($perUnitSampelTotals as $unitId => $total) {
-            $terminDuaPerUnit[$unitId] = max(0, max(0, $total) - ($terminSatuPerUnit[$unitId] ?? 0));
         }
 
         return [
             'selected_rows' => max(0, $selectedRows - $terminSatuSelectedRows),
-            'per_unit_sampel_totals' => $terminDuaPerUnit,
         ];
+    }
+
+    /**
+     * @param  array<int, int>  $frameMuatanTotals
+     */
+    private function calculateSensusEkonomiTermSelectedRows(int $selectedRows, array $frameMuatanTotals): int
+    {
+        $selectedRows = max(0, $selectedRows);
+        $frameMuatanTotals = array_values(array_filter(
+            array_map(static fn ($value): int => max(0, (int) $value), $frameMuatanTotals),
+            static fn (int $value): bool => $value > 0,
+        ));
+
+        if ($selectedRows === 0) {
+            return 0;
+        }
+
+        if (empty($frameMuatanTotals)) {
+            return (int) ceil($selectedRows * 0.4);
+        }
+
+        $totalMuatan = array_sum($frameMuatanTotals);
+
+        if ($totalMuatan <= 0) {
+            return (int) ceil($selectedRows * 0.4);
+        }
+
+        $threshold = (int) ceil($totalMuatan * 0.4);
+        rsort($frameMuatanTotals, SORT_NUMERIC);
+
+        $accumulatedMuatan = 0;
+        $count = 0;
+
+        foreach ($frameMuatanTotals as $frameMuatan) {
+            $accumulatedMuatan += $frameMuatan;
+            $count++;
+
+            if ($accumulatedMuatan >= $threshold) {
+                break;
+            }
+        }
+
+        return max(1, min($selectedRows, $count));
     }
 
     /**
@@ -6102,6 +6112,7 @@ class SpkController extends Controller
                 'selected_rows' => 0,
                 'prelist_total' => 0,
                 'total_volume' => 0,
+                'frame_muatan_totals' => [],
                 'narrative' => '-',
             ];
         }
@@ -6121,16 +6132,25 @@ class SpkController extends Controller
         $selectedRows = $frameAllocations->count();
 
         $perUnitSampelTotals = [];
+        $frameMuatanTotals = [];
         foreach ($frameAllocations as $frameAllocation) {
             $targetUnitSampel = $frameAllocation?->kegiatanFrameSampel?->target_unit_sampel;
+            $frameMuatanTotal = 0;
+
             if (is_array($targetUnitSampel)) {
                 foreach ($targetUnitSampel as $unitSampelId => $count) {
                     $uid = (int) $unitSampelId;
-                    $perUnitSampelTotals[$uid] = ($perUnitSampelTotals[$uid] ?? 0) + max(0, (int) $count);
+                    $countValue = max(0, (int) $count);
+                    $perUnitSampelTotals[$uid] = ($perUnitSampelTotals[$uid] ?? 0) + $countValue;
+                    $frameMuatanTotal += $countValue;
                 }
             } elseif (is_numeric($targetUnitSampel) && (int) $targetUnitSampel > 0) {
-                $perUnitSampelTotals[0] = ($perUnitSampelTotals[0] ?? 0) + (int) $targetUnitSampel;
+                $targetValue = (int) $targetUnitSampel;
+                $perUnitSampelTotals[0] = ($perUnitSampelTotals[0] ?? 0) + $targetValue;
+                $frameMuatanTotal += $targetValue;
             }
+
+            $frameMuatanTotals[] = $frameMuatanTotal;
         }
 
         $unitSampelIds = array_values(array_filter(array_keys($perUnitSampelTotals), fn ($id) => $id > 0));
@@ -6146,40 +6166,21 @@ class SpkController extends Controller
             'prelist_total' => $prelistTotal,
             'per_unit_sampel_totals' => $perUnitSampelTotals,
             'unit_sampel_names' => $unitSampelNames,
+            'frame_muatan_totals' => $frameMuatanTotals,
             'total_volume' => $totalVolume,
-            'narrative' => $this->formatSensusEkonomiVolumeNarrative($selectedRows, $perUnitSampelTotals, $unitSampelNames),
+            'narrative' => $this->formatSensusEkonomiVolumeNarrative($selectedRows),
         ];
     }
 
     /**
-     * @param  array<int, int>  $perUnitSampelTotals
-     * @param  array<int, string>  $unitSampelNames
      */
-    private function formatSensusEkonomiVolumeNarrative(int $selectedRows, array $perUnitSampelTotals, array $unitSampelNames): string
+    private function formatSensusEkonomiVolumeNarrative(int $selectedRows): string
     {
-        $parts = [];
-        $unitParts = [];
-
         if ($selectedRows > 0) {
-            $parts[] = number_format($selectedRows, 0, ',', '.').' SLS/sub-SLS';
+            return number_format($selectedRows, 0, ',', '.').' SLS/sub-SLS';
         }
 
-        foreach ($perUnitSampelTotals as $unitId => $total) {
-            if ($total > 0) {
-                $name = $unitSampelNames[(int) $unitId] ?? 'usaha/keluarga';
-                $unitParts[] = number_format($total, 0, ',', '.').' '.mb_strtolower(trim((string) $name));
-            }
-        }
-
-        if (! empty($unitParts)) {
-            $parts[] = implode('/', $unitParts);
-        }
-
-        if (empty($parts)) {
-            return '-';
-        }
-
-        return implode(' dan/atau ', $parts);
+        return '-';
     }
 
     private function formatSensusEkonomiTotalSlsVolumeLabel(int $selectedRows): string
