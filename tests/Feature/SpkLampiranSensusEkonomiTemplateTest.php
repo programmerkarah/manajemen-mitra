@@ -142,14 +142,14 @@ class SpkLampiranSensusEkonomiTemplateTest extends TestCase
 
     public function test_sensus_ekonomi_lampiran_payload_keeps_rule_based_volume_labels(): void
     {
-        $controller = new SpkController();
+        $controller = new SpkController;
 
         $periode = (object) [
             'tanggal_mulai' => Carbon::parse('2026-06-15'),
             'tanggal_selesai' => Carbon::parse('2026-08-31'),
         ];
 
-        $kegiatan = new Kegiatan();
+        $kegiatan = new Kegiatan;
         $kegiatan->nama_kegiatan = 'Sensus Ekonomi';
 
         $sensusReflectionMethod = new \ReflectionMethod(SpkController::class, 'buildSensusEkonomiLampiranPayload');
@@ -161,18 +161,21 @@ class SpkLampiranSensusEkonomiTemplateTest extends TestCase
         $examples = [
             [
                 'target_rows' => 3,
-                'termin_one_volume' => '2 SLS/sub-SLS',
-                'termin_two_volume' => '1 SLS/sub-SLS',
+                'frame_muatan_totals' => [40, 60, 100],
+                'termin_one_volume' => '1 SLS/sub-SLS',
+                'termin_two_volume' => '2 SLS/sub-SLS',
                 'total_volume' => 'Seluruh Muatan 3 SLS/sub-SLS',
             ],
             [
                 'target_rows' => 4,
+                'frame_muatan_totals' => [50, 50, 50, 50],
                 'termin_one_volume' => '2 SLS/sub-SLS',
                 'termin_two_volume' => '2 SLS/sub-SLS',
                 'total_volume' => 'Seluruh Muatan 4 SLS/sub-SLS',
             ],
             [
                 'target_rows' => 20,
+                'frame_muatan_totals' => array_fill(0, 20, 1),
                 'termin_one_volume' => '8 SLS/sub-SLS',
                 'termin_two_volume' => '12 SLS/sub-SLS',
                 'total_volume' => 'Seluruh Muatan 20 SLS/sub-SLS',
@@ -182,17 +185,17 @@ class SpkLampiranSensusEkonomiTemplateTest extends TestCase
         foreach ($examples as $example) {
             $alokasiItems = collect();
 
-            for ($index = 1; $index <= $example['target_rows']; $index++) {
+            foreach ($example['frame_muatan_totals'] as $index => $frameMuatanTotal) {
                 $frameSampel = new KegiatanFrameSampel([
-                    'target_unit_sampel' => [0 => 0],
+                    'target_unit_sampel' => [1 => $frameMuatanTotal],
                 ]);
 
                 $frameAllocation = new AlokasiPetugasFrameSampel([
-                    'kegiatan_frame_sampel_id' => $index,
+                    'kegiatan_frame_sampel_id' => $index + 1,
                 ]);
                 $frameAllocation->setRelation('kegiatanFrameSampel', $frameSampel);
 
-                $alokasi = new AlokasiPetugas();
+                $alokasi = new AlokasiPetugas;
                 $alokasi->setRelation('frameSampelAllocations', new Collection([$frameAllocation]));
 
                 $alokasiItems->push($alokasi);
