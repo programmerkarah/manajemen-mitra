@@ -261,7 +261,7 @@
 
     <script type="text/php">
         if (isset($pdf) && isset($fontMetrics)) {
-            $pageNumberOffset = 0;
+            $pageNumberOffset = {{ (int) ($pageNumberOffset ?? 0) }};
 
             $pdf->page_script(function ($pageNumber, $pageCount, $canvas, $fontMetrics) use ($pageNumberOffset) {
                 $displayPage = $pageNumber + $pageNumberOffset;
