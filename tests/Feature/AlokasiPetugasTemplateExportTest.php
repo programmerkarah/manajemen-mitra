@@ -16,16 +16,20 @@ class AlokasiPetugasTemplateExportTest extends TestCase
 
     public function test_template_export_contains_active_petugas_sheet_with_nip_nik_and_name_columns(): void
     {
-        for ($index = 1; $index <= 101; $index++) {
-            Petugas::factory()->create([
-                'nama' => sprintf('Petugas Aktif %03d', $index),
-                'nik' => sprintf('1234567890%06d', $index),
-                'status' => 'aktif',
-            ]);
-        }
+        Petugas::factory()->create([
+            'nama' => 'Budi Aktif',
+            'nik' => '1234567890123456',
+            'status' => 'aktif',
+        ]);
 
         Petugas::factory()->create([
-            'nama' => 'Petugas Nonaktif',
+            'nama' => 'Andi Aktif',
+            'nik' => '1111222233334444',
+            'status' => 'aktif',
+        ]);
+
+        Petugas::factory()->create([
+            'nama' => 'Cici Nonaktif',
             'nik' => '9999888877776666',
             'status' => 'nonaktif',
         ]);
@@ -55,13 +59,16 @@ class AlokasiPetugasTemplateExportTest extends TestCase
         $this->assertSame('pilihan_dropdown', $activeSheet->getCell('C1')->getValue());
         $this->assertSame('kode_penugasan_dropdown', $activeSheet->getCell('D1')->getValue());
 
-        $this->assertSame('1234567890000001', (string) $activeSheet->getCell('A2')->getValue());
-        $this->assertSame('Petugas Aktif 001', (string) $activeSheet->getCell('B2')->getValue());
-        $this->assertSame('Petugas Aktif 001 - 1234567890000001', (string) $activeSheet->getCell('C2')->getValue());
+        $this->assertSame('1111222233334444', (string) $activeSheet->getCell('A2')->getValue());
+        $this->assertSame('Andi Aktif', (string) $activeSheet->getCell('B2')->getValue());
+        $this->assertSame('Andi Aktif - 1111222233334444', (string) $activeSheet->getCell('C2')->getValue());
 
-        $this->assertSame('1234567890000101', (string) $activeSheet->getCell('A102')->getValue());
-        $this->assertSame('Petugas Aktif 101', (string) $activeSheet->getCell('B102')->getValue());
-        $this->assertSame('Petugas Aktif 101 - 1234567890000101', (string) $activeSheet->getCell('C102')->getValue());
+        $this->assertSame('1234567890123456', (string) $activeSheet->getCell('A3')->getValue());
+        $this->assertSame('Budi Aktif', (string) $activeSheet->getCell('B3')->getValue());
+        $this->assertSame('Budi Aktif - 1234567890123456', (string) $activeSheet->getCell('C3')->getValue());
+
+        $this->assertSame('', (string) $activeSheet->getCell('A4')->getValue());
+        $this->assertSame('', (string) $activeSheet->getCell('B4')->getValue());
 
         $this->assertSame('PCL/PPL', (string) $activeSheet->getCell('D2')->getValue());
         $this->assertSame('PML', (string) $activeSheet->getCell('D3')->getValue());
@@ -76,22 +83,12 @@ class AlokasiPetugasTemplateExportTest extends TestCase
         $nikValidation = $mainSheet->getCell('A2')->getDataValidation();
 
         $this->assertSame('list', $nikValidation->getType());
-        $this->assertSame("'Daftar Petugas Aktif'!\$C\$2:\$C\$102", $nikValidation->getFormula1());
-
-        $nikValidationRow102 = $mainSheet->getCell('A102')->getDataValidation();
-        $this->assertSame('list', $nikValidationRow102->getType());
-        $this->assertSame("'Daftar Petugas Aktif'!\$C\$2:\$C\$102", $nikValidationRow102->getFormula1());
+        $this->assertSame("'Daftar Petugas Aktif'!\$C\$2:\$C\$3", $nikValidation->getFormula1());
 
         $kodeValidation = $mainSheet->getCell('B2')->getDataValidation();
 
         $this->assertSame('list', $kodeValidation->getType());
         $this->assertSame("'Daftar Petugas Aktif'!\$D\$2:\$D\$5", $kodeValidation->getFormula1());
-
-        $kodeValidationRow102 = $mainSheet->getCell('B102')->getDataValidation();
-        $this->assertSame('list', $kodeValidationRow102->getType());
-        $this->assertSame("'Daftar Petugas Aktif'!\$D\$2:\$D\$5", $kodeValidationRow102->getFormula1());
-
-        $this->assertSame('@', (string) $mainSheet->getStyle('A102')->getNumberFormat()->getFormatCode());
 
         $this->assertSame(
             '',

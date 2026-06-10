@@ -70,20 +70,30 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
 
     private function templateLastRow(): int
     {
-        $rowCount = Petugas::query()
-            ->where('status', 'aktif')
-            ->count();
-
         if ($this->type === 'edit' && $this->periodeAlokasiId) {
-            $rowCount = max(
-                $rowCount,
-                AlokasiPetugas::query()
-                    ->where('periode_alokasi_id', $this->periodeAlokasiId)
-                    ->count(),
-            );
+            $entries = AlokasiPetugas::query()
+                ->where('periode_alokasi_id', $this->periodeAlokasiId)
+                ->with(['petugas', 'frameSampelAllocations.kegiatanFrameSampel'])
+                ->get();
+
+            $rowCount = 0;
+            $hasFrameSampelColumn = $this->hasFrameSampelColumn();
+
+            foreach ($entries as $entry) {
+                $frameRows = $entry->frameSampelAllocations
+                    ->map(fn ($allocation) => $allocation->kegiatanFrameSampel)
+                    ->filter(fn ($frameRow) => $frameRow instanceof KegiatanFrameSampel)
+                    ->values();
+
+                $rowCount += $hasFrameSampelColumn && $frameRows->isNotEmpty()
+                    ? $frameRows->count()
+                    : 1;
+            }
+
+            return max(1, $rowCount);
         }
 
-        return max(6, $rowCount + 1);
+        return 6;
     }
 
     /**

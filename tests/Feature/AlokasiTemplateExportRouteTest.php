@@ -361,7 +361,7 @@ class AlokasiTemplateExportRouteTest extends TestCase
         file_put_contents($tempPath, $response->streamedContent());
 
         $spreadsheet = IOFactory::load($tempPath);
-        $mainSheet = $spreadsheet->getSheetByName('Alokasi Petugas');
+        $mainSheet = $spreadsheet->getSheet(0);
 
         $this->assertNotNull($mainSheet);
         $this->assertSame('Kecamatan', (string) $mainSheet->getCell('C1')->getValue());
@@ -420,7 +420,7 @@ class AlokasiTemplateExportRouteTest extends TestCase
         file_put_contents($tempPath, $response->streamedContent());
 
         $spreadsheet = IOFactory::load($tempPath);
-        $mainSheet = $spreadsheet->getSheetByName('Alokasi Petugas');
+        $mainSheet = $spreadsheet->getSheet(0);
 
         $this->assertNotNull($mainSheet);
         $this->assertSame('Kecamatan', (string) $mainSheet->getCell('C1')->getValue());
@@ -471,7 +471,7 @@ class AlokasiTemplateExportRouteTest extends TestCase
         file_put_contents($tempPath, $response->streamedContent());
 
         $spreadsheet = IOFactory::load($tempPath);
-        $mainSheet = $spreadsheet->getSheetByName('Alokasi Petugas');
+        $mainSheet = $spreadsheet->getSheet(0);
 
         $this->assertNotNull($mainSheet);
         $this->assertSame('Jumlah Usaha', (string) $mainSheet->getCell('C1')->getValue());
@@ -623,7 +623,7 @@ class AlokasiTemplateExportRouteTest extends TestCase
         file_put_contents($tempPath, $response->streamedContent());
 
         $spreadsheet = IOFactory::load($tempPath);
-        $mainSheet = $spreadsheet->getSheetByName('Alokasi Petugas');
+        $mainSheet = $spreadsheet->getSheet(0);
 
         $this->assertNotNull($mainSheet);
 
@@ -1067,6 +1067,73 @@ class AlokasiTemplateExportRouteTest extends TestCase
         $this->assertNotNull($jumlahKeluargaColumn);
         $this->assertSame('9', (string) $mainSheet->getCell($jumlahUsahaColumn.'2')->getValue());
         $this->assertSame('', (string) $mainSheet->getCell($jumlahKeluargaColumn.'2')->getValue());
+    }
+
+    public function test_export_edit_template_keeps_allocation_rows_past_100(): void
+    {
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'sensus',
+            'has_listing_updating' => false,
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'status' => 'draft',
+        ]);
+
+        for ($index = 1; $index <= 101; $index++) {
+            $petugas = Petugas::factory()->create([
+                'nama' => 'Petugas '.str_pad((string) $index, 3, '0', STR_PAD_LEFT),
+                'nik' => '9000000000'.str_pad((string) $index, 6, '0', STR_PAD_LEFT),
+                'status' => 'aktif',
+            ]);
+
+            AlokasiPetugas::factory()->create([
+                'periode_alokasi_id' => $periode->id,
+                'petugas_id' => $petugas->id,
+                'peran' => 'pcl_ppl',
+                'jumlah_satuan' => $index,
+            ]);
+        }
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get('/alokasi/periode/'.$periode->hashed_id.'/export/edit');
+
+        $response->assertOk();
+
+        $tempPath = storage_path('framework/testing/alokasi-template-edit-over-100-test.xlsx');
+
+        if (! is_dir(dirname($tempPath))) {
+            mkdir(dirname($tempPath), 0777, true);
+        }
+
+        file_put_contents($tempPath, $response->streamedContent());
+
+        $spreadsheet = IOFactory::load($tempPath);
+        $mainSheet = $spreadsheet->getSheet(0);
+
+        $this->assertNotNull($mainSheet);
+
+        $jumlahSatuanColumn = null;
+        $highestColumnIndex = Coordinate::columnIndexFromString($mainSheet->getHighestColumn());
+
+        for ($columnIndex = 1; $columnIndex <= $highestColumnIndex; $columnIndex++) {
+            $columnLetter = Coordinate::stringFromColumnIndex($columnIndex);
+            $header = (string) $mainSheet->getCell($columnLetter.'1')->getValue();
+
+            if ($header === 'Jumlah Satuan Pencacahan') {
+                $jumlahSatuanColumn = $columnLetter;
+                break;
+            }
+        }
+
+        $this->assertNotNull($jumlahSatuanColumn);
+        $this->assertSame('Petugas 101 - 9000000000000101', (string) $mainSheet->getCell('A102')->getValue());
+        $this->assertSame('101', (string) $mainSheet->getCell($jumlahSatuanColumn.'102')->getValue());
     }
 
     private function makePreviewImportFile(array $rows): UploadedFile
