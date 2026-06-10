@@ -33,31 +33,35 @@
 
         body {
             font-family: 'Bookman Old Style', 'Times New Roman', serif;
-            font-size: 11pt;
+            font-size: 10pt;
             line-height: 1.15;
             color: #000;
-                    <col style="width: 30%;">
-                    <col style="width: 34%;">
-                    <col style="width: 30%;">
+        }
+
+        .header {
+            text-align: center;
             margin-bottom: 8px;
         }
 
         .header-title {
-                        <td style="width: 30%; padding: 0; border: none; height: 0; line-height: 0;"></td>
-                        <td style="width: 34%; padding: 0; border: none; height: 0; line-height: 0;"></td>
-                        <td style="width: 30%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+            font-size: 10pt;
+            line-height: 1.15;
+        }
+
         .section-title {
             margin: 6px 0 4px;
             font-size: 11pt;
             line-height: 1.15;
         }
 
+        table {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
             font-size: 11pt;
         }
 
+        thead {
             display: table-header-group;
         }
 
@@ -67,6 +71,7 @@
 
         tbody.keep-together {
             page-break-inside: avoid;
+            break-inside: avoid;
         }
 
         tr.keep-together-row {
@@ -110,10 +115,6 @@
 
         .money-cell {
             white-space: nowrap;
-        }
-
-        table.daftar-pl-table {
-            margin-top: 4px;
         }
     </style>
 </head>
@@ -217,7 +218,7 @@
             II. DAFTAR WILAYAH KERJA
         </div>
 
-        <table class="daftar-pl-table">
+        <table>
             <colgroup>
                 <col style="width: 6%;">
                 <col style="width: 30%;">
@@ -260,7 +261,7 @@
 
     <script type="text/php">
         if (isset($pdf) && isset($fontMetrics)) {
-            $pageNumberOffset = {{ (int) ($pageNumberOffset ?? 0) }};
+            $pageNumberOffset = 0;
 
             $pdf->page_script(function ($pageNumber, $pageCount, $canvas, $fontMetrics) use ($pageNumberOffset) {
                 $displayPage = $pageNumber + $pageNumberOffset;
@@ -268,7 +269,7 @@
                     return;
                 }
 
-                $topMargin = 28.35; // 1 cm
+                $topMargin = 28.35;
 
                 $font = $fontMetrics->get_font('Bookman Old Style', 'normal');
                 $size = 10;
