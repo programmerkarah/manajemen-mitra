@@ -361,7 +361,15 @@ class AlokasiTemplateExportRouteTest extends TestCase
         file_put_contents($tempPath, $response->streamedContent());
 
         $spreadsheet = IOFactory::load($tempPath);
-        $mainSheet = $spreadsheet->getSheet(0);
+        $mainSheet = null;
+
+        foreach ($spreadsheet->getAllSheets() as $sheet) {
+            if ((string) $sheet->getCell('A1')->getValue() === 'Nama - NIK') {
+                $mainSheet = $sheet;
+
+                break;
+            }
+        }
 
         $this->assertNotNull($mainSheet);
         $this->assertSame('Kecamatan', (string) $mainSheet->getCell('C1')->getValue());

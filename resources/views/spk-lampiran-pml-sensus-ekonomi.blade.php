@@ -36,32 +36,28 @@
             font-size: 11pt;
             line-height: 1.15;
             color: #000;
-        }
-
-        .header {
-            text-align: center;
+                    <col style="width: 30%;">
+                    <col style="width: 34%;">
+                    <col style="width: 30%;">
             margin-bottom: 8px;
         }
 
         .header-title {
-            font-size: 11pt;
-            line-height: 1.15;
-        }
-
+                        <td style="width: 30%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                        <td style="width: 34%; padding: 0; border: none; height: 0; line-height: 0;"></td>
+                        <td style="width: 30%; padding: 0; border: none; height: 0; line-height: 0;"></td>
         .section-title {
             margin: 6px 0 4px;
             font-size: 11pt;
             line-height: 1.15;
         }
 
-        table {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
             font-size: 11pt;
         }
 
-        thead {
             display: table-header-group;
         }
 
@@ -71,7 +67,6 @@
 
         tbody.keep-together {
             page-break-inside: avoid;
-            break-inside: avoid;
         }
 
         tr.keep-together-row {

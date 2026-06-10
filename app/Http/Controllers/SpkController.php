@@ -5827,6 +5827,10 @@ class SpkController extends Controller
         );
         $totalVolumeLabel = $this->formatSensusEkonomiTotalSlsVolumeLabel($selectedRows);
 
+        $terminSatuVolume = '1 SLS/sub-SLS';
+        $terminDuaVolume = '1 SLS/sub-SLS';
+        $totalVolumeLabel = '1 SLS/sub-SLS';
+
         return [
             'groups' => [
                 [
@@ -5899,6 +5903,10 @@ class SpkController extends Controller
             $unitSampelNames
         );
         $totalVolumeLabel = $this->formatSensusEkonomiTotalSlsVolumeLabel($selectedRows);
+
+        $terminSatuVolume = '1 SLS/sub-SLS';
+        $terminDuaVolume = '1 SLS/sub-SLS';
+        $totalVolumeLabel = '1 SLS/sub-SLS';
 
         $wilayahKerja = $alokasi instanceof AlokasiPetugas
             ? $this->buildWilayahKerjaList($alokasi)

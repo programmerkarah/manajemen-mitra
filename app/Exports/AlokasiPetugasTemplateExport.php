@@ -93,6 +93,14 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
             return max(1, $rowCount);
         }
 
+        if ($this->hasFrameSampelColumn()) {
+            $frameCount = $this->frameSampelRows()->count();
+
+            if ($frameCount > 0) {
+                return $frameCount;
+            }
+        }
+
         return 6;
     }
 
@@ -525,56 +533,100 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                 }
             }
         } else {
-            $sampleRow = ['Nama Petugas - 1234567890123456', 'PCL/PPL'];
-            $firstFrameRow = null;
+            $frameRows = $hasFrameSampelColumn ? $this->frameSampelRows() : collect();
 
-            if ($hasFrameSampelColumn) {
-                $firstFrameRow = $this->frameSampelRows()->first();
+            if ($hasFrameSampelColumn && $frameRows->isNotEmpty()) {
+                foreach ($frameRows as $frameRow) {
+                    $sampleRow = ['Nama Petugas - 1234567890123456', 'PCL/PPL'];
 
-                foreach ($frameMetadataColumns as $column) {
-                    $sampleRow[] = $this->resolveFrameMetadataValue($firstFrameRow, $column['code']);
-                }
-            }
-
-            if ($hasListing) {
-                $sampleRow[] = '5';
-            }
-
-            if ($hasSensusPencacahanSplit) {
-                foreach ($sensusPencacahanUnitColumns as $columnIndex => $columnLabel) {
-                    if ($hasFrameSampelColumn && $firstFrameRow instanceof KegiatanFrameSampel) {
-                        $targetColumn = $frameTargetColumns->get($columnIndex);
-                        if (is_array($targetColumn)) {
-                            $sampleRow[] = $this->resolveFrameTargetValue($firstFrameRow, $targetColumn);
-
-                            continue;
-                        }
+                    foreach ($frameMetadataColumns as $column) {
+                        $sampleRow[] = $this->resolveFrameMetadataValue($frameRow, $column['code']);
                     }
 
-                    $isUsahaColumn = Str::contains(Str::lower($columnLabel), 'usaha');
-                    $sampleRow[] = $isUsahaColumn ? '6' : '4';
+                    if ($hasListing) {
+                        $sampleRow[] = '5';
+                    }
+
+                    if ($hasSensusPencacahanSplit) {
+                        foreach ($sensusPencacahanUnitColumns as $columnIndex => $_columnLabel) {
+                            $targetColumn = $frameTargetColumns->get($columnIndex);
+                            if (is_array($targetColumn)) {
+                                $sampleRow[] = $this->resolveFrameTargetValue($frameRow, $targetColumn);
+
+                                continue;
+                            }
+
+                            $sampleRow[] = '0';
+                        }
+                    } else {
+                        $sampleRow[] = $this->resolveTargetUnitSampelTotal($frameRow);
+                    }
+
+                    if ($hasParsial) {
+                        $sampleRow[] = 'Tidak';
+                    }
+
+                    if ($hasListing && $hasParsial) {
+                        $sampleRow[] = '';
+                    }
+
+                    if ($hasParsial) {
+                        $sampleRow[] = '';
+                    }
+
+                    $data[] = $sampleRow;
                 }
             } else {
-                $sampleRow[] = '10';
-            }
+                $sampleRow = ['Nama Petugas - 1234567890123456', 'PCL/PPL'];
 
-            if ($hasParsial) {
-                $sampleRow[] = 'Tidak';
-            }
+                if ($hasFrameSampelColumn) {
+                    $firstFrameRow = $this->frameSampelRows()->first();
 
-            if ($hasListing && $hasParsial) {
-                $sampleRow[] = '';
-            }
+                    foreach ($frameMetadataColumns as $column) {
+                        $sampleRow[] = $this->resolveFrameMetadataValue($firstFrameRow, $column['code']);
+                    }
+                }
 
-            if ($hasParsial) {
-                $sampleRow[] = '';
-            }
+                if ($hasListing) {
+                    $sampleRow[] = '5';
+                }
 
-            $data[] = $sampleRow;
+                if ($hasSensusPencacahanSplit) {
+                    foreach ($sensusPencacahanUnitColumns as $columnIndex => $columnLabel) {
+                        if ($hasFrameSampelColumn && isset($firstFrameRow) && $firstFrameRow instanceof KegiatanFrameSampel) {
+                            $targetColumn = $frameTargetColumns->get($columnIndex);
+                            if (is_array($targetColumn)) {
+                                $sampleRow[] = $this->resolveFrameTargetValue($firstFrameRow, $targetColumn);
 
-            $emptyRow = array_fill(0, count($sampleRow), '');
-            for ($i = 0; $i < 5; $i++) {
-                $data[] = $emptyRow;
+                                continue;
+                            }
+                        }
+
+                        $isUsahaColumn = Str::contains(Str::lower($columnLabel), 'usaha');
+                        $sampleRow[] = $isUsahaColumn ? '6' : '4';
+                    }
+                } else {
+                    $sampleRow[] = '10';
+                }
+
+                if ($hasParsial) {
+                    $sampleRow[] = 'Tidak';
+                }
+
+                if ($hasListing && $hasParsial) {
+                    $sampleRow[] = '';
+                }
+
+                if ($hasParsial) {
+                    $sampleRow[] = '';
+                }
+
+                $data[] = $sampleRow;
+
+                $emptyRow = array_fill(0, count($sampleRow), '');
+                for ($i = 0; $i < 5; $i++) {
+                    $data[] = $emptyRow;
+                }
             }
         }
 
