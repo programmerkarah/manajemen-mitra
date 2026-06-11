@@ -3737,7 +3737,6 @@ class AlokasiPetugasController extends Controller
             ->get();
 
         $existingTotalHonor = $existingAlokasis->sum(function ($alokasi) {
-            $bulanPeriode = (int) ($alokasi->periodeAlokasi?->bulan ?? 0);
             $pencacahanHonor = $alokasi->is_partial_payment && $alokasi->estimasi_honor_partial !== null
                 ? (float) $alokasi->estimasi_honor_partial
                 : (float) ($alokasi->total_honor ?? 0);
@@ -3746,20 +3745,10 @@ class AlokasiPetugasController extends Controller
                 ? (float) $alokasi->estimasi_honor_partial_listing
                 : (float) ($alokasi->total_honor_listing ?? 0);
 
-            $baseHonor = $pencacahanHonor + $listingHonor;
-
-            return $this->calculateMonthlyHonorForAllocation(
-                $baseHonor,
-                $bulanPeriode,
-                $alokasi->periodeAlokasi?->kegiatan
-            );
+            return $pencacahanHonor + $listingHonor;
         });
 
-        $totalHonorInMonth = $existingTotalHonor + $this->calculateMonthlyHonorForAllocation(
-            $newHonor,
-            $bulan,
-            $kegiatan
-        );
+        $totalHonorInMonth = $existingTotalHonor + $newHonor;
 
         // Collect all jenis penugasan (peran) from existing allocations
         $jenisPenugasanList = $existingAlokasis->pluck('peran')->unique();
@@ -3832,34 +3821,6 @@ class AlokasiPetugasController extends Controller
         }
 
         return null;
-    }
-
-    private function calculateMonthlyHonorForAllocation(
-        float $baseHonor,
-        int $bulan,
-        ?Kegiatan $kegiatan
-    ): float {
-        if (! $kegiatan || ! $this->isSensusEkonomi2026($kegiatan)) {
-            return $baseHonor;
-        }
-
-        $monthlyObWeight = $this->getSensusEkonomiMonthlyObWeight($bulan);
-
-        if ($monthlyObWeight <= 0) {
-            return 0.0;
-        }
-
-        return $baseHonor * ($monthlyObWeight / 2.5);
-    }
-
-    private function getSensusEkonomiMonthlyObWeight(int $bulan): float
-    {
-        return match ($bulan) {
-            6 => 0.5,
-            7 => 1.0,
-            8 => 1.0,
-            default => 0.0,
-        };
     }
 
     /**

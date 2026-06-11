@@ -65,8 +65,27 @@ class SbmlReportController extends Controller
                     return null;
                 }
 
+                $positiveAlokasis = $alokasis->filter(function ($alokasi) {
+                    $effectivePencacahanHonor = $alokasi->is_partial_payment && $alokasi->estimasi_honor_partial !== null
+                        ? (float) $alokasi->estimasi_honor_partial
+                        : (float) ($alokasi->total_honor ?? 0);
+                    $effectiveListingHonor = $alokasi->is_partial_payment_listing && $alokasi->estimasi_honor_partial_listing !== null
+                        ? (float) $alokasi->estimasi_honor_partial_listing
+                        : (float) ($alokasi->total_honor_listing ?? 0);
+
+                    return $this->calculateMonthlyHonorForAllocation(
+                        $effectivePencacahanHonor + $effectiveListingHonor,
+                        (int) ($alokasi->periodeAlokasi?->bulan ?? 0),
+                        $alokasi->periodeAlokasi?->kegiatan
+                    ) > 0;
+                });
+
+                if ($positiveAlokasis->isEmpty()) {
+                    return null;
+                }
+
                 // Calculate total honor for this petugas in this month
-                $totalHonor = $alokasis->sum(function ($alokasi) {
+                $totalHonor = $positiveAlokasis->sum(function ($alokasi) {
                     $effectivePencacahanHonor = $alokasi->is_partial_payment && $alokasi->estimasi_honor_partial !== null
                         ? (float) $alokasi->estimasi_honor_partial
                         : (float) ($alokasi->total_honor ?? 0);
@@ -85,11 +104,11 @@ class SbmlReportController extends Controller
                 $statusKepegawaian = $petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik';
 
                 // Collect unique jenis penugasan (peran) from all allocations
-                $jenisPenugasanList = $alokasis->pluck('peran')->unique();
+                $jenisPenugasanList = $positiveAlokasis->pluck('peran')->unique();
 
                 // Get SBML records from cache instead of querying database
-                $honorMaxList = $jenisPenugasanList->map(function ($peran) use ($sbmlCache, $statusKepegawaian, $alokasis) {
-                    $jenisKegiatan = $alokasis->firstWhere('peran', $peran)?->periodeAlokasi?->jenis_kegiatan ?? null;
+                $honorMaxList = $jenisPenugasanList->map(function ($peran) use ($sbmlCache, $statusKepegawaian, $positiveAlokasis) {
+                    $jenisKegiatan = $positiveAlokasis->firstWhere('peran', $peran)?->periodeAlokasi?->jenis_kegiatan ?? null;
                     $cacheKey = $jenisKegiatan.'_'.$statusKepegawaian.'_'.$peran;
 
                     return $sbmlCache->get($cacheKey)?->honor_max;
@@ -100,7 +119,7 @@ class SbmlReportController extends Controller
 
                 // Group by kegiatan for details
                 $kegiatanDetails = [];
-                foreach ($alokasis as $alokasi) {
+                foreach ($positiveAlokasis as $alokasi) {
                     $kegiatanId = $alokasi->periodeAlokasi->kegiatan_id;
 
                     if (! isset($kegiatanDetails[$kegiatanId])) {

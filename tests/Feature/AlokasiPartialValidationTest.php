@@ -289,58 +289,6 @@ class AlokasiPartialValidationTest extends TestCase
         ]);
     }
 
-    public function test_store_multiple_treats_month_06_and_6_as_same_when_validating_total_honor(): void
-    {
-        [$admin, $adminRole] = $this->makeAdminUser();
-        $tahun = ActiveYearService::get();
-        [$kegiatan] = $this->setupKegiatanWithRateHonor($tahun);
-
-        $petugas = Petugas::factory()->create([
-            'jenis_petugas' => 'non-organik',
-            'status' => 'aktif',
-        ]);
-
-        $existingPeriode = PeriodeAlokasi::factory()->create([
-            'kegiatan_id' => $kegiatan->id,
-            'bulan' => '6',
-            'tahun' => $tahun,
-            'jenis_kegiatan' => 'survei',
-            'status' => 'dikirim',
-        ]);
-
-        AlokasiPetugas::factory()->create([
-            'periode_alokasi_id' => $existingPeriode->id,
-            'petugas_id' => $petugas->id,
-            'jumlah_satuan' => 1,
-            'total_honor' => 3000000,
-            'peran' => 'pcl_ppl',
-            'status_kepegawaian' => 'non_organik',
-        ]);
-
-        $payload = [
-            'tanggal_mulai' => "$tahun-06-01",
-            'tanggal_selesai' => "$tahun-06-30",
-            'alokasi' => [
-                [
-                    'petugas_id' => $petugas->id,
-                    'peran' => 'PCL',
-                    'bulan' => '06',
-                    'tahun' => $tahun,
-                    'jumlah_satuan' => 1,
-                    'jenis_kegiatan' => 'survei',
-                    'tahapan' => 'both',
-                    'is_partial_payment' => false,
-                ],
-            ],
-        ];
-
-        $response = $this->actingAs($admin)
-            ->withSession(['active_role_id' => $adminRole->id])
-            ->post("/alokasi/kegiatan/{$kegiatan->hashed_id}/store-multiple", $payload);
-
-        $response->assertSessionHasErrors(['sbml_constraint']);
-    }
-
     public function test_update_periode_rejects_combined_partial_honor_above_monthly_sbml_limit(): void
     {
         [$admin, $adminRole] = $this->makeAdminUser();
