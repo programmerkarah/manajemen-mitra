@@ -663,7 +663,7 @@ export default function Generate({
                         <div className="flex items-center justify-between">
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
                                 Pilih Petugas ({selectedPetugas.length} dari{' '}
-                                    {sortedPetugasList.length})
+                                {sortedPetugasList.length})
                             </h3>
                             <Button
                                 variant="outline"
