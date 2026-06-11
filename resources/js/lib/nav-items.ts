@@ -34,12 +34,6 @@ export function buildNavItems(
             href: dashboard(),
             icon: LayoutGrid,
         },
-        {
-            title: 'Panduan SIMANTIK',
-            href: '/panduan',
-            icon: FileText,
-            activeWhen: ['/panduan'],
-        },
     ];
 
     if (activeRoleName === 'admin') {
