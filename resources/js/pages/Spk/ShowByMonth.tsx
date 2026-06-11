@@ -21,7 +21,7 @@ import {
     PenLine,
     Upload,
 } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 interface Spk {
     id: number;
@@ -216,7 +216,10 @@ export default function ShowByMonth({
     const unsignedPetugasScrollRef = useRef<HTMLDivElement | null>(null);
     const scrollStateKey = `spk-month-petugas-scroll:${periode.hashed_id}:${bulan}:${tahun}`;
 
-    const readPetugasScrollState = (): { signed: number; unsigned: number } => {
+    const readPetugasScrollState = useCallback((): {
+        signed: number;
+        unsigned: number;
+    } => {
         if (typeof window === 'undefined') {
             return { signed: 0, unsigned: 0 };
         }
@@ -240,27 +243,27 @@ export default function ShowByMonth({
         } catch {
             return { signed: 0, unsigned: 0 };
         }
-    };
+    }, [scrollStateKey]);
 
-    const writePetugasScrollState = (nextState: {
-        signed?: number;
-        unsigned?: number;
-    }): void => {
-        if (typeof window === 'undefined') {
-            return;
-        }
+    const writePetugasScrollState = useCallback(
+        (nextState: { signed?: number; unsigned?: number }): void => {
+            if (typeof window === 'undefined') {
+                return;
+            }
 
-        const currentState = readPetugasScrollState();
-        const mergedState = {
-            signed: nextState.signed ?? currentState.signed,
-            unsigned: nextState.unsigned ?? currentState.unsigned,
-        };
+            const currentState = readPetugasScrollState();
+            const mergedState = {
+                signed: nextState.signed ?? currentState.signed,
+                unsigned: nextState.unsigned ?? currentState.unsigned,
+            };
 
-        window.sessionStorage.setItem(
-            scrollStateKey,
-            JSON.stringify(mergedState),
-        );
-    };
+            window.sessionStorage.setItem(
+                scrollStateKey,
+                JSON.stringify(mergedState),
+            );
+        },
+        [readPetugasScrollState, scrollStateKey],
+    );
 
     useEffect(() => {
         if (typeof window === 'undefined') {
@@ -278,7 +281,7 @@ export default function ShowByMonth({
                 unsignedPetugasScrollRef.current.scrollTop = unsigned;
             }
         });
-    }, [scrollStateKey]);
+    }, [readPetugasScrollState]);
 
     const isSensusEkonomiContext = decryptedKegiatanList.some((item) => {
         const jenisKegiatan = (item.jenis_kegiatan || '').toLowerCase();
@@ -403,6 +406,10 @@ export default function ShowByMonth({
         tanggalMulai: string,
         tanggalSelesai: string,
     ) => {
+        if (isSensusEkonomiContext) {
+            return `15 Juni - 31 Agustus ${tahun}`;
+        }
+
         if (!tanggalMulai || !tanggalSelesai) return '-';
         const mulai = new Date(tanggalMulai);
         const selesai = new Date(tanggalSelesai);
