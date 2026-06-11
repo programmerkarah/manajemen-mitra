@@ -96,6 +96,18 @@ export default function Generate({
         periode.kegiatan.nama_kegiatan.toLowerCase().trim() ===
             'sensus ekonomi';
 
+    const sortedPetugasList = [...petugas_list].sort((left, right) => {
+        const nameComparison = left.petugas.nama
+            .toLowerCase()
+            .localeCompare(right.petugas.nama.toLowerCase(), 'id');
+
+        if (nameComparison !== 0) {
+            return nameComparison;
+        }
+
+        return left.petugas.nik.localeCompare(right.petugas.nik, 'id');
+    });
+
     const formatNomorSpk = (noUrut: number, tahun: number): string => {
         if (isSensusEkonomi) {
             return `B-${String(noUrut).padStart(3, '0')}/SPK-SE2026/1373/PL.200/${tahun}`;
@@ -123,10 +135,12 @@ export default function Generate({
     ];
 
     const handleSelectAll = () => {
-        if (selectedPetugas.length === petugas_list.length) {
+        if (selectedPetugas.length === sortedPetugasList.length) {
             setSelectedPetugas([]);
         } else {
-            setSelectedPetugas(petugas_list.map((a) => a.petugas.hashed_id));
+            setSelectedPetugas(
+                sortedPetugasList.map((a) => a.petugas.hashed_id),
+            );
         }
     };
 
@@ -154,12 +168,8 @@ export default function Generate({
             return existingSpk.nomor_spk;
         }
 
-        const sortedPetugas = [...petugas_list].sort((a, b) =>
-            a.petugas.nama.localeCompare(b.petugas.nama),
-        );
-
         if (is_regenerate) {
-            const newPetugasOnly = sortedPetugas.filter(
+            const newPetugasOnly = sortedPetugasList.filter(
                 (p) => !existing_spk_map[p.petugas.id],
             );
             const indexAmongNew = newPetugasOnly.findIndex(
@@ -179,7 +189,7 @@ export default function Generate({
             return formatNomorSpk(noUrut, tahunSpk);
         }
 
-        const petugasIndex = sortedPetugas.findIndex(
+        const petugasIndex = sortedPetugasList.findIndex(
             (a) => a.petugas.hashed_id === alokasi.petugas.hashed_id,
         );
         const noUrut = next_nomor_urut + petugasIndex;
@@ -297,9 +307,8 @@ export default function Generate({
         nomor_spk: string;
         petugas_nama: string;
     }[] => {
-        return [...petugas_list]
+        return [...sortedPetugasList]
             .filter((a) => selectedPetugas.includes(a.petugas.hashed_id))
-            .sort((a, b) => a.petugas.nama.localeCompare(b.petugas.nama, 'id'))
             .map((a) => ({
                 petugas_hashed_id: a.petugas.hashed_id,
                 nomor_spk: getNomorSpkForAlokasi(a),
@@ -308,8 +317,7 @@ export default function Generate({
     };
 
     const getSelectedPetugasIdsInAlphabeticalOrder = (): string[] => {
-        return [...petugas_list]
-            .sort((a, b) => a.petugas.nama.localeCompare(b.petugas.nama, 'id'))
+        return [...sortedPetugasList]
             .filter((alokasi) =>
                 selectedPetugas.includes(alokasi.petugas.hashed_id),
             )
@@ -655,7 +663,7 @@ export default function Generate({
                         <div className="flex items-center justify-between">
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
                                 Pilih Petugas ({selectedPetugas.length} dari{' '}
-                                {petugas_list.length})
+                                    {sortedPetugasList.length})
                             </h3>
                             <Button
                                 variant="outline"
@@ -676,7 +684,7 @@ export default function Generate({
                                             <Checkbox
                                                 checked={
                                                     selectedPetugas.length ===
-                                                    petugas_list.length
+                                                    sortedPetugasList.length
                                                 }
                                                 onCheckedChange={
                                                     handleSelectAll
@@ -704,7 +712,7 @@ export default function Generate({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-neutral-200 bg-white dark:divide-neutral-700 dark:bg-neutral-900">
-                                    {petugas_list.map((alokasi) => {
+                                    {sortedPetugasList.map((alokasi) => {
                                         const isSelected =
                                             selectedPetugas.includes(
                                                 alokasi.petugas.hashed_id,
