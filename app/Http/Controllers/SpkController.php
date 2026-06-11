@@ -627,7 +627,7 @@ class SpkController extends Controller
                 'id' => $s->id,
                 'hashed_id' => $s->hashed_id,
                 'nomor_spk' => $s->nomor_spk,
-                'petugas_nama' => $s->alokasiPetugas->petugas->nama,
+                'petugas_nama' => $this->formatDisplayName($s->alokasiPetugas->petugas->nama),
                 'petugas_nik' => $s->alokasiPetugas->petugas->nik,
                 'status' => $s->status,
                 'file_path' => $latestSpkDoc?->file_path,
@@ -744,7 +744,7 @@ class SpkController extends Controller
         $petugasData = [
             'id' => $petugas->id,
             'hashed_id' => $petugas->hashed_id,
-            'nama' => $petugas->nama,
+            'nama' => $this->formatDisplayName($petugas->nama),
             'nik' => $petugas->nik,
             'jenis_petugas' => $petugas->jenis_petugas,
             'alamat' => $petugas->alamat,
@@ -5675,6 +5675,11 @@ class SpkController extends Controller
         return $query->pluck('id');
     }
 
+    private function formatDisplayName(string $name): string
+    {
+        return ucwords(mb_strtolower(trim($name)));
+    }
+
     private function hasDraftPeriodeInSpkScope(PeriodeAlokasi $periode): bool
     {
         if ($this->usesPeriodBasedSpkFlow($periode)) {
@@ -6172,8 +6177,6 @@ class SpkController extends Controller
         ];
     }
 
-    /**
-     */
     private function formatSensusEkonomiVolumeNarrative(int $selectedRows): string
     {
         if ($selectedRows > 0) {
@@ -6553,6 +6556,8 @@ class SpkController extends Controller
         if (! empty($selectedPetugasIds)) {
             $sortedPetugas = $sortedPetugas->filter(function ($group, $petugasId) use ($selectedPetugasIds) {
                 return in_array($petugasId, $selectedPetugasIds);
+            })->sortBy(function ($group) {
+                return mb_strtolower((string) $group->first()->petugas->nama);
             });
         }
 

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
+use App\Models\Penandatangan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\Role;
@@ -540,5 +541,123 @@ class SpkGenerateScopeTest extends TestCase
         $this->assertNotContains('Awyujon', $names);
         $this->assertNotContains('Cici Liani Indrias Putri', $names);
         $this->assertCount(1, $names);
+    }
+
+    public function test_generate_all_sensus_spk_keeps_alphabetical_numbering_even_with_reverse_selection_order(): void
+    {
+        $approverRole = Role::firstOrCreate(
+            ['name' => 'approver'],
+            ['display_name' => 'Approver', 'description' => 'Role approver']
+        );
+
+        $user = User::factory()->create();
+        $user->roles()->attach($approverRole->id);
+
+        $this->actingAs($user)
+            ->withSession(['active_role_id' => $approverRole->id, 'active_role_user_id' => $user->id]);
+
+        Penandatangan::query()->create([
+            'nama' => 'PPK Test, S.Si., M.Si.',
+            'nip' => '198001012010011001',
+            'jenis_penandatangan' => 'ppk',
+            'jabatan' => 'PPK',
+            'is_active' => true,
+        ]);
+
+        $tahun = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'nama_kegiatan' => 'Sensus Ekonomi 2026',
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'sensus',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '06',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'sensus',
+        ]);
+
+        $petugasAdelia = Petugas::factory()->create([
+            'nama' => 'Adelia Rahmawati',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $petugasAfrina = Petugas::factory()->create([
+            'nama' => 'Afrina Widianti',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $petugasArni = Petugas::factory()->create([
+            'nama' => 'Arni Yunita',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugasAdelia->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 1,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 1195000,
+            'total_honor_listing' => 0,
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugasAfrina->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 1,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 1195000,
+            'total_honor_listing' => 0,
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugasArni->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 1,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 1195000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $selectedPetugasIds = [
+            $petugasAfrina->hashed_id,
+            $petugasArni->hashed_id,
+            $petugasAdelia->hashed_id,
+        ];
+
+        $response = $this->post(route('spk.generate-all', ['periodeHashedId' => $periode->hashed_id]), [
+            'tanggal_spk' => "{$tahun}-06-01",
+            'petugas_ids' => $selectedPetugasIds,
+        ]);
+
+        $response->assertRedirect(route('spk.index'));
+        $response->assertSessionHas('success');
+
+        $spks = Spk::query()
+            ->with('petugas')
+            ->whereIn('petugas_id', [$petugasAdelia->id, $petugasAfrina->id, $petugasArni->id])
+            ->orderBy('nomor_urut_base')
+            ->get();
+
+        $this->assertCount(3, $spks);
+        $this->assertSame('Adelia Rahmawati', $spks[0]->petugas->nama);
+        $this->assertSame('B-001/SPK-SE2026/1373/PL.200/'.$tahun, $spks[0]->nomor_spk);
+        $this->assertSame('Afrina Widianti', $spks[1]->petugas->nama);
+        $this->assertSame('B-002/SPK-SE2026/1373/PL.200/'.$tahun, $spks[1]->nomor_spk);
+        $this->assertSame('Arni Yunita', $spks[2]->petugas->nama);
+        $this->assertSame('B-003/SPK-SE2026/1373/PL.200/'.$tahun, $spks[2]->nomor_spk);
     }
 }

@@ -1,0 +1,48 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FBFF" />
+      <stop offset="1" stop-color="#EEF4FF" />
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" rx="36" fill="url(#bg)" />
+  <rect x="56" y="44" width="1488" height="812" rx="32" fill="#FFFFFF" stroke="#D8E3F1" stroke-width="4" />
+  <rect x="56" y="44" width="1488" height="84" rx="32" fill="#F8FBFF" />
+  <text x="104" y="96" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700">Alokasi Petugas</text>
+  <rect x="92" y="158" width="1416" height="642" rx="28" fill="#FFFFFF" stroke="#D8E3F1" stroke-width="3" />
+  <rect x="126" y="198" width="360" height="562" rx="24" fill="#F8FBFF" stroke="#D8E3F1" stroke-width="2" />
+  <rect x="518" y="198" width="544" height="562" rx="24" fill="#FFFFFF" stroke="#D8E3F1" stroke-width="2" />
+  <rect x="1094" y="198" width="286" height="562" rx="24" fill="#F8FBFF" stroke="#D8E3F1" stroke-width="2" />
+  <text x="160" y="246" fill="#2563EB" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">Pilih kegiatan</text>
+  <text x="160" y="286" fill="#334155" font-family="Arial, Helvetica, sans-serif" font-size="18">Tentukan periode, kegiatan, dan daftar petugas</text>
+  <rect x="160" y="326" width="288" height="56" rx="16" fill="#EFF6FF" />
+  <rect x="160" y="398" width="288" height="56" rx="16" fill="#ECFDF5" />
+  <rect x="160" y="470" width="288" height="56" rx="16" fill="#F5F3FF" />
+  <rect x="160" y="542" width="288" height="56" rx="16" fill="#FFF7ED" />
+  <text x="188" y="362" fill="#1D4ED8" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Kegiatan aktif</text>
+  <text x="188" y="434" fill="#15803D" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Petugas terpilih</text>
+  <text x="188" y="506" fill="#7C3AED" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Peran petugas</text>
+  <text x="188" y="578" fill="#D97706" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Simpan alokasi</text>
+  <text x="556" y="246" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">Form alokasi</text>
+  <text x="556" y="286" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="18">Isi detail kerja lalu simpan atau kirim ke tahap berikutnya</text>
+  <rect x="556" y="324" width="480" height="70" rx="18" fill="#EFF6FF" />
+  <rect x="556" y="408" width="480" height="70" rx="18" fill="#ECFDF5" />
+  <rect x="556" y="492" width="480" height="70" rx="18" fill="#F5F3FF" />
+  <rect x="556" y="576" width="480" height="70" rx="18" fill="#FFF7ED" />
+  <text x="586" y="367" fill="#1D4ED8" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">1. Tambah petugas ke daftar</text>
+  <text x="586" y="451" fill="#15803D" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">2. Atur jumlah alokasi</text>
+  <text x="586" y="535" fill="#7C3AED" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">3. Cek ringkasan honor</text>
+  <text x="586" y="619" fill="#D97706" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">4. Simpan perubahan</text>
+  <text x="1128" y="246" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">Hasil kerja</text>
+  <rect x="1128" y="318" width="214" height="104" rx="20" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2" />
+  <rect x="1128" y="440" width="214" height="104" rx="20" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2" />
+  <rect x="1128" y="562" width="214" height="104" rx="20" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2" />
+  <text x="1156" y="366" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Draft alokasi</text>
+  <text x="1156" y="388" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="15">siap dilanjutkan</text>
+  <text x="1156" y="488" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Generate SK/SPK</text>
+  <text x="1156" y="510" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="15">dokumen mengikuti data</text>
+  <text x="1156" y="610" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Lanjut BAST</text>
+  <text x="1156" y="632" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="15">setelah kerja selesai</text>
+  <rect x="128" y="746" width="1340" height="24" rx="12" fill="#DBEAFE" />
+  <text x="154" y="763" fill="#1D4ED8" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">Tampilan ini meniru urutan kerja: pilih kegiatan, isi alokasi, lalu lanjutkan ke dokumen administrasi.</text>
+</svg>

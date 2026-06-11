@@ -307,6 +307,15 @@ export default function Generate({
             }));
     };
 
+    const getSelectedPetugasIdsInAlphabeticalOrder = (): string[] => {
+        return [...petugas_list]
+            .sort((a, b) => a.petugas.nama.localeCompare(b.petugas.nama, 'id'))
+            .filter((alokasi) =>
+                selectedPetugas.includes(alokasi.petugas.hashed_id),
+            )
+            .map((alokasi) => alokasi.petugas.hashed_id);
+    };
+
     const handlePrintSelectedMain = async () => {
         if (selectedPetugas.length === 0) {
             setModalMessage('Pilih minimal 1 petugas terlebih dahulu.');
@@ -401,13 +410,14 @@ export default function Generate({
         }
 
         setProcessing(true);
+        const selectedPetugasIds = getSelectedPetugasIdsInAlphabeticalOrder();
 
         // POST to new bulk endpoint
         router.post(
             `/spk/periode/${periode.hashed_id}/generate-all`,
             {
                 tanggal_spk: formData.tanggal_spk,
-                petugas_ids: selectedPetugas, // Send selected petugas
+                petugas_ids: selectedPetugasIds,
             },
             {
                 preserveState: true,
@@ -453,9 +463,9 @@ export default function Generate({
         setPreviewAllProcessing(true);
 
         try {
-            const previewItems = petugas_list.map((alokasi) => ({
-                petugas_hashed_id: alokasi.petugas.hashed_id,
-                nomor_spk: getNomorSpkForAlokasi(alokasi),
+            const previewItems = buildSortedPrintItems().map((item) => ({
+                petugas_hashed_id: item.petugas_hashed_id,
+                nomor_spk: item.nomor_spk,
             }));
 
             await downloadFileFromPost(

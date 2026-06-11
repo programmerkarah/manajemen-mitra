@@ -99,8 +99,14 @@ Route::get('/mitra/preview-file/{file}', [SpkController::class, 'publicPreviewFi
     ->where('file', '[A-Za-z0-9._-]+')
     ->name('spk.public-preview.file');
 Route::redirect('/preview-perjanjian-kerja', '/mitra', 301);
-Route::view('/panduan/sicakep', 'panduan.sicakep-petunjuk-penggunaan')
-    ->name('panduan.sicakep');
+Route::view('/panduan', 'panduan.simantik-petunjuk-penggunaan')
+    ->withoutMiddleware([
+        HandleAppearance::class,
+        HandleInertiaRequests::class,
+        LogRequests::class,
+        PreventMaintenanceModeRequests::class,
+    ])
+    ->name('panduan.simantik');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');

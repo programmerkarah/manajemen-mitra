@@ -1,0 +1,41 @@
+<svg width="1600" height="1000" viewBox="0 0 1600 1000" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="1000" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F6FBFF"/>
+      <stop offset="1" stop-color="#E8F0FA"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="260" y1="130" x2="1340" y2="870" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F8FAFC"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="1000" rx="32" fill="url(#bg)"/>
+  <circle cx="250" cy="170" r="140" fill="#D9E8FF" fill-opacity="0.7"/>
+  <circle cx="1350" cy="850" r="180" fill="#CFF5F0" fill-opacity="0.65"/>
+  <rect x="200" y="90" width="1200" height="820" rx="28" fill="#0F172A"/>
+  <rect x="240" y="130" width="1120" height="740" rx="20" fill="url(#paper)"/>
+  <rect x="240" y="130" width="1120" height="72" rx="20" fill="#EAF3FF"/>
+  <circle cx="288" cy="166" r="10" fill="#0F766E"/>
+  <circle cx="320" cy="166" r="10" fill="#1D4ED8"/>
+  <circle cx="352" cy="166" r="10" fill="#F59E0B"/>
+  <text x="800" y="173" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="24" font-weight="700" fill="#0F172A">PREVIEW SK KPA</text>
+  <rect x="300" y="240" width="1000" height="54" rx="12" fill="#F8FBFF" stroke="#CBD5E1"/>
+  <text x="330" y="274" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">Nomor SK</text>
+  <text x="490" y="274" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#334155">: SK-2025-001 / SIMANTIK</text>
+  <rect x="300" y="314" width="1000" height="54" rx="12" fill="#F8FBFF" stroke="#CBD5E1"/>
+  <text x="330" y="348" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">Tanggal</text>
+  <text x="490" y="348" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#334155">: 12 Agustus 2025</text>
+  <rect x="300" y="388" width="1000" height="186" rx="12" fill="#F8FBFF" stroke="#CBD5E1"/>
+  <text x="330" y="422" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">Dasar Penetapan</text>
+  <text x="330" y="454" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#475569">Preview menyerupai lembar PDF agar pengguna dapat memastikan isi dokumen sebelum dicetak.</text>
+  <text x="330" y="488" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#475569">Bagian ini menonjolkan nomor, tanggal, dasar hukum, dan keterangan yang harus benar.</text>
+  <rect x="300" y="616" width="330" height="110" rx="16" fill="#ECFDF5" stroke="#86EFAC"/>
+  <text x="465" y="662" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" fill="#166534">Verifikasi</text>
+  <text x="465" y="690" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#166534">Cek isi sebelum final</text>
+  <rect x="650" y="616" width="650" height="110" rx="16" fill="#EFF6FF" stroke="#93C5FD"/>
+  <text x="975" y="662" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" fill="#1D4ED8">Aksi Dokumen</text>
+  <text x="975" y="690" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#1D4ED8">Generate, unduh, atau simpan draft</text>
+  <rect x="1220" y="240" width="50" height="470" rx="18" fill="#E2E8F0"/>
+  <rect x="1228" y="278" width="34" height="120" rx="14" fill="#94A3B8"/>
+  <text x="800" y="814" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#64748B">Preview PDF-like untuk pemeriksaan SK KPA</text>
+</svg>

@@ -21,7 +21,7 @@ import {
     PenLine,
     Upload,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface Spk {
     id: number;
@@ -97,6 +97,7 @@ interface Addendum {
 
 interface PeriodeAlokasi {
     id: number;
+    hashed_id: string;
     nama_periode: string;
     bulan: number;
     tahun: number;
@@ -187,6 +188,7 @@ export default function ShowByMonth({
     spk_documents,
     petugas,
     kegiatan_list,
+    periode,
     bast,
     petugas_list,
     unique_kegiatan_list,
@@ -209,6 +211,74 @@ export default function ShowByMonth({
     const decryptedUniqueKegiatanList = useDecryptedData<UniqueKegiatanItem>(
         unique_kegiatan_list.encrypted,
     );
+
+    const signedPetugasScrollRef = useRef<HTMLDivElement | null>(null);
+    const unsignedPetugasScrollRef = useRef<HTMLDivElement | null>(null);
+    const scrollStateKey = `spk-month-petugas-scroll:${periode.hashed_id}:${bulan}:${tahun}`;
+
+    const readPetugasScrollState = (): { signed: number; unsigned: number } => {
+        if (typeof window === 'undefined') {
+            return { signed: 0, unsigned: 0 };
+        }
+
+        try {
+            const stored = window.sessionStorage.getItem(scrollStateKey);
+
+            if (!stored) {
+                return { signed: 0, unsigned: 0 };
+            }
+
+            const parsed = JSON.parse(stored) as {
+                signed?: number;
+                unsigned?: number;
+            };
+
+            return {
+                signed: parsed.signed ?? 0,
+                unsigned: parsed.unsigned ?? 0,
+            };
+        } catch {
+            return { signed: 0, unsigned: 0 };
+        }
+    };
+
+    const writePetugasScrollState = (nextState: {
+        signed?: number;
+        unsigned?: number;
+    }): void => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const currentState = readPetugasScrollState();
+        const mergedState = {
+            signed: nextState.signed ?? currentState.signed,
+            unsigned: nextState.unsigned ?? currentState.unsigned,
+        };
+
+        window.sessionStorage.setItem(
+            scrollStateKey,
+            JSON.stringify(mergedState),
+        );
+    };
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const { signed, unsigned } = readPetugasScrollState();
+
+        window.requestAnimationFrame(() => {
+            if (signedPetugasScrollRef.current) {
+                signedPetugasScrollRef.current.scrollTop = signed;
+            }
+
+            if (unsignedPetugasScrollRef.current) {
+                unsignedPetugasScrollRef.current.scrollTop = unsigned;
+            }
+        });
+    }, [scrollStateKey]);
 
     const isSensusEkonomiContext = decryptedKegiatanList.some((item) => {
         const jenisKegiatan = (item.jenis_kegiatan || '').toLowerCase();
@@ -234,7 +304,12 @@ export default function ShowByMonth({
         return map;
     }, new Map());
 
-    const allPetugas = Array.from(uniquePetugasMap.values());
+    const allPetugas = Array.from(uniquePetugasMap.values()).sort(
+        (left, right) =>
+            left.petugas_nama
+                .toLowerCase()
+                .localeCompare(right.petugas_nama.toLowerCase(), 'id'),
+    );
 
     const generatedFileCount = allPetugas.filter(
         (item: PetugasListItem) => item.file_path,
@@ -315,6 +390,15 @@ export default function ShowByMonth({
         return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
     };
 
+    const formatPetugasDisplayName = (name: string): string => {
+        return name
+            .toLowerCase()
+            .split(/\s+/)
+            .filter(Boolean)
+            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(' ');
+    };
+
     const formatPeriodeKerja = (
         tanggalMulai: string,
         tanggalSelesai: string,
@@ -356,15 +440,27 @@ export default function ShowByMonth({
     };
 
     const handleSelectPetugas = (spkHashedId: string) => {
+        writePetugasScrollState({
+            signed: signedPetugasScrollRef.current?.scrollTop ?? 0,
+            unsigned: unsignedPetugasScrollRef.current?.scrollTop ?? 0,
+        });
+
         const state = encryptFilters({
             bulan,
             tahun,
             spk: spkHashedId,
+            periode_hashed_id: periode.hashed_id,
         });
 
-        router.get('/spk/month', {
-            state,
-        });
+        router.get(
+            '/spk/month',
+            {
+                state,
+            },
+            {
+                preserveScroll: true,
+            },
+        );
     };
 
     const handleUploadSubmit = (e: React.FormEvent) => {
@@ -502,7 +598,17 @@ export default function ShowByMonth({
                                 Petugas dengan PK Ditandatangani (
                                 {petugasSigned.length})
                             </h4>
-                            <div className="max-h-[300px] space-y-2 overflow-y-auto">
+                            <div
+                                ref={signedPetugasScrollRef}
+                                className="max-h-[300px] space-y-2 overflow-y-auto"
+                                onScroll={() =>
+                                    writePetugasScrollState({
+                                        signed:
+                                            signedPetugasScrollRef.current
+                                                ?.scrollTop ?? 0,
+                                    })
+                                }
+                            >
                                 {/* Petugas dengan PK Ditandatangani */}
                                 {petugasSigned.length > 0 && (
                                     <div className="space-y-2">
@@ -534,7 +640,17 @@ export default function ShowByMonth({
                                 Petugas dengan PK Belum Ditandatangani (
                                 {petugasUnsigned.length})
                             </h4>
-                            <div className="max-h-[300px] space-y-2 overflow-y-auto">
+                            <div
+                                ref={unsignedPetugasScrollRef}
+                                className="max-h-[300px] space-y-2 overflow-y-auto"
+                                onScroll={() =>
+                                    writePetugasScrollState({
+                                        unsigned:
+                                            unsignedPetugasScrollRef.current
+                                                ?.scrollTop ?? 0,
+                                    })
+                                }
+                            >
                                 {/* Petugas dengan PK Belum Ditandatangani */}
                                 {petugasUnsigned.length > 0 && (
                                     <div className="space-y-2">
@@ -972,7 +1088,9 @@ export default function ShowByMonth({
                                         Nama Petugas
                                     </Label>
                                     <p className="font-medium break-words text-neutral-900 dark:text-white">
-                                        {decryptedPetugas.nama}
+                                        {formatPetugasDisplayName(
+                                            decryptedPetugas.nama,
+                                        )}
                                     </p>
                                 </div>
                                 <div className="min-w-0">

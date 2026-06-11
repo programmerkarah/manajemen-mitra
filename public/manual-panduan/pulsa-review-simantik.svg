@@ -1,0 +1,37 @@
+<svg width="1600" height="1000" viewBox="0 0 1600 1000" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="1000" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F4FBFF"/>
+      <stop offset="1" stop-color="#F0F8F8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="1000" rx="32" fill="url(#bg)"/>
+  <rect x="120" y="110" width="1360" height="780" rx="32" fill="#FFFFFF" stroke="#D7E3F0" stroke-width="4"/>
+  <rect x="160" y="150" width="520" height="700" rx="26" fill="#0F172A"/>
+  <rect x="720" y="150" width="720" height="320" rx="26" fill="#EFF6FF" stroke="#BFDBFE"/>
+  <rect x="720" y="500" width="720" height="350" rx="26" fill="#F8FAFC" stroke="#D7E3F0"/>
+  <text x="420" y="214" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="24" font-weight="700" fill="#FFFFFF">AJUKAN PULSA</text>
+  <rect x="205" y="260" width="430" height="98" rx="18" fill="#111827" stroke="#334155"/>
+  <text x="236" y="298" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" fill="#E2E8F0">Nominal</text>
+  <text x="236" y="327" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#94A3B8">Masukkan kebutuhan pulsa</text>
+  <rect x="205" y="380" width="430" height="98" rx="18" fill="#111827" stroke="#334155"/>
+  <text x="236" y="418" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" fill="#E2E8F0">Keterangan</text>
+  <text x="236" y="447" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#94A3B8">Jelaskan alasan pengajuan</text>
+  <rect x="205" y="500" width="430" height="100" rx="18" fill="#0F766E"/>
+  <text x="420" y="558" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" fill="#FFFFFF">Kirim Pengajuan</text>
+  <text x="1080" y="216" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="24" font-weight="700" fill="#0F172A">REVIEW PETUGAS</text>
+  <rect x="760" y="256" width="640" height="90" rx="18" fill="#FFFFFF" stroke="#BFDBFE"/>
+  <text x="790" y="295" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" fill="#1D4ED8">Status</text>
+  <text x="900" y="295" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#334155">: Menunggu pemeriksaan</text>
+  <rect x="760" y="370" width="640" height="120" rx="18" fill="#FFFFFF" stroke="#BFDBFE"/>
+  <text x="790" y="408" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" fill="#1D4ED8">Hasil Review</text>
+  <text x="790" y="440" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#475569">Data kerja petugas dicek sebelum status dipindahkan ke tahap berikutnya.</text>
+  <text x="790" y="468" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#475569">Pengguna dapat menilai, menandai, atau meneruskan hasil review.</text>
+  <rect x="760" y="530" width="290" height="180" rx="20" fill="#ECFDF5" stroke="#86EFAC"/>
+  <text x="905" y="590" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" fill="#166534">Grafik / Ringkasan</text>
+  <text x="905" y="622" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#166534">Membaca progres pengajuan</text>
+  <rect x="1070" y="530" width="330" height="180" rx="20" fill="#EFF6FF" stroke="#93C5FD"/>
+  <text x="1235" y="590" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" fill="#1D4ED8">Aksi Admin / Reviewer</text>
+  <text x="1235" y="622" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#1D4ED8">Approve, revisi, atau lanjut proses</text>
+  <text x="800" y="924" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#64748B">Panel pengajuan pulsa dan review petugas dalam satu alur kerja</text>
+</svg>

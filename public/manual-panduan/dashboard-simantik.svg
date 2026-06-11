@@ -1,0 +1,53 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7FAFF" />
+      <stop offset="1" stop-color="#EEF4FF" />
+    </linearGradient>
+    <linearGradient id="sidebar" x1="0" y1="0" x2="0" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A" />
+      <stop offset="1" stop-color="#1E293B" />
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" rx="36" fill="url(#bg)" />
+  <rect x="54" y="44" width="1492" height="812" rx="32" fill="#FFFFFF" stroke="#D8E3F1" stroke-width="4" />
+  <rect x="54" y="44" width="1492" height="84" rx="32" fill="#F8FBFF" />
+  <rect x="54" y="128" width="312" height="728" rx="0" fill="url(#sidebar)" />
+  <text x="102" y="188" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700">SIMANTIK</text>
+  <text x="102" y="226" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="18">Dashboard utama</text>
+  <rect x="410" y="166" width="1090" height="630" rx="28" fill="#F8FBFF" stroke="#D8E3F1" stroke-width="3" />
+  <text x="450" y="222" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700">Dashboard SIMANTIK</text>
+  <text x="450" y="258" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="18">Ringkasan layanan, progres kerja, dan tindakan berikutnya</text>
+  <rect x="450" y="302" width="230" height="124" rx="24" fill="#FFFFFF" stroke="#D8E3F1" stroke-width="3" />
+  <rect x="700" y="302" width="230" height="124" rx="24" fill="#FFFFFF" stroke="#D8E3F1" stroke-width="3" />
+  <rect x="950" y="302" width="230" height="124" rx="24" fill="#FFFFFF" stroke="#D8E3F1" stroke-width="3" />
+  <rect x="1200" y="302" width="280" height="124" rx="24" fill="#FFFFFF" stroke="#D8E3F1" stroke-width="3" />
+  <text x="482" y="346" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">Total Petugas</text>
+  <text x="482" y="392" fill="#2563EB" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700">124</text>
+  <text x="732" y="346" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">Total Kegiatan</text>
+  <text x="732" y="392" fill="#0F766E" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700">118</text>
+  <text x="982" y="346" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">Draft Kegiatan</text>
+  <text x="982" y="392" fill="#16A34A" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700">112</text>
+  <text x="1232" y="346" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">BAST Pending</text>
+  <text x="1232" y="392" fill="#DC2626" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700">6</text>
+  <rect x="450" y="456" width="548" height="276" rx="24" fill="#FFFFFF" stroke="#D8E3F1" stroke-width="3" />
+  <rect x="1030" y="456" width="452" height="276" rx="24" fill="#FFFFFF" stroke="#D8E3F1" stroke-width="3" />
+  <text x="486" y="508" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">Aksi Cepat</text>
+  <rect x="486" y="542" width="460" height="40" rx="14" fill="#EFF6FF" />
+  <rect x="486" y="596" width="460" height="40" rx="14" fill="#ECFDF5" />
+  <rect x="486" y="650" width="460" height="40" rx="14" fill="#F5F3FF" />
+  <text x="516" y="569" fill="#1D4ED8" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Petugas</text>
+  <text x="516" y="623" fill="#15803D" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Kegiatan</text>
+  <text x="516" y="677" fill="#7C3AED" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">BAPP / Dokumen</text>
+  <text x="1062" y="508" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">Ringkasan Aktivitas</text>
+  <rect x="1062" y="542" width="372" height="58" rx="18" fill="#EFF6FF" />
+  <rect x="1062" y="614" width="372" height="58" rx="18" fill="#ECFDF5" />
+  <text x="1088" y="579" fill="#1D4ED8" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Grafik petugas</text>
+  <text x="1088" y="651" fill="#15803D" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Monitoring beban kerja</text>
+  <rect x="476" y="734" width="1000" height="28" rx="14" fill="#DBEAFE" />
+  <text x="502" y="754" fill="#1D4ED8" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700">Langkah kerja: cek status, pilih aksi cepat, lalu lanjutkan ke modul yang relevan.</text>
+  <path d="M1020 526 H1060" stroke="#1D4ED8" stroke-width="4" stroke-linecap="round" />
+  <path d="M1048 518 L1060 526 L1048 534" stroke="#1D4ED8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+  <rect x="484" y="512" width="474" height="156" rx="20" fill="none" stroke="#EF4444" stroke-width="4" />
+  <text x="488" y="502" fill="#EF4444" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700">Sorot: aksi cepat untuk melanjutkan pekerjaan</text>
+</svg>

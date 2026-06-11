@@ -1,0 +1,52 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FBFF" />
+      <stop offset="1" stop-color="#EEF6FF" />
+    </linearGradient>
+    <linearGradient id="sidebar" x1="0" y1="0" x2="0" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A" />
+      <stop offset="1" stop-color="#1E293B" />
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" rx="36" fill="url(#bg)" />
+  <rect x="54" y="44" width="1492" height="812" rx="32" fill="#FFFFFF" stroke="#D8E3F1" stroke-width="4" />
+  <rect x="54" y="44" width="1492" height="84" rx="32" fill="#F8FBFF" />
+  <rect x="54" y="128" width="360" height="728" rx="0" fill="url(#sidebar)" />
+  <rect x="446" y="160" width="1028" height="656" rx="28" fill="#F8FBFF" stroke="#D8E3F1" stroke-width="3" />
+  <text x="104" y="188" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700">SIMANTIK</text>
+  <text x="104" y="226" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="18">Navigasi utama</text>
+  <text x="482" y="214" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700">Cara kerja menu</text>
+  <text x="482" y="250" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="18">Sidebar dipakai untuk berpindah fitur, lalu panel konten menyesuaikan pilihan</text>
+  <rect x="104" y="312" width="256" height="44" rx="14" fill="#2563EB" />
+  <text x="130" y="340" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Dashboard</text>
+  <text x="104" y="392" fill="#E2E8F0" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Panduan SIMANTIK</text>
+  <text x="104" y="452" fill="#E2E8F0" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Master</text>
+  <text x="128" y="490" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="16">Kegiatan</text>
+  <text x="128" y="524" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="16">SBML</text>
+  <text x="128" y="558" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="16">Penandatangan</text>
+  <text x="104" y="622" fill="#E2E8F0" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Petugas</text>
+  <text x="128" y="660" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="16">Manajemen Petugas</text>
+  <text x="128" y="694" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="16">Alokasi Petugas</text>
+  <text x="104" y="758" fill="#E2E8F0" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Dokumen Administrasi</text>
+  <text x="128" y="796" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="16">SK KPA</text>
+  <text x="128" y="830" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="16">Perjanjian Kerja</text>
+  <text x="1090" y="386" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">Panel Konten</text>
+  <rect x="482" y="314" width="904" height="92" rx="20" fill="#EFF6FF" />
+  <rect x="482" y="426" width="904" height="92" rx="20" fill="#ECFDF5" />
+  <rect x="482" y="538" width="904" height="92" rx="20" fill="#F5F3FF" />
+  <rect x="482" y="650" width="904" height="92" rx="20" fill="#FFF7ED" />
+  <text x="514" y="370" fill="#1D4ED8" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">1. Pilih menu di sidebar</text>
+  <text x="514" y="402" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="16">Menu aktif berubah warna untuk menandai halaman yang sedang dibuka.</text>
+  <text x="514" y="482" fill="#15803D" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">2. Baca isi panel</text>
+  <text x="514" y="514" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="16">Konten utama berganti sesuai modul yang dipilih.</text>
+  <text x="514" y="594" fill="#7C3AED" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">3. Lakukan tindakan</text>
+  <text x="514" y="626" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="16">Dari halaman yang sama, pengguna dapat menambah, mengubah, atau memeriksa data.</text>
+  <text x="514" y="706" fill="#D97706" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">4. Kembali ke menu lain</text>
+  <text x="514" y="738" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="16">Sidebar tetap tersedia untuk berpindah ke alur berikutnya tanpa keluar dari aplikasi.</text>
+  <path d="M370 334 H446" stroke="#1D4ED8" stroke-width="4" stroke-linecap="round" />
+  <path d="M434 326 L446 334 L434 342" stroke="#1D4ED8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+  <rect x="96" y="302" width="274" height="58" rx="14" fill="none" stroke="#EF4444" stroke-width="4" />
+  <rect x="474" y="306" width="920" height="102" rx="20" fill="none" stroke="#EA580C" stroke-width="4" />
+  <text x="492" y="296" fill="#EA580C" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700">Sorot: menu aktif dan panel konten yang berubah</text>
+</svg>

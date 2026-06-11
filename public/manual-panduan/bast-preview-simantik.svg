@@ -1,0 +1,36 @@
+<svg width="1600" height="1000" viewBox="0 0 1600 1000" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="1000" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7FBFF"/>
+      <stop offset="1" stop-color="#F1F8EF"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="320" y1="150" x2="1280" y2="850" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#FAFAF9"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="1000" rx="32" fill="url(#bg)"/>
+  <rect x="210" y="80" width="1180" height="840" rx="28" fill="#111827"/>
+  <rect x="250" y="120" width="1100" height="760" rx="22" fill="url(#paper)"/>
+  <rect x="250" y="120" width="1100" height="74" rx="22" fill="#FEF3C7"/>
+  <text x="800" y="167" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="24" font-weight="700" fill="#0F172A">PREVIEW BAST</text>
+  <rect x="300" y="228" width="1000" height="88" rx="16" fill="#F8FBFF" stroke="#CBD5E1"/>
+  <text x="332" y="268" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">Status</text>
+  <text x="462" y="268" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#334155">: Siap Serah Terima</text>
+  <text x="332" y="296" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">Lampiran</text>
+  <text x="462" y="296" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#334155">: Data kegiatan, petugas, dan ringkasan hasil</text>
+  <rect x="300" y="332" width="1000" height="214" rx="16" fill="#F8FBFF" stroke="#CBD5E1"/>
+  <text x="332" y="370" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">Catatan Serah Terima</text>
+  <text x="332" y="406" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#475569">Preview dibuat untuk memeriksa apakah dokumen BAST sudah memuat data akhir yang benar.</text>
+  <text x="332" y="438" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#475569">Area tanda tangan dan detail dokumen ditampilkan sebelum finalisasi atau unduh.</text>
+  <text x="332" y="470" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#475569">Tampilan dibuat seperti kertas kerja agar lebih mudah dibaca pada saat review.</text>
+  <rect x="300" y="570" width="360" height="130" rx="18" fill="#ECFDF5" stroke="#86EFAC"/>
+  <text x="480" y="622" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" fill="#166534">Tanda Tangan</text>
+  <text x="480" y="650" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#166534">Penerima dan penyerah</text>
+  <rect x="680" y="570" width="620" height="130" rx="18" fill="#EFF6FF" stroke="#93C5FD"/>
+  <text x="990" y="622" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" font-weight="700" fill="#1D4ED8">Aksi Final</text>
+  <text x="990" y="650" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#1D4ED8">Review, generate, atau unduh dokumen</text>
+  <rect x="1170" y="230" width="100" height="470" rx="20" fill="#E2E8F0"/>
+  <rect x="1188" y="260" width="64" height="126" rx="14" fill="#94A3B8"/>
+  <text x="800" y="804" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#64748B">Preview BAST menyerupai dokumen serah terima sebelum final</text>
+</svg>
