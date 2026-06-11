@@ -47,7 +47,7 @@ class SbmlReportController extends Controller
         ])
             ->whereHas('periodeAlokasi', function ($query) use ($tahun, $bulan) {
                 $query->where('tahun', $tahun)
-                    ->whereRaw("LPAD(bulan, 2, '0') = ?", [$bulan])
+                    ->whereIn('bulan', $this->resolveBulanCandidates($bulan))
                     ->whereIn('status', ['draft', 'dikirim', 'perubahan']);
             })
             ->where(function ($query) {
@@ -74,7 +74,11 @@ class SbmlReportController extends Controller
                         ? (float) $alokasi->estimasi_honor_partial_listing
                         : (float) ($alokasi->total_honor_listing ?? 0);
 
-                    return $effectivePencacahanHonor + $effectiveListingHonor;
+                    return $this->calculateMonthlyHonorForAllocation(
+                        $effectivePencacahanHonor + $effectiveListingHonor,
+                        (int) ($alokasi->periodeAlokasi?->bulan ?? 0),
+                        $alokasi->periodeAlokasi?->kegiatan
+                    );
                 });
 
                 // Get max SBML based on jenis penugasan from allocations
@@ -121,16 +125,29 @@ class SbmlReportController extends Controller
                     $jumlahSatuanListingDibayarkan = $alokasi->partial_jumlah_satuan_listing !== null
                         ? (int) $alokasi->partial_jumlah_satuan_listing
                         : (int) ($alokasi->jumlah_satuan_listing ?? 0);
+                    $effectiveMonthlyHonor = $this->calculateMonthlyHonorForAllocation(
+                        $effectivePencacahanHonor + $effectiveListingHonor,
+                        (int) ($alokasi->periodeAlokasi?->bulan ?? 0),
+                        $alokasi->periodeAlokasi?->kegiatan
+                    );
 
-                    $kegiatanDetails[$kegiatanId]['total_honor'] += $effectivePencacahanHonor + $effectiveListingHonor;
+                    $kegiatanDetails[$kegiatanId]['total_honor'] += $effectiveMonthlyHonor;
                     $kegiatanDetails[$kegiatanId]['alokasi'][] = [
                         'peran' => $this->formatPeran($alokasi->peran),
                         'jumlah_satuan' => $alokasi->jumlah_satuan,
                         'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing,
                         'jumlah_satuan_dibayarkan' => $jumlahSatuanDibayarkan,
                         'jumlah_satuan_listing_dibayarkan' => $jumlahSatuanListingDibayarkan,
-                        'total_honor' => $effectivePencacahanHonor,
-                        'total_honor_listing' => $effectiveListingHonor,
+                        'total_honor' => $this->calculateMonthlyHonorForAllocation(
+                            $effectivePencacahanHonor,
+                            (int) ($alokasi->periodeAlokasi?->bulan ?? 0),
+                            $alokasi->periodeAlokasi?->kegiatan
+                        ),
+                        'total_honor_listing' => $this->calculateMonthlyHonorForAllocation(
+                            $effectiveListingHonor,
+                            (int) ($alokasi->periodeAlokasi?->bulan ?? 0),
+                            $alokasi->periodeAlokasi?->kegiatan
+                        ),
                         'status_kepegawaian' => $alokasi->status_kepegawaian,
                         'catatan' => $alokasi->catatan,
                     ];
@@ -215,6 +232,47 @@ class SbmlReportController extends Controller
             'pengawas_pengolahan' => 'Pengawas Pengolahan',
             default => ucfirst($peran),
         };
+    }
+
+    private function isSensusEkonomi2026(\App\Models\Kegiatan $kegiatan): bool
+    {
+        return $kegiatan->jenis_kegiatan === 'sensus'
+            && mb_strtolower(trim((string) $kegiatan->nama_kegiatan)) === 'sensus ekonomi';
+    }
+
+    private function calculateMonthlyHonorForAllocation(
+        float $baseHonor,
+        int $bulan,
+        ?\App\Models\Kegiatan $kegiatan
+    ): float {
+        if (! $kegiatan || ! $this->isSensusEkonomi2026($kegiatan)) {
+            return $baseHonor;
+        }
+
+        $monthlyObWeight = $this->getSensusEkonomiMonthlyObWeight($bulan);
+
+        if ($monthlyObWeight <= 0) {
+            return 0.0;
+        }
+
+        return $baseHonor * ($monthlyObWeight / 2.5);
+    }
+
+    private function getSensusEkonomiMonthlyObWeight(int $bulan): float
+    {
+        return match ($bulan) {
+            6 => 0.5,
+            7 => 1.0,
+            8 => 1.0,
+            default => 0.0,
+        };
+    }
+
+    private function resolveBulanCandidates(string $bulan): array
+    {
+        $normalizedBulan = str_pad((string) ((int) $bulan), 2, '0', STR_PAD_LEFT);
+
+        return array_values(array_unique([$bulan, (string) ((int) $bulan), $normalizedBulan]));
     }
 
     private function normalizeBulan(string|int $bulan): string
