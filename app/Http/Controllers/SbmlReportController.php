@@ -25,7 +25,7 @@ class SbmlReportController extends Controller
         $defaultBulan = str_pad(date('m'), 2, '0', STR_PAD_LEFT);
 
         $tahun = (int) ($validated['tahun'] ?? $defaultTahun);
-        $bulan = str_pad((string) ($validated['bulan'] ?? $defaultBulan), 2, '0', STR_PAD_LEFT);
+        $bulan = $this->normalizeBulan($validated['bulan'] ?? $defaultBulan);
 
         // Pre-fetch all SBML data for the year to avoid N+1 queries
         $sbmlCache = Sbml::where('tahun_anggaran', $tahun)
@@ -47,7 +47,7 @@ class SbmlReportController extends Controller
         ])
             ->whereHas('periodeAlokasi', function ($query) use ($tahun, $bulan) {
                 $query->where('tahun', $tahun)
-                    ->where('bulan', $bulan)
+                    ->whereRaw("LPAD(bulan, 2, '0') = ?", [$bulan])
                     ->whereIn('status', ['draft', 'dikirim', 'perubahan']);
             })
             ->where(function ($query) {
@@ -215,5 +215,10 @@ class SbmlReportController extends Controller
             'pengawas_pengolahan' => 'Pengawas Pengolahan',
             default => ucfirst($peran),
         };
+    }
+
+    private function normalizeBulan(string|int $bulan): string
+    {
+        return str_pad((string) ((int) $bulan), 2, '0', STR_PAD_LEFT);
     }
 }

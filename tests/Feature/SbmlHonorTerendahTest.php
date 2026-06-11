@@ -201,4 +201,61 @@ class SbmlHonorTerendahTest extends TestCase
             ->where('filters.decrypted.bulan', str_pad(date('m'), 2, '0', STR_PAD_LEFT))
         );
     }
+
+    public function test_rekap_honor_menganggap_bulan_06_dan_6_sama(): void
+    {
+        $petugas = Petugas::factory()->create(['jenis_petugas' => 'non-organik']);
+        $tahun = 2025;
+
+        Sbml::create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status_kepegawaian' => 'non_organik',
+            'jenis_penugasan' => 'pcl_ppl',
+            'honor_max' => 2500000,
+            'status' => 'aktif',
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+            'tahun_anggaran' => $tahun,
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'tahun' => $tahun,
+            'bulan' => '6',
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        DB::table('alokasi_petugas')->insert([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'jumlah_satuan' => 1,
+            'total_honor' => 750000,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $adminRole = Role::firstOrCreate(
+            ['name' => 'admin'],
+            ['display_name' => 'Admin', 'description' => 'Role admin']
+        );
+        $user = User::factory()->create();
+        $user->roles()->attach($adminRole->id);
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get(route('sbml.report', ['tahun' => $tahun, 'bulan' => '06']));
+
+        $response->assertOk();
+        $data = decryptData($response->inertiaProps('petugas.encrypted'));
+
+        $this->assertCount(1, $data);
+        $this->assertEquals(750000, $data[0]['total_honor']);
+    }
 }
