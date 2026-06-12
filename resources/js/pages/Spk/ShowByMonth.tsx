@@ -212,9 +212,21 @@ export default function ShowByMonth({
         unique_kegiatan_list.encrypted,
     );
 
+    const isSensusEkonomiContext = decryptedKegiatanList.some((item) => {
+        const jenisKegiatan = (item.jenis_kegiatan || '').toLowerCase();
+        const namaKegiatan = (item.nama_kegiatan || '').toLowerCase();
+
+        return (
+            jenisKegiatan.includes('sensus') ||
+            namaKegiatan.includes('sensus ekonomi')
+        );
+    });
+
     const signedPetugasScrollRef = useRef<HTMLDivElement | null>(null);
     const unsignedPetugasScrollRef = useRef<HTMLDivElement | null>(null);
-    const scrollStateKey = `spk-month-petugas-scroll:${periode.hashed_id}:${bulan}:${tahun}`;
+    const scrollStateKey = isSensusEkonomiContext
+        ? `spk-month-petugas-scroll:${periode.hashed_id}:${bulan}:${tahun}`
+        : `spk-month-petugas-scroll:survei:${bulan}:${tahun}`;
 
     const readPetugasScrollState = useCallback((): {
         signed: number;
@@ -282,16 +294,6 @@ export default function ShowByMonth({
             }
         });
     }, [readPetugasScrollState]);
-
-    const isSensusEkonomiContext = decryptedKegiatanList.some((item) => {
-        const jenisKegiatan = (item.jenis_kegiatan || '').toLowerCase();
-        const namaKegiatan = (item.nama_kegiatan || '').toLowerCase();
-
-        return (
-            jenisKegiatan.includes('sensus') ||
-            namaKegiatan.includes('sensus ekonomi')
-        );
-    });
 
     const documentLabel = isSensusEkonomiContext
         ? 'PK Sensus Ekonomi'
@@ -452,12 +454,17 @@ export default function ShowByMonth({
             unsigned: unsignedPetugasScrollRef.current?.scrollTop ?? 0,
         });
 
-        const state = encryptFilters({
+        const statePayload: Record<string, string | number> = {
             bulan,
             tahun,
             spk: spkHashedId,
-            periode_hashed_id: periode.hashed_id,
-        });
+        };
+
+        if (isSensusEkonomiContext) {
+            statePayload.periode_hashed_id = periode.hashed_id;
+        }
+
+        const state = encryptFilters(statePayload);
 
         router.get(
             '/spk/month',
