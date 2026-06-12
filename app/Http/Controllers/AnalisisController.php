@@ -217,7 +217,7 @@ class AnalisisController extends Controller
         $petugasAlokasiRaw = $petugasAlokasiRaw->select(
             'petugas.id as petugas_id',
             'petugas.nama as petugas_nama',
-            'periode_alokasi.bulan',
+            DB::raw('CAST(periode_alokasi.bulan AS UNSIGNED) as bulan'),
         )
             ->selectRaw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as jumlah_kegiatan')
             ->selectRaw("COALESCE(SUM(CASE
@@ -226,7 +226,8 @@ class AnalisisController extends Controller
                 WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 8 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.6
                 ELSE COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)
             END), 0) as total_honor")
-            ->groupBy('petugas.id', 'petugas.nama', 'periode_alokasi.bulan')
+            ->groupBy('petugas.id', 'petugas.nama')
+            ->groupByRaw('CAST(periode_alokasi.bulan AS UNSIGNED)')
             ->get();
 
         $petugasAlokasiDetail = $petugasAlokasiRaw->groupBy('petugas_id')->map(function ($items) {
@@ -234,7 +235,7 @@ class AnalisisController extends Controller
             $bulanData = [];
             $honorData = [];
             for ($b = 1; $b <= 12; $b++) {
-                $found = $items->firstWhere('bulan', str_pad($b, 2, '0', STR_PAD_LEFT));
+                $found = $items->firstWhere('bulan', $b);
                 $bulanData[$b] = $found ? (int) $found->jumlah_kegiatan : 0;
                 $honorData[$b] = $found ? (float) $found->total_honor : 0;
             }

@@ -289,6 +289,104 @@ class AnalisisControllerTest extends TestCase
         $this->assertSame(1, $alokasiAgustus['jumlah_kegiatan']);
     }
 
+    public function test_analisis_petugas_merges_zero_padded_and_plain_months_for_honor(): void
+    {
+        $user = User::factory()->admin()->create();
+        $currentYear = (int) date('Y');
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Bulan Campur',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $kegiatanJuniA = Kegiatan::factory()->create([
+            'nama_kegiatan' => 'Kegiatan Juni A',
+            'jenis_kegiatan' => 'survei',
+            'tahun_anggaran' => $currentYear,
+            'status' => 'aktif',
+            'tanggal_mulai' => '2026-06-01',
+            'tanggal_selesai' => '2026-06-30',
+        ]);
+
+        $kegiatanJuniB = Kegiatan::factory()->create([
+            'nama_kegiatan' => 'Kegiatan Juni B',
+            'jenis_kegiatan' => 'survei',
+            'tahun_anggaran' => $currentYear,
+            'status' => 'aktif',
+            'tanggal_mulai' => '2026-06-01',
+            'tanggal_selesai' => '2026-06-30',
+        ]);
+
+        $kegiatanJuli = Kegiatan::factory()->create([
+            'nama_kegiatan' => 'Kegiatan Juli',
+            'jenis_kegiatan' => 'survei',
+            'tahun_anggaran' => $currentYear,
+            'status' => 'aktif',
+            'tanggal_mulai' => '2026-07-01',
+            'tanggal_selesai' => '2026-07-31',
+        ]);
+
+        $periodeJuniPlain = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanJuniA->id,
+            'bulan' => '6',
+            'tahun' => $currentYear,
+            'status' => 'dikirim',
+        ]);
+
+        $periodeJuniPadded = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanJuniB->id,
+            'bulan' => '06',
+            'tahun' => $currentYear,
+            'status' => 'dikirim',
+        ]);
+
+        $periodeJuli = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanJuli->id,
+            'bulan' => '07',
+            'tahun' => $currentYear,
+            'status' => 'dikirim',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeJuniPlain->id,
+            'petugas_id' => $petugas->id,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 120000,
+            'total_honor_listing' => 0,
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeJuniPadded->id,
+            'petugas_id' => $petugas->id,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 80000,
+            'total_honor_listing' => 0,
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeJuli->id,
+            'petugas_id' => $petugas->id,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 50000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('analisis.petugas'))
+            ->assertOk();
+
+        $props = $response->original->getData()['page']['props'];
+        $detail = collect($props['petugasAlokasiDetail'])->firstWhere('petugas_nama', 'Petugas Bulan Campur');
+
+        $this->assertNotNull($detail);
+        $this->assertSame(2, $detail['bulan'][6]);
+        $this->assertSame(200000.0, $detail['honor'][6]);
+        $this->assertSame(1, $detail['bulan'][7]);
+        $this->assertSame(50000.0, $detail['honor'][7]);
+        $this->assertSame(250000.0, $detail['total_honor']);
+    }
+
     public function test_admin_can_access_analisis_pulsa(): void
     {
         $user = User::factory()->admin()->create();
