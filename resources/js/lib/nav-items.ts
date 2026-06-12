@@ -267,11 +267,9 @@ export function buildNavItems(
                     { title: 'Kegiatan', href: '/kegiatan' },
                     { title: 'SK KPA', href: '/sk-kpa' },
                     { title: 'Perjanjian Kerja', href: '/spk' },
+                    { title: 'Berita Acara', href: '/berita-acara' },
                     ...(isSeKetuaTim
-                        ? [
-                              { title: 'Berita Acara', href: '/berita-acara' },
-                              { title: 'BAPP SE2026', href: '/bapp' },
-                          ]
+                        ? [{ title: 'BAPP SE2026', href: '/bapp' }]
                         : []),
                     {
                         title: 'Master Sampel',
