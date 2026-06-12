@@ -60,15 +60,15 @@ class SbmlReportController extends Controller
             })
             ->get()
             ->groupBy('petugas_id')
-            ->map(function ($alokasis, $petugasId) use ($sbmlCache, $bulanInt) {
+            ->map(function ($alokasis, $petugasId) use ($sbmlCache, $bulanInt, $tahun) {
                 $petugas = $alokasis->first()->petugas;
 
                 if (! $petugas) {
                     return null;
                 }
 
-                $positiveAlokasis = $alokasis->filter(function ($alokasi) use ($bulanInt) {
-                    if (! $this->shouldIncludeInMonthlyReport($alokasi, $bulanInt)) {
+                    $positiveAlokasis = $alokasis->filter(function ($alokasi) use ($bulanInt, $tahun) {
+                        if (! $this->shouldIncludeInMonthlyReport($alokasi, $bulanInt, $tahun)) {
                         return false;
                     }
 
@@ -421,15 +421,32 @@ class SbmlReportController extends Controller
         return array_values(array_unique($candidates));
     }
 
-    private function shouldIncludeInMonthlyReport(\App\Models\AlokasiPetugas $alokasi, int $reportMonth): bool
+    private function shouldIncludeInMonthlyReport(\App\Models\AlokasiPetugas $alokasi, int $reportMonth, int $tahun): bool
     {
         $kegiatan = $alokasi->periodeAlokasi?->kegiatan;
 
         if ($this->isSensusEkonomiKegiatan($kegiatan)) {
+            $reportRange = $this->resolveReportMonthDateRange($tahun, $reportMonth);
+            $periodeRange = $this->resolvePeriodeDateRange($alokasi->periodeAlokasi);
+
+            if ($reportRange !== null && $periodeRange !== null) {
+                return $this->dateRangesOverlap($periodeRange, $reportRange);
+            }
+
             return in_array($reportMonth, [6, 7, 8], true);
         }
 
         return (int) ($alokasi->periodeAlokasi?->bulan ?? 0) === $reportMonth;
+    }
+    /**
+     * @return array{0:Carbon,1:Carbon}
+     */
+    private function resolveReportMonthDateRange(int $tahun, int $reportMonth): array
+    {
+        $start = Carbon::create($tahun, $reportMonth, 1)->startOfMonth();
+        $end = Carbon::create($tahun, $reportMonth, 1)->endOfMonth();
+
+        return [$start, $end];
     }
 
     private function resolveReportMonthForAllocation(\App\Models\AlokasiPetugas $alokasi, int $reportMonth): int
