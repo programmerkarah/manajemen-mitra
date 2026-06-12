@@ -454,7 +454,10 @@ class SbmlHonorTerendahTest extends TestCase
 
     public function test_rekap_honor_sensus_ekonomi_muncul_di_juni_juli_agustus_dengan_porsi_proporsional(): void
     {
-        $petugas = Petugas::factory()->create(['jenis_petugas' => 'non-organik']);
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Riva Dalpit',
+            'jenis_petugas' => 'non-organik',
+        ]);
         $tahun = 2025;
 
         Sbml::create([
@@ -489,7 +492,7 @@ class SbmlHonorTerendahTest extends TestCase
             'periode_alokasi_id' => $periode->id,
             'petugas_id' => $petugas->id,
             'jumlah_satuan' => 1,
-            'total_honor' => 11950000,
+            'total_honor' => 12590000,
             'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
             'created_at' => now(),
@@ -504,9 +507,9 @@ class SbmlHonorTerendahTest extends TestCase
         $user->roles()->attach($adminRole->id);
 
         $expected = [
-            '06' => 2390000,
-            '07' => 4780000,
-            '08' => 4780000,
+            '06' => 2518000,
+            '07' => 5036000,
+            '08' => 5036000,
         ];
 
         foreach ($expected as $reportMonth => $expectedHonor) {

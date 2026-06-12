@@ -12,7 +12,6 @@ import {
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
-import { encryptFilters } from '@/utils/encryption';
 import { Head, router } from '@inertiajs/react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
@@ -100,11 +99,10 @@ export default function Report({
     ];
 
     const handleFilterChange = (tahun: string, bulan: string) => {
-        const encryptedFilters = encryptFilters({ tahun, bulan });
-        router.post(
+        router.get(
             '/rekap-honor',
-            { encrypted_filters: encryptedFilters },
-            { preserveState: true },
+            { tahun, bulan },
+            { preserveState: true, replace: true },
         );
     };
 

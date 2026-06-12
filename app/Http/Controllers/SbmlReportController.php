@@ -49,7 +49,6 @@ class SbmlReportController extends Controller
         ])
             ->whereHas('periodeAlokasi', function ($query) use ($tahun, $bulan) {
                 $query->where('tahun', $tahun)
-                    ->whereIn('bulan', $this->resolveReportBulanCandidates($bulan))
                     ->whereIn('status', ['draft', 'dikirim', 'perubahan']);
             })
             ->where(function ($query) {
@@ -291,7 +290,10 @@ class SbmlReportController extends Controller
     private function isSensusEkonomi2026(\App\Models\Kegiatan $kegiatan): bool
     {
         return $kegiatan->jenis_kegiatan === 'sensus'
-            && mb_strtolower(trim((string) $kegiatan->nama_kegiatan)) === 'sensus ekonomi';
+            && str_contains(
+                mb_strtolower(trim((string) $kegiatan->nama_kegiatan)),
+                'sensus ekonomi'
+            );
     }
 
     private function calculateMonthlyHonorForAllocation(
@@ -326,7 +328,10 @@ class SbmlReportController extends Controller
     {
         return $kegiatan !== null
             && $kegiatan->jenis_kegiatan === 'sensus'
-            && mb_strtolower(trim((string) $kegiatan->nama_kegiatan)) === 'sensus ekonomi';
+            && str_contains(
+                mb_strtolower(trim((string) $kegiatan->nama_kegiatan)),
+                'sensus ekonomi'
+            );
     }
 
     private function shouldUseSensusOnlyMaxAllowed(Collection $sensusAlokasis, Collection $regularAlokasis): bool
@@ -426,27 +431,10 @@ class SbmlReportController extends Controller
         $kegiatan = $alokasi->periodeAlokasi?->kegiatan;
 
         if ($this->isSensusEkonomiKegiatan($kegiatan)) {
-            $reportRange = $this->resolveReportMonthDateRange($tahun, $reportMonth);
-            $periodeRange = $this->resolvePeriodeDateRange($alokasi->periodeAlokasi);
-
-            if ($reportRange !== null && $periodeRange !== null) {
-                return $this->dateRangesOverlap($periodeRange, $reportRange);
-            }
-
             return in_array($reportMonth, [6, 7, 8], true);
         }
 
         return (int) ($alokasi->periodeAlokasi?->bulan ?? 0) === $reportMonth;
-    }
-    /**
-     * @return array{0:Carbon,1:Carbon}
-     */
-    private function resolveReportMonthDateRange(int $tahun, int $reportMonth): array
-    {
-        $start = Carbon::create($tahun, $reportMonth, 1)->startOfMonth();
-        $end = Carbon::create($tahun, $reportMonth, 1)->endOfMonth();
-
-        return [$start, $end];
     }
 
     private function resolveReportMonthForAllocation(\App\Models\AlokasiPetugas $alokasi, int $reportMonth): int
