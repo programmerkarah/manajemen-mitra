@@ -8,6 +8,7 @@ use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\Sbml;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -103,18 +104,47 @@ class SbmlReportController extends Controller
                 // Get max SBML based on jenis penugasan from allocations
                 $statusKepegawaian = $petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik';
 
-                // Collect unique jenis penugasan (peran) from all allocations
-                $jenisPenugasanList = $positiveAlokasis->pluck('peran')->unique();
+                $alokasiKombinasi = $positiveAlokasis->map(function ($alokasi) use ($statusKepegawaian) {
+                    return [
+                        'jenis_kegiatan' => $alokasi->periodeAlokasi?->jenis_kegiatan ?? null,
+                        'jenis_penugasan' => $alokasi->peran,
+                        'status_kepegawaian' => $alokasi->status_kepegawaian ?? $statusKepegawaian,
+                    ];
+                })->unique(function (array $kombinasi): string {
+                    return $kombinasi['jenis_kegiatan'].'|'.$kombinasi['jenis_penugasan'].'|'.$kombinasi['status_kepegawaian'];
+                });
 
-                // Get SBML records from cache instead of querying database
-                $honorMaxList = $jenisPenugasanList->map(function ($peran) use ($sbmlCache, $statusKepegawaian, $positiveAlokasis) {
-                    $jenisKegiatan = $positiveAlokasis->firstWhere('peran', $peran)?->periodeAlokasi?->jenis_kegiatan ?? null;
-                    $cacheKey = $jenisKegiatan.'_'.$statusKepegawaian.'_'.$peran;
+                $sensusAlokasis = $positiveAlokasis->filter(function ($alokasi) {
+                    return $this->isSensusEkonomiKegiatan($alokasi->periodeAlokasi?->kegiatan);
+                });
+                $regularAlokasis = $positiveAlokasis->reject(function ($alokasi) {
+                    return $this->isSensusEkonomiKegiatan($alokasi->periodeAlokasi?->kegiatan);
+                });
+
+                $useSensusOnlyMaxAllowed = $this->shouldUseSensusOnlyMaxAllowed($sensusAlokasis, $regularAlokasis);
+
+                $honorMaxList = $alokasiKombinasi->map(function (array $kombinasi) use ($sbmlCache) {
+                    $cacheKey = $kombinasi['jenis_kegiatan'].'_'.$kombinasi['status_kepegawaian'].'_'.$kombinasi['jenis_penugasan'];
 
                     return $sbmlCache->get($cacheKey)?->honor_max;
                 })->filter();
 
-                $minAllowed = $honorMaxList->isNotEmpty() ? $honorMaxList->min() : 0;
+                if ($useSensusOnlyMaxAllowed) {
+                    $sensusHonorMaxList = $alokasiKombinasi
+                        ->filter(function (array $kombinasi) {
+                            return $kombinasi['jenis_kegiatan'] === 'sensus';
+                        })
+                        ->map(function (array $kombinasi) use ($sbmlCache) {
+                            $cacheKey = $kombinasi['jenis_kegiatan'].'_'.$kombinasi['status_kepegawaian'].'_'.$kombinasi['jenis_penugasan'];
+
+                            return $sbmlCache->get($cacheKey)?->honor_max;
+                        })
+                        ->filter();
+
+                    $minAllowed = $sensusHonorMaxList->isNotEmpty() ? $sensusHonorMaxList->max() : 0;
+                } else {
+                    $minAllowed = $honorMaxList->isNotEmpty() ? $honorMaxList->min() : 0;
+                }
                 $exceeds = $minAllowed > 0 && $totalHonor > $minAllowed;
 
                 // Group by kegiatan for details
@@ -285,6 +315,87 @@ class SbmlReportController extends Controller
             8 => 1.0,
             default => 0.0,
         };
+    }
+
+    private function isSensusEkonomiKegiatan(?\App\Models\Kegiatan $kegiatan): bool
+    {
+        return $kegiatan !== null
+            && $kegiatan->jenis_kegiatan === 'sensus'
+            && mb_strtolower(trim((string) $kegiatan->nama_kegiatan)) === 'sensus ekonomi';
+    }
+
+    private function shouldUseSensusOnlyMaxAllowed(Collection $sensusAlokasis, Collection $regularAlokasis): bool
+    {
+        if ($sensusAlokasis->isEmpty() || $regularAlokasis->isEmpty()) {
+            return false;
+        }
+
+        foreach ($sensusAlokasis as $sensusAlokasi) {
+            $sensusRange = $this->resolvePeriodeDateRange($sensusAlokasi->periodeAlokasi);
+
+            if ($sensusRange === null) {
+                return false;
+            }
+
+            foreach ($regularAlokasis as $regularAlokasi) {
+                $regularRange = $this->resolvePeriodeDateRange($regularAlokasi->periodeAlokasi);
+
+                if ($regularRange === null) {
+                    return false;
+                }
+
+                if ($this->dateRangesOverlap($sensusRange, $regularRange)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @return array{0:Carbon,1:Carbon}|null
+     */
+    private function resolvePeriodeDateRange(?PeriodeAlokasi $periode): ?array
+    {
+        if (! $periode) {
+            return null;
+        }
+
+        $startCandidates = array_filter([
+            $periode->tanggal_mulai ? Carbon::parse($periode->tanggal_mulai) : null,
+            $periode->tanggal_mulai_listing ? Carbon::parse($periode->tanggal_mulai_listing) : null,
+        ]);
+        $endCandidates = array_filter([
+            $periode->tanggal_selesai ? Carbon::parse($periode->tanggal_selesai) : null,
+            $periode->tanggal_selesai_listing ? Carbon::parse($periode->tanggal_selesai_listing) : null,
+        ]);
+
+        if ($startCandidates === [] || $endCandidates === []) {
+            $monthStart = Carbon::create($periode->tahun, (int) $periode->bulan, 1)->startOfMonth();
+            $monthEnd = Carbon::create($periode->tahun, (int) $periode->bulan, 1)->endOfMonth();
+
+            return [$monthStart, $monthEnd];
+        }
+
+        /** @var Carbon $start */
+        $start = collect($startCandidates)->sortBy(fn (Carbon $date) => $date->timestamp)->first();
+        /** @var Carbon $end */
+        $end = collect($endCandidates)->sortByDesc(fn (Carbon $date) => $date->timestamp)->first();
+
+        return [$start, $end];
+    }
+
+    /**
+     * @param  array{0:Carbon,1:Carbon}  $firstRange
+     * @param  array{0:Carbon,1:Carbon}  $secondRange
+     */
+    private function dateRangesOverlap(array $firstRange, array $secondRange): bool
+    {
+        [$firstStart, $firstEnd] = $firstRange;
+        [$secondStart, $secondEnd] = $secondRange;
+
+        return $firstStart->lte($secondEnd) && $secondStart->lte($firstEnd);
     }
 
     private function resolveBulanCandidates(string $bulan): array

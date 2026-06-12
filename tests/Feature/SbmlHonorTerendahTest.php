@@ -346,4 +346,109 @@ class SbmlHonorTerendahTest extends TestCase
         $this->assertCount(1, $petugasData['kegiatan_details'][0]['alokasi']);
         $this->assertEquals('PCL/PPL', $petugasData['kegiatan_details'][0]['alokasi'][0]['peran']);
     }
+
+    public function test_rekap_honor_menggunakan_sbml_sensus_saat_survei_dan_sensus_tidak_beririsan(): void
+    {
+        $petugas = Petugas::factory()->create(['jenis_petugas' => 'non-organik']);
+        $tahun = 2025;
+        $bulan = '06';
+
+        Sbml::create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status_kepegawaian' => 'non_organik',
+            'jenis_penugasan' => 'pcl_ppl',
+            'honor_max' => 3455000,
+            'status' => 'aktif',
+        ]);
+
+        Sbml::create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'sensus',
+            'status_kepegawaian' => 'non_organik',
+            'jenis_penugasan' => 'pcl_ppl',
+            'honor_max' => 5355000,
+            'status' => 'aktif',
+        ]);
+
+        $survei = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+            'tahun_anggaran' => $tahun,
+            'nama_kegiatan' => 'Survei Harga',
+        ]);
+
+        $periodeSurvei = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $survei->id,
+            'tahun' => $tahun,
+            'bulan' => $bulan,
+            'tanggal_mulai' => '2025-06-01',
+            'tanggal_selesai' => '2025-06-10',
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        DB::table('alokasi_petugas')->insert([
+            'periode_alokasi_id' => $periodeSurvei->id,
+            'petugas_id' => $petugas->id,
+            'jumlah_satuan' => 1,
+            'total_honor' => 3455000,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $sensus = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'sensus',
+            'tahun_anggaran' => $tahun,
+            'nama_kegiatan' => 'Sensus Ekonomi',
+        ]);
+
+        $periodeSensus = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $sensus->id,
+            'tahun' => $tahun,
+            'bulan' => $bulan,
+            'tanggal_mulai' => '2025-06-15',
+            'tanggal_selesai' => '2025-06-30',
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'sensus',
+        ]);
+
+        DB::table('alokasi_petugas')->insert([
+            'periode_alokasi_id' => $periodeSensus->id,
+            'petugas_id' => $petugas->id,
+            'jumlah_satuan' => 1,
+            'total_honor' => 6000000,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $adminRole = Role::firstOrCreate(
+            ['name' => 'admin'],
+            ['display_name' => 'Admin', 'description' => 'Role admin']
+        );
+        $user = User::factory()->create();
+        $user->roles()->attach($adminRole->id);
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get(route('sbml.report', ['tahun' => $tahun, 'bulan' => $bulan]));
+
+        $response->assertOk();
+
+        $data = decryptData($response->inertiaProps('petugas.encrypted'));
+
+        $this->assertCount(1, $data);
+
+        $petugasData = $data[0];
+
+        $this->assertEquals(4655000, $petugasData['total_honor']);
+        $this->assertEquals(5355000, $petugasData['max_allowed']);
+        $this->assertFalse($petugasData['exceeds']);
+        $this->assertCount(2, $petugasData['kegiatan_details']);
+    }
 }
