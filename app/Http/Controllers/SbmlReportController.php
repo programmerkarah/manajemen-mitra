@@ -27,6 +27,7 @@ class SbmlReportController extends Controller
 
         $tahun = (int) ($validated['tahun'] ?? $defaultTahun);
         $bulan = $this->normalizeBulan($validated['bulan'] ?? $defaultBulan);
+        $bulanInt = (int) $bulan;
 
         // Pre-fetch all SBML data for the year to avoid N+1 queries
         $sbmlCache = Sbml::where('tahun_anggaran', $tahun)
@@ -48,7 +49,7 @@ class SbmlReportController extends Controller
         ])
             ->whereHas('periodeAlokasi', function ($query) use ($tahun, $bulan) {
                 $query->where('tahun', $tahun)
-                    ->whereIn('bulan', $this->resolveBulanCandidates($bulan))
+                    ->whereIn('bulan', $this->resolveReportBulanCandidates($bulan))
                     ->whereIn('status', ['draft', 'dikirim', 'perubahan']);
             })
             ->where(function ($query) {
@@ -59,14 +60,18 @@ class SbmlReportController extends Controller
             })
             ->get()
             ->groupBy('petugas_id')
-            ->map(function ($alokasis, $petugasId) use ($sbmlCache) {
+            ->map(function ($alokasis, $petugasId) use ($sbmlCache, $bulanInt) {
                 $petugas = $alokasis->first()->petugas;
 
                 if (! $petugas) {
                     return null;
                 }
 
-                $positiveAlokasis = $alokasis->filter(function ($alokasi) {
+                $positiveAlokasis = $alokasis->filter(function ($alokasi) use ($bulanInt) {
+                    if (! $this->shouldIncludeInMonthlyReport($alokasi, $bulanInt)) {
+                        return false;
+                    }
+
                     $effectivePencacahanHonor = $alokasi->is_partial_payment && $alokasi->estimasi_honor_partial !== null
                         ? (float) $alokasi->estimasi_honor_partial
                         : (float) ($alokasi->total_honor ?? 0);
@@ -76,7 +81,7 @@ class SbmlReportController extends Controller
 
                     return $this->calculateMonthlyHonorForAllocation(
                         $effectivePencacahanHonor + $effectiveListingHonor,
-                        (int) ($alokasi->periodeAlokasi?->bulan ?? 0),
+                        $this->resolveReportMonthForAllocation($alokasi, $bulanInt),
                         $alokasi->periodeAlokasi?->kegiatan
                     ) > 0;
                 });
@@ -86,7 +91,7 @@ class SbmlReportController extends Controller
                 }
 
                 // Calculate total honor for this petugas in this month
-                $totalHonor = $positiveAlokasis->sum(function ($alokasi) {
+                $totalHonor = $positiveAlokasis->sum(function ($alokasi) use ($bulanInt) {
                     $effectivePencacahanHonor = $alokasi->is_partial_payment && $alokasi->estimasi_honor_partial !== null
                         ? (float) $alokasi->estimasi_honor_partial
                         : (float) ($alokasi->total_honor ?? 0);
@@ -96,7 +101,7 @@ class SbmlReportController extends Controller
 
                     return $this->calculateMonthlyHonorForAllocation(
                         $effectivePencacahanHonor + $effectiveListingHonor,
-                        (int) ($alokasi->periodeAlokasi?->bulan ?? 0),
+                        $this->resolveReportMonthForAllocation($alokasi, $bulanInt),
                         $alokasi->periodeAlokasi?->kegiatan
                     );
                 });
@@ -176,7 +181,7 @@ class SbmlReportController extends Controller
                         : (int) ($alokasi->jumlah_satuan_listing ?? 0);
                     $effectiveMonthlyHonor = $this->calculateMonthlyHonorForAllocation(
                         $effectivePencacahanHonor + $effectiveListingHonor,
-                        (int) ($alokasi->periodeAlokasi?->bulan ?? 0),
+                        $this->resolveReportMonthForAllocation($alokasi, $bulanInt),
                         $alokasi->periodeAlokasi?->kegiatan
                     );
 
@@ -189,12 +194,12 @@ class SbmlReportController extends Controller
                         'jumlah_satuan_listing_dibayarkan' => $jumlahSatuanListingDibayarkan,
                         'total_honor' => $this->calculateMonthlyHonorForAllocation(
                             $effectivePencacahanHonor,
-                            (int) ($alokasi->periodeAlokasi?->bulan ?? 0),
+                            $this->resolveReportMonthForAllocation($alokasi, $bulanInt),
                             $alokasi->periodeAlokasi?->kegiatan
                         ),
                         'total_honor_listing' => $this->calculateMonthlyHonorForAllocation(
                             $effectiveListingHonor,
-                            (int) ($alokasi->periodeAlokasi?->bulan ?? 0),
+                            $this->resolveReportMonthForAllocation($alokasi, $bulanInt),
                             $alokasi->periodeAlokasi?->kegiatan
                         ),
                         'status_kepegawaian' => $alokasi->status_kepegawaian,
@@ -403,6 +408,37 @@ class SbmlReportController extends Controller
         $normalizedBulan = str_pad((string) ((int) $bulan), 2, '0', STR_PAD_LEFT);
 
         return array_values(array_unique([$bulan, (string) ((int) $bulan), $normalizedBulan]));
+    }
+
+    private function resolveReportBulanCandidates(string $bulan): array
+    {
+        $candidates = $this->resolveBulanCandidates($bulan);
+
+        if (in_array((int) $bulan, [6, 7, 8], true)) {
+            $candidates = array_merge($candidates, ['06', '07', '08']);
+        }
+
+        return array_values(array_unique($candidates));
+    }
+
+    private function shouldIncludeInMonthlyReport(\App\Models\AlokasiPetugas $alokasi, int $reportMonth): bool
+    {
+        $kegiatan = $alokasi->periodeAlokasi?->kegiatan;
+
+        if ($this->isSensusEkonomiKegiatan($kegiatan)) {
+            return in_array($reportMonth, [6, 7, 8], true);
+        }
+
+        return (int) ($alokasi->periodeAlokasi?->bulan ?? 0) === $reportMonth;
+    }
+
+    private function resolveReportMonthForAllocation(\App\Models\AlokasiPetugas $alokasi, int $reportMonth): int
+    {
+        if ($this->isSensusEkonomiKegiatan($alokasi->periodeAlokasi?->kegiatan)) {
+            return $reportMonth;
+        }
+
+        return (int) ($alokasi->periodeAlokasi?->bulan ?? $reportMonth);
     }
 
     private function normalizeBulan(string|int $bulan): string

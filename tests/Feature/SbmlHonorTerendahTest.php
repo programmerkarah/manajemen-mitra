@@ -451,4 +451,75 @@ class SbmlHonorTerendahTest extends TestCase
         $this->assertFalse($petugasData['exceeds']);
         $this->assertCount(2, $petugasData['kegiatan_details']);
     }
+
+    public function test_rekap_honor_sensus_ekonomi_muncul_di_juni_juli_agustus_dengan_porsi_proporsional(): void
+    {
+        $petugas = Petugas::factory()->create(['jenis_petugas' => 'non-organik']);
+        $tahun = 2025;
+
+        Sbml::create([
+            'tahun_anggaran' => $tahun,
+            'jenis_kegiatan' => 'sensus',
+            'status_kepegawaian' => 'non_organik',
+            'jenis_penugasan' => 'pcl_ppl',
+            'honor_max' => 99999999,
+            'status' => 'aktif',
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'sensus',
+            'tahun_anggaran' => $tahun,
+            'nama_kegiatan' => 'Sensus Ekonomi',
+            'tanggal_mulai' => '2025-06-01',
+            'tanggal_selesai' => '2025-08-31',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'tahun' => $tahun,
+            'bulan' => '06',
+            'tanggal_mulai' => '2025-06-01',
+            'tanggal_selesai' => '2025-08-31',
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'sensus',
+        ]);
+
+        DB::table('alokasi_petugas')->insert([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'jumlah_satuan' => 1,
+            'total_honor' => 11950000,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $adminRole = Role::firstOrCreate(
+            ['name' => 'admin'],
+            ['display_name' => 'Admin', 'description' => 'Role admin']
+        );
+        $user = User::factory()->create();
+        $user->roles()->attach($adminRole->id);
+
+        $expected = [
+            '06' => 2390000,
+            '07' => 4780000,
+            '08' => 4780000,
+        ];
+
+        foreach ($expected as $reportMonth => $expectedHonor) {
+            $response = $this->actingAs($user)
+                ->withSession(['active_role_id' => $adminRole->id])
+                ->get(route('sbml.report', ['tahun' => $tahun, 'bulan' => $reportMonth]));
+
+            $response->assertOk();
+
+            $data = decryptData($response->inertiaProps('petugas.encrypted'));
+
+            $this->assertCount(1, $data);
+            $this->assertEquals($expectedHonor, $data[0]['total_honor']);
+        }
+    }
 }
