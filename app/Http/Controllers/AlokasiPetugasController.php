@@ -55,7 +55,7 @@ class AlokasiPetugasController extends Controller
             ->select('periode_alokasi.*')
             ->with([
                 'kegiatan:id,kode_kegiatan,nama_kegiatan,deskripsi,ketua_tim_user_id,pagu_pencacahan,pagu_listing,has_listing_updating',
-                'alokasiPetugas:id,periode_alokasi_id,petugas_id,total_honor,total_honor_listing',
+                'alokasiPetugas:id,periode_alokasi_id,petugas_id,jumlah_satuan,total_honor,is_partial_payment,partial_jumlah_satuan,estimasi_honor_partial,jumlah_satuan_listing,total_honor_listing,is_partial_payment_listing,partial_jumlah_satuan_listing,estimasi_honor_partial_listing',
             ])
             ->withCount('alokasiPetugas as jumlah_petugas')
             ->where('status', '!=', 'dihapus') // Exclude deleted periods
@@ -152,9 +152,7 @@ class AlokasiPetugasController extends Controller
                 return $periodesByKegiatan->groupBy('bulan')->map(function ($periodeInMonth) {
                     $periode = $periodeInMonth->first();
 
-                    return $periode->alokasiPetugas->sum(function ($alokasi) {
-                        return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
-                    });
+                    return $this->sumEffectiveCombinedHonor($periode->alokasiPetugas);
                 })->sortKeys();
             });
 
@@ -164,9 +162,7 @@ class AlokasiPetugasController extends Controller
                 return $periodesByKegiatan->groupBy('bulan')->map(function ($periodeInMonth) {
                     $periode = $periodeInMonth->first();
 
-                    return $periode->alokasiPetugas->sum(function ($alokasi) {
-                        return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
-                    });
+                    return $this->sumEffectiveCombinedHonor($periode->alokasiPetugas);
                 })->sortKeys();
             });
 
@@ -210,10 +206,7 @@ class AlokasiPetugasController extends Controller
 
         // Transform the result to include necessary data (client-side filtering and pagination)
         $allAlokasiData = $deduplicatedPeriodes->map(function ($periode) use ($latestMonthsByKegiatan, $honorPerKegiatanPerBulanValidated, $honorPerKegiatanPerBulanAll, $periodeIdsWithGeneratedSpk, $periodeIdsWithNonOrganikSpkInKegiatan) {
-            // Hitung ulang total honor untuk periode ini
-            $totalHonorPencacahan = $periode->alokasiPetugas->sum('total_honor');
-            $totalHonorListing = $periode->alokasiPetugas->sum('total_honor_listing');
-            $estimasiHonor = $totalHonorPencacahan + $totalHonorListing;
+            $estimasiHonor = $this->sumEffectiveCombinedHonor($periode->alokasiPetugas);
 
             // Ambil pagu dari kegiatan
             $paguPencacahan = $periode->kegiatan->pagu_pencacahan ?? 0;
@@ -347,6 +340,16 @@ class AlokasiPetugasController extends Controller
         }
 
         return $tanggalMulai->translatedFormat('F Y').' - '.$tanggalSelesai->translatedFormat('F Y');
+    }
+
+    /**
+     * @param  Collection<int, AlokasiPetugas>  $alokasiPetugas
+     */
+    private function sumEffectiveCombinedHonor(Collection $alokasiPetugas): float
+    {
+        return (float) $alokasiPetugas->sum(function (AlokasiPetugas $alokasi): float {
+            return $alokasi->getEffectiveCombinedHonor();
+        });
     }
 
     /**
@@ -3725,14 +3728,14 @@ class AlokasiPetugasController extends Controller
         // Get all existing allocations for this petugas in this month
         $existingAlokasis = AlokasiPetugas::with(['periodeAlokasi.kegiatan'])
             ->whereHas('periodeAlokasi', function ($query) use ($tahun, $bulanCandidates, $excludePeriodeId) {
-            $query->where('tahun', $tahun)
-                ->whereIn('bulan', $bulanCandidates)
-                ->whereIn('status', ['draft', 'dikirim', 'perubahan']);
+                $query->where('tahun', $tahun)
+                    ->whereIn('bulan', $bulanCandidates)
+                    ->whereIn('status', ['draft', 'dikirim', 'perubahan']);
 
-            if ($excludePeriodeId) {
-                $query->where('id', '!=', $excludePeriodeId);
-            }
-        })
+                if ($excludePeriodeId) {
+                    $query->where('id', '!=', $excludePeriodeId);
+                }
+            })
             ->where('petugas_id', $petugasId)
             ->get();
 
