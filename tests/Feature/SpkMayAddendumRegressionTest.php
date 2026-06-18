@@ -7,6 +7,7 @@ use App\Models\Kegiatan;
 use App\Models\Penandatangan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
+use App\Http\Controllers\SpkController;
 use App\Models\Spk;
 use App\Models\User;
 use App\Services\ActiveYearService;
@@ -453,21 +454,12 @@ class SpkMayAddendumRegressionTest extends TestCase
             'status' => 'diterbitkan',
             'created_by' => $creator->id,
         ]);
-
-        $controller = app(App\Http\Controllers\SpkController::class);
-        $reflection = new \ReflectionMethod($controller, 'hasNewKegiatanAfterSpk');
+        $controller = app(SpkController::class);
+        $reflection = new \ReflectionMethod($controller, 'resolveRegenerateCandidatesForMonth');
         $reflection->setAccessible(true);
-        $monthPeriodes = PeriodeAlokasi::whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", ['05'])
-            ->where('tahun', $tahun)
-            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
-            ->with('spk')
-            ->get();
+        $regenerateCandidates = $reflection->invoke($controller, $tahun, 5);
 
-        var_dump((bool) $reflection->invoke($controller, $tahun, 5, $monthPeriodes));
-        foreach ($controller->resolveRegenerateCandidatesForMonth($tahun, 5) as $candidate) {
-            var_dump($candidate);
-        }
-
+        $this->assertNotEmpty($regenerateCandidates, 'Expected regenerate candidates before addendum route');
         $response = $this->get('/spk/periode/'.$periodePerubahan->hashed_id.'/addendum?bulan=5&tahun='.$tahun);
 
         $response->assertRedirect(route('spk.index'));
