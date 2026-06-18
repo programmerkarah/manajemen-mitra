@@ -1319,12 +1319,21 @@ class SpkController extends Controller
 
         $namaPetugas = preg_replace('/[\/\\\:*?"<>|]/', '', $petugas->nama);
         $bulanLabel = $this->getBulanLabel($periode->bulan);
+        $bulanFormatted = str_pad((string) $periode->bulan, 2, '0', STR_PAD_LEFT);
+        $tahun = $periode->tahun;
 
-        $fileName = "SPK_{$nomorUrut}_{$namaPetugas}_{$bulanLabel}_signed.pdf";
-        $filePath = 'spk-export/'.date('Y').'/'.date('m').'/'.$fileName;
+        // Build filename - different format for addendum
+        $addendumNumber = (int) ($spk->addendum_number ?? 0);
+        if ($addendumNumber > 0) {
+            $fileName = "SPK-ADDENDUM-{$addendumNumber}-{$namaPetugas}-{$bulanFormatted}-{$tahun}.pdf";
+        } else {
+            $fileName = "SPK_{$nomorUrut}_{$namaPetugas}_{$bulanLabel}_signed.pdf";
+        }
+
+        $filePath = "spk-export/{$tahun}/{$bulanFormatted}/{$fileName}";
 
         // Create directory if not exists
-        $publicPath = public_path('spk-export/'.date('Y').'/'.date('m'));
+        $publicPath = public_path("spk-export/{$tahun}/{$bulanFormatted}");
         if (! file_exists($publicPath)) {
             mkdir($publicPath, 0755, true);
         }
