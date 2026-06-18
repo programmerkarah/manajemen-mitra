@@ -69,7 +69,7 @@ interface IndexProps {
             per_page: number;
             total: number;
             from: number;
-            to: number;
+            display_label: ' + this.resolveSpkIndexDisplayLabel($primaryPeriode) + ';
         };
         links: Array<{
             url: string | null;
@@ -141,6 +141,10 @@ export default function Index({
 
     const isNeedAddendum = useCallback(
         (monthData: MonthlyPeriodeItem) => {
+            if (monthData.is_period_based) {
+                return false;
+            }
+
             return (
                 canCreateSpk &&
                 monthData.total_spk > 0 &&

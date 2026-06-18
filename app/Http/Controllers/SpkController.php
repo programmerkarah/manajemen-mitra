@@ -67,6 +67,15 @@ class SpkController extends Controller
             ->whereHas('kegiatan', function ($q) use ($activeYear) {
                 $q->where('tahun_anggaran', $activeYear);
             })
+            // Apply sensus filter conditionally depending on requested mode.
+            // - regular: exclude sensus kegiatan
+            // - sensus-ekonomi: include only sensus kegiatan
+            ->when($mode === 'regular', function ($q) {
+                $q->whereHas('kegiatan', fn ($qq) => $qq->where('jenis_kegiatan', '!=', 'sensus'));
+            })
+            ->when($mode === 'sensus-ekonomi', function ($q) {
+                $q->whereHas('kegiatan', fn ($qq) => $qq->where('jenis_kegiatan', 'sensus'));
+            })
             ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
             ->where('tahun', $activeYear);
 
@@ -267,6 +276,7 @@ class SpkController extends Controller
                 'has_revision' => $hasRevision,
                 'has_addendum' => $hasAddendum,
                 'has_new_kegiatan_after_spk' => $hasNewKegiatanAfterSpk,
+                'is_period_based' => $isPeriodBased,
                 'has_new_revision_after_addendum' => $hasNewRevisionAfterAddendum,
                 'has_been_regenerated' => $hasBeenRegenerated,
                 'has_incomplete_addendum' => $hasIncompleteAddendum,
@@ -7272,11 +7282,17 @@ class SpkController extends Controller
             return collect();
         }
 
+        // Only consider regenerate candidates among petugas who already have an ORIGINAL SPK
+        // in this calendar month. This prevents "re-generate" being triggered for
+        // petugas who simply don't yet have an SPK (initial generation).
+        $existingPetugasIds = $existingSpks->pluck('petugas_id')->map(fn ($id) => (int) $id)->unique();
+
         return $this->resolveSpkActionDecisionsForMonth($tahun, $bulan)
             ->filter(fn (array $item): bool => (bool) ($item['should_regenerate'] ?? false))
             ->pluck('petugas_id')
             ->map(static fn ($petugasId) => (int) $petugasId)
             ->unique()
+            ->intersect($existingPetugasIds)
             ->values();
     }
 
