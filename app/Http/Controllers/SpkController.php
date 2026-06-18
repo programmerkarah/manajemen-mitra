@@ -1318,6 +1318,7 @@ class SpkController extends Controller
         $nomorUrut = (string) $this->extractNomorUrut((string) $spk->nomor_spk);
 
         $namaPetugas = preg_replace('/[\/\\\:*?"<>|]/', '', $petugas->nama);
+        $namaPetugas = preg_replace('/\s+/', '_', $namaPetugas); // Replace spaces with underscore
         $bulanLabel = $this->getBulanLabel($periode->bulan);
         $bulanFormatted = str_pad((string) $periode->bulan, 2, '0', STR_PAD_LEFT);
         $tahun = $periode->tahun;
@@ -3092,14 +3093,22 @@ class SpkController extends Controller
         // Format bulan with leading zero
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
-        $allPeriodeInMonth = PeriodeAlokasi::whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
+        $monthPeriodes = PeriodeAlokasi::whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
             ->where('tahun', $tahun)
             ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
-            ->pluck('id');
+            ->with('spk')
+            ->get();
 
-        if ($allPeriodeInMonth->isEmpty()) {
+        if ($monthPeriodes->isEmpty()) {
             return redirect()->route('spk.index')->with('error', 'Tidak ada periode valid untuk bulan ini.');
         }
+
+        if ($this->hasNewKegiatanAfterSpk((int) $tahun, (int) $bulan, $monthPeriodes)) {
+            return redirect()->route('spk.index')
+                ->with('warning', 'Silakan selesaikan re-generate SPK terlebih dahulu sebelum membuat addendum.');
+        }
+
+        $allPeriodeInMonth = $monthPeriodes->pluck('id');
 
         $petugasWithAllocation = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
             ->whereHas('petugas', function ($q) {

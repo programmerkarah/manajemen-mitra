@@ -372,6 +372,108 @@ class SpkMayAddendumRegressionTest extends TestCase
         $response->assertSessionHas('warning', 'Tidak ada petugas yang dapat dibuatkan addendum Perjanjian Kerja untuk periode tersebut.');
     }
 
+    public function test_addendum_url_redirects_when_regenerate_pk_is_still_needed(): void
+    {
+        $this->withoutMiddleware();
+
+        $tahun = ActiveYearService::get();
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Nova Elvita ReGenerate',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $kegiatanA = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $kegiatanB = Kegiatan::factory()->create([
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $periodeDikirim = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanA->id,
+            'bulan' => 5,
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $periodePerubahan = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanB->id,
+            'bulan' => 5,
+            'tahun' => $tahun,
+            'status' => 'perubahan',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $alokasiDikirim = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeDikirim->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 3,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 300000,
+            'total_honor_listing' => 0,
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodePerubahan->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 4,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 400000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $creator = User::factory()->create();
+
+        Spk::query()->create([
+            'nomor_spk' => 'SPK/ORI/MEI/NOVA-REGEN',
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasiDikirim->id,
+            'alokasi_petugas_ids' => [$alokasiDikirim->id],
+            'addendum_number' => 0,
+            'nomor_urut_base' => 405,
+            'tanggal_spk' => "{$tahun}-05-04",
+            'tanggal_mulai_kerja' => "{$tahun}-05-01",
+            'tanggal_selesai_kerja' => "{$tahun}-05-31",
+            'uraian_pekerjaan' => 'Perjanjian kerja Mei',
+            'nilai_kontrak' => 300000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'created_by' => $creator->id,
+        ]);
+
+        $controller = app(App\Http\Controllers\SpkController::class);
+        $reflection = new \ReflectionMethod($controller, 'hasNewKegiatanAfterSpk');
+        $reflection->setAccessible(true);
+        $monthPeriodes = PeriodeAlokasi::whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", ['05'])
+            ->where('tahun', $tahun)
+            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+            ->with('spk')
+            ->get();
+
+        var_dump((bool) $reflection->invoke($controller, $tahun, 5, $monthPeriodes));
+        foreach ($controller->resolveRegenerateCandidatesForMonth($tahun, 5) as $candidate) {
+            var_dump($candidate);
+        }
+
+        $response = $this->get('/spk/periode/'.$periodePerubahan->hashed_id.'/addendum?bulan=5&tahun='.$tahun);
+
+        $response->assertRedirect(route('spk.index'));
+        $response->assertSessionHas('warning', 'Silakan selesaikan re-generate SPK terlebih dahulu sebelum membuat addendum.');
+    }
+
     public function test_generate_addendum_uses_all_month_allocations_even_when_bulan_format_is_mixed(): void
     {
         $this->withoutMiddleware();

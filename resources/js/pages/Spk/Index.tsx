@@ -144,11 +144,12 @@ export default function Index({
             return (
                 canCreateSpk &&
                 monthData.total_spk > 0 &&
+                !isNeedGenerate(monthData) &&
                 (monthData.has_incomplete_addendum ||
                     monthData.has_addendum_changes)
             );
         },
-        [canCreateSpk],
+        [canCreateSpk, isNeedGenerate],
     );
 
     const summaryGroups = useMemo(() => {
@@ -612,6 +613,7 @@ export default function Index({
                                                     {canCreateSpk &&
                                                         monthData.total_spk >
                                                             0 &&
+                                                        !monthData.has_new_kegiatan_after_spk &&
                                                         monthData.has_incomplete_addendum &&
                                                         !monthData.has_addendum_changes && (
                                                             <Button
@@ -650,6 +652,7 @@ export default function Index({
                                                     {canCreateSpk &&
                                                         monthData.total_spk >
                                                             0 &&
+                                                        !monthData.has_new_kegiatan_after_spk &&
                                                         monthData.has_addendum_changes && (
                                                             <Button
                                                                 size="sm"
