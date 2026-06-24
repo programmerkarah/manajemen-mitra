@@ -2964,7 +2964,6 @@ class SpkController extends Controller
 
         // Get all existing SPKs for petugas in this month (map petugas_id => nomor_spk)
         $existingSpkMap = [];
-        $existingKegiatanPerPetugas = [];
         $lastNomorUrutInMonth = 0;
         $usesSuffixForNewPetugas = false;
         $existingSpks = collect();
@@ -2999,15 +2998,18 @@ class SpkController extends Controller
                     ->values()
                     ->toArray();
 
-                $existingKegiatanPerPetugas[$spk->petugas_id] = $kegiatanIds;
-
-                $existingKegiatanPerPetugas[$spk->petugas_id][] = $kegiatanIds;
+                $jenisKegiatan = 'reguler';
+                $relatedKegiatan = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan;
+                if ($relatedKegiatan && mb_strtolower((string) $relatedKegiatan->jenis_kegiatan) === 'sensus') {
+                    $jenisKegiatan = 'sensus';
+                }
 
                 $existingSpkMap[$spk->petugas_id][] = [
                     'spk_id' => $spk->id,
                     'nomor_spk' => $spk->nomor_spk,
                     'nomor_urut' => $spk->nomor_urut_base,
                     'kegiatan_ids' => $kegiatanIds,
+                    'jenis_kegiatan' => $jenisKegiatan,
                     'is_se2026' => str_contains($spk->nomor_spk, 'SPK-SE2026'),
                 ];
 
@@ -5798,7 +5800,10 @@ class SpkController extends Controller
         }
 
         return $query->whereYear('tanggal_spk', $periode->tahun)
-            ->whereMonth('tanggal_spk', (int) $periode->bulan);
+            ->whereMonth('tanggal_spk', (int) $periode->bulan)
+            ->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($builder) {
+                $builder->where('jenis_kegiatan', '!=', 'sensus');
+            });
     }
 
     private function resolveSpkIndexGroupKey(PeriodeAlokasi $periode): string
@@ -6662,20 +6667,30 @@ class SpkController extends Controller
 
         $existingSpkScopeQuery = $this->baseSpkScopeQuery($periode);
 
-        $existingSpks = (clone $existingSpkScopeQuery)
+        $existingSpkGroups = (clone $existingSpkScopeQuery)
             ->whereIn('petugas_id', $petugasIdsInMonth)
-            ->with('petugas')
+            ->with(['petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
             ->get()
-            ->keyBy('petugas_id');
+            ->groupBy('petugas_id');
 
-        // Check if this is a regenerate (existing SPKs present) or first time generate
-        $isRegenerate = $existingSpks->isNotEmpty();
+        $allExistingSpks = $existingSpkGroups->flatten(1)->values();
+        $usesPeriodBasedNumbering = $this->usesPeriodBasedSpkFlow($periode);
+        $existingSpksForFlow = $allExistingSpks->filter(function (Spk $spk) use ($usesPeriodBasedNumbering) {
+            $jenisKegiatan = mb_strtolower((string) $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->jenis_kegiatan);
+
+            return $usesPeriodBasedNumbering
+                ? $jenisKegiatan === 'sensus'
+                : $jenisKegiatan !== 'sensus';
+        })->values();
+
+        // Check if this is a regenerate (existing SPKs present for the current flow) or first time generate
+        $isRegenerate = $existingSpksForFlow->isNotEmpty();
 
         // Determine the last nomor_urut_base from existing SPKs in this month
         $lastNomorUrutBase = null;
         if ($isRegenerate) {
-            // Get the highest nomor_urut_base from existing SPKs in THIS MONTH only
-            foreach ($existingSpks as $spk) {
+            // Get the highest nomor_urut_base from existing SPKs in THIS MONTH only for the current flow
+            foreach ($existingSpksForFlow as $spk) {
                 $baseNumber = $spk->nomor_urut_base ?? $this->extractNomorUrut($spk->nomor_spk);
                 if ($lastNomorUrutBase === null || $baseNumber > $lastNomorUrutBase) {
                     $lastNomorUrutBase = $baseNumber;
@@ -6695,8 +6710,23 @@ class SpkController extends Controller
             $petugas = Petugas::findOrFail($petugasId);
             $petugasHashedId = $petugas->hashed_id;
 
-            // Check if this petugas already has an SPK
-            $existingSpk = $existingSpks->get($petugasId);
+            // Check if this petugas already has an SPK for the current flow
+            $existingSpkGroup = $existingSpkGroups->get($petugasId, collect());
+            $existingSpk = null;
+
+            if ($existingSpkGroup->isNotEmpty()) {
+                if ($usesPeriodBasedNumbering) {
+                    $existingSpk = $existingSpkGroup->first(function (Spk $spk) use ($periode) {
+                        return $spk->alokasiPetugas?->periodeAlokasi?->id === $periode->id;
+                    }) ?: $existingSpkGroup->first(function (Spk $spk) {
+                        return mb_strtolower((string) $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->jenis_kegiatan) === 'sensus';
+                    });
+                } else {
+                    $existingSpk = $existingSpkGroup->first(function (Spk $spk) {
+                        return mb_strtolower((string) $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->jenis_kegiatan) !== 'sensus';
+                    });
+                }
+            }
 
             if ($existingSpk) {
                 // Use existing nomor for updates
