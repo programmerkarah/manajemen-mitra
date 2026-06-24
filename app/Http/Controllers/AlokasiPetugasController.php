@@ -630,7 +630,7 @@ class AlokasiPetugasController extends Controller
             $sensusTahun = (int) ($validated['alokasi'][0]['tahun'] ?? ActiveYearService::get());
             $existingSensusPeriode = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
                 ->where('tahun', $sensusTahun)
-                ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui', 'perubahan'])
+                ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
                 ->exists();
 
             if ($existingSensusPeriode) {
@@ -996,13 +996,13 @@ class AlokasiPetugasController extends Controller
 
                 // Calculate total spent across all active periods
                 $totalSpent = $kegiatan->periodeAlokasi
-                    ->whereIn('status', ['draft', 'dikirim', 'direvisi'])
+                    ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
                     ->sum(function ($p) {
                         return $p->alokasiPetugas->sum('total_honor');
                     });
 
                 $totalSpentListing = $kegiatan->periodeAlokasi
-                    ->whereIn('status', ['draft', 'dikirim', 'direvisi'])
+                    ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
                     ->sum(function ($p) {
                         return $p->alokasiPetugas->sum('total_honor_listing');
                     });
@@ -1031,7 +1031,7 @@ class AlokasiPetugasController extends Controller
                                     ->where('bulan', '<', $periodeData['bulan']);
                             });
                     })
-                    ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+                    ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
                     ->orderByDesc('tahun')
                     ->orderByDesc('bulan')
                     ->first();
@@ -1044,7 +1044,7 @@ class AlokasiPetugasController extends Controller
                                     ->where('bulan', '<', $periodeData['bulan']);
                             });
                     })
-                    ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+                    ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
                     ->orderByDesc('tahun')
                     ->orderByDesc('bulan')
                     ->first();
@@ -1330,7 +1330,7 @@ class AlokasiPetugasController extends Controller
         foreach ($kegiatans as $kegiatan) {
             $totalSpent = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
                 ->where('tahun', $activeYear)
-                ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+                ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
                 ->with('alokasiPetugas')
                 ->get()
                 ->sum(function ($p) {
@@ -1339,7 +1339,7 @@ class AlokasiPetugasController extends Controller
 
             $totalSpentListing = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
                 ->where('tahun', $activeYear)
-                ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+                ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
                 ->with('alokasiPetugas')
                 ->get()
                 ->sum(function ($p) {
@@ -1357,7 +1357,7 @@ class AlokasiPetugasController extends Controller
             // For kegiatan with listing, track which tahapan is used for each month
             $periodeList = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
                 ->where('tahun', $activeYear)
-                ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+                ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
                 ->select('bulan', 'tahapan')
                 ->get();
 
@@ -1415,7 +1415,7 @@ class AlokasiPetugasController extends Controller
         $existingAllocations = AlokasiPetugas::query()
             ->join('periode_alokasi as pa', 'pa.id', '=', 'alokasi_petugas.periode_alokasi_id')
             ->where('pa.tahun', $activeYear)
-            ->whereIn('pa.status', ['draft', 'dikirim', 'direvisi', 'disetujui', 'perubahan'])
+            ->whereIn('pa.status', ['draft', 'dikirim', 'perubahan'])
             ->selectRaw('alokasi_petugas.petugas_id')
             ->selectRaw('CAST(pa.bulan AS UNSIGNED) as bulan')
             ->selectRaw('pa.tahun')
@@ -1579,7 +1579,7 @@ class AlokasiPetugasController extends Controller
         if ($selectedKegiatan && ! isset($budgetInfo[$selectedKegiatan->id])) {
             $selectedTotalSpent = PeriodeAlokasi::where('kegiatan_id', $selectedKegiatan->id)
                 ->where('tahun', $activeYear)
-                ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+                ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
                 ->with('alokasiPetugas')
                 ->get()
                 ->sum(function ($p) {
@@ -1588,7 +1588,7 @@ class AlokasiPetugasController extends Controller
 
             $selectedTotalSpentListing = PeriodeAlokasi::where('kegiatan_id', $selectedKegiatan->id)
                 ->where('tahun', $activeYear)
-                ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+                ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
                 ->with('alokasiPetugas')
                 ->get()
                 ->sum(function ($p) {
@@ -1604,7 +1604,7 @@ class AlokasiPetugasController extends Controller
 
             $selectedPeriodeList = PeriodeAlokasi::where('kegiatan_id', $selectedKegiatan->id)
                 ->where('tahun', $activeYear)
-                ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+                ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
                 ->select('bulan', 'tahapan')
                 ->get();
 
@@ -1641,7 +1641,7 @@ class AlokasiPetugasController extends Controller
         $paguAnggaran = $selectedKegiatan ? $selectedKegiatan->anggaran : 0;
         $currentTotalSpent = $selectedKegiatan ? PeriodeAlokasi::where('kegiatan_id', $decodedId)
             ->where('tahun', $activeYear)
-            ->whereIn('status', ['draft', 'dikirim', 'direvisi', 'disetujui'])
+            ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
             ->with('alokasiPetugas')
             ->get()
             ->sum(function ($p) {
