@@ -71,10 +71,10 @@ class SpkController extends Controller
             // - regular: exclude sensus kegiatan
             // - sensus-ekonomi: include only sensus kegiatan
             ->when($mode === 'regular', function ($q) {
-                $q->whereHas('kegiatan', fn ($qq) => $qq->where('jenis_kegiatan', '!=', 'sensus'));
+                $q->whereHas('kegiatan', fn($qq) => $qq->where('jenis_kegiatan', '!=', 'sensus'));
             })
             ->when($mode === 'sensus-ekonomi', function ($q) {
-                $q->whereHas('kegiatan', fn ($qq) => $qq->where('jenis_kegiatan', 'sensus'));
+                $q->whereHas('kegiatan', fn($qq) => $qq->where('jenis_kegiatan', 'sensus'));
             })
             ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
             ->where('tahun', $activeYear);
@@ -115,7 +115,7 @@ class SpkController extends Controller
             $effectivePetugasIds = $allAlokasi
                 ->filter(function ($alokasi) {
                     return $alokasi->petugas &&
-                           $alokasi->petugas->jenis_petugas === 'non-organik';
+                        $alokasi->petugas->jenis_petugas === 'non-organik';
                 })
                 ->groupBy('petugas_id')
                 ->flatMap(function ($petugasAlokasi) {
@@ -126,27 +126,27 @@ class SpkController extends Controller
 
                     $effectiveAlokasi = $byKegiatan->map(function ($kegiatanAlokasi) {
                         // Priority: perubahan > direvisi > disetujui > dikirim
-                        $perubahan = $kegiatanAlokasi->first(fn ($a) => $a->periodeAlokasi->status === 'perubahan');
+                        $perubahan = $kegiatanAlokasi->first(fn($a) => $a->periodeAlokasi->status === 'perubahan');
                         if ($perubahan) {
                             return $perubahan;
                         }
 
-                        $direvisi = $kegiatanAlokasi->first(fn ($a) => $a->periodeAlokasi->status === 'direvisi');
+                        $direvisi = $kegiatanAlokasi->first(fn($a) => $a->periodeAlokasi->status === 'direvisi');
                         if ($direvisi) {
                             return $direvisi;
                         }
 
-                        $disetujui = $kegiatanAlokasi->first(fn ($a) => $a->periodeAlokasi->status === 'disetujui');
+                        $disetujui = $kegiatanAlokasi->first(fn($a) => $a->periodeAlokasi->status === 'disetujui');
                         if ($disetujui) {
                             return $disetujui;
                         }
 
-                        return $kegiatanAlokasi->first(fn ($a) => $a->periodeAlokasi->status === 'dikirim');
+                        return $kegiatanAlokasi->first(fn($a) => $a->periodeAlokasi->status === 'dikirim');
                     })->filter();
 
                     // Only include petugas if they have positive effective honor (respects partial payment)
                     $hasPositiveHonor = $effectiveAlokasi->contains(
-                        fn ($alokasi) => $this->hasPositiveEffectiveHonor($alokasi)
+                        fn($alokasi) => $this->hasPositiveEffectiveHonor($alokasi)
                     );
 
                     return $hasPositiveHonor ? [$effectiveAlokasi->first()->petugas_id] : [];
@@ -175,22 +175,22 @@ class SpkController extends Controller
 
                     return $byKegiatan->map(function ($kegiatanAlokasi) {
                         // Priority: perubahan > direvisi > disetujui > dikirim
-                        $perubahan = $kegiatanAlokasi->first(fn ($a) => $a->periodeAlokasi->status === 'perubahan');
+                        $perubahan = $kegiatanAlokasi->first(fn($a) => $a->periodeAlokasi->status === 'perubahan');
                         if ($perubahan) {
                             return $perubahan;
                         }
 
-                        $direvisi = $kegiatanAlokasi->first(fn ($a) => $a->periodeAlokasi->status === 'direvisi');
+                        $direvisi = $kegiatanAlokasi->first(fn($a) => $a->periodeAlokasi->status === 'direvisi');
                         if ($direvisi) {
                             return $direvisi;
                         }
 
-                        $disetujui = $kegiatanAlokasi->first(fn ($a) => $a->periodeAlokasi->status === 'disetujui');
+                        $disetujui = $kegiatanAlokasi->first(fn($a) => $a->periodeAlokasi->status === 'disetujui');
                         if ($disetujui) {
                             return $disetujui;
                         }
 
-                        return $kegiatanAlokasi->first(fn ($a) => $a->periodeAlokasi->status === 'dikirim');
+                        return $kegiatanAlokasi->first(fn($a) => $a->periodeAlokasi->status === 'dikirim');
                     });
                 })
                 ->filter(function ($alokasi) {
@@ -284,7 +284,7 @@ class SpkController extends Controller
                 'kegiatan_list' => $kegiatanList,
             ];
         })->sortByDesc(function ($item) {
-            return $item['tahun'].str_pad($item['bulan'], 2, '0', STR_PAD_LEFT);
+            return $item['tahun'] . str_pad($item['bulan'], 2, '0', STR_PAD_LEFT);
         })->values();
 
         // Paginate manually
@@ -533,7 +533,7 @@ class SpkController extends Controller
         $alokasiIdsInScope = AlokasiPetugas::query()
             ->whereIn('periode_alokasi_id', $allPeriodeInMonth)
             ->pluck('id')
-            ->map(fn ($id) => (int) $id)
+            ->map(fn($id) => (int) $id)
             ->values();
 
         // Get all SPKs in this month
@@ -878,7 +878,7 @@ class SpkController extends Controller
             mkdir($downloadsDir, 0755, true);
         }
 
-        $zipPath = $downloadsDir.'/'.$zipFileName;
+        $zipPath = $downloadsDir . '/' . $zipFileName;
 
         // Check if ZIP exists and validate cache
         $shouldRegenerate = true;
@@ -936,7 +936,7 @@ class SpkController extends Controller
             if (file_exists($filePath)) {
                 $fileName = basename($spk->signed_file_path);
                 // Tambahkan keterangan addendum pada nama file
-                $zipFileNameInArchive = preg_replace('/\.pdf$/i', '', $fileName).'_ADDENDUM.pdf';
+                $zipFileNameInArchive = preg_replace('/\.pdf$/i', '', $fileName) . '_ADDENDUM.pdf';
                 $zip->addFile($filePath, $zipFileNameInArchive);
                 $filesAdded++;
             }
@@ -1065,7 +1065,7 @@ class SpkController extends Controller
             mkdir($downloadsDir, 0755, true);
         }
 
-        $zipPath = $downloadsDir.'/'.$zipFileName;
+        $zipPath = $downloadsDir . '/' . $zipFileName;
 
         // Check if ZIP exists and validate cache
         $shouldRegenerate = true;
@@ -1222,7 +1222,7 @@ class SpkController extends Controller
             mkdir($downloadsDir, 0755, true);
         }
 
-        $zipPath = $downloadsDir.'/'.$zipFileName;
+        $zipPath = $downloadsDir . '/' . $zipFileName;
 
         // Check if ZIP exists and validate cache
         $shouldRegenerate = true;
@@ -1423,20 +1423,20 @@ class SpkController extends Controller
             return sprintf('B-%03d/SPK-SE2026/1373/PL.200/%d', $nomorUrut, (int) $periode->tahun);
         }
 
-        return 'PPIS/13730/'.$nomorUrut.'/K/'.$periode->tahun;
+        return 'PPIS/13730/' . $nomorUrut . '/K/' . $periode->tahun;
     }
 
     private function generateSignedDownloadUrl(string $filename): string
     {
         // Return direct static URL untuk better CDN caching
         // File di-serve langsung oleh web server (Nginx/Apache), bukan PHP
-        return '/downloads/'.rawurlencode($filename);
+        return '/downloads/' . rawurlencode($filename);
     }
 
     private function resolvePreferredSpkFilePathForZip(Spk $spk): ?string
     {
         $candidates = collect([$spk->signed_file_path, $spk->file_path])
-            ->filter(fn ($path) => is_string($path) && trim($path) !== '')
+            ->filter(fn($path) => is_string($path) && trim($path) !== '')
             ->values();
 
         if ($candidates->isEmpty()) {
@@ -1473,8 +1473,8 @@ class SpkController extends Controller
     {
         $escapedNumber = preg_quote((string) $addendumNumber, '/');
 
-        return preg_match('/add(?:endum)?[_\-]?(?:no[_\-]?)?'.$escapedNumber.'(?!\d)/i', $path) === 1
-            || preg_match('/add-'.$escapedNumber.'(?!\d)/i', $path) === 1;
+        return preg_match('/add(?:endum)?[_\-]?(?:no[_\-]?)?' . $escapedNumber . '(?!\d)/i', $path) === 1
+            || preg_match('/add-' . $escapedNumber . '(?!\d)/i', $path) === 1;
     }
 
     private function buildZipFilenameForSpk(Spk $spk, string $sourcePath): string
@@ -1853,7 +1853,7 @@ class SpkController extends Controller
 
         $response = response($protectedPdfContent, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => $disposition.'; filename="'.$responseFilename.'"',
+            'Content-Disposition' => $disposition . '; filename="' . $responseFilename . '"',
             'Cache-Control' => 'no-cache, must-revalidate',
             'Expires' => '0',
             'Accept-Ranges' => 'bytes',
@@ -1865,7 +1865,7 @@ class SpkController extends Controller
 
     private function buildPublicPreviewSessionSignature(string $nama, string $nik, string $telepon4Digit): string
     {
-        return hash('sha256', mb_strtolower(trim($nama)).'|'.trim($nik).'|'.trim($telepon4Digit));
+        return hash('sha256', mb_strtolower(trim($nama)) . '|' . trim($nik) . '|' . trim($telepon4Digit));
     }
 
     private function hasRecentPublicPreviewSessionVerification(
@@ -1941,8 +1941,8 @@ class SpkController extends Controller
             ->get(['id', 'signed_file_path', 'addendum_number']);
 
         $signedPaths = $signedDocuments
-            ->map(fn (Spk $spk): string => public_path((string) $spk->signed_file_path))
-            ->filter(fn (string $path): bool => is_file($path))
+            ->map(fn(Spk $spk): string => public_path((string) $spk->signed_file_path))
+            ->filter(fn(string $path): bool => is_file($path))
             ->values()
             ->all();
 
@@ -1956,8 +1956,8 @@ class SpkController extends Controller
         $safeBaseName = preg_replace('/[^A-Za-z0-9_\-]/', '_', (string) $baseName) ?: 'spk_final';
 
         $downloadFilename = count($signedPaths) === 1
-            ? 'Preview_'.$safeBaseName.'.pdf'
-            : 'Preview_'.$safeBaseName.'_with_addendum.pdf';
+            ? 'Preview_' . $safeBaseName . '.pdf'
+            : 'Preview_' . $safeBaseName . '_with_addendum.pdf';
 
         $cachedProtectedPath = $this->getCachedProtectedPublicPreviewPdfPath($cacheKey);
         if ($cachedProtectedPath !== null) {
@@ -1988,8 +1988,8 @@ class SpkController extends Controller
             return null;
         }
 
-        $token = time().'_'.uniqid();
-        $mergedPath = $tempPath.'/spk_public_preview_signed_merge_'.$token.'.pdf';
+        $token = time() . '_' . uniqid();
+        $mergedPath = $tempPath . '/spk_public_preview_signed_merge_' . $token . '.pdf';
 
         try {
             $merged = PdfMergerService::mergePdfFiles($signedPaths, $mergedPath);
@@ -2024,16 +2024,16 @@ class SpkController extends Controller
                 $modifiedTime = (string) (@filemtime($path) ?: 0);
                 $fileSize = (string) (@filesize($path) ?: 0);
 
-                return $realPath.'|'.$modifiedTime.'|'.$fileSize;
+                return $realPath . '|' . $modifiedTime . '|' . $fileSize;
             })
             ->implode('||');
 
-        return hash('sha256', 'public-preview-v2|'.$fingerprint);
+        return hash('sha256', 'public-preview-v2|' . $fingerprint);
     }
 
     private function getCachedProtectedPublicPreviewPdfPath(string $cacheKey): ?string
     {
-        $cachePath = storage_path('app/temp/public_preview_protected_'.$cacheKey.'.pdf');
+        $cachePath = storage_path('app/temp/public_preview_protected_' . $cacheKey . '.pdf');
 
         if (! is_file($cachePath)) {
             return null;
@@ -2049,7 +2049,7 @@ class SpkController extends Controller
             return;
         }
 
-        @file_put_contents($tempPath.'/public_preview_protected_'.$cacheKey.'.pdf', $protectedPdfContent);
+        @file_put_contents($tempPath . '/public_preview_protected_' . $cacheKey . '.pdf', $protectedPdfContent);
     }
 
     private function storePublicPreviewTemporaryPdf(string $pdfContent): ?string
@@ -2060,12 +2060,12 @@ class SpkController extends Controller
         }
 
         try {
-            $filename = 'public_preview_runtime_'.bin2hex(random_bytes(16)).'.pdf';
+            $filename = 'public_preview_runtime_' . bin2hex(random_bytes(16)) . '.pdf';
         } catch (\Throwable) {
-            $filename = 'public_preview_runtime_'.uniqid('', true).'.pdf';
+            $filename = 'public_preview_runtime_' . uniqid('', true) . '.pdf';
         }
 
-        $filePath = $tempPath.'/'.$filename;
+        $filePath = $tempPath . '/' . $filename;
         if (@file_put_contents($filePath, $pdfContent) === false) {
             return null;
         }
@@ -2108,7 +2108,7 @@ class SpkController extends Controller
             abort(404);
         }
 
-        $filePath = storage_path('app/temp/'.$file);
+        $filePath = storage_path('app/temp/' . $file);
         if (! is_file($filePath)) {
             abort(404);
         }
@@ -2133,13 +2133,13 @@ class SpkController extends Controller
     private function buildPublicPreviewFileResponse(string $filePath, string $responseFilename, string $disposition, string $downloadToken = '', int $cacheSeconds = 0)
     {
         $cacheControl = $cacheSeconds > 0
-            ? 'public, max-age='.$cacheSeconds.', immutable'
+            ? 'public, max-age=' . $cacheSeconds . ', immutable'
             : 'no-cache, must-revalidate';
 
         $headers = [
             'Content-Type' => 'application/pdf',
             'Cache-Control' => $cacheControl,
-            'Expires' => $cacheSeconds > 0 ? gmdate('D, d M Y H:i:s', time() + $cacheSeconds).' GMT' : '0',
+            'Expires' => $cacheSeconds > 0 ? gmdate('D, d M Y H:i:s', time() + $cacheSeconds) . ' GMT' : '0',
             'Accept-Ranges' => 'bytes',
             'X-Content-Type-Options' => 'nosniff',
         ];
@@ -2151,7 +2151,7 @@ class SpkController extends Controller
         }
 
         $response = response()->file($filePath, $headers + [
-            'Content-Disposition' => 'inline; filename="'.$responseFilename.'"',
+            'Content-Disposition' => 'inline; filename="' . $responseFilename . '"',
         ]);
 
         return $this->appendPublicPreviewDownloadCookie($response, $disposition, $downloadToken);
@@ -2302,11 +2302,11 @@ class SpkController extends Controller
                     'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
                     'kegiatan_hashed_id' => $kegiatan->hashed_id,
                     'periode_key' => $periodKey,
-                    'periode_label' => $this->getBulanLabel((int) $periode->bulan).' '.(int) $periode->tahun,
+                    'periode_label' => $this->getBulanLabel((int) $periode->bulan) . ' ' . (int) $periode->tahun,
                     'nama_kegiatan' => $kegiatan->nama_kegiatan,
                     'target_pekerjaan' => $this->resolvePublicPreviewTargetPekerjaan($alokasi),
                     'honor' => (float) $alokasi->getEffectiveCombinedHonor(),
-                    'honor_label' => 'Rp '.number_format((float) $alokasi->getEffectiveCombinedHonor(), 0, ',', '.'),
+                    'honor_label' => 'Rp ' . number_format((float) $alokasi->getEffectiveCombinedHonor(), 0, ',', '.'),
                     'document_status' => $documentStatus,
                     'bast_status' => $this->getBastStatusLabel($bast),
                     'bapp_termin_i_status' => $isSensus ? $this->getBappStatusLabel($bappByTermin->get(1)) : null,
@@ -2352,7 +2352,7 @@ class SpkController extends Controller
 
                 return [
                     'value' => $periodKey,
-                    'label' => $this->getBulanLabel((int) $bulan).' '.(int) $tahun,
+                    'label' => $this->getBulanLabel((int) $bulan) . ' ' . (int) $tahun,
                 ];
             })
             ->all();
@@ -2467,9 +2467,9 @@ class SpkController extends Controller
                 continue;
             }
 
-            $hasMainSigned = collect($groupDocuments)->contains(fn (Spk $spk): bool => (int) $spk->addendum_number === 0 && ! empty($spk->signed_file_path));
-            $hasAddendumDraft = collect($groupDocuments)->contains(fn (Spk $spk): bool => (int) $spk->addendum_number > 0 && empty($spk->signed_file_path));
-            $hasAddendumSigned = collect($groupDocuments)->contains(fn (Spk $spk): bool => (int) $spk->addendum_number > 0 && ! empty($spk->signed_file_path));
+            $hasMainSigned = collect($groupDocuments)->contains(fn(Spk $spk): bool => (int) $spk->addendum_number === 0 && ! empty($spk->signed_file_path));
+            $hasAddendumDraft = collect($groupDocuments)->contains(fn(Spk $spk): bool => (int) $spk->addendum_number > 0 && empty($spk->signed_file_path));
+            $hasAddendumSigned = collect($groupDocuments)->contains(fn(Spk $spk): bool => (int) $spk->addendum_number > 0 && ! empty($spk->signed_file_path));
 
             if ($hasMainSigned && $hasAddendumSigned) {
                 $result[$statusKey] = 'PK Final + Addendum';
@@ -2503,7 +2503,7 @@ class SpkController extends Controller
 
     private function buildPublicPreviewDocumentStatusKey(string $periodKey, string $jenisKegiatan): string
     {
-        return $periodKey.'|'.mb_strtolower($jenisKegiatan);
+        return $periodKey . '|' . mb_strtolower($jenisKegiatan);
     }
 
     /**
@@ -2546,7 +2546,7 @@ class SpkController extends Controller
         $content = (string) file_get_contents($absolutePath);
         $nomor = preg_replace('/[^A-Za-z0-9_\-]/', '-', (string) ($bast->nomor_bast ?? 'BAST'));
 
-        return $this->serveProtectedPublicPreviewContent($content, 'BAST_'.$nomor.'.pdf', $validated);
+        return $this->serveProtectedPublicPreviewContent($content, 'BAST_' . $nomor . '.pdf', $validated);
     }
 
     /**
@@ -2581,7 +2581,7 @@ class SpkController extends Controller
         $content = (string) file_get_contents($absolutePath);
         $nomor = preg_replace('/[^A-Za-z0-9_\-]/', '-', (string) ($bapp->nomor_bapp ?? 'BAPP'));
 
-        return $this->serveProtectedPublicPreviewContent($content, 'BAPP_Termin_'.$terminLabel.'_'.$nomor.'.pdf', $validated);
+        return $this->serveProtectedPublicPreviewContent($content, 'BAPP_Termin_' . $terminLabel . '_' . $nomor . '.pdf', $validated);
     }
 
     /**
@@ -2617,7 +2617,7 @@ class SpkController extends Controller
 
         $response = response($protectedContent, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => $disposition.'; filename="'.$filename.'"',
+            'Content-Disposition' => $disposition . '; filename="' . $filename . '"',
             'Cache-Control' => 'no-cache, must-revalidate',
             'Expires' => '0',
             'Accept-Ranges' => 'bytes',
@@ -2689,7 +2689,7 @@ class SpkController extends Controller
             return '-';
         }
 
-        return number_format($targetValue, 0, ',', '.').' '.$rateHonor->satuan->nama;
+        return number_format($targetValue, 0, ',', '.') . ' ' . $rateHonor->satuan->nama;
     }
 
     private function resolvePublicPreviewRateHonorForAlokasi(AlokasiPetugas $alokasi): ?RateHonor
@@ -2706,13 +2706,13 @@ class SpkController extends Controller
         ]);
 
         $rateHonorByKey = $kegiatan->rateHonors->keyBy(function (RateHonor $rateHonor): string {
-            return $rateHonor->status_kepegawaian.'|'.$rateHonor->jenis_penugasan;
+            return $rateHonor->status_kepegawaian . '|' . $rateHonor->jenis_penugasan;
         });
 
         $statusKepegawaian = $alokasi->status_kepegawaian
             ?? (($alokasi->petugas->jenis_petugas ?? 'non-organik') === 'organik' ? 'organik' : 'non_organik');
 
-        return $rateHonorByKey->get($statusKepegawaian.'|'.$alokasi->peran)
+        return $rateHonorByKey->get($statusKepegawaian . '|' . $alokasi->peran)
             ?? $kegiatan->rateHonors->firstWhere('status', 'aktif');
     }
 
@@ -2745,9 +2745,9 @@ class SpkController extends Controller
             return 'Belum ada PK';
         }
 
-        $hasMainSigned = $documents->contains(fn (Spk $spk): bool => (int) $spk->addendum_number === 0 && ! empty($spk->signed_file_path));
-        $hasAddendumDraft = $documents->contains(fn (Spk $spk): bool => (int) $spk->addendum_number > 0 && empty($spk->signed_file_path));
-        $hasAddendumSigned = $documents->contains(fn (Spk $spk): bool => (int) $spk->addendum_number > 0 && ! empty($spk->signed_file_path));
+        $hasMainSigned = $documents->contains(fn(Spk $spk): bool => (int) $spk->addendum_number === 0 && ! empty($spk->signed_file_path));
+        $hasAddendumDraft = $documents->contains(fn(Spk $spk): bool => (int) $spk->addendum_number > 0 && empty($spk->signed_file_path));
+        $hasAddendumSigned = $documents->contains(fn(Spk $spk): bool => (int) $spk->addendum_number > 0 && ! empty($spk->signed_file_path));
 
         if ($hasMainSigned && $hasAddendumSigned) {
             return 'PK Final + Addendum';
@@ -2775,9 +2775,9 @@ class SpkController extends Controller
             return $pdfBinary;
         }
 
-        $token = time().'_'.uniqid();
-        $inputPath = $tempPath.'/spk_public_preview_input_'.$token.'.pdf';
-        $outputPath = $tempPath.'/spk_public_preview_output_'.$token.'.pdf';
+        $token = time() . '_' . uniqid();
+        $inputPath = $tempPath . '/spk_public_preview_input_' . $token . '.pdf';
+        $outputPath = $tempPath . '/spk_public_preview_output_' . $token . '.pdf';
 
         try {
             file_put_contents($inputPath, $pdfBinary);
@@ -2941,11 +2941,11 @@ class SpkController extends Controller
                 'periodeAlokasi.kegiatan:id,kode_kegiatan,nama_kegiatan',
             ])
             ->get()
-            ->filter(fn (AlokasiPetugas $alokasi) => $this->hasPositiveEffectiveHonor($alokasi));
+            ->filter(fn(AlokasiPetugas $alokasi) => $this->hasPositiveEffectiveHonor($alokasi));
 
         // Group by petugas_id and aggregate their data
         $petugasList = $allAlokasi->groupBy('petugas_id')
-            ->map(fn (Collection $alokasiGroup) => $this->buildGeneratePetugasListItem($alokasiGroup))
+            ->map(fn(Collection $alokasiGroup) => $this->buildGeneratePetugasListItem($alokasiGroup))
             ->sortBy(function ($item) {
                 return $item['petugas']['nama'];
             })
@@ -3028,9 +3028,9 @@ class SpkController extends Controller
 
         if ($isRegenerate && ! $this->usesPeriodBasedSpkFlow($periode)) {
             $eligibleRegeneratePetugasIds = $this->resolveSpkActionDecisionsForMonth((int) $periode->tahun, (int) $periode->bulan)
-                ->filter(fn (array $item): bool => (bool) ($item['should_regenerate'] ?? false))
+                ->filter(fn(array $item): bool => (bool) ($item['should_regenerate'] ?? false))
                 ->pluck('petugas_id')
-                ->map(static fn ($petugasId) => (int) $petugasId)
+                ->map(static fn($petugasId) => (int) $petugasId)
                 ->unique()
                 ->all();
 
@@ -3144,14 +3144,14 @@ class SpkController extends Controller
         $candidateSummary = $this->resolveAddendumCandidatesForMonth((int) $tahun, (int) $bulan);
 
         $petugasWithAddendum = $candidateSummary
-            ->filter(fn (array $item): bool => (bool) ($item['has_addendum'] ?? false))
+            ->filter(fn(array $item): bool => (bool) ($item['has_addendum'] ?? false))
             ->pluck('petugas_id')
             ->values()
             ->all();
 
         $eligiblePetugasIds = $candidateSummary
             ->pluck('petugas_id')
-            ->map(static fn ($petugasId) => (int) $petugasId)
+            ->map(static fn($petugasId) => (int) $petugasId)
             ->unique()
             ->values()
             ->all();
@@ -3207,7 +3207,7 @@ class SpkController extends Controller
                         ];
                     })
                     ->unique(function (array $item): string {
-                        return $item['kegiatan_kode'].'|'.$item['peran'];
+                        return $item['kegiatan_kode'] . '|' . $item['peran'];
                     })
                     ->values()
                     ->all();
@@ -3286,22 +3286,22 @@ class SpkController extends Controller
             })
             ->map(function ($kegiatanGroup) {
                 // Priority: perubahan > direvisi > disetujui > dikirim
-                $perubahan = $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'perubahan');
+                $perubahan = $kegiatanGroup->first(fn($a) => $a->periodeAlokasi->status === 'perubahan');
                 if ($perubahan) {
                     return $perubahan;
                 }
 
-                $direvisi = $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'direvisi');
+                $direvisi = $kegiatanGroup->first(fn($a) => $a->periodeAlokasi->status === 'direvisi');
                 if ($direvisi) {
                     return $direvisi;
                 }
 
-                $disetujui = $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'disetujui');
+                $disetujui = $kegiatanGroup->first(fn($a) => $a->periodeAlokasi->status === 'disetujui');
                 if ($disetujui) {
                     return $disetujui;
                 }
 
-                return $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'dikirim');
+                return $kegiatanGroup->first(fn($a) => $a->periodeAlokasi->status === 'dikirim');
             })
             ->filter(function ($alokasi) {
                 return $alokasi && $this->isMeaningfulAllocation($alokasi);
@@ -3354,7 +3354,7 @@ class SpkController extends Controller
     private function resolveAddendumCandidatesForMonth(int $tahun, int $bulan): Collection
     {
         return $this->resolveSpkActionDecisionsForMonth($tahun, $bulan)
-            ->filter(fn (array $item): bool => (bool) ($item['should_addendum'] ?? false))
+            ->filter(fn(array $item): bool => (bool) ($item['should_addendum'] ?? false))
             ->map(function (array $item) {
                 return [
                     'petugas_id' => (int) ($item['petugas_id'] ?? 0),
@@ -3488,7 +3488,7 @@ class SpkController extends Controller
 
         // Format nomor SPK with addendum suffix
         $nomorSpkParts = explode('/', $parentSpk->nomor_spk);
-        $nomorSpkParts[2] = $nomorSpkParts[2].'/ADD-'.$validated['addendum_number'];
+        $nomorSpkParts[2] = $nomorSpkParts[2] . '/ADD-' . $validated['addendum_number'];
         $nomorSpk = implode('/', $nomorSpkParts);
 
         $data = [
@@ -3521,7 +3521,7 @@ class SpkController extends Controller
 
             // Sanitize filename untuk menghindari masalah karakter khusus
             $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
-            $filename = 'preview-addendum-spk-'.$sanitizedName.'.pdf';
+            $filename = 'preview-addendum-spk-' . $sanitizedName . '.pdf';
 
             if (($validated['response_mode'] ?? 'binary') === 'url') {
                 $tempFile = $this->storePublicPreviewTemporaryPdf($pdfContent);
@@ -3543,14 +3543,14 @@ class SpkController extends Controller
             // Return with proper headers for inline display
             return response($pdfContent, 200)
                 ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', 'inline; filename="'.$filename.'"')
+                ->header('Content-Disposition', 'inline; filename="' . $filename . '"')
                 ->header('Content-Length', strlen($pdfContent))
                 ->header('Accept-Ranges', 'bytes')
                 ->header('Cache-Control', 'public, must-revalidate, max-age=0')
                 ->header('Pragma', 'public')
                 ->header('X-Content-Type-Options', 'nosniff');
         } catch (\Exception $e) {
-            return back()->with('error', 'Gagal generate preview addendum SPK: '.$e->getMessage());
+            return back()->with('error', 'Gagal generate preview addendum SPK: ' . $e->getMessage());
         }
     }
 
@@ -3620,7 +3620,7 @@ class SpkController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal generate addendum SPK: '.$e->getMessage(),
+                'message' => 'Gagal generate addendum SPK: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -3802,7 +3802,7 @@ class SpkController extends Controller
             if (str_contains($baseNomorUrut, '/ADD-')) {
                 $baseNomorUrut = explode('/ADD-', $baseNomorUrut)[0];
             }
-            $nomorSpkParts[2] = $baseNomorUrut.'/ADD-'.$addendumNumber;
+            $nomorSpkParts[2] = $baseNomorUrut . '/ADD-' . $addendumNumber;
             $nomorSpk = implode('/', $nomorSpkParts);
 
             $data = [
@@ -3833,7 +3833,7 @@ class SpkController extends Controller
             $pdfContent = $this->generateAddendumPdfContent($data);
 
             $sanitizedNamaPetugas = preg_replace('/[\/\\:*?"<>|]/', '', $petugas->nama);
-            $fileName = 'SPK-ADDENDUM-'.$addendumNumber.'-'.$sanitizedNamaPetugas.'-'.$bulanFormatted.'-'.$tahun.'.pdf';
+            $fileName = 'SPK-ADDENDUM-' . $addendumNumber . '-' . $sanitizedNamaPetugas . '-' . $bulanFormatted . '-' . $tahun . '.pdf';
             $filePath = "spk-export/{$tahun}/{$bulanFormatted}/{$fileName}";
 
             $publicPath = public_path("spk-export/{$tahun}/{$bulanFormatted}");
@@ -4131,7 +4131,7 @@ class SpkController extends Controller
         }
 
         $previewItems = collect($decodedPreviewItems)
-            ->filter(fn ($item) => ! empty($item['petugas_hashed_id']) && ! empty($item['nomor_spk']))
+            ->filter(fn($item) => ! empty($item['petugas_hashed_id']) && ! empty($item['nomor_spk']))
             ->unique('petugas_hashed_id')
             ->values();
 
@@ -4146,8 +4146,8 @@ class SpkController extends Controller
             return response()->json(['message' => 'Folder sementara tidak tersedia. Silakan coba lagi.'], 500);
         }
 
-        $zipFileName = 'Preview_SPK_'.$this->getBulanLabel((int) $periode->bulan).'_'.$periode->tahun.'.zip';
-        $zipPath = $tempPath.'/preview_spk_'.$periode->id.'_'.time().'_'.uniqid().'.zip';
+        $zipFileName = 'Preview_SPK_' . $this->getBulanLabel((int) $periode->bulan) . '_' . $periode->tahun . '.zip';
+        $zipPath = $tempPath . '/preview_spk_' . $periode->id . '_' . time() . '_' . uniqid() . '.zip';
 
         $zip = new \ZipArchive;
         if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
@@ -4180,7 +4180,7 @@ class SpkController extends Controller
             $archiveFilename = $pdfPreview['filename'];
             $suffixCounter = 2;
             while (isset($usedFileNames[$archiveFilename])) {
-                $archiveFilename = preg_replace('/\.pdf$/i', '', $pdfPreview['filename']).'_'.($suffixCounter++).'.pdf';
+                $archiveFilename = preg_replace('/\.pdf$/i', '', $pdfPreview['filename']) . '_' . ($suffixCounter++) . '.pdf';
             }
 
             $usedFileNames[$archiveFilename] = true;
@@ -4238,7 +4238,7 @@ class SpkController extends Controller
         }
 
         $individualPaths = [];
-        $timestamp = time().'_'.uniqid();
+        $timestamp = time() . '_' . uniqid();
 
         foreach ($previewItems as $index => $item) {
             $petugasId = Hashids::decode($item['petugas_hashed_id'])[0] ?? null;
@@ -4258,7 +4258,7 @@ class SpkController extends Controller
                 continue;
             }
 
-            $path = $tempPath.'/print_main_'.$timestamp.'_'.$index.'.pdf';
+            $path = $tempPath . '/print_main_' . $timestamp . '_' . $index . '.pdf';
 
             if (@file_put_contents($path, $pdfBinary) === false) {
                 continue;
@@ -4271,8 +4271,8 @@ class SpkController extends Controller
             return response()->json(['message' => 'Tidak ada PDF yang dapat dibuat.'], 422);
         }
 
-        $mergedPath = $tempPath.'/print_main_merged_'.$timestamp.'.pdf';
-        $filename = 'Print_PK_Main_'.$periode->bulan.'_'.$periode->tahun.'.pdf';
+        $mergedPath = $tempPath . '/print_main_merged_' . $timestamp . '.pdf';
+        $filename = 'Print_PK_Main_' . $periode->bulan . '_' . $periode->tahun . '.pdf';
 
         $merged = PdfMergerService::mergePdfFiles($individualPaths, $mergedPath, $filename);
 
@@ -4299,7 +4299,7 @@ class SpkController extends Controller
 
         return response()->file($mergedPath, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
             'Cache-Control' => 'no-cache, must-revalidate',
             'Expires' => '0',
         ])->deleteFileAfterSend(true);
@@ -4336,7 +4336,7 @@ class SpkController extends Controller
         }
 
         $individualPaths = [];
-        $timestamp = time().'_'.uniqid();
+        $timestamp = time() . '_' . uniqid();
 
         foreach ($previewItems as $index => $item) {
             $petugasId = Hashids::decode($item['petugas_hashed_id'])[0] ?? null;
@@ -4356,7 +4356,7 @@ class SpkController extends Controller
                 continue;
             }
 
-            $path = $tempPath.'/print_lampiran_'.$timestamp.'_'.$index.'.pdf';
+            $path = $tempPath . '/print_lampiran_' . $timestamp . '_' . $index . '.pdf';
 
             if (@file_put_contents($path, $pdfBinary) === false) {
                 continue;
@@ -4369,8 +4369,8 @@ class SpkController extends Controller
             return response()->json(['message' => 'Tidak ada PDF yang dapat dibuat.'], 422);
         }
 
-        $mergedPath = $tempPath.'/print_lampiran_merged_'.$timestamp.'.pdf';
-        $filename = 'Print_Lampiran_'.$periode->bulan.'_'.$periode->tahun.'.pdf';
+        $mergedPath = $tempPath . '/print_lampiran_merged_' . $timestamp . '.pdf';
+        $filename = 'Print_Lampiran_' . $periode->bulan . '_' . $periode->tahun . '.pdf';
 
         $merged = PdfMergerService::mergePdfFiles($individualPaths, $mergedPath, $filename);
 
@@ -4397,7 +4397,7 @@ class SpkController extends Controller
 
         return response()->file($mergedPath, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
             'Cache-Control' => 'no-cache, must-revalidate',
             'Expires' => '0',
         ])->deleteFileAfterSend(true);
@@ -4417,9 +4417,9 @@ class SpkController extends Controller
         }
 
         return collect($decoded)
-            ->filter(fn ($item) => ! empty($item['petugas_hashed_id']) && ! empty($item['nomor_spk']))
+            ->filter(fn($item) => ! empty($item['petugas_hashed_id']) && ! empty($item['nomor_spk']))
             ->unique('petugas_hashed_id')
-            ->sortBy(fn ($item) => mb_strtolower((string) ($item['petugas_nama'] ?? $item['nomor_spk'])))
+            ->sortBy(fn($item) => mb_strtolower((string) ($item['petugas_nama'] ?? $item['nomor_spk'])))
             ->values();
     }
 
@@ -4497,7 +4497,7 @@ class SpkController extends Controller
         }
 
         $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
-        $filename = 'Print_PK_Main_'.$sanitizedName.'.pdf';
+        $filename = 'Print_PK_Main_' . $sanitizedName . '.pdf';
 
         $data = [
             'periode' => $periode,
@@ -4599,7 +4599,7 @@ class SpkController extends Controller
         }
 
         $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
-        $filename = 'Print_Lampiran_'.$sanitizedName.'.pdf';
+        $filename = 'Print_Lampiran_' . $sanitizedName . '.pdf';
 
         $data = [
             'periode' => $periode,
@@ -4745,7 +4745,7 @@ class SpkController extends Controller
 
         // Sanitize filename untuk menghindari masalah karakter khusus
         $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
-        $filename = 'Preview_SPK_'.$sanitizedName.'.pdf';
+        $filename = 'Preview_SPK_' . $sanitizedName . '.pdf';
 
         $data = [
             'periode' => $periode,
@@ -4795,10 +4795,10 @@ class SpkController extends Controller
             mkdir($tempPath, 0777, true);
         }
 
-        $timestamp = time().'_'.uniqid();
-        $mainPath = $tempPath.'/spk_main_'.$timestamp.'.pdf';
-        $lampiranPath = $tempPath.'/spk_lampiran_'.$timestamp.'.pdf';
-        $mergedPath = $tempPath.'/spk_merged_'.$timestamp.'.pdf';
+        $timestamp = time() . '_' . uniqid();
+        $mainPath = $tempPath . '/spk_main_' . $timestamp . '.pdf';
+        $lampiranPath = $tempPath . '/spk_lampiran_' . $timestamp . '.pdf';
+        $mergedPath = $tempPath . '/spk_merged_' . $timestamp . '.pdf';
 
         file_put_contents($mainPath, $mainOutput);
         file_put_contents($lampiranPath, $pdfLampiran->output());
@@ -4830,7 +4830,7 @@ class SpkController extends Controller
             // Stream merged PDF directly from disk — avoids loading entire file into memory
             return response()->file($mergedPath, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="'.$filename.'"',
+                'Content-Disposition' => 'inline; filename="' . $filename . '"',
                 'Accept-Ranges' => 'bytes',
                 'Cache-Control' => 'no-cache, must-revalidate',
                 'Expires' => '0',
@@ -4848,7 +4848,7 @@ class SpkController extends Controller
 
         // Sanitize filename untuk menghindari masalah karakter khusus
         $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
-        $filename = 'Preview_SPK_'.$sanitizedName.'.pdf';
+        $filename = 'Preview_SPK_' . $sanitizedName . '.pdf';
 
         // Set PDF title metadata
         $pdf->getDomPDF()->set_option('pdfTitle', $filename);
@@ -4959,7 +4959,7 @@ class SpkController extends Controller
             : '';
 
         $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
-        $filename = 'Preview_SPK_'.$sanitizedName.'.pdf';
+        $filename = 'Preview_SPK_' . $sanitizedName . '.pdf';
 
         $data = [
             'periode' => $periode,
@@ -5003,10 +5003,10 @@ class SpkController extends Controller
             mkdir($tempPath, 0777, true);
         }
 
-        $timestamp = time().'_'.uniqid();
-        $mainPath = $tempPath.'/spk_main_'.$timestamp.'.pdf';
-        $lampiranPath = $tempPath.'/spk_lampiran_'.$timestamp.'.pdf';
-        $mergedPath = $tempPath.'/spk_merged_'.$timestamp.'.pdf';
+        $timestamp = time() . '_' . uniqid();
+        $mainPath = $tempPath . '/spk_main_' . $timestamp . '.pdf';
+        $lampiranPath = $tempPath . '/spk_lampiran_' . $timestamp . '.pdf';
+        $mergedPath = $tempPath . '/spk_merged_' . $timestamp . '.pdf';
 
         file_put_contents($mainPath, $mainOutput);
         file_put_contents($lampiranPath, $pdfLampiran->output());
@@ -5160,7 +5160,7 @@ class SpkController extends Controller
 
         // Sanitize filename untuk menghindari masalah karakter khusus
         $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
-        $filename = 'Preview_SPK_Main_'.$sanitizedName.'.pdf';
+        $filename = 'Preview_SPK_Main_' . $sanitizedName . '.pdf';
 
         // Set PDF title metadata
         $pdf->getDomPDF()->set_option('pdfTitle', $filename);
@@ -5170,7 +5170,7 @@ class SpkController extends Controller
         if (! file_exists($tempPath)) {
             mkdir($tempPath, 0777, true);
         }
-        $tempFile = $tempPath.'/spk_main_preview_'.time().'_'.uniqid().'.pdf';
+        $tempFile = $tempPath . '/spk_main_preview_' . time() . '_' . uniqid() . '.pdf';
         file_put_contents($tempFile, $pdf->output());
 
         if (($validated['response_mode'] ?? 'binary') === 'url') {
@@ -5187,7 +5187,7 @@ class SpkController extends Controller
 
         return response()->file($tempFile, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
             'Accept-Ranges' => 'bytes',
             'Cache-Control' => 'no-cache, must-revalidate',
             'Expires' => '0',
@@ -5325,7 +5325,7 @@ class SpkController extends Controller
 
         // Sanitize filename untuk menghindari masalah karakter khusus
         $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $petugas->nama);
-        $filename = 'Preview_SPK_Lampiran_'.$sanitizedName.'.pdf';
+        $filename = 'Preview_SPK_Lampiran_' . $sanitizedName . '.pdf';
 
         // Set PDF title metadata
         $pdf->getDomPDF()->set_option('pdfTitle', $filename);
@@ -5335,7 +5335,7 @@ class SpkController extends Controller
         if (! file_exists($tempPath)) {
             mkdir($tempPath, 0777, true);
         }
-        $tempFile = $tempPath.'/spk_lampiran_preview_'.time().'_'.uniqid().'.pdf';
+        $tempFile = $tempPath . '/spk_lampiran_preview_' . time() . '_' . uniqid() . '.pdf';
         file_put_contents($tempFile, $pdf->output());
 
         if (($validated['response_mode'] ?? 'binary') === 'url') {
@@ -5352,7 +5352,7 @@ class SpkController extends Controller
 
         return response()->file($tempFile, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
             'Accept-Ranges' => 'bytes',
             'Cache-Control' => 'no-cache, must-revalidate',
             'Expires' => '0',
@@ -5381,6 +5381,15 @@ class SpkController extends Controller
         // Generate nomor_spk using next available urut for this year
         $tahun = $periode->tahun;
         $nextNomorUrut = $this->getNextNomorUrutForPeriode($periode);
+
+        dd([
+            'periode_id' => $periode->id,
+            'kegiatan_id' => $periode->kegiatan_id,
+            'jenis' => $periode->kegiatan->jenis_kegiatan,
+            'nama' => $periode->kegiatan->nama_kegiatan,
+            'is_sensus' => $this->isSensusEkonomi2026($periode->kegiatan),
+        ]);
+
         $nomorSpk = $this->formatNomorSpkForPeriode($periode, $nextNomorUrut);
 
         // Get all alokasi for this petugas in the same month (excluding Sensus Ekonomi in regular flow)
@@ -5489,10 +5498,10 @@ class SpkController extends Controller
                 mkdir($tempPath, 0777, true);
             }
 
-            $timestamp = time().'_'.uniqid();
-            $mainPath = $tempPath.'/spk_main_'.$timestamp.'.pdf';
-            $lampiranPath = $tempPath.'/spk_lampiran_'.$timestamp.'.pdf';
-            $mergedPath = $tempPath.'/spk_merged_'.$timestamp.'.pdf';
+            $timestamp = time() . '_' . uniqid();
+            $mainPath = $tempPath . '/spk_main_' . $timestamp . '.pdf';
+            $lampiranPath = $tempPath . '/spk_lampiran_' . $timestamp . '.pdf';
+            $mergedPath = $tempPath . '/spk_merged_' . $timestamp . '.pdf';
 
             file_put_contents($mainPath, $mainOutput);
             file_put_contents($lampiranPath, $pdfLampiran->output());
@@ -5527,10 +5536,10 @@ class SpkController extends Controller
             $bulanLabel = $this->getBulanLabel($periode->bulan);
 
             $fileName = "SPK_{$nomorUrut}_{$namaPetugas}_{$bulanLabel}.pdf";
-            $filePath = 'spk-export/'.date('Y').'/'.date('m').'/'.$fileName;
+            $filePath = 'spk-export/' . date('Y') . '/' . date('m') . '/' . $fileName;
 
             // Create directory if not exists
-            $publicPath = public_path('spk-export/'.date('Y').'/'.date('m'));
+            $publicPath = public_path('spk-export/' . date('Y') . '/' . date('m'));
             if (! file_exists($publicPath)) {
                 mkdir($publicPath, 0755, true);
             }
@@ -5589,9 +5598,18 @@ class SpkController extends Controller
     private function getBulanLabel(int $bulan): string
     {
         $bulanLabels = [
-            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
-            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
-            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
+            1 => 'Januari',
+            2 => 'Februari',
+            3 => 'Maret',
+            4 => 'April',
+            5 => 'Mei',
+            6 => 'Juni',
+            7 => 'Juli',
+            8 => 'Agustus',
+            9 => 'September',
+            10 => 'Oktober',
+            11 => 'November',
+            12 => 'Desember',
         ];
 
         return $bulanLabels[$bulan] ?? '';
@@ -5618,14 +5636,14 @@ class SpkController extends Controller
             ];
         })
             ->unique(function (array $item): string {
-                return $item['kegiatan_kode'].'|'.$item['peran'];
+                return $item['kegiatan_kode'] . '|' . $item['peran'];
             })
             ->values()
             ->all();
 
         return [
             'alokasi_id' => $firstAlokasi->id,
-            'alokasi_ids' => $alokasiGroup->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
+            'alokasi_ids' => $alokasiGroup->pluck('id')->map(fn($id) => (int) $id)->values()->all(),
             'alokasi_hashed_id' => $firstAlokasi->hashed_id,
             'petugas' => [
                 'id' => $firstAlokasi->petugas->id,
@@ -5742,7 +5760,7 @@ class SpkController extends Controller
         } else {
             $query->whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
                 ->where('tahun', $periode->tahun)
-                ->whereHas('kegiatan', fn ($q) => $q->where('jenis_kegiatan', '!=', 'sensus'));
+                ->whereHas('kegiatan', fn($q) => $q->where('jenis_kegiatan', '!=', 'sensus'));
         }
 
         if ($statuses !== []) {
@@ -5768,7 +5786,7 @@ class SpkController extends Controller
         return PeriodeAlokasi::whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
             ->where('tahun', $periode->tahun)
             ->where('status', 'draft')
-            ->whereHas('kegiatan', fn ($q) => $q->where('jenis_kegiatan', '!=', 'sensus'))
+            ->whereHas('kegiatan', fn($q) => $q->where('jenis_kegiatan', '!=', 'sensus'))
             ->exists();
     }
 
@@ -5789,7 +5807,7 @@ class SpkController extends Controller
     private function resolveSpkIndexGroupKey(PeriodeAlokasi $periode): string
     {
         if ($this->usesPeriodBasedSpkFlow($periode)) {
-            return 'periode-'.$periode->id;
+            return 'periode-' . $periode->id;
         }
 
         return sprintf('%d-%02d', (int) $periode->tahun, (int) $periode->bulan);
@@ -5798,7 +5816,7 @@ class SpkController extends Controller
     private function resolveSpkIndexDisplayLabel(PeriodeAlokasi $periode): string
     {
         if (! $this->usesPeriodBasedSpkFlow($periode)) {
-            return $this->getBulanLabel((int) $periode->bulan).' '.$periode->tahun;
+            return $this->getBulanLabel((int) $periode->bulan) . ' ' . $periode->tahun;
         }
 
         if ($periode->tanggal_mulai && $periode->tanggal_selesai) {
@@ -5807,16 +5825,16 @@ class SpkController extends Controller
 
             if ($start->year === $end->year) {
                 if ($start->month === $end->month) {
-                    return $start->translatedFormat('d').'-'.$end->translatedFormat('d F Y');
+                    return $start->translatedFormat('d') . '-' . $end->translatedFormat('d F Y');
                 }
 
-                return $start->translatedFormat('F').' - '.$end->translatedFormat('F Y');
+                return $start->translatedFormat('F') . ' - ' . $end->translatedFormat('F Y');
             }
 
-            return $start->translatedFormat('d F Y').' - '.$end->translatedFormat('d F Y');
+            return $start->translatedFormat('d F Y') . ' - ' . $end->translatedFormat('d F Y');
         }
 
-        return $this->getBulanLabel((int) $periode->bulan).' '.$periode->tahun;
+        return $this->getBulanLabel((int) $periode->bulan) . ' ' . $periode->tahun;
     }
 
     private function isSensusEkonomi2026(Kegiatan $kegiatan): bool
@@ -5901,8 +5919,8 @@ class SpkController extends Controller
             'groups' => [
                 [
                     'items' => [
-                        'Melakukan pendataan lapangan door to door '.$kegiatan->nama_kegiatan.' 2026 termin I',
-                        'Memastikan seluruh kelengkapan dokumen hasil pendataan lapangan door to door '.$kegiatan->nama_kegiatan.' 2026',
+                        'Melakukan pendataan lapangan door to door ' . $kegiatan->nama_kegiatan . ' 2026 termin I',
+                        'Memastikan seluruh kelengkapan dokumen hasil pendataan lapangan door to door ' . $kegiatan->nama_kegiatan . ' 2026',
                     ],
                     'waktu_penyelesaian' => 'Minimal 1 bulan',
                     'persentase' => '40%',
@@ -5911,8 +5929,8 @@ class SpkController extends Controller
                 ],
                 [
                     'items' => [
-                        'Melakukan pendataan lapangan door to door '.$kegiatan->nama_kegiatan.' 2026 termin II',
-                        'Memastikan seluruh kelengkapan dokumen hasil pendataan lapangan door to door '.$kegiatan->nama_kegiatan.' 2026',
+                        'Melakukan pendataan lapangan door to door ' . $kegiatan->nama_kegiatan . ' 2026 termin II',
+                        'Memastikan seluruh kelengkapan dokumen hasil pendataan lapangan door to door ' . $kegiatan->nama_kegiatan . ' 2026',
                     ],
                     'waktu_penyelesaian' => $this->formatLampiranDate($periodeSelesai),
                     'persentase' => '60%',
@@ -5969,8 +5987,8 @@ class SpkController extends Controller
             'groups' => [
                 [
                     'items' => [
-                        'Melakukan pemeriksaan hasil pendataan Petugas Lapangan door to door '.$kegiatan->nama_kegiatan.' 2026 termin I',
-                        'Memastikan seluruh kelengkapan dokumen hasil pendataan Petugas Lapangan door to door '.$kegiatan->nama_kegiatan.' 2026',
+                        'Melakukan pemeriksaan hasil pendataan Petugas Lapangan door to door ' . $kegiatan->nama_kegiatan . ' 2026 termin I',
+                        'Memastikan seluruh kelengkapan dokumen hasil pendataan Petugas Lapangan door to door ' . $kegiatan->nama_kegiatan . ' 2026',
                     ],
                     'waktu_penyelesaian' => 'Minimal 1 bulan',
                     'persentase' => '40%',
@@ -5979,8 +5997,8 @@ class SpkController extends Controller
                 ],
                 [
                     'items' => [
-                        'Melakukan pemeriksaan hasil pendataan Petugas Lapangan door to door '.$kegiatan->nama_kegiatan.' 2026 termin II',
-                        'Memastikan seluruh kelengkapan dokumen hasil pendataan Petugas Lapangan door to door '.$kegiatan->nama_kegiatan.' 2026',
+                        'Melakukan pemeriksaan hasil pendataan Petugas Lapangan door to door ' . $kegiatan->nama_kegiatan . ' 2026 termin II',
+                        'Memastikan seluruh kelengkapan dokumen hasil pendataan Petugas Lapangan door to door ' . $kegiatan->nama_kegiatan . ' 2026',
                     ],
                     'waktu_penyelesaian' => $this->formatLampiranDate($periodeSelesai),
                     'persentase' => '60%',
@@ -6019,17 +6037,17 @@ class SpkController extends Controller
                     : [];
             })
             ->flatten()
-            ->filter(fn (int $id): bool => $id > 0)
+            ->filter(fn(int $id): bool => $id > 0)
             ->unique()
             ->values()
             ->all();
 
         $unitNameById = ! empty($unitIds)
             ? MasterUnitSampel::query()
-                ->whereIn('id', $unitIds)
-                ->pluck('nama', 'id')
-                ->map(fn ($name) => mb_strtolower(trim((string) $name)))
-                ->toArray()
+            ->whereIn('id', $unitIds)
+            ->pluck('nama', 'id')
+            ->map(fn($name) => mb_strtolower(trim((string) $name)))
+            ->toArray()
             : [];
 
         /** @var array<string, array{kdkec:string,kdkec_label:string,kddes:string,kddes_label:string,count:int,prelist_usaha:int,prelist_keluarga:int}> $grouped */
@@ -6048,7 +6066,7 @@ class SpkController extends Controller
             $kddes = $identitas['kddes'] ?? $kfs->kode_desa ?? '';
             $kddesLabel = $identitas['kddes_label'] ?? $kddes;
 
-            $key = $kdkec.'_'.$kddes;
+            $key = $kdkec . '_' . $kddes;
 
             if (! isset($grouped[$key])) {
                 $grouped[$key] = [
@@ -6097,10 +6115,10 @@ class SpkController extends Controller
         foreach ($grouped as $entry) {
             $result[] = [
                 'no' => $no++,
-                'kecamatan' => '['.$entry['kdkec'].'] '.$entry['kdkec_label'],
-                'desa' => '['.$entry['kddes'].'] '.$entry['kddes_label'],
+                'kecamatan' => '[' . $entry['kdkec'] . '] ' . $entry['kdkec_label'],
+                'desa' => '[' . $entry['kddes'] . '] ' . $entry['kddes_label'],
                 'jumlah_sls' => $entry['count'],
-                'muatan_prelist' => $entry['prelist_usaha'].' usaha dan '.$entry['prelist_keluarga'].' keluarga',
+                'muatan_prelist' => $entry['prelist_usaha'] . ' usaha dan ' . $entry['prelist_keluarga'] . ' keluarga',
             ];
         }
 
@@ -6138,8 +6156,8 @@ class SpkController extends Controller
     {
         $selectedRows = max(0, $selectedRows);
         $frameMuatanTotals = array_values(array_filter(
-            array_map(static fn ($value): int => max(0, (int) $value), $frameMuatanTotals),
-            static fn (int $value): bool => $value > 0,
+            array_map(static fn($value): int => max(0, (int) $value), $frameMuatanTotals),
+            static fn(int $value): bool => $value > 0,
         ));
 
         if ($selectedRows === 0) {
@@ -6182,7 +6200,7 @@ class SpkController extends Controller
         $alokasiCollection = collect();
 
         if ($allAlokasi instanceof Collection) {
-            $alokasiCollection = $allAlokasi->filter(fn (mixed $item): bool => $item instanceof AlokasiPetugas)->values();
+            $alokasiCollection = $allAlokasi->filter(fn(mixed $item): bool => $item instanceof AlokasiPetugas)->values();
         }
 
         if ($alokasiCollection->isEmpty() && $alokasi instanceof AlokasiPetugas) {
@@ -6207,7 +6225,7 @@ class SpkController extends Controller
             ->flatMap(function (AlokasiPetugas $alokasiPetugas): array {
                 return $alokasiPetugas->frameSampelAllocations->all();
             })
-            ->filter(fn (mixed $allocation): bool => $allocation !== null)
+            ->filter(fn(mixed $allocation): bool => $allocation !== null)
             ->unique('kegiatan_frame_sampel_id')
             ->values();
 
@@ -6235,7 +6253,7 @@ class SpkController extends Controller
             $frameMuatanTotals[] = $frameMuatanTotal;
         }
 
-        $unitSampelIds = array_values(array_filter(array_keys($perUnitSampelTotals), fn ($id) => $id > 0));
+        $unitSampelIds = array_values(array_filter(array_keys($perUnitSampelTotals), fn($id) => $id > 0));
         $unitSampelNames = ! empty($unitSampelIds)
             ? MasterUnitSampel::query()->whereIn('id', $unitSampelIds)->pluck('nama', 'id')->toArray()
             : [];
@@ -6257,7 +6275,7 @@ class SpkController extends Controller
     private function formatSensusEkonomiVolumeNarrative(int $selectedRows): string
     {
         if ($selectedRows > 0) {
-            return number_format($selectedRows, 0, ',', '.').' SLS/sub-SLS';
+            return number_format($selectedRows, 0, ',', '.') . ' SLS/sub-SLS';
         }
 
         return '-';
@@ -6269,7 +6287,7 @@ class SpkController extends Controller
             return '-';
         }
 
-        return 'Seluruh Muatan '.number_format($selectedRows, 0, ',', '.').' SLS/sub-SLS';
+        return 'Seluruh Muatan ' . number_format($selectedRows, 0, ',', '.') . ' SLS/sub-SLS';
     }
 
     private function formatLampiranVolumeNumber(float|int $volume): string
@@ -6312,13 +6330,13 @@ class SpkController extends Controller
 
         if ($start->year === $end->year) {
             if ($start->month === $end->month) {
-                return $start->translatedFormat('d').'-'.$end->translatedFormat('d F Y');
+                return $start->translatedFormat('d') . '-' . $end->translatedFormat('d F Y');
             }
 
-            return $start->translatedFormat('d F').'-'.$end->translatedFormat('d F Y');
+            return $start->translatedFormat('d F') . '-' . $end->translatedFormat('d F Y');
         }
 
-        return $start->translatedFormat('d F Y').'-'.$end->translatedFormat('d F Y');
+        return $start->translatedFormat('d F Y') . '-' . $end->translatedFormat('d F Y');
     }
 
     private function formatLampiranVolumeLabel(mixed $volume, ?string $unit): string
@@ -6329,7 +6347,7 @@ class SpkController extends Controller
 
         $formattedVolume = $this->formatLampiranVolumeNumber((float) $volume);
 
-        return trim($formattedVolume.' '.($unit ?? ''));
+        return trim($formattedVolume . ' ' . ($unit ?? ''));
     }
 
     /**
@@ -6544,10 +6562,10 @@ class SpkController extends Controller
             mkdir($tempPath, 0777, true);
         }
 
-        $timestamp = time().'_'.uniqid();
-        $mainPath = $tempPath.'/spk_addendum_main_'.$timestamp.'.pdf';
-        $lampiranPath = $tempPath.'/spk_addendum_lampiran_'.$timestamp.'.pdf';
-        $mergedPath = $tempPath.'/spk_addendum_merged_'.$timestamp.'.pdf';
+        $timestamp = time() . '_' . uniqid();
+        $mainPath = $tempPath . '/spk_addendum_main_' . $timestamp . '.pdf';
+        $lampiranPath = $tempPath . '/spk_addendum_lampiran_' . $timestamp . '.pdf';
+        $mergedPath = $tempPath . '/spk_addendum_merged_' . $timestamp . '.pdf';
 
         file_put_contents($mainPath, $pdfMain->output());
         file_put_contents($lampiranPath, $pdfLampiran->output());
@@ -6712,7 +6730,7 @@ class SpkController extends Controller
                     if ($numberUsed) {
                         // Use suffix mode
                         $noUrut = $lastNomorUrutBase ?? $nextNomorUrut;
-                        $nomorSpk = 'PPIS/13730/'.$noUrut.$nextSuffix.'/K/'.$tahun;
+                        $nomorSpk = 'PPIS/13730/' . $noUrut . $nextSuffix . '/K/' . $tahun;
                     } else {
                         // Use sequential mode
                         $noUrut = $nextSequential;
@@ -6835,10 +6853,10 @@ class SpkController extends Controller
                 if (! file_exists($tempPath)) {
                     mkdir($tempPath, 0777, true);
                 }
-                $timestamp = time().'_'.uniqid();
-                $mainPath = $tempPath.'/spk_main_'.$timestamp.'.pdf';
-                $lampiranPath = $tempPath.'/spk_lampiran_'.$timestamp.'.pdf';
-                $mergedPath = $tempPath.'/spk_merged_'.$timestamp.'.pdf';
+                $timestamp = time() . '_' . uniqid();
+                $mainPath = $tempPath . '/spk_main_' . $timestamp . '.pdf';
+                $lampiranPath = $tempPath . '/spk_lampiran_' . $timestamp . '.pdf';
+                $mergedPath = $tempPath . '/spk_merged_' . $timestamp . '.pdf';
                 file_put_contents($mainPath, $pdfMain->output());
                 file_put_contents($lampiranPath, $pdfLampiran->output());
                 $merged = PdfMergerService::mergePdfFiles(
@@ -6863,10 +6881,10 @@ class SpkController extends Controller
                 $existingSpkRecord = $existingSpk;
                 $bulanLabel = $this->getBulanLabel($periode->bulan);
                 $namaPetugas = preg_replace('/[\/\\\\:*?"<>|]/', '', $petugas->nama);
-                $nomorUrut = $noUrut.(($isRegenerate && ! $existingSpk) ? $nextSuffix : '');
+                $nomorUrut = $noUrut . (($isRegenerate && ! $existingSpk) ? $nextSuffix : '');
                 $fileName = "SPK_{$nomorUrut}_{$namaPetugas}_{$bulanLabel}.pdf";
-                $filePath = 'spk-export/'.date('Y').'/'.date('m').'/'.$fileName;
-                $publicPath = public_path('spk-export/'.date('Y').'/'.date('m'));
+                $filePath = 'spk-export/' . date('Y') . '/' . date('m') . '/' . $fileName;
+                $publicPath = public_path('spk-export/' . date('Y') . '/' . date('m'));
                 if (! file_exists($publicPath)) {
                     mkdir($publicPath, 0755, true);
                 }
@@ -7057,7 +7075,7 @@ class SpkController extends Controller
     private function hasIncompleteAddendum(int $tahun, int $bulan, $monthPeriodes): bool
     {
         return $this->resolveAddendumCandidatesForMonth($tahun, $bulan)
-            ->contains(fn (array $item): bool => ! (bool) ($item['has_addendum'] ?? false));
+            ->contains(fn(array $item): bool => ! (bool) ($item['has_addendum'] ?? false));
     }
 
     /**
@@ -7066,7 +7084,7 @@ class SpkController extends Controller
     private function hasAddendumChanges(int $tahun, int $bulan, $monthPeriodes): bool
     {
         return $this->resolveAddendumCandidatesForMonth($tahun, $bulan)
-            ->contains(fn (array $item): bool => (bool) ($item['has_addendum'] ?? false));
+            ->contains(fn(array $item): bool => (bool) ($item['has_addendum'] ?? false));
     }
 
     /**
@@ -7081,7 +7099,7 @@ class SpkController extends Controller
         $allPeriodeInMonth = PeriodeAlokasi::whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
             ->where('tahun', $tahun)
             ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
-            ->whereHas('kegiatan', fn ($q) => $q->where('jenis_kegiatan', '!=', 'sensus'))
+            ->whereHas('kegiatan', fn($q) => $q->where('jenis_kegiatan', '!=', 'sensus'))
             ->pluck('id');
 
         if ($allPeriodeInMonth->isEmpty()) {
@@ -7130,8 +7148,8 @@ class SpkController extends Controller
                 // must not have addendums from the wrong chain counted here.
                 $hasExistingAddendum = $existingSpk
                     ? Spk::where('parent_spk_id', $existingSpk->id)
-                        ->where('addendum_number', '>', 0)
-                        ->exists()
+                    ->where('addendum_number', '>', 0)
+                    ->exists()
                     : false;
 
                 if (! $existingSpk) {
@@ -7285,12 +7303,12 @@ class SpkController extends Controller
         // Only consider regenerate candidates among petugas who already have an ORIGINAL SPK
         // in this calendar month. This prevents "re-generate" being triggered for
         // petugas who simply don't yet have an SPK (initial generation).
-        $existingPetugasIds = $existingSpks->pluck('petugas_id')->map(fn ($id) => (int) $id)->unique();
+        $existingPetugasIds = $existingSpks->pluck('petugas_id')->map(fn($id) => (int) $id)->unique();
 
         return $this->resolveSpkActionDecisionsForMonth($tahun, $bulan)
-            ->filter(fn (array $item): bool => (bool) ($item['should_regenerate'] ?? false))
+            ->filter(fn(array $item): bool => (bool) ($item['should_regenerate'] ?? false))
             ->pluck('petugas_id')
-            ->map(static fn ($petugasId) => (int) $petugasId)
+            ->map(static fn($petugasId) => (int) $petugasId)
             ->unique()
             ->intersect($existingPetugasIds)
             ->values();
@@ -7503,9 +7521,9 @@ class SpkController extends Controller
                 // perubahan > disetujui > dikirim
                 // This prevents a perpetual delta loop when a document stores both
                 // dikirim and perubahan alokasi IDs for the same kegiatan.
-                $effective = $kegiatanGroup->first(fn ($a) => ($a->periodeAlokasi->status ?? '') === 'perubahan')
-                    ?? $kegiatanGroup->first(fn ($a) => ($a->periodeAlokasi->status ?? '') === 'disetujui')
-                    ?? $kegiatanGroup->first(fn ($a) => ($a->periodeAlokasi->status ?? '') === 'dikirim')
+                $effective = $kegiatanGroup->first(fn($a) => ($a->periodeAlokasi->status ?? '') === 'perubahan')
+                    ?? $kegiatanGroup->first(fn($a) => ($a->periodeAlokasi->status ?? '') === 'disetujui')
+                    ?? $kegiatanGroup->first(fn($a) => ($a->periodeAlokasi->status ?? '') === 'dikirim')
                     ?? $kegiatanGroup->first();
 
                 if (! $effective || ! $this->isMeaningfulAllocation($effective)) {
@@ -7561,8 +7579,8 @@ class SpkController extends Controller
 
             // If no direvisi exists, check disetujui or dikirim as reference
             $reference = $direvisi
-                ?? $kegiatanAlokasi->first(fn ($a) => ($a->periodeAlokasi?->status ?? '') === 'disetujui')
-                ?? $kegiatanAlokasi->first(fn ($a) => ($a->periodeAlokasi?->status ?? '') === 'dikirim');
+                ?? $kegiatanAlokasi->first(fn($a) => ($a->periodeAlokasi?->status ?? '') === 'disetujui')
+                ?? $kegiatanAlokasi->first(fn($a) => ($a->periodeAlokasi?->status ?? '') === 'dikirim');
 
             if (! $reference) {
                 // perubahan exists but no reference - this is a new kegiatan via perubahan
@@ -7690,7 +7708,7 @@ class SpkController extends Controller
                 $q->whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
                     ->where('tahun', $tahun)
                     ->whereIn('status', ['dikirim', 'disetujui', 'perubahan'])
-                    ->whereHas('kegiatan', fn ($qq) => $qq->where('jenis_kegiatan', '!=', 'sensus'));
+                    ->whereHas('kegiatan', fn($qq) => $qq->where('jenis_kegiatan', '!=', 'sensus'));
 
                 // When checking reference state, only get allocations that existed before
                 if ($upToCreatedAt) {
@@ -7712,9 +7730,9 @@ class SpkController extends Controller
             })
             ->map(function ($kegiatanGroup) {
                 // Apply priority: perubahan > disetujui > dikirim
-                $effective = $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'perubahan')
-                    ?? $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'disetujui')
-                    ?? $kegiatanGroup->first(fn ($a) => $a->periodeAlokasi->status === 'dikirim');
+                $effective = $kegiatanGroup->first(fn($a) => $a->periodeAlokasi->status === 'perubahan')
+                    ?? $kegiatanGroup->first(fn($a) => $a->periodeAlokasi->status === 'disetujui')
+                    ?? $kegiatanGroup->first(fn($a) => $a->periodeAlokasi->status === 'dikirim');
 
                 if (! $effective || ! $this->isMeaningfulAllocation($effective)) {
                     return null;
