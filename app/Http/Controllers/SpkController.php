@@ -3001,18 +3001,14 @@ class SpkController extends Controller
 
                 $existingKegiatanPerPetugas[$spk->petugas_id] = $kegiatanIds;
 
-                $existingSpkMap[$spk->petugas_id] = [
+                $existingKegiatanPerPetugas[$spk->petugas_id][] = $kegiatanIds;
+
+                $existingSpkMap[$spk->petugas_id][] = [
+                    'spk_id' => $spk->id,
                     'nomor_spk' => $spk->nomor_spk,
                     'nomor_urut' => $spk->nomor_urut_base,
+                    'kegiatan_ids' => $kegiatanIds,
                 ];
-
-                if (isset($existingSpkMap[$spk->petugas_id])) {
-                    dump([
-                        'petugas' => $spk->petugas_id,
-                        'lama' => $existingSpkMap[$spk->petugas_id]['nomor_spk'],
-                        'baru' => $spk->nomor_spk,
-                    ]);
-                }
 
                 // Track the last nomor urut in this month
                 if ($spk->nomor_urut_base > $lastNomorUrutInMonth) {
