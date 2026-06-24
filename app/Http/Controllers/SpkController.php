@@ -2855,6 +2855,13 @@ class SpkController extends Controller
 
     private function formatPreviewNomorSpkForPeriode(PeriodeAlokasi $periode, int $nomorUrut): string
     {
+        dd([
+            'periode_id' => $periode->id,
+            'kegiatan_id' => $periode->kegiatan_id,
+            'jenis' => $periode->kegiatan->jenis_kegiatan,
+            'nama' => $periode->kegiatan->nama_kegiatan,
+            'is_sensus' => $this->isSensusEkonomi2026($periode->kegiatan),
+        ]);
         $nomorSpkAsli = $this->formatNomorSpkForPeriode($periode, $nomorUrut);
 
         if ($this->usesPeriodBasedSpkFlow($periode)) {
@@ -5381,14 +5388,6 @@ class SpkController extends Controller
         // Generate nomor_spk using next available urut for this year
         $tahun = $periode->tahun;
         $nextNomorUrut = $this->getNextNomorUrutForPeriode($periode);
-
-        dd([
-            'periode_id' => $periode->id,
-            'kegiatan_id' => $periode->kegiatan_id,
-            'jenis' => $periode->kegiatan->jenis_kegiatan,
-            'nama' => $periode->kegiatan->nama_kegiatan,
-            'is_sensus' => $this->isSensusEkonomi2026($periode->kegiatan),
-        ]);
 
         $nomorSpk = $this->formatNomorSpkForPeriode($periode, $nextNomorUrut);
 
