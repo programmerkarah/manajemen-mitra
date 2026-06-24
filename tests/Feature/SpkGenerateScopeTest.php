@@ -660,4 +660,140 @@ class SpkGenerateScopeTest extends TestCase
         $this->assertSame('Arni Yunita', $spks[2]->petugas->nama);
         $this->assertSame('B-003/SPK-SE2026/1373/PL.200/'.$tahun, $spks[2]->nomor_spk);
     }
+
+    public function test_generate_all_sensus_spk_updates_existing_sensus_spk_when_petugas_has_regular_spk_in_same_month(): void
+    {
+        $approverRole = Role::firstOrCreate(
+            ['name' => 'approver'],
+            ['display_name' => 'Approver', 'description' => 'Role approver']
+        );
+
+        $user = User::factory()->create();
+        $user->roles()->attach($approverRole->id);
+
+        $this->actingAs($user)
+            ->withSession(['active_role_id' => $approverRole->id, 'active_role_user_id' => $user->id]);
+
+        Penandatangan::query()->create([
+            'nama' => 'PPK Test, S.Si., M.Si.',
+            'nip' => '198001012010011001',
+            'jenis_penandatangan' => 'ppk',
+            'jabatan' => 'PPK',
+            'is_active' => true,
+        ]);
+
+        $tahun = ActiveYearService::get();
+        Carbon::setTestNow("{$tahun}-05-10 09:00:00");
+
+        $kegiatanReguler = Kegiatan::factory()->create([
+            'nama_kegiatan' => 'Survei Bulanan',
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $kegiatanSensus = Kegiatan::factory()->create([
+            'nama_kegiatan' => 'Sensus Ekonomi 2026',
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'sensus',
+        ]);
+
+        $periodeReguler = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanReguler->id,
+            'bulan' => '05',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $periodeSensus = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanSensus->id,
+            'bulan' => '05',
+            'tahun' => $tahun,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'sensus',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Sensus & Reguler',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $alokasiReguler = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeReguler->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 4,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 400000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $alokasiSensus = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeSensus->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 5,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 500000,
+            'total_honor_listing' => 0,
+        ]);
+
+        Spk::query()->create([
+            'nomor_spk' => 'PPIS/13730/001/K/'.$tahun,
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasiReguler->id,
+            'alokasi_petugas_ids' => [$alokasiReguler->id],
+            'addendum_number' => 0,
+            'nomor_urut_base' => 1,
+            'tanggal_spk' => now()->toDateString(),
+            'tanggal_mulai_kerja' => now()->startOfMonth()->toDateString(),
+            'tanggal_selesai_kerja' => now()->endOfMonth()->toDateString(),
+            'uraian_pekerjaan' => 'Reguler SPK',
+            'nilai_kontrak' => 400000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'created_by' => $user->id,
+        ]);
+
+        $sensusSpk = Spk::query()->create([
+            'nomor_spk' => 'B-001/SPK-SE2026/1373/PL.200/'.$tahun,
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasiSensus->id,
+            'alokasi_petugas_ids' => [$alokasiSensus->id],
+            'addendum_number' => 0,
+            'nomor_urut_base' => 1,
+            'tanggal_spk' => now()->toDateString(),
+            'tanggal_mulai_kerja' => now()->startOfMonth()->toDateString(),
+            'tanggal_selesai_kerja' => now()->endOfMonth()->toDateString(),
+            'uraian_pekerjaan' => 'Sensus SPK',
+            'nilai_kontrak' => 500000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'created_by' => $user->id,
+        ]);
+
+        $response = $this->post(route('spk.generate-all', ['periodeHashedId' => $periodeSensus->hashed_id]), [
+            'tanggal_spk' => "{$tahun}-05-15",
+            'petugas_ids' => [$petugas->hashed_id],
+        ]);
+
+        $response->assertRedirect(route('spk.index'));
+        $response->assertSessionHas('success');
+
+        $this->assertSame(2, Spk::query()->where('petugas_id', $petugas->id)->count());
+        $this->assertSame(1, Spk::query()->where('petugas_id', $petugas->id)
+            ->where('nomor_spk', 'like', 'B-%')
+            ->count());
+
+        $updatedSensusSpk = Spk::query()->find($sensusSpk->id);
+        $this->assertSame('B-001/SPK-SE2026/1373/PL.200/'.$tahun, $updatedSensusSpk->nomor_spk);
+        $this->assertSame("{$tahun}-05-15", $updatedSensusSpk->tanggal_spk->format('Y-m-d'));
+    }
 }

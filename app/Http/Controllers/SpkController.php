@@ -6701,7 +6701,6 @@ class SpkController extends Controller
         // For first time generation, get next sequential nomor
         $nextNomorUrut = $this->getNextNomorUrutForPeriode($periode);
         $nomorUrutCounter = 0;
-        $usesPeriodBasedNumbering = $this->usesPeriodBasedSpkFlow($periode);
 
         $nextSuffix = 'A';
         $results = [];
