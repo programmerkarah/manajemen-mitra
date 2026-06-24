@@ -2977,15 +2977,6 @@ class SpkController extends Controller
                 ->get();
 
             foreach ($existingSpks as $spk) {
-                dump([
-                    'spk_id' => $spk->id,
-                    'petugas_id' => $spk->petugas_id,
-                    'nomor_spk' => $spk->nomor_spk,
-                    'tanggal_spk' => $spk->tanggal_spk,
-                ]);
-            }
-
-            foreach ($existingSpks as $spk) {
                 // Baseline kegiatan harus diambil dari snapshot dokumen SPK awal,
                 // bukan dari alokasi terbaru bulan berjalan.
                 $baselineAlokasiIds = $spk->alokasi_petugas_ids ?? [];
@@ -3014,6 +3005,14 @@ class SpkController extends Controller
                     'nomor_spk' => $spk->nomor_spk,
                     'nomor_urut' => $spk->nomor_urut_base,
                 ];
+
+                if (isset($existingSpkMap[$spk->petugas_id])) {
+                    dump([
+                        'petugas' => $spk->petugas_id,
+                        'lama' => $existingSpkMap[$spk->petugas_id]['nomor_spk'],
+                        'baru' => $spk->nomor_spk,
+                    ]);
+                }
 
                 // Track the last nomor urut in this month
                 if ($spk->nomor_urut_base > $lastNomorUrutInMonth) {
