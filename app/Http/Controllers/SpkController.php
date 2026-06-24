@@ -3008,6 +3008,7 @@ class SpkController extends Controller
                     'nomor_spk' => $spk->nomor_spk,
                     'nomor_urut' => $spk->nomor_urut_base,
                     'kegiatan_ids' => $kegiatanIds,
+                    'is_se2026' => str_contains($spk->nomor_spk, 'SPK-SE2026'),
                 ];
 
                 // Track the last nomor urut in this month

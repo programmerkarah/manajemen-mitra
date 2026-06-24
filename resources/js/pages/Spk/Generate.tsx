@@ -31,6 +31,7 @@ interface KegiatanPeran {
 interface AlokasiPetugas {
     alokasi_id: number;
     alokasi_hashed_id: string;
+    periode_alokasi_id: number;
     petugas: Petugas;
     jumlah_kegiatan: number;
     kegiatan_list: KegiatanPeran[];
@@ -54,6 +55,12 @@ interface PeriodeAlokasi {
     kegiatan: Kegiatan;
 }
 
+interface ExistingSpkEntry {
+    nomor_spk: string;
+    nomor_urut: number;
+    jenis_kegiatan?: 'sensus' | 'reguler';
+}
+
 interface GenerateProps {
     periode: PeriodeAlokasi;
     petugas_list: AlokasiPetugas[];
@@ -61,7 +68,7 @@ interface GenerateProps {
     next_nomor_urut: number;
     is_regenerate: boolean;
     default_tanggal_spk: string | null;
-    existing_spk_map: Record<number, { nomor_spk: string; nomor_urut: number }>;
+    existing_spk_map: Record<number, ExistingSpkEntry | ExistingSpkEntry[]>;
     last_nomor_urut_in_month: number;
     uses_suffix_for_new_petugas: boolean;
 }
@@ -126,6 +133,53 @@ export default function Generate({
         return `PPIS/13730/${baseUrut}${suffix}/K/${tahun}`;
     };
 
+    /**
+     * Get the appropriate existing SPK for an alokasi.
+     * If multiple SPKs exist (e.g., Sensus Ekonomi + Regular), select based on kegiatan.
+     */
+    const getExistingSpkForAlokasi = (
+        alokasi: AlokasiPetugas,
+    ): ExistingSpkEntry | null => {
+        const spkData = existing_spk_map[alokasi.petugas.id];
+        if (!spkData) {
+            return null;
+        }
+
+        // If it's a single object, return it
+        if (!Array.isArray(spkData)) {
+            return spkData;
+        }
+
+        // If it's an array, find the matching one based on kegiatan jenis
+        if (Array.isArray(spkData) && spkData.length > 0) {
+            // Check if alokasi has Sensus Ekonomi kegiatan
+            const hasSensusEkonomi = alokasi.kegiatan_list.some(
+                (kg) =>
+                    kg.kegiatan_nama.toLowerCase().trim() === 'sensus ekonomi',
+            );
+
+            // Try to find matching SPK by jenis_kegiatan
+            const matchingSpk = spkData.find((spk) => {
+                if (hasSensusEkonomi && spk.jenis_kegiatan === 'sensus') {
+                    return true;
+                }
+                if (!hasSensusEkonomi && spk.jenis_kegiatan === 'reguler') {
+                    return true;
+                }
+                return false;
+            });
+
+            if (matchingSpk) {
+                return matchingSpk;
+            }
+
+            // Fallback: return the first one if no exact match
+            return spkData[0];
+        }
+
+        return null;
+    };
+
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Perjanjian Kerja', href: '/spk' },
         {
@@ -163,7 +217,7 @@ export default function Generate({
     const getNomorSpkForAlokasi = (alokasi: AlokasiPetugas): string => {
         const tahunSpk = getTahunSpk();
 
-        const existingSpk = existing_spk_map[alokasi.petugas.id];
+        const existingSpk = getExistingSpkForAlokasi(alokasi);
         if (existingSpk) {
             return existingSpk.nomor_spk;
         }
