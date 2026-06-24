@@ -2953,7 +2953,7 @@ class SpkController extends Controller
 
         // Get next nomor urut for this year
         $nextNomorUrut = $this->getNextNomorUrutForPeriode($periode);
-        dd($nextNomorUrut);
+        dd([$nextNomorUrut]);
 
         // Check if there are existing SPKs in this month (for regenerate mode)
         $existingSpkQuery = $this->baseSpkScopeQuery($periode);
