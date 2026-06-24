@@ -2957,7 +2957,7 @@ class SpkController extends Controller
         // Check if there are existing SPKs in this month (for regenerate mode)
         $existingSpkQuery = $this->baseSpkScopeQuery($periode);
         $existingSpk = (clone $existingSpkQuery)->first();
-        foreach ($existingSpks as $spk) {
+        foreach ($existingSpk as $spk) {
             dump([
                 'spk_id' => $spk->id,
                 'petugas_id' => $spk->petugas_id,
