@@ -319,9 +319,32 @@ export default function Index({
                                         </td>
                                         <td className="px-6 py-4 text-center text-sm whitespace-nowrap">
                                             <div className="flex items-center justify-center gap-2">
+                                                {(() => {
+                                                    const isSensusOffMonth =
+                                                        mode ===
+                                                            'sensus-ekonomi' &&
+                                                        item.bulan !== 8;
+                                                    if (isSensusOffMonth) {
+                                                        return (
+                                                            <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                                BAST Sensus
+                                                                Ekonomi hanya
+                                                                Agustus
+                                                            </span>
+                                                        );
+                                                    }
+
+                                                    return null;
+                                                })()}
+
                                                 {canManageMain &&
                                                     item.has_spk &&
-                                                    !item.all_completed && (
+                                                    !item.all_completed &&
+                                                    !(
+                                                        mode ===
+                                                            'sensus-ekonomi' &&
+                                                        item.bulan !== 8
+                                                    ) && (
                                                         <Button
                                                             size="sm"
                                                             asChild
@@ -347,8 +370,15 @@ export default function Index({
                                                             isApril2026OrLater ||
                                                             item.spk_with_bast >
                                                                 0;
+                                                        const isSensusOffMonth =
+                                                            mode ===
+                                                                'sensus-ekonomi' &&
+                                                            item.bulan !== 8;
 
-                                                        if (!shouldShowDetail) {
+                                                        if (
+                                                            !shouldShowDetail ||
+                                                            isSensusOffMonth
+                                                        ) {
                                                             return null;
                                                         }
 
@@ -424,8 +454,19 @@ export default function Index({
                                         </div>
 
                                         <div className="flex items-center gap-2">
+                                            {mode === 'sensus-ekonomi' &&
+                                                item.bulan !== 8 && (
+                                                    <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                        Hanya Agustus
+                                                    </span>
+                                                )}
+
                                             {item.has_spk &&
-                                                !item.all_completed && (
+                                                !item.all_completed &&
+                                                !(
+                                                    mode === 'sensus-ekonomi' &&
+                                                    item.bulan !== 8
+                                                ) && (
                                                     <Button size="sm" asChild>
                                                         <Link
                                                             href={`/berita-acara/create?bulan=${item.bulan}&tahun=${item.tahun}&mode=${mode}`}
@@ -444,8 +485,15 @@ export default function Index({
                                                     const shouldShowDetail =
                                                         isApril2026OrLater ||
                                                         item.spk_with_bast > 0;
+                                                    const isSensusOffMonth =
+                                                        mode ===
+                                                            'sensus-ekonomi' &&
+                                                        item.bulan !== 8;
 
-                                                    if (!shouldShowDetail) {
+                                                    if (
+                                                        !shouldShowDetail ||
+                                                        isSensusOffMonth
+                                                    ) {
                                                         return null;
                                                     }
 

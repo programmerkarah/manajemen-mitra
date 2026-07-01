@@ -1419,6 +1419,32 @@ class BastController extends Controller
     }
 
     /**
+     * @return array<int, string>
+     */
+    private function resolveBulanCandidates(int|string $bulan): array
+    {
+        $normalizedMonth = (int) $bulan;
+
+        if ($normalizedMonth < 1 || $normalizedMonth > 12) {
+            return [(string) $bulan];
+        }
+
+        return array_values(array_unique([
+            str_pad((string) $normalizedMonth, 2, '0', STR_PAD_LEFT),
+            (string) $normalizedMonth,
+        ]));
+    }
+
+    private function applyBastNomorModeFilter($query, bool $isSensusEkonomiMode, string $column = 'nomor_bast')
+    {
+        if ($isSensusEkonomiMode) {
+            return $query->where($column, 'like', '%BAST-SE2026%');
+        }
+
+        return $query->where($column, 'not like', '%BAST-SE2026%');
+    }
+
+    /**
      * Resolve preview-time SE input and require complete keluarga/usaha values.
      *
      * @return array{muatan_input:int|null, muatan_prelist:int|null, realisasi_unit_sampel:array<string,int>}|null
@@ -1708,7 +1734,7 @@ class BastController extends Controller
         $allAlokasi = AlokasiPetugas::query()
             ->where('petugas_id', $petugasId)
             ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                $q->where('bulan', $bulanFormatted)
+                $q->whereIn('bulan', $this->resolveBulanCandidates($bulanFormatted))
                     ->where('tahun', $tahun)
                     ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan']);
             })
@@ -1903,7 +1929,7 @@ class BastController extends Controller
         $latestDocument = Spk::query()
             ->where('petugas_id', $petugasId)
             ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                $q->where('bulan', $bulanFormatted)
+                $q->whereIn('bulan', $this->resolveBulanCandidates($bulanFormatted))
                     ->where('tahun', $tahun);
             })
             ->orderBy('addendum_number', 'desc')
@@ -1929,7 +1955,7 @@ class BastController extends Controller
         $allAlokasi = AlokasiPetugas::query()
             ->where('petugas_id', $petugasId)
             ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                $q->where('bulan', $bulanFormatted)
+                $q->whereIn('bulan', $this->resolveBulanCandidates($bulanFormatted))
                     ->where('tahun', $tahun)
                     ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan']);
             })
@@ -1946,7 +1972,7 @@ class BastController extends Controller
         // For each kegiatan, check if there's a 'perubahan' periode that removes this petugas
         foreach ($kegiatanIds as $kegiatanId) {
             $perubahanPeriode = PeriodeAlokasi::where('kegiatan_id', $kegiatanId)
-                ->where('bulan', $bulanFormatted)
+                ->whereIn('bulan', $this->resolveBulanCandidates($bulanFormatted))
                 ->where('tahun', $tahun)
                 ->where('status', 'perubahan')
                 ->first();
@@ -2154,12 +2180,14 @@ class BastController extends Controller
             $isLegacyBastMode = $this->isLegacyBastAttachmentMode($bulanFormatted, (int) $activeYear);
 
             if ($isSensusEkonomiMode) {
-                $eligiblePetugasCount = $sensusPetugasByMonth->get($bulan, collect())->count();
+                $eligiblePetugasCount = $bulan === 8
+                    ? $sensusPetugasByMonth->get($bulan, collect())->count()
+                    : 0;
             } else {
                 // Get all unique petugas who have SPK (original or addendum) in this month
                 $allPetugasIds = Spk::whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($activeYear, $bulanFormatted) {
                     $q->where('tahun', $activeYear)
-                        ->where('bulan', $bulanFormatted);
+                        ->whereIn('bulan', $this->resolveBulanCandidates($bulanFormatted));
                 })
                     ->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($relationQuery) {
                         $relationQuery->where('nama_kegiatan', 'not like', '%Sensus Ekonomi%');
@@ -2193,19 +2221,19 @@ class BastController extends Controller
             // Samakan metrik "BAST dibuat" dengan detail bulan (jumlah petugas pada dokumen BAST bulan tersebut)
             $petugasWithBast = DB::table('bast_petugas as bp')
                 ->join('bast as b', 'bp.bast_id', '=', 'b.id')
-                ->join('spk as s', 'bp.spk_id', '=', 's.id')
-                ->join('alokasi_petugas as ap2', 's.alokasi_petugas_id', '=', 'ap2.id')
-                ->join('periode_alokasi as pa2', 'ap2.periode_alokasi_id', '=', 'pa2.id')
-                ->join('kegiatan as k2', 'pa2.kegiatan_id', '=', 'k2.id')
                 ->whereYear('b.tanggal_bast', $activeYear)
                 ->whereMonth('b.tanggal_bast', $bulan)
                 ->when($isSensusEkonomiMode, function ($query) {
-                    $query->where('k2.nama_kegiatan', 'like', '%Sensus Ekonomi%');
+                    $this->applyBastNomorModeFilter($query, true, 'b.nomor_bast');
                 }, function ($query) {
-                    $query->where('k2.nama_kegiatan', 'not like', '%Sensus Ekonomi%');
+                    $this->applyBastNomorModeFilter($query, false, 'b.nomor_bast');
                 })
                 ->distinct('bp.petugas_id')
                 ->count('bp.petugas_id');
+
+            if ($isSensusEkonomiMode && $bulan !== 8) {
+                $petugasWithBast = 0;
+            }
 
             $totalPetugas = max($eligiblePetugasCount, $petugasWithBast);
             $petugasWithoutBast = max(0, $totalPetugas - $petugasWithBast);
@@ -2305,6 +2333,11 @@ class BastController extends Controller
             ->when($bulan, function ($query) use ($bulan) {
                 $query->whereMonth('tanggal_bast', (int) $bulan);
             })
+            ->when($isSensusEkonomiMode, function ($query) {
+                $this->applyBastNomorModeFilter($query, true);
+            }, function ($query) {
+                $this->applyBastNomorModeFilter($query, false);
+            })
             ->when($isKetuaTim, function ($query) use ($user) {
                 $query->whereHas('bastKegiatan.kegiatan', function ($q) use ($user) {
                     $q->where(function ($sub) use ($user) {
@@ -2320,6 +2353,11 @@ class BastController extends Controller
             $selectedPetugasBast = Bast::query()
                 ->whereYear('tanggal_bast', (int) $tahun)
                 ->whereMonth('tanggal_bast', (int) $bulan)
+                ->when($isSensusEkonomiMode, function ($query) {
+                    $this->applyBastNomorModeFilter($query, true);
+                }, function ($query) {
+                    $this->applyBastNomorModeFilter($query, false);
+                })
                 ->where(function ($query) use ($selectedPetugasId) {
                     $query->whereHas('spk.alokasiPetugas', function ($relationQuery) use ($selectedPetugasId) {
                         $relationQuery->where('petugas_id', $selectedPetugasId);
@@ -2343,18 +2381,23 @@ class BastController extends Controller
             $periodeReference = PeriodeAlokasi::query()
                 ->where('tahun', $tahun)
                 ->when($bulan, function ($query) use ($bulanFormatted) {
-                    $query->where('bulan', $bulanFormatted);
+                    $query->whereIn('bulan', $this->resolveBulanCandidates($bulanFormatted));
                 })
                 ->latest('id')
                 ->first();
 
             $bastList = $periodeReference
-                ? $this->buildBastListForPeriod($periodeReference, $canManageMain, $isKetuaTim, $request)
+                ? $this->buildBastListForPeriod($periodeReference, $canManageMain, $isKetuaTim, $request, null, $isSensusEkonomiMode)
                 : collect();
 
             $existingBastSpkIds = Bast::query()
                 ->whereYear('tanggal_bast', (int) $tahun)
                 ->whereMonth('tanggal_bast', (int) $bulan)
+                ->when($isSensusEkonomiMode, function ($query) {
+                    $this->applyBastNomorModeFilter($query, true);
+                }, function ($query) {
+                    $this->applyBastNomorModeFilter($query, false);
+                })
                 ->pluck('spk_id')
                 ->filter()
                 ->unique();
@@ -2369,16 +2412,18 @@ class BastController extends Controller
                         });
                 }, function ($query) use ($bulanFormatted, $tahun) {
                     $query->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                        $q->where('bulan', $bulanFormatted)
+                        $q->whereIn('bulan', $this->resolveBulanCandidates($bulanFormatted))
                             ->where('tahun', $tahun)
                             ->whereIn('status', ['dikirim', 'perubahan']);
+                    })->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($kegiatanQuery) {
+                        $kegiatanQuery->where('nama_kegiatan', 'not like', '%Sensus Ekonomi%');
                     });
                 })
                 ->when($isKetuaTim, function ($query) use ($user, $bulanFormatted, $tahun, $isSensusEkonomiMode) {
                     $alokasiIds = AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($user, $bulanFormatted, $tahun, $isSensusEkonomiMode) {
                         $q->where('tahun', $tahun)
                             ->when(! $isSensusEkonomiMode, function ($subQuery) use ($bulanFormatted) {
-                                $subQuery->where('bulan', $bulanFormatted);
+                                $subQuery->whereIn('bulan', $this->resolveBulanCandidates($bulanFormatted));
                             })
                             ->whereHas('kegiatan', function ($qk) use ($user, $isSensusEkonomiMode) {
                                 if ($isSensusEkonomiMode) {
@@ -2436,8 +2481,10 @@ class BastController extends Controller
                             });
                     }, function ($query) use ($bulanFormatted, $tahun) {
                         $query->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                            $q->where('bulan', $bulanFormatted)
+                            $q->whereIn('bulan', $this->resolveBulanCandidates($bulanFormatted))
                                 ->where('tahun', $tahun);
+                        })->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($kegiatanQuery) {
+                            $kegiatanQuery->where('nama_kegiatan', 'not like', '%Sensus Ekonomi%');
                         });
                     })
                     ->orderByDesc('addendum_number')
@@ -2472,7 +2519,7 @@ class BastController extends Controller
                     } else {
                         $alokasiPreviewQuery->where('petugas_id', $selectedPetugasId)
                             ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                                $q->where('bulan', $bulanFormatted)
+                                $q->whereIn('bulan', $this->resolveBulanCandidates($bulanFormatted))
                                     ->where('tahun', $tahun)
                                     ->whereIn('status', ['dikirim', 'perubahan']);
                             });
@@ -2480,7 +2527,7 @@ class BastController extends Controller
 
                     $alokasiPreview = $alokasiPreviewQuery
                         ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-                            $q->where('bulan', $bulanFormatted)
+                            $q->whereIn('bulan', $this->resolveBulanCandidates($bulanFormatted))
                                 ->where('tahun', $tahun)
                                 ->whereIn('status', ['dikirim', 'perubahan']);
                         })
@@ -2672,7 +2719,9 @@ class BastController extends Controller
         // Redirect to canonical open-detail page (no hash URL)
         $this->rememberOpenDetailFiltersFromBast($request, $firstBast);
 
-        return redirect()->route('bast.open-detail-by-petugas');
+        $routeParams = $mode !== 'regular' ? ['mode' => $mode] : [];
+
+        return redirect()->route('bast.open-detail-by-petugas', $routeParams);
     }
 
     /**
@@ -2716,7 +2765,7 @@ class BastController extends Controller
             // Get all unique petugas who have SPK (original or addendum) in this month
             $allPetugasIds = Spk::whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($tahun, $bulanFormatted) {
                 $q->where('tahun', $tahun)
-                    ->where('bulan', $bulanFormatted);
+                    ->whereIn('bulan', $this->resolveBulanCandidates($bulanFormatted));
             })
                 ->distinct()
                 ->pluck('petugas_id')
@@ -2759,7 +2808,7 @@ class BastController extends Controller
                 }, function ($query) use ($tahun, $bulanFormatted) {
                     $query->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($tahun, $bulanFormatted) {
                         $q->where('tahun', $tahun)
-                            ->where('bulan', $bulanFormatted);
+                            ->whereIn('bulan', $this->resolveBulanCandidates($bulanFormatted));
                     });
                 })
                 ->with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi', 'bast'])
@@ -2811,7 +2860,7 @@ class BastController extends Controller
         // Tentukan tanggal berakhir paling akhir dari semua alokasi di bulan ini
         // Ambil alokasi di bulan ini dari semua periode (tidak peduli status)
         $allAlokasiBulan = AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun) {
-            $q->where('bulan', $bulanFormatted)
+            $q->whereIn('bulan', $this->resolveBulanCandidates($bulanFormatted))
                 ->where('tahun', $tahun);
         })->get();
         $tanggalBerakhirPalingAkhir = $allAlokasiBulan->map(function ($alokasi) {
@@ -3117,7 +3166,7 @@ class BastController extends Controller
 
             $allAlokasiA = AlokasiPetugas::where('petugas_id', $petugasA?->id)
                 ->whereHas('periodeAlokasi', function ($q) use ($bulanA, $tahunA) {
-                    $q->where('bulan', $bulanA)
+                    $q->whereIn('bulan', $this->resolveBulanCandidates($bulanA))
                         ->where('tahun', $tahunA)
                         ->whereIn('status', ['dikirim', 'perubahan']);
                 })
@@ -3142,7 +3191,7 @@ class BastController extends Controller
 
             $allAlokasiB = AlokasiPetugas::where('petugas_id', $petugasB?->id)
                 ->whereHas('periodeAlokasi', function ($q) use ($bulanB, $tahunB) {
-                    $q->where('bulan', $bulanB)
+                    $q->whereIn('bulan', $this->resolveBulanCandidates($bulanB))
                         ->where('tahun', $tahunB)
                         ->whereIn('status', ['dikirim', 'perubahan']);
                 })
@@ -3185,7 +3234,7 @@ class BastController extends Controller
             // Get tanggal berakhir for first SPK to determine bulan/tahun BAST
             $firstAllAlokasi = AlokasiPetugas::where('petugas_id', $firstPetugas?->id)
                 ->whereHas('periodeAlokasi', function ($q) use ($firstBulan, $firstTahun) {
-                    $q->where('bulan', $firstBulan)
+                    $q->whereIn('bulan', $this->resolveBulanCandidates($firstBulan))
                         ->where('tahun', $firstTahun)
                         ->whereIn('status', ['dikirim', 'perubahan']);
                 })
@@ -3271,7 +3320,7 @@ class BastController extends Controller
                     // Exclude status 'direvisi' karena tidak perlu masuk ke lampiran
                     $allAlokasi = AlokasiPetugas::where('petugas_id', $petugas->id)
                         ->whereHas('periodeAlokasi', function ($q) use ($bulan, $tahun) {
-                            $q->where('bulan', $bulan)
+                            $q->whereIn('bulan', $this->resolveBulanCandidates($bulan))
                                 ->where('tahun', $tahun)
                                 ->whereIn('status', ['dikirim', 'perubahan']);
                         })
@@ -3307,7 +3356,7 @@ class BastController extends Controller
                     $tahunUtama = date('Y', strtotime($spk->tanggal_mulai_kerja));
                     $allAlokasi = AlokasiPetugas::where('petugas_id', $petugasUtama->id)
                         ->whereHas('periodeAlokasi', function ($q) use ($bulanUtama, $tahunUtama) {
-                            $q->where('bulan', $bulanUtama)
+                            $q->whereIn('bulan', $this->resolveBulanCandidates($bulanUtama))
                                 ->where('tahun', $tahunUtama)
                                 ->whereIn('status', ['dikirim', 'perubahan']);
                         })
@@ -3599,9 +3648,9 @@ class BastController extends Controller
         // Filter by kegiatan type: SE BAST hanya memuat alokasi SE, non-SE BAST hanya memuat non-SE
         $allAlokasi = AlokasiPetugas::where('petugas_id', $petugas->id)
             ->whereHas('periodeAlokasi', function ($q) use ($bulan, $tahun) {
-                $q->where('bulan', $bulan)
+                $q->whereIn('bulan', $this->resolveBulanCandidates($bulan))
                     ->where('tahun', $tahun)
-                    ->whereIn('status', ['dikirim', 'perubahan']); // Exclude 'direvisi'
+                    ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan']);
             })
             ->whereHas('petugas', function ($q) {
                 $q->where('jenis_petugas', 'non-organik');
@@ -4772,6 +4821,7 @@ class BastController extends Controller
             ->output();
 
         $viewData['pageNumberOffset'] = $this->resolveLampiranPageNumberOffset(null, $mainContent);
+        $viewData['pageNumberOffset'] += max(0, ((int) ($selectedKegiatanPayload['lampiran_nomor'] ?? 1)) - 1);
 
         $pdfLampiran = Pdf::loadView($this->resolveBastLampiranSpkView($viewData), $viewData)
             ->setPaper('a4', 'landscape');
@@ -4933,6 +4983,7 @@ class BastController extends Controller
             ->output();
 
         $viewData['pageNumberOffset'] = $this->resolveLampiranPageNumberOffset(null, $mainContent);
+        $viewData['pageNumberOffset'] += max(0, ((int) ($kegiatanPayload['lampiran_nomor'] ?? 1)) - 1);
 
         $pdfLampiran = Pdf::loadView($this->resolveBastLampiranSpkView($viewData), $viewData)
             ->setPaper('a4', 'landscape');
@@ -5257,6 +5308,7 @@ class BastController extends Controller
 
         $viewData['bast']->kegiatan_list = [$kegiatanPayload];
         $viewData['pageNumberOffset'] = $this->resolveLampiranPageNumberOffset($bast);
+        $viewData['pageNumberOffset'] += max(0, ((int) ($kegiatanPayload['lampiran_nomor'] ?? 1)) - 1);
 
         $pdfLampiran = Pdf::loadView($this->resolveBastLampiranSpkView($viewData), $viewData)
             ->setPaper('a4', 'landscape');
@@ -5393,6 +5445,7 @@ class BastController extends Controller
 
         $viewData['bast']->kegiatan_list = [$kegiatanPayload];
         $viewData['pageNumberOffset'] = $this->resolveLampiranPageNumberOffset($bast);
+        $viewData['pageNumberOffset'] += max(0, ((int) ($kegiatanPayload['lampiran_nomor'] ?? 1)) - 1);
 
         $pdfLampiran = Pdf::loadView($this->resolveBastLampiranSpkView($viewData), $viewData)
             ->setPaper('a4', 'landscape');
@@ -5444,6 +5497,7 @@ class BastController extends Controller
 
         $viewData['bast']->kegiatan_list = [$kegiatanPayload];
         $viewData['pageNumberOffset'] = $this->resolveLampiranPageNumberOffset($bast);
+        $viewData['pageNumberOffset'] += max(0, ((int) ($kegiatanPayload['lampiran_nomor'] ?? 1)) - 1);
 
         $pdfLampiran = Pdf::loadView($this->resolveBastLampiranSpkView($viewData), $viewData)
             ->setPaper('a4', 'landscape');
@@ -6361,13 +6415,22 @@ class BastController extends Controller
             ->keyBy(fn (array $item) => $this->makeBastKegiatanKey($item['kegiatan_id'], $item['periode_alokasi_id']));
         $isLegacyMode = (int) $periode->tahun < 2026
             || ((int) $periode->tahun === 2026 && (int) $periode->bulan < 4);
+        $isSensusEkonomiMode = str_contains((string) $bast->nomor_bast, 'BAST-SE2026');
 
-        $bastList = $this->buildBastListForPeriod($periode, $canManageMain, $isKetuaTim, $request, $bast);
+        $bastList = $this->buildBastListForPeriod($periode, $canManageMain, $isKetuaTim, $request, $bast, $isSensusEkonomiMode);
 
         // Include eligible petugas without BAST in the period so unavailable data is still visible.
         $existingBastSpkIds = Bast::whereHas('periodeAlokasi', function ($q) use ($periode) {
             $q->where('bulan', $periode->bulan)->where('tahun', $periode->tahun);
-        })->pluck('spk_id')->filter()->unique();
+        })
+            ->when($isSensusEkonomiMode, function ($query) {
+                $this->applyBastNomorModeFilter($query, true);
+            }, function ($query) {
+                $this->applyBastNomorModeFilter($query, false);
+            })
+            ->pluck('spk_id')
+            ->filter()
+            ->unique();
 
         $eligibleWithoutBast = Spk::with('alokasiPetugas.petugas')
             ->whereNotIn('id', $existingBastSpkIds)
@@ -6375,6 +6438,15 @@ class BastController extends Controller
                 $q->where('bulan', $bulanFormatted)
                     ->where('tahun', $periode->tahun)
                     ->whereIn('status', ['dikirim', 'perubahan']);
+            })
+            ->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($q) use ($isSensusEkonomiMode) {
+                if ($isSensusEkonomiMode) {
+                    $q->where('nama_kegiatan', 'like', '%Sensus Ekonomi%');
+
+                    return;
+                }
+
+                $q->where('nama_kegiatan', 'not like', '%Sensus Ekonomi%');
             })
             ->when($isKetuaTim, function ($query) use ($user, $bulanFormatted, $periode) {
                 $alokasiIds = AlokasiPetugas::whereHas('periodeAlokasi', function ($q) use ($user, $bulanFormatted, $periode) {
@@ -6563,7 +6635,7 @@ class BastController extends Controller
                 'final_signed_ready' => $finalSignedReady,
             ],
             'sensus_reference' => $sensusReference,
-            'mode' => (string) $request->input('mode', 'regular'),
+            'mode' => $isSensusEkonomiMode ? 'sensus-ekonomi' : 'regular',
             'bulan' => $detailReferencePeriod['bulan'],
             'tahun' => $detailReferencePeriod['tahun'],
             'bulan_label' => $detailReferencePeriod['bulan_label'],
@@ -6576,6 +6648,7 @@ class BastController extends Controller
         bool $isKetuaTim,
         Request $request,
         ?Bast $currentBast = null,
+        bool $isSensusEkonomiMode = false,
     ): Collection {
         $user = $this->getRequestUser($request);
 
@@ -6587,6 +6660,11 @@ class BastController extends Controller
             ->whereHas('periodeAlokasi', function ($query) use ($periode) {
                 $query->where('bulan', $periode->bulan)
                     ->where('tahun', $periode->tahun);
+            })
+            ->when($isSensusEkonomiMode, function ($query) {
+                $this->applyBastNomorModeFilter($query, true);
+            }, function ($query) {
+                $this->applyBastNomorModeFilter($query, false);
             })
             ->when($isKetuaTim, function ($query) use ($user) {
                 $query->whereHas('bastKegiatan.kegiatan', function ($q) use ($user) {

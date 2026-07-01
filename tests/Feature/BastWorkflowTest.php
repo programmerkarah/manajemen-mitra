@@ -70,6 +70,35 @@ class BastWorkflowTest extends TestCase
         $this->assertTrue($bast->bastKegiatan->every(fn ($item) => $item->file_path === null));
     }
 
+    public function test_generate_batch_keeps_kegiatan_when_periode_month_format_is_mixed(): void
+    {
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+
+        PeriodeAlokasi::query()
+            ->where('kegiatan_id', $context['kegiatanOther']->id)
+            ->where('tahun', 2026)
+            ->update(['bulan' => '4']);
+
+        $response = $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->post(route('bast.generate-batch'), [
+                'spk_ids' => [$context['spk']->id],
+            ]);
+
+        $response->assertRedirect(route('bast.index'));
+        $response->assertSessionHas('success');
+
+        $bast = Bast::query()
+            ->with('bastKegiatan')
+            ->where('spk_id', $context['spk']->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertCount(2, $bast->bastKegiatan);
+        $this->assertTrue($bast->bastKegiatan->contains('kegiatan_id', $context['kegiatanOwnCompleted']->id));
+        $this->assertTrue($bast->bastKegiatan->contains('kegiatan_id', $context['kegiatanOther']->id));
+    }
+
     public function test_ketua_tim_can_only_generate_completed_lampiran_for_their_own_kegiatan(): void
     {
         $context = $this->createBastGenerationContext();
@@ -206,6 +235,89 @@ class BastWorkflowTest extends TestCase
         $lampiranKegiatanIds = collect($props['lampiran'])->pluck('kegiatan_id')->toArray();
         $this->assertContains($context['kegiatanOther']->id, $lampiranKegiatanIds);
         $this->assertNotContains($context['kegiatanOwnCompleted']->id, $lampiranKegiatanIds);
+    }
+
+    public function test_listbymonth_regular_mode_does_not_pick_sensus_bast_detail(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-20'));
+
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+        $regularBast = $this->generateMainBast($context);
+
+        Bast::query()->create([
+            'spk_id' => $regularBast->spk_id,
+            'kegiatan_id' => $regularBast->kegiatan_id,
+            'periode_alokasi_id' => $regularBast->periode_alokasi_id,
+            'nomor_bast' => 'B-999/BAST-SE2026/1373/PL.200/2026',
+            'tanggal_bast' => $regularBast->tanggal_bast,
+            'tanggal_serah_terima' => $regularBast->tanggal_serah_terima,
+            'uraian_pekerjaan' => $regularBast->uraian_pekerjaan,
+            'nama_ketua_tim' => $regularBast->nama_ketua_tim,
+            'nip_ketua_tim' => $regularBast->nip_ketua_tim,
+            'nama_ppk' => $regularBast->nama_ppk,
+            'nip_ppk' => $regularBast->nip_ppk,
+            'menggunakan_fasih' => $regularBast->menggunakan_fasih,
+            'hasil_pekerjaan' => $regularBast->hasil_pekerjaan,
+            'file_path' => $regularBast->file_path,
+            'compiled_file_path' => null,
+            'main_signed_file_path' => null,
+            'signed_file_path' => null,
+            'lokasi_kegiatan' => $regularBast->lokasi_kegiatan,
+            'status' => 'draft',
+            'catatan' => null,
+            'created_by' => $context['operator']->id,
+            'created_at' => now()->addSecond(),
+            'updated_at' => now()->addSecond(),
+        ]);
+
+        $response = $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->get(route('bast.list', [
+                'bulan' => 4,
+                'tahun' => 2026,
+                'petugas_id' => $context['petugas']->id,
+                'mode' => 'regular',
+            ]));
+
+        $response->assertOk();
+
+        $page = $response->viewData('page');
+        $props = $page['props'];
+
+        $this->assertSame('regular', $props['mode']);
+        $this->assertSame($regularBast->nomor_bast, $props['bast']['nomor_bast']);
+        $this->assertStringNotContainsString('BAST-SE2026', $props['bast']['nomor_bast']);
+    }
+
+    public function test_index_sensus_mode_has_no_workload_outside_august(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-04-20'));
+
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+
+        $context['kegiatanOwnCompleted']->update([
+            'nama_kegiatan' => 'Sensus Ekonomi 2026',
+            'jenis_kegiatan' => 'sensus',
+        ]);
+
+        $response = $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->get('/berita-acara?mode=sensus-ekonomi');
+
+        $response->assertOk();
+
+        $page = $response->viewData('page');
+        $props = $page['props'];
+
+        $this->assertSame('sensus-ekonomi', $props['mode']);
+
+        $decrypted = decryptData(data_get($props, 'data.encrypted'));
+        $april = collect($decrypted)->firstWhere('bulan', 4);
+
+        $this->assertNotNull($april);
+        $this->assertSame(0, (int) ($april['total_spk'] ?? -1));
+        $this->assertSame(0, (int) ($april['spk_with_bast'] ?? -1));
+        $this->assertFalse((bool) ($april['has_spk'] ?? true));
     }
 
     public function test_signed_final_file_is_compiled_only_after_main_and_all_lampiran_are_uploaded(): void
