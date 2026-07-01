@@ -249,10 +249,9 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
         }
 
         // Check if it's previous month
-        const previousMonth =
-            currentMonth <= 2 ? currentMonth + 10 : currentMonth - 2;
+        const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
         const previousMonthYear =
-            currentMonth <= 2 ? currentYear - 1 : currentYear;
+            currentMonth === 1 ? currentYear - 1 : currentYear;
 
         if (
             periodeYear === previousMonthYear &&
