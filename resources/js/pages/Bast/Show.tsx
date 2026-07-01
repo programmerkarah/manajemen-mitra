@@ -443,6 +443,28 @@ export default function Show({
         sortedBastList.length > 0 &&
         sortedBastList.every((item) => item.compiled_file_path);
     const activePetugasId = petugas?.id ?? null;
+    const totalPetugasPeriod =
+        sortedBastList.length + eligible_without_bast.length;
+    const bastBelumGenerateCount = eligible_without_bast.length;
+    const bastSudahGenerateCount = sortedBastList.filter((item) =>
+        bast.is_legacy_mode
+            ? Boolean(item.file_path || item.signed_file_path)
+            : Boolean(item.file_path),
+    ).length;
+    const bastSudahTtdCount = sortedBastList.filter((item) =>
+        bast.is_legacy_mode
+            ? Boolean(item.signed_file_path)
+            : Boolean(item.main_signed_file_path),
+    ).length;
+    const lampiranSudahLengkapCount = sortedBastList.filter((item) =>
+        bast.is_legacy_mode
+            ? Boolean(item.file_path)
+            : Boolean(item.compiled_file_path),
+    ).length;
+    const lampiranBelumLengkapCount = Math.max(
+        totalPetugasPeriod - lampiranSudahLengkapCount,
+        0,
+    );
     const canDownloadAll = bast.is_legacy_mode
         ? allSignedInList
         : allCompiledInList;
@@ -454,6 +476,8 @@ export default function Show({
     const pageDescription = isSensusEkonomi
         ? `Dokumen utama dan lampiran BAST Sensus Ekonomi untuk ${petugas?.nama ?? kegiatan.nama_kegiatan}`
         : `Dokumen utama dan lampiran BAST kegiatan untuk ${petugas?.nama ?? kegiatan.nama_kegiatan}`;
+    const mainBastGenerated = Boolean(bast.file_path);
+    const mainBastSignedUploaded = Boolean(summary.main_signed_uploaded);
 
     const showPreviewError = (error: unknown) => {
         const fallback =
@@ -708,79 +732,87 @@ export default function Show({
                     </div>
                 </PageHeader>
 
-                {!bast.is_legacy_mode && (
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                        <ContentCard className="border border-blue-200/70 bg-gradient-to-br from-blue-50 to-white dark:border-blue-900/40 dark:from-blue-950/30 dark:to-neutral-900">
-                            <div className="flex items-center justify-between">
-                                <p className="text-xs font-medium tracking-wide text-blue-700 uppercase dark:text-blue-300">
-                                    BAST [Generate]
-                                </p>
-                                <FileText className="h-4 w-4 text-blue-600 dark:text-blue-300" />
-                            </div>
-                            <p className="mt-3 text-3xl font-bold text-blue-900 dark:text-blue-100">
-                                {bast.file_path ? '1' : '0'}
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <ContentCard className="border border-blue-200/70 bg-gradient-to-br from-blue-50 to-white dark:border-blue-900/40 dark:from-blue-950/30 dark:to-neutral-900">
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs font-medium tracking-wide text-blue-700 uppercase dark:text-blue-300">
+                                BAST [generate]
                             </p>
-                            <p className="mt-2 text-xs text-blue-700 dark:text-blue-300">
-                                {bast.file_path
-                                    ? 'Dokumen utama sudah tersedia'
-                                    : 'Dokumen utama belum tersedia'}
-                            </p>
-                        </ContentCard>
+                            <FileText className="h-4 w-4 text-blue-600 dark:text-blue-300" />
+                        </div>
+                        <p className="mt-3 text-3xl font-bold text-blue-900 dark:text-blue-100">
+                            {bastSudahGenerateCount}/{totalPetugasPeriod}
+                        </p>
+                        <p className="mt-2 text-xs text-blue-700 dark:text-blue-300">
+                            Jumlah petugas yang dokumen utama BAST-nya sudah
+                            digenerate.
+                        </p>
+                    </ContentCard>
 
-                        <ContentCard className="border border-emerald-200/70 bg-gradient-to-br from-emerald-50 to-white dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
-                            <div className="flex items-center justify-between">
-                                <p className="text-xs font-medium tracking-wide text-emerald-700 uppercase dark:text-emerald-300">
-                                    BAST Bertanda Tangan
-                                </p>
-                                <PenLine className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
-                            </div>
-                            <p className="mt-3 text-3xl font-bold text-emerald-900 dark:text-emerald-100">
-                                {summary.main_signed_uploaded ? '1' : '0'}
+                    <ContentCard className="border border-emerald-200/70 bg-gradient-to-br from-emerald-50 to-white dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs font-medium tracking-wide text-emerald-700 uppercase dark:text-emerald-300">
+                                BAST [bertanda tangan]
                             </p>
-                            <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
-                                {summary.main_signed_uploaded
-                                    ? 'File BAST bertanda tangan sudah diunggah'
-                                    : 'Menunggu upload BAST bertanda tangan'}
-                            </p>
-                        </ContentCard>
+                            <PenLine className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+                        </div>
+                        <p className="mt-3 text-3xl font-bold text-emerald-900 dark:text-emerald-100">
+                            {bastSudahTtdCount}/{totalPetugasPeriod}
+                        </p>
+                        <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
+                            Jumlah petugas yang file utama BAST bertanda
+                            tangannya sudah diunggah.
+                        </p>
+                    </ContentCard>
 
-                        <ContentCard className="border border-amber-200/70 bg-gradient-to-br from-amber-50 to-white dark:border-amber-900/40 dark:from-amber-950/30 dark:to-neutral-900">
-                            <div className="flex items-center justify-between">
-                                <p className="text-xs font-medium tracking-wide text-amber-700 uppercase dark:text-amber-300">
-                                    Lampiran [Generate]
-                                </p>
-                                <FileArchive className="h-4 w-4 text-amber-600 dark:text-amber-300" />
-                            </div>
-                            <p className="mt-3 text-3xl font-bold text-amber-900 dark:text-amber-100">
-                                {summary.generated_lampiran}/
-                                {summary.total_lampiran}
+                    <ContentCard className="border border-slate-200/70 bg-gradient-to-br from-slate-50 to-white dark:border-slate-800 dark:from-slate-900/60 dark:to-neutral-900">
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs font-medium tracking-wide text-slate-700 uppercase dark:text-slate-300">
+                                BAST [belum generate]
                             </p>
-                            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
-                                {summary.all_lampiran_generated
-                                    ? 'Semua lampiran sudah siap'
-                                    : 'Masih ada lampiran yang belum digenerate'}
-                            </p>
-                        </ContentCard>
+                            <FileText className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+                        </div>
+                        <p className="mt-3 text-3xl font-bold text-slate-900 dark:text-slate-100">
+                            {bastBelumGenerateCount}/{totalPetugasPeriod}
+                        </p>
+                        <p className="mt-2 text-xs text-slate-700 dark:text-slate-300">
+                            Jumlah petugas yang belum memiliki dokumen BAST pada
+                            periode ini.
+                        </p>
+                    </ContentCard>
 
-                        <ContentCard className="border border-violet-200/70 bg-gradient-to-br from-violet-50 to-white dark:border-violet-900/40 dark:from-violet-950/30 dark:to-neutral-900">
-                            <div className="flex items-center justify-between">
-                                <p className="text-xs font-medium tracking-wide text-violet-700 uppercase dark:text-violet-300">
-                                    Lampiran Bertanda Tangan
-                                </p>
-                                <FileCheck2 className="h-4 w-4 text-violet-600 dark:text-violet-300" />
-                            </div>
-                            <p className="mt-3 text-3xl font-bold text-violet-900 dark:text-violet-100">
-                                {summary.signed_lampiran}/
-                                {summary.total_lampiran}
+                    <ContentCard className="border border-amber-200/70 bg-gradient-to-br from-amber-50 to-white dark:border-amber-900/40 dark:from-amber-950/30 dark:to-neutral-900">
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs font-medium tracking-wide text-amber-700 uppercase dark:text-amber-300">
+                                Lampiran [belum lengkap]
                             </p>
-                            <p className="mt-2 text-xs text-violet-700 dark:text-violet-300">
-                                {summary.final_signed_ready
-                                    ? 'File BAST bertanda tangan siap diunduh'
-                                    : 'Kompilasi BAST bertanda tangan belum lengkap'}
+                            <Clock3 className="h-4 w-4 text-amber-600 dark:text-amber-300" />
+                        </div>
+                        <p className="mt-3 text-3xl font-bold text-amber-900 dark:text-amber-100">
+                            {lampiranBelumLengkapCount}/{totalPetugasPeriod}
+                        </p>
+                        <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                            Jumlah petugas yang lampirannya belum tergenerate
+                            lengkap.
+                        </p>
+                    </ContentCard>
+
+                    <ContentCard className="border border-emerald-200/70 bg-gradient-to-br from-emerald-50 to-white dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs font-medium tracking-wide text-emerald-700 uppercase dark:text-emerald-300">
+                                Lampiran [sudah lengkap]
                             </p>
-                        </ContentCard>
-                    </div>
-                )}
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+                        </div>
+                        <p className="mt-3 text-3xl font-bold text-emerald-900 dark:text-emerald-100">
+                            {lampiranSudahLengkapCount}/{totalPetugasPeriod}
+                        </p>
+                        <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
+                            Jumlah petugas yang seluruh lampirannya sudah
+                            tergenerate.
+                        </p>
+                    </ContentCard>
+                </div>
 
                 {!bast.is_legacy_mode && (
                     <ContentCard>
@@ -858,7 +890,7 @@ export default function Show({
                                                 <div className="flex flex-wrap gap-2 pt-1">
                                                     {item.signed_file_path ? (
                                                         <Badge variant="default">
-                                                            Signed
+                                                            Dokumen Lengkap
                                                         </Badge>
                                                     ) : item.main_signed_file_path ? (
                                                         <Badge variant="secondary">
@@ -931,6 +963,94 @@ export default function Show({
                     </div>
 
                     <div className="space-y-6">
+                        {!bast.is_legacy_mode && (
+                            <ContentCard>
+                                <div className="space-y-4">
+                                    <div>
+                                        <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">
+                                            Status Petugas Terpilih
+                                        </h3>
+                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                            Ringkasan progres dokumen untuk
+                                            petugas yang sedang dipilih.
+                                        </p>
+                                    </div>
+
+                                    <div className="grid gap-3 md:grid-cols-2">
+                                        <div className="rounded-xl border border-neutral-200 p-3 dark:border-neutral-700">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-300">
+                                                    BAST [Generate]
+                                                </p>
+                                                <FileText className="h-4 w-4 text-neutral-500" />
+                                            </div>
+                                            <div className="mt-2">
+                                                <Badge
+                                                    variant={
+                                                        mainBastGenerated
+                                                            ? 'default'
+                                                            : 'secondary'
+                                                    }
+                                                >
+                                                    {mainBastGenerated
+                                                        ? 'Sudah Digenerate'
+                                                        : 'Belum Digenerate'}
+                                                </Badge>
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-xl border border-neutral-200 p-3 dark:border-neutral-700">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-300">
+                                                    BAST Bertanda Tangan
+                                                </p>
+                                                <PenLine className="h-4 w-4 text-neutral-500" />
+                                            </div>
+                                            <div className="mt-2">
+                                                <Badge
+                                                    variant={
+                                                        mainBastSignedUploaded
+                                                            ? 'default'
+                                                            : 'secondary'
+                                                    }
+                                                >
+                                                    {mainBastSignedUploaded
+                                                        ? 'Sudah Diunggah'
+                                                        : 'Menunggu Upload'}
+                                                </Badge>
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-xl border border-neutral-200 p-3 dark:border-neutral-700">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-300">
+                                                    Lampiran [Generate]
+                                                </p>
+                                                <FileArchive className="h-4 w-4 text-neutral-500" />
+                                            </div>
+                                            <p className="mt-2 text-lg font-semibold text-neutral-900 dark:text-white">
+                                                {summary.generated_lampiran}/
+                                                {summary.total_lampiran}
+                                            </p>
+                                        </div>
+
+                                        <div className="rounded-xl border border-neutral-200 p-3 dark:border-neutral-700">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-300">
+                                                    Lampiran Bertanda Tangan
+                                                </p>
+                                                <FileCheck2 className="h-4 w-4 text-neutral-500" />
+                                            </div>
+                                            <p className="mt-2 text-lg font-semibold text-neutral-900 dark:text-white">
+                                                {summary.signed_lampiran}/
+                                                {summary.total_lampiran}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </ContentCard>
+                        )}
+
                         <ContentCard>
                             <div className="space-y-6">
                                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1246,6 +1366,11 @@ export default function Show({
                                                     item.can_preview &&
                                                     (!requiresFasihScreenshot ||
                                                         hasFasihScreenshot);
+                                                const pendingLampiranMessage =
+                                                    requiresFasihScreenshot &&
+                                                    !hasFasihScreenshot
+                                                        ? 'Lampiran baru dapat digenerate setelah screenshot Fasih utama diunggah dan kegiatan berakhir.'
+                                                        : 'Lampiran baru dapat digenerate setelah kegiatan berakhir.';
                                                 const previewDisabledReason =
                                                     requiresFasihScreenshot &&
                                                     !hasFasihScreenshot
@@ -1371,15 +1496,9 @@ export default function Show({
                                                                 'pending' && (
                                                                 <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
                                                                     <Clock3 className="h-4 w-4" />
-                                                                    Lampiran
-                                                                    baru dapat
-                                                                    digenerate
-                                                                    setelah
-                                                                    screenshot
-                                                                    Fasih utama
-                                                                    diunggah dan
-                                                                    kegiatan
-                                                                    berakhir.
+                                                                    {
+                                                                        pendingLampiranMessage
+                                                                    }
                                                                 </div>
                                                             )}
 

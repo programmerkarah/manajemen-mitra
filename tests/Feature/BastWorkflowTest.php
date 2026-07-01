@@ -320,6 +320,52 @@ class BastWorkflowTest extends TestCase
         $this->assertFalse((bool) ($april['has_spk'] ?? true));
     }
 
+    public function test_open_detail_regular_pengolahan_uses_fallback_tanggal_selesai_when_pengolahan_schedule_is_empty(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-07-01'));
+
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+
+        $context['kegiatanOwnCompleted']->update([
+            'nama_kegiatan' => 'Survei Ekonomi Rumah Tangga (Seruti) Triwulan II',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $context['spk']->alokasiPetugas->update([
+            'peran' => 'pengolahan',
+            'jumlah_satuan' => 6,
+            'jumlah_satuan_listing' => 0,
+        ]);
+
+        $context['spk']->alokasiPetugas->periodeAlokasi->update([
+            'tanggal_selesai' => '2026-06-20',
+            'tanggal_selesai_listing' => null,
+            'jadwal_pengolahan_pencacahan_selesai' => null,
+            'jadwal_pengolahan_listing_selesai' => null,
+        ]);
+
+        $response = $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->get(route('bast.list', [
+                'bulan' => 4,
+                'tahun' => 2026,
+                'petugas_id' => $context['petugas']->id,
+                'mode' => 'regular',
+            ]));
+
+        $response->assertOk();
+
+        $page = $response->viewData('page');
+        $lampiranItem = collect($page['props']['lampiran'])
+            ->firstWhere('kegiatan_id', $context['kegiatanOwnCompleted']->id);
+
+        $this->assertNotNull($lampiranItem);
+        $this->assertSame('pengolahan', $lampiranItem['peran']);
+        $this->assertNotSame('-', $lampiranItem['tanggal_selesai_formatted']);
+        $this->assertTrue((bool) $lampiranItem['ready_to_generate']);
+        $this->assertTrue((bool) $lampiranItem['can_generate']);
+    }
+
     public function test_signed_final_file_is_compiled_only_after_main_and_all_lampiran_are_uploaded(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-04-20'));
