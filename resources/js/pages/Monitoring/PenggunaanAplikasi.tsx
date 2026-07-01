@@ -1,5 +1,6 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
+import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -65,6 +66,28 @@ interface TopUserRow {
     active_days: number;
 }
 
+interface UserNameOption {
+    value: string;
+    label: string;
+}
+
+interface SelectedUserSummary {
+    user_name: string | null;
+    total_logs: number;
+    active_days: number;
+}
+
+interface SelectedUserDailyAccessRow {
+    day: number;
+    date: string;
+    label: string;
+    total_logs: number;
+    activity_breakdown: Array<{
+        label: string;
+        total: number;
+    }>;
+}
+
 interface ImpactRow {
     label: string;
     count: number;
@@ -76,6 +99,7 @@ interface Props {
     generated_at: string;
     filters: {
         bulan: string;
+        user_name?: string | null;
     };
     month_label: string;
     summary: Summary;
@@ -83,6 +107,10 @@ interface Props {
     type_summary: TypeSummaryRow[];
     top_actions: ActionRow[];
     top_users: TopUserRow[];
+    user_name_options: UserNameOption[];
+    selected_user_name: string | null;
+    selected_user_summary: SelectedUserSummary;
+    selected_user_daily_access: SelectedUserDailyAccessRow[];
     impact_summary: ImpactRow[];
 }
 
@@ -119,6 +147,10 @@ const TYPE_COLORS: Record<string, string> = {
     pengajuan_pulsa: '#16a34a',
 };
 
+function formatUserName(value: string | null | undefined): string {
+    return toUcwords(value);
+}
+
 interface ChartTooltipEntry {
     name?: string;
     value?: number;
@@ -149,12 +181,18 @@ function ChartTooltipContent({
             ) : null}
             <div className="space-y-1">
                 {payload.map((entry, index) => {
-                    const displayLabel = entry.payload?.label ?? entry.name ?? 'Nilai';
+                    const displayLabel =
+                        entry.payload?.label ?? entry.name ?? 'Nilai';
 
                     return (
-                        <p key={`${displayLabel}-${index}`} className="font-medium">
+                        <p
+                            key={`${displayLabel}-${index}`}
+                            className="font-medium"
+                        >
                             <span className="mr-2">{displayLabel}:</span>
-                            <span>{formatNumber(Number(entry.value ?? 0))}</span>
+                            <span>
+                                {formatNumber(Number(entry.value ?? 0))}
+                            </span>
                         </p>
                     );
                 })}
@@ -167,6 +205,19 @@ function formatNumber(value: number): string {
     return new Intl.NumberFormat('id-ID').format(value);
 }
 
+function toUcwords(value: string | null | undefined): string {
+    if (!value) {
+        return '';
+    }
+
+    return value
+        .trim()
+        .toLowerCase()
+        .split(/\s+/)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
 export default function PenggunaanAplikasi({
     active_year,
     generated_at,
@@ -177,6 +228,10 @@ export default function PenggunaanAplikasi({
     type_summary,
     top_actions,
     top_users,
+    user_name_options,
+    selected_user_name,
+    selected_user_summary,
+    selected_user_daily_access,
     impact_summary,
 }: Props) {
     const handleMonthChange = (month: string) => {
@@ -184,6 +239,22 @@ export default function PenggunaanAplikasi({
             '/monlap-pa',
             {
                 bulan: month,
+                user_name: selected_user_name,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
+    const handleUserChange = (userName: string) => {
+        router.get(
+            '/monlap-pa',
+            {
+                bulan: filters.bulan,
+                user_name: userName,
             },
             {
                 preserveState: true,
@@ -205,12 +276,26 @@ export default function PenggunaanAplikasi({
                     <div className="flex flex-wrap items-center gap-3">
                         <Button asChild variant="outline" className="shrink-0">
                             <a
-                                href={`/monlap-pa/export-pdf?bulan=${filters.bulan}`}
+                                href={`/monlap-pa/export-pdf?bulan=${filters.bulan}${selected_user_name ? `&user_name=${encodeURIComponent(selected_user_name)}` : ''}`}
                             >
                                 <Download className="size-4" />
                                 Export PDF
                             </a>
                         </Button>
+                        <SearchableSelect
+                            options={user_name_options.map((option) => ({
+                                ...option,
+                                label: formatUserName(option.label),
+                                searchKeywords: option.label,
+                            }))}
+                            value={selected_user_name ?? ''}
+                            onValueChange={handleUserChange}
+                            placeholder="Cari pengguna"
+                            searchPlaceholder="Cari nama pengguna"
+                            className="w-full sm:w-[260px]"
+                            showClearAction
+                            clearLabel="Clear user"
+                        />
                         <Select
                             value={filters.bulan}
                             onValueChange={handleMonthChange}
@@ -316,7 +401,9 @@ export default function PenggunaanAplikasi({
                                         tick={{ fontSize: 12 }}
                                         allowDecimals={false}
                                     />
-                                    <Tooltip content={<ChartTooltipContent />} />
+                                    <Tooltip
+                                        content={<ChartTooltipContent />}
+                                    />
                                     <Legend
                                         wrapperStyle={{ color: 'inherit' }}
                                     />
@@ -410,8 +497,12 @@ export default function PenggunaanAplikasi({
                                             />
                                         ))}
                                     </Pie>
-                                    <Tooltip content={<ChartTooltipContent />} />
-                                    <Legend wrapperStyle={{ color: 'inherit' }} />
+                                    <Tooltip
+                                        content={<ChartTooltipContent />}
+                                    />
+                                    <Legend
+                                        wrapperStyle={{ color: 'inherit' }}
+                                    />
                                 </PieChart>
                             </ResponsiveContainer>
                         </div>
@@ -453,7 +544,9 @@ export default function PenggunaanAplikasi({
                                         className="text-slate-600 dark:text-slate-300"
                                         tick={{ fontSize: 12 }}
                                     />
-                                    <Tooltip content={<ChartTooltipContent />} />
+                                    <Tooltip
+                                        content={<ChartTooltipContent />}
+                                    />
                                     <Bar
                                         dataKey="total"
                                         fill="#2563eb"
@@ -472,8 +565,8 @@ export default function PenggunaanAplikasi({
                                 Pengguna Paling Aktif
                             </h2>
                             <p className="text-sm text-slate-500 dark:text-slate-400">
-                                Pengguna dengan jumlah akses terbanyak pada
-                                bulan ini.
+                                Klik nama pengguna untuk memuat rincian harian
+                                di bawah.
                             </p>
                         </div>
                         <div className="overflow-hidden rounded-2xl border border-slate-200/70 dark:border-slate-800">
@@ -492,19 +585,49 @@ export default function PenggunaanAplikasi({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-neutral-900/60">
-                                    {top_users.map((user) => (
-                                        <tr key={user.user_id}>
-                                            <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
-                                                {user.user_name}
-                                            </td>
-                                            <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">
-                                                {formatNumber(user.total_logs)}
-                                            </td>
-                                            <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">
-                                                {formatNumber(user.active_days)}
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {top_users.map((user) => {
+                                        const isSelected =
+                                            user.user_name ===
+                                            selected_user_summary.user_name;
+                                        const displayName = formatUserName(
+                                            user.user_name,
+                                        );
+
+                                        return (
+                                            <tr
+                                                key={user.user_id}
+                                                className={
+                                                    isSelected
+                                                        ? 'bg-blue-50/60 dark:bg-blue-950/30'
+                                                        : ''
+                                                }
+                                            >
+                                                <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleUserChange(
+                                                                user.user_name,
+                                                            )
+                                                        }
+                                                        className="text-left font-medium text-blue-700 transition-colors hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
+                                                    >
+                                                        {displayName}
+                                                    </button>
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">
+                                                    {formatNumber(
+                                                        user.total_logs,
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">
+                                                    {formatNumber(
+                                                        user.active_days,
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                     {top_users.length === 0 ? (
                                         <tr>
                                             <td
@@ -522,61 +645,171 @@ export default function PenggunaanAplikasi({
                     </ContentCard>
 
                     <ContentCard className="space-y-5">
-                        <div>
-                            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                                Informasi Laporan
-                            </h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                                Laporan ini dibangkitkan berdasarkan tahun aktif
-                                sistem.
-                            </p>
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                    Aktivitas Pengguna
+                                </h2>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                    Menampilkan ringkasan pengguna yang dipilih
+                                    dan rincian per hari.
+                                </p>
+                            </div>
+                            <div className="text-sm text-slate-500 dark:text-slate-400">
+                                Filter aktif untuk:{' '}
+                                <span className="font-medium text-slate-900 dark:text-white">
+                                    {formatUserName(
+                                        selected_user_summary.user_name,
+                                    ) || '-'}
+                                </span>
+                            </div>
                         </div>
-                        <div className="space-y-3 rounded-2xl border border-slate-200/70 bg-slate-50 p-4 dark:border-slate-800 dark:bg-neutral-900/60">
-                            <div className="flex items-center justify-between gap-4">
-                                <span className="text-sm text-slate-500 dark:text-slate-400">
-                                    Tahun aktif
-                                </span>
-                                <span className="font-medium text-slate-900 dark:text-white">
-                                    {active_year}
-                                </span>
+
+                        <div className="grid gap-4 md:grid-cols-3">
+                            <div className="rounded-2xl border border-slate-200/70 bg-white p-4 dark:border-slate-800 dark:bg-neutral-900/60">
+                                <p className="text-xs tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                                    Nama pengguna
+                                </p>
+                                <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
+                                    {formatUserName(
+                                        selected_user_summary.user_name,
+                                    ) || '-'}
+                                </p>
                             </div>
-                            <div className="flex items-center justify-between gap-4">
-                                <span className="text-sm text-slate-500 dark:text-slate-400">
-                                    Bulan laporan
-                                </span>
-                                <span className="font-medium text-slate-900 dark:text-white">
-                                    {month_label}
-                                </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-4">
-                                <span className="text-sm text-slate-500 dark:text-slate-400">
-                                    Diolah pada
-                                </span>
-                                <span className="font-medium text-slate-900 dark:text-white">
-                                    {generated_at}
-                                </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-4">
-                                <span className="text-sm text-slate-500 dark:text-slate-400">
-                                    Akses administratif
-                                </span>
-                                <span className="font-medium text-slate-900 dark:text-white">
+                            <div className="rounded-2xl border border-slate-200/70 bg-white p-4 dark:border-slate-800 dark:bg-neutral-900/60">
+                                <p className="text-xs tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                                    Total akses
+                                </p>
+                                <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
                                     {formatNumber(
-                                        summary.administrative_actions,
+                                        selected_user_summary.total_logs,
                                     )}
-                                </span>
+                                </p>
                             </div>
-                            <div className="flex items-center justify-between gap-4">
-                                <span className="text-sm text-slate-500 dark:text-slate-400">
-                                    Akses sistem
-                                </span>
-                                <span className="font-medium text-slate-900 dark:text-white">
-                                    {formatNumber(summary.system_actions)}
-                                </span>
+                            <div className="rounded-2xl border border-slate-200/70 bg-white p-4 dark:border-slate-800 dark:bg-neutral-900/60">
+                                <p className="text-xs tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                                    Hari aktif
+                                </p>
+                                <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
+                                    {formatNumber(
+                                        selected_user_summary.active_days,
+                                    )}
+                                </p>
                             </div>
+                        </div>
+
+                        <div className="overflow-hidden rounded-2xl border border-slate-200/70 dark:border-slate-800">
+                            <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+                                <thead className="bg-slate-50 dark:bg-neutral-900">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-300">
+                                            Tanggal
+                                        </th>
+                                        <th className="px-4 py-3 text-right font-semibold text-slate-600 dark:text-slate-300">
+                                            Total akses
+                                        </th>
+                                        <th className="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-300">
+                                            Aktivitas per kategori
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-neutral-900/60">
+                                    {selected_user_daily_access.map((row) => (
+                                        <tr key={row.date}>
+                                            <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
+                                                {row.label}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">
+                                                {formatNumber(row.total_logs)}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                                                {row.activity_breakdown.length >
+                                                0 ? (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {row.activity_breakdown.map(
+                                                            (activity) => (
+                                                                <span
+                                                                    key={`${row.date}-${activity.label}`}
+                                                                    className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-neutral-800 dark:text-slate-200"
+                                                                >
+                                                                    {
+                                                                        activity.label
+                                                                    }
+                                                                    :{' '}
+                                                                    {formatNumber(
+                                                                        activity.total,
+                                                                    )}
+                                                                </span>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-slate-400 dark:text-slate-500">
+                                                        Tidak ada akses
+                                                    </span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </ContentCard>
                 </div>
+
+                <ContentCard className="space-y-5">
+                    <div>
+                        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                            Informasi Laporan
+                        </h2>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                            Laporan ini dibangkitkan berdasarkan tahun aktif
+                            sistem.
+                        </p>
+                    </div>
+                    <div className="space-y-3 rounded-2xl border border-slate-200/70 bg-slate-50 p-4 dark:border-slate-800 dark:bg-neutral-900/60">
+                        <div className="flex items-center justify-between gap-4">
+                            <span className="text-sm text-slate-500 dark:text-slate-400">
+                                Tahun aktif
+                            </span>
+                            <span className="font-medium text-slate-900 dark:text-white">
+                                {active_year}
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-4">
+                            <span className="text-sm text-slate-500 dark:text-slate-400">
+                                Bulan laporan
+                            </span>
+                            <span className="font-medium text-slate-900 dark:text-white">
+                                {month_label}
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-4">
+                            <span className="text-sm text-slate-500 dark:text-slate-400">
+                                Diolah pada
+                            </span>
+                            <span className="font-medium text-slate-900 dark:text-white">
+                                {generated_at}
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-4">
+                            <span className="text-sm text-slate-500 dark:text-slate-400">
+                                Akses administratif
+                            </span>
+                            <span className="font-medium text-slate-900 dark:text-white">
+                                {formatNumber(summary.administrative_actions)}
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-4">
+                            <span className="text-sm text-slate-500 dark:text-slate-400">
+                                Akses sistem
+                            </span>
+                            <span className="font-medium text-slate-900 dark:text-white">
+                                {formatNumber(summary.system_actions)}
+                            </span>
+                        </div>
+                    </div>
+                </ContentCard>
             </div>
         </AppLayout>
     );

@@ -24,6 +24,8 @@ interface SearchableSelectProps {
     className?: string;
     disabled?: boolean;
     defaultVisibleCount?: number;
+    showClearAction?: boolean;
+    clearLabel?: string;
 }
 
 export function SearchableSelect({
@@ -35,6 +37,8 @@ export function SearchableSelect({
     className,
     disabled = false,
     defaultVisibleCount,
+    showClearAction = false,
+    clearLabel = 'Clear pilihan',
 }: SearchableSelectProps) {
     const [open, setOpen] = React.useState(false);
     const [search, setSearch] = React.useState('');
@@ -156,6 +160,12 @@ export function SearchableSelect({
         setSearch('');
     };
 
+    const handleClear = () => {
+        onValueChange('');
+        setOpen(false);
+        setSearch('');
+    };
+
     return (
         <div ref={containerRef} className={cn('relative', open && 'z-[70]')}>
             {/* Trigger Button */}
@@ -187,7 +197,7 @@ export function SearchableSelect({
                 createPortal(
                     <div
                         ref={dropdownRef}
-                        className="fixed z-[9999] rounded-xl border border-white/20 bg-white/95 shadow-2xl backdrop-blur-xl dark:border-neutral-700/30 dark:bg-neutral-800/95"
+                        className="fixed z-[9999] flex flex-col overflow-hidden rounded-xl border border-white/20 bg-white/95 shadow-2xl backdrop-blur-xl dark:border-neutral-700/30 dark:bg-neutral-800/95"
                         style={{
                             top: dropdownStyle.top,
                             left: dropdownStyle.left,
@@ -216,10 +226,7 @@ export function SearchableSelect({
                             )}
                         </div>
 
-                        <div
-                            className="overflow-y-auto p-1"
-                            style={{ maxHeight: dropdownStyle.maxHeight - 48 }}
-                        >
+                        <div className="min-h-0 flex-1 overflow-y-auto p-1">
                             {filteredOptions.length === 0 ? (
                                 <div className="py-6 text-center text-sm text-neutral-500 dark:text-neutral-400">
                                     Tidak ada hasil
@@ -266,6 +273,17 @@ export function SearchableSelect({
                                 ))
                             )}
                         </div>
+                        {showClearAction && value && (
+                            <div className="shrink-0 border-t border-neutral-200 bg-white/95 p-2 dark:border-neutral-800 dark:bg-neutral-800/95">
+                                <button
+                                    type="button"
+                                    onClick={handleClear}
+                                    className="flex w-full items-center justify-center rounded-lg bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200 hover:text-neutral-900 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-700 dark:hover:text-white"
+                                >
+                                    {clearLabel}
+                                </button>
+                            </div>
+                        )}
                     </div>,
                     document.body,
                 )}

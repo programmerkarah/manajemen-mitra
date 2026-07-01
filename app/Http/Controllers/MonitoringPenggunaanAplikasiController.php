@@ -15,22 +15,8 @@ class MonitoringPenggunaanAplikasiController extends Controller
 {
     private const EXCLUDED_ACTIONS = [
         'Switch Role',
-    ];
-
-    private const ADMINISTRATIVE_TYPES = [
-        'kegiatan',
-        'alokasi',
-        'mitra',
-        'spk',
-        'sk_kpa',
-        'bast',
-        'pengajuan_pulsa',
-    ];
-
-    private const SYSTEM_TYPES = [
-        'auth',
-        'system',
-        'user',
+        'View As User',
+        'Clear View As User',
     ];
 
     public function index(Request $request): Response
@@ -63,9 +49,13 @@ class MonitoringPenggunaanAplikasiController extends Controller
      *     report_period: string,
      *     summary: array{active_users: int, total_logs: int, active_days: int, average_logs_per_day: float|int, administrative_actions: int, system_actions: int},
      *     daily_access: array<int, array{day: int, date: string, label: string, total_logs: int, unique_users: int}>,
-     *     type_summary: array<int, array{type: string, label: string, total: int}>,
-     *     top_actions: array<int, array{type: string, label: string, action: string, total: int}>,
-     *     top_users: array<int, array{user_id: int, user_name: string, total_logs: int, active_days: int}>,
+        *     type_summary: array<int, array{type: string, label: string, total: int}>,
+        *     top_actions: array<int, array{type: string, label: string, action: string, total: int}>,
+        *     top_users: array<int, array{user_id: int, user_name: string, total_logs: int, active_days: int}>,
+        *     user_name_options: array<int, array{value: string, label: string}>,
+        *     selected_user_name: string|null,
+        *     selected_user_summary: array{user_name: string|null, total_logs: int, active_days: int},
+        *     selected_user_daily_access: array<int, array{day: int, date: string, label: string, total_logs: int, activity_breakdown: array<int, array{label: string, total: int}>}>,
      *     impact_summary: array<int, array{label: string, count: int, description: string}>
      * }
      */
@@ -127,20 +117,47 @@ class MonitoringPenggunaanAplikasiController extends Controller
             ->values()
             ->all();
 
-        $topActions = (clone $baseQuery)
-            ->selectRaw('type, action, COUNT(*) as total')
-            ->groupBy('type', 'action')
-            ->orderByDesc('total')
-            ->limit(10)
-            ->get()
-            ->map(function ($row): array {
+        $userNameOptions = (clone $baseQuery)
+            ->whereNotNull('user_name')
+            ->select('user_name')
+            ->distinct()
+            ->orderBy('user_name')
+            ->pluck('user_name')
+            ->map(function (string $userName): array {
                 return [
-                    'type' => $row->type,
-                    'label' => $this->labelForType((string) $row->type),
-                    'action' => $row->action,
-                    'total' => (int) $row->total,
+                    'value' => $userName,
+                    'label' => $userName,
                 ];
             })
+            ->values()
+            ->all();
+
+        $allMonthlyLogs = (clone $baseQuery)
+            ->get(['type', 'action', 'created_at', 'user_id', 'user_name']);
+
+        $topActions = $allMonthlyLogs
+            ->map(function ($row): array {
+                return [
+                    'type' => (string) $row->type,
+                    'label' => $this->groupActivityLabel((string) $row->type, (string) $row->action),
+                    'action' => $this->groupActivityLabel((string) $row->type, (string) $row->action),
+                    'total' => 1,
+                ];
+            })
+            ->groupBy(function (array $row): string {
+                return $row['label'];
+            })
+            ->map(function ($rows, string $label): array {
+                $firstRow = $rows->first();
+
+                return [
+                    'type' => (string) $firstRow['type'],
+                    'label' => $label,
+                    'action' => $label,
+                    'total' => (int) $rows->sum('total'),
+                ];
+            })
+            ->sortByDesc('total')
             ->values()
             ->all();
 
@@ -149,7 +166,7 @@ class MonitoringPenggunaanAplikasiController extends Controller
             ->selectRaw('user_id, user_name, COUNT(*) as total_logs, COUNT(DISTINCT DATE(created_at)) as active_days')
             ->groupBy('user_id', 'user_name')
             ->orderByDesc('total_logs')
-            ->limit(10)
+            ->limit(4)
             ->get()
             ->map(function ($row): array {
                 return [
@@ -162,11 +179,87 @@ class MonitoringPenggunaanAplikasiController extends Controller
             ->values()
             ->all();
 
+        $selectedUserName = $this->normalizeUserNameValue($request->input('user_name'));
+
+        if ($selectedUserName === null) {
+            $selectedUserName = $topUsers[0]['user_name'] ?? ($userNameOptions[0]['value'] ?? null);
+        } elseif (! in_array($selectedUserName, array_column($userNameOptions, 'value'), true)) {
+            $selectedUserName = $topUsers[0]['user_name'] ?? ($userNameOptions[0]['value'] ?? null);
+        }
+
+        $selectedUserQuery = clone $baseQuery;
+
+        if ($selectedUserName !== null) {
+            $selectedUserQuery->where('user_name', $selectedUserName);
+        }
+
+        $selectedUserSummary = [
+            'user_name' => $selectedUserName,
+            'total_logs' => (clone $selectedUserQuery)->count(),
+            'active_days' => (int) ((clone $selectedUserQuery)
+                ->selectRaw('COUNT(DISTINCT DATE(created_at)) as total')
+                ->value('total') ?? 0),
+        ];
+
+        $selectedUserLogs = (clone $selectedUserQuery)
+            ->get(['type', 'action', 'created_at']);
+
+        $selectedUserDailyAccessRows = $selectedUserLogs
+            ->groupBy(function ($row): string {
+                return Carbon::parse($row->created_at)->toDateString();
+            });
+
+        $selectedUserActivityRows = $selectedUserLogs
+            ->groupBy(function ($row): string {
+                return Carbon::parse($row->created_at)->toDateString();
+            })
+            ->map(function ($rows) {
+                return $rows
+                    ->map(function ($row): array {
+                        return [
+                            'label' => $this->groupActivityLabel((string) $row->type, (string) $row->action),
+                            'total' => 1,
+                        ];
+                    })
+                    ->groupBy('label')
+                    ->map(function ($rows, string $label): array {
+                        return [
+                            'label' => $label,
+                            'total' => $rows->count(),
+                        ];
+                    })
+                    ->sortByDesc('total')
+                    ->values();
+            });
+
+        $selectedUserDailyAccess = collect(range(1, $monthStart->daysInMonth))->map(function (int $day) use ($monthStart, $selectedUserDailyAccessRows, $selectedUserActivityRows) {
+            $date = $monthStart->copy()->day($day);
+            $dateKey = $date->toDateString();
+            $dailyRow = $selectedUserDailyAccessRows->get($dateKey, collect());
+            $activities = $selectedUserActivityRows->get($dateKey, collect())
+                ->map(function ($row): array {
+                    return [
+                        'label' => (string) $row['label'],
+                        'total' => (int) $row['total'],
+                    ];
+                })
+                ->values()
+                ->all();
+
+            return [
+                'day' => $day,
+                'date' => $dateKey,
+                'label' => $date->locale('id')->translatedFormat('d M'),
+                'total_logs' => (int) $dailyRow->count(),
+                'activity_breakdown' => $activities,
+            ];
+        })->values()->all();
+
         $impactSummary = [
             [
                 'label' => 'Dokumen administrasi',
                 'count' => (clone $baseQuery)->whereIn('type', ['sk_kpa', 'spk', 'bast'])->count(),
-                'description' => 'Pembuatan, revisi, unggah tanda tangan, dan finalisasi dokumen',
+                'description' => 'Pembuatan, revisi, unggah dokumen bertandatangan, dan finalisasi dokumen',
             ],
             [
                 'label' => 'Proses operasional',
@@ -188,6 +281,7 @@ class MonitoringPenggunaanAplikasiController extends Controller
                 ->translatedFormat('d F Y H:i'),
             'filters' => [
                 'bulan' => $selectedMonth,
+                'user_name' => $selectedUserName,
             ],
             'month_label' => $monthName,
             'report_period' => sprintf('%s %s', $monthName, $activeYear),
@@ -196,13 +290,17 @@ class MonitoringPenggunaanAplikasiController extends Controller
                 'total_logs' => $totalLogs,
                 'active_days' => $activeDays,
                 'average_logs_per_day' => $averageLogsPerDay,
-                'administrative_actions' => (clone $baseQuery)->whereIn('type', self::ADMINISTRATIVE_TYPES)->count(),
-                'system_actions' => (clone $baseQuery)->whereIn('type', self::SYSTEM_TYPES)->count(),
+                'administrative_actions' => (clone $baseQuery)->whereIn('type', ['kegiatan', 'alokasi', 'mitra', 'spk', 'sk_kpa', 'bast', 'pengajuan_pulsa'])->count(),
+                'system_actions' => (clone $baseQuery)->whereIn('type', ['auth', 'system', 'user'])->count(),
             ],
             'daily_access' => $dailyAccess,
             'type_summary' => $typeSummary,
             'top_actions' => $topActions,
             'top_users' => $topUsers,
+            'user_name_options' => $userNameOptions,
+            'selected_user_name' => $selectedUserName,
+            'selected_user_summary' => $selectedUserSummary,
+            'selected_user_daily_access' => $selectedUserDailyAccess,
             'impact_summary' => $impactSummary,
         ];
     }
@@ -226,19 +324,39 @@ class MonitoringPenggunaanAplikasiController extends Controller
         return now()->format('m');
     }
 
+    private function normalizeUserNameValue(mixed $userName): ?string
+    {
+        if ($userName === null) {
+            return null;
+        }
+
+        $raw = trim((string) $userName);
+
+        return $raw !== '' ? $raw : null;
+    }
+
+    private function groupActivityLabel(string $type, string $action): string
+    {
+        if ($type === 'kegiatan') {
+            return 'Kelola Kegiatan';
+        }
+
+        return $this->labelForType($type);
+    }
+
     private function labelForType(string $type): string
     {
         return match ($type) {
             'auth' => 'Autentikasi',
             'system' => 'Sistem',
-            'user' => 'User',
-            'kegiatan' => 'Kegiatan',
-            'alokasi' => 'Alokasi',
-            'mitra' => 'Mitra',
-            'spk' => 'SPK',
-            'sk_kpa' => 'SK KPA',
-            'bast' => 'BAST',
-            'pengajuan_pulsa' => 'Pulsa',
+            'user' => 'Kelola Pengguna',
+            'kegiatan' => 'Kelola Kegiatan',
+            'alokasi' => 'Kelola Alokasi',
+            'mitra' => 'Kelola Mitra',
+            'spk' => 'Kelola SPK',
+            'sk_kpa' => 'Kelola SK KPA',
+            'bast' => 'Kelola BAST',
+            'pengajuan_pulsa' => 'Kelola Pulsa',
             default => ucfirst(str_replace('_', ' ', $type)),
         };
     }

@@ -7,8 +7,10 @@ use App\Http\Requests\Settings\UpdateMaintenanceRequest;
 use App\Models\ActivityLog;
 use App\Models\User;
 use App\Services\DatabaseBackupService;
+use Vinkla\Hashids\Facades\Hashids;
 use Illuminate\Foundation\Http\MaintenanceModeBypassCookie;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -91,6 +93,8 @@ class SystemSettingsController
             'status' => $request->input('status'),
             'user' => $request->input('user'),
             'date' => $request->input('date'),
+            'date_from' => $request->input('date_from'),
+            'date_to' => $request->input('date_to'),
         ];
         if (! empty($filters['search'])) {
             $search = $filters['search'];
@@ -109,7 +113,22 @@ class SystemSettingsController
         if ($filters['user']) {
             $query->where('user_id', $filters['user']);
         }
-        if ($filters['date']) {
+        if ($filters['date_from'] || $filters['date_to']) {
+            $dateFrom = $filters['date_from'] ?: $filters['date_to'];
+            $dateTo = $filters['date_to'] ?: $filters['date_from'];
+
+            if ($dateFrom && $dateTo && Carbon::parse($dateFrom)->greaterThan(Carbon::parse($dateTo))) {
+                [$dateFrom, $dateTo] = [$dateTo, $dateFrom];
+            }
+
+            if ($dateFrom) {
+                $query->whereDate('created_at', '>=', $dateFrom);
+            }
+
+            if ($dateTo) {
+                $query->whereDate('created_at', '<=', $dateTo);
+            }
+        } elseif ($filters['date']) {
             $query->whereDate('created_at', $filters['date']);
         }
 
@@ -125,6 +144,7 @@ class SystemSettingsController
                     'id' => $log->id,
                     'user' => $log->user?->name ?? 'System',
                     'user_id' => $log->user_id,
+                    'user_hashed_id' => $log->user_id ? Hashids::encode((int) $log->user_id) : null,
                     'action' => $log->action,
                     'description' => $log->description,
                     'status' => $log->status,
@@ -174,6 +194,8 @@ class SystemSettingsController
             'status' => $request->input('status'),
             'user' => $request->input('user'),
             'date' => $request->input('date'),
+            'date_from' => $request->input('date_from'),
+            'date_to' => $request->input('date_to'),
         ];
 
         // Remove null values

@@ -24,6 +24,9 @@ class MonitoringPenggunaanAplikasiTest extends TestCase
 
         $userOne = User::withoutEvents(fn () => User::factory()->create(['name' => 'Petugas Satu']));
         $userTwo = User::withoutEvents(fn () => User::factory()->create(['name' => 'Petugas Dua']));
+        $userThree = User::withoutEvents(fn () => User::factory()->create(['name' => 'Petugas Tiga']));
+        $userFour = User::withoutEvents(fn () => User::factory()->create(['name' => 'Petugas Empat']));
+        $userFive = User::withoutEvents(fn () => User::factory()->create(['name' => 'Petugas Lima']));
 
         ActivityLog::query()->insert([
             [
@@ -55,15 +58,15 @@ class MonitoringPenggunaanAplikasiTest extends TestCase
             [
                 'user_id' => $userOne->id,
                 'user_name' => $userOne->name,
-                'action' => 'Login',
-                'type' => 'auth',
-                'description' => 'Masuk ulang ke aplikasi',
+                'action' => 'Ubah Kegiatan',
+                'type' => 'kegiatan',
+                'description' => 'Memperbarui kegiatan',
                 'status' => 'success',
                 'ip_address' => '127.0.0.1',
                 'user_agent' => 'Testing',
-                'metadata' => json_encode(['browser' => 'Chrome'], JSON_THROW_ON_ERROR),
-                'created_at' => Carbon::create(2026, 6, 1, 10, 0, 0),
-                'updated_at' => Carbon::create(2026, 6, 1, 10, 0, 0),
+                'metadata' => json_encode(['source' => 'web'], JSON_THROW_ON_ERROR),
+                'created_at' => Carbon::create(2026, 6, 2, 10, 0, 0),
+                'updated_at' => Carbon::create(2026, 6, 2, 10, 0, 0),
             ],
             [
                 'user_id' => $userTwo->id,
@@ -75,25 +78,77 @@ class MonitoringPenggunaanAplikasiTest extends TestCase
                 'ip_address' => '127.0.0.1',
                 'user_agent' => 'Testing',
                 'metadata' => json_encode(['source' => 'web'], JSON_THROW_ON_ERROR),
-                'created_at' => Carbon::create(2026, 6, 2, 10, 0, 0),
-                'updated_at' => Carbon::create(2026, 6, 2, 10, 0, 0),
+                'created_at' => Carbon::create(2026, 6, 1, 10, 0, 0),
+                'updated_at' => Carbon::create(2026, 6, 1, 10, 0, 0),
             ],
             [
                 'user_id' => $userTwo->id,
                 'user_name' => $userTwo->name,
-                'action' => 'Switch Role',
+                'action' => 'Lihat Dashboard',
                 'type' => 'system',
-                'description' => 'Beralih peran aktif',
+                'description' => 'Melihat dashboard',
                 'status' => 'success',
                 'ip_address' => '127.0.0.1',
                 'user_agent' => 'Testing',
-                'metadata' => json_encode(['role' => 'operator'], JSON_THROW_ON_ERROR),
-                'created_at' => Carbon::create(2026, 6, 2, 11, 0, 0),
-                'updated_at' => Carbon::create(2026, 6, 2, 11, 0, 0),
+                'metadata' => json_encode(['section' => 'dashboard'], JSON_THROW_ON_ERROR),
+                'created_at' => Carbon::create(2026, 6, 3, 11, 0, 0),
+                'updated_at' => Carbon::create(2026, 6, 3, 11, 0, 0),
             ],
             [
-                'user_id' => $userTwo->id,
-                'user_name' => $userTwo->name,
+                'user_id' => $userThree->id,
+                'user_name' => $userThree->name,
+                'action' => 'Export PDF',
+                'type' => 'export',
+                'description' => 'Ekspor laporan',
+                'status' => 'success',
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'Testing',
+                'metadata' => json_encode(['format' => 'pdf'], JSON_THROW_ON_ERROR),
+                'created_at' => Carbon::create(2026, 6, 4, 8, 0, 0),
+                'updated_at' => Carbon::create(2026, 6, 4, 8, 0, 0),
+            ],
+            [
+                'user_id' => $userThree->id,
+                'user_name' => $userThree->name,
+                'action' => 'View As User',
+                'type' => 'user',
+                'description' => 'Viewing sebagai user lain',
+                'status' => 'success',
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'Testing',
+                'metadata' => json_encode(['target_user_id' => $userFour->id], JSON_THROW_ON_ERROR),
+                'created_at' => Carbon::create(2026, 6, 4, 9, 0, 0),
+                'updated_at' => Carbon::create(2026, 6, 4, 9, 0, 0),
+            ],
+            [
+                'user_id' => $userThree->id,
+                'user_name' => $userThree->name,
+                'action' => 'Clear View As User',
+                'type' => 'user',
+                'description' => 'Kembali ke user asli',
+                'status' => 'success',
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'Testing',
+                'metadata' => json_encode([], JSON_THROW_ON_ERROR),
+                'created_at' => Carbon::create(2026, 6, 4, 9, 5, 0),
+                'updated_at' => Carbon::create(2026, 6, 4, 9, 5, 0),
+            ],
+            [
+                'user_id' => $userFour->id,
+                'user_name' => $userFour->name,
+                'action' => 'Ubah Mitra',
+                'type' => 'mitra',
+                'description' => 'Perubahan data mitra',
+                'status' => 'success',
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'Testing',
+                'metadata' => json_encode(['source' => 'web'], JSON_THROW_ON_ERROR),
+                'created_at' => Carbon::create(2026, 6, 5, 9, 0, 0),
+                'updated_at' => Carbon::create(2026, 6, 5, 9, 0, 0),
+            ],
+            [
+                'user_id' => $userFour->id,
+                'user_name' => $userFour->name,
                 'action' => 'Login',
                 'type' => 'auth',
                 'description' => 'Masuk ke aplikasi',
@@ -101,21 +156,34 @@ class MonitoringPenggunaanAplikasiTest extends TestCase
                 'ip_address' => '127.0.0.1',
                 'user_agent' => 'Testing',
                 'metadata' => json_encode(['browser' => 'Firefox'], JSON_THROW_ON_ERROR),
-                'created_at' => Carbon::create(2026, 7, 1, 8, 0, 0),
-                'updated_at' => Carbon::create(2026, 7, 1, 8, 0, 0),
+                'created_at' => Carbon::create(2026, 6, 5, 10, 0, 0),
+                'updated_at' => Carbon::create(2026, 6, 5, 10, 0, 0),
             ],
             [
-                'user_id' => $userOne->id,
-                'user_name' => $userOne->name,
-                'action' => 'Login',
-                'type' => 'auth',
-                'description' => 'Lalu lintas tahun lain',
+                'user_id' => $userFive->id,
+                'user_name' => $userFive->name,
+                'action' => 'Lihat Data',
+                'type' => 'user',
+                'description' => 'Lihat data pengguna',
                 'status' => 'success',
                 'ip_address' => '127.0.0.1',
                 'user_agent' => 'Testing',
-                'metadata' => json_encode(['browser' => 'Chrome'], JSON_THROW_ON_ERROR),
-                'created_at' => Carbon::create(2025, 6, 1, 8, 0, 0),
-                'updated_at' => Carbon::create(2025, 6, 1, 8, 0, 0),
+                'metadata' => json_encode(['section' => 'user'], JSON_THROW_ON_ERROR),
+                'created_at' => Carbon::create(2026, 6, 6, 8, 0, 0),
+                'updated_at' => Carbon::create(2026, 6, 6, 8, 0, 0),
+            ],
+            [
+                'user_id' => $userFive->id,
+                'user_name' => $userFive->name,
+                'action' => 'Kelola Akun',
+                'type' => 'user',
+                'description' => 'Kelola akun pengguna',
+                'status' => 'success',
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'Testing',
+                'metadata' => json_encode(['section' => 'user'], JSON_THROW_ON_ERROR),
+                'created_at' => Carbon::create(2026, 6, 6, 9, 0, 0),
+                'updated_at' => Carbon::create(2026, 6, 6, 9, 0, 0),
             ],
         ]);
 
@@ -128,19 +196,27 @@ class MonitoringPenggunaanAplikasiTest extends TestCase
                 ->where('active_year', 2026)
                 ->where('month_label', 'Juni')
                 ->where('filters.bulan', '06')
-                ->where('summary.active_users', 2)
-                ->where('summary.total_logs', 4)
-                ->where('summary.active_days', 2)
-                ->where('summary.administrative_actions', 2)
-                ->where('summary.system_actions', 2)
-                ->where('daily_access.0.total_logs', 3)
-                ->where('daily_access.0.unique_users', 1)
-                ->where('daily_access.1.total_logs', 1)
-                ->where('daily_access.1.unique_users', 1)
-                ->where('daily_access.2.total_logs', 0)
-                ->where('type_summary.0.type', 'auth')
-                ->where('top_actions.0.action', 'Login')
+                ->where('summary.active_users', 5)
+                ->where('summary.total_logs', 10)
+                ->where('summary.active_days', 6)
+                ->where('summary.administrative_actions', 4)
+                ->where('summary.system_actions', 5)
+                ->has('user_name_options', 5)
+                ->where('selected_user_name', 'Petugas Satu')
+                ->where('selected_user_summary.user_name', 'Petugas Satu')
+                ->where('selected_user_summary.total_logs', 3)
+                ->where('selected_user_summary.active_days', 2)
+                ->has('selected_user_daily_access', 30)
+                ->where('selected_user_daily_access.0.total_logs', 2)
+                ->where('selected_user_daily_access.1.total_logs', 1)
+                ->has('selected_user_daily_access.0.activity_breakdown', 2)
+                ->where('selected_user_daily_access.0.activity_breakdown.0.label', 'Autentikasi')
+                ->where('selected_user_daily_access.0.activity_breakdown.1.label', 'Kelola Kegiatan')
+                ->where('selected_user_daily_access.1.activity_breakdown.0.label', 'Kelola Kegiatan')
+                ->has('top_users', 4)
                 ->where('top_users.0.user_name', 'Petugas Satu')
+                ->has('type_summary', 7)
+                ->has('top_actions', 7)
             );
     }
 
@@ -278,11 +354,13 @@ class MonitoringPenggunaanAplikasiTest extends TestCase
                 $this->assertSame('monitoring-penggunaan-aplikasi-pdf', $view);
                 $this->assertSame(2026, $data['active_year']);
                 $this->assertSame('06', $data['filters']['bulan']);
+                $this->assertSame('Petugas Satu', $data['filters']['user_name']);
                 $this->assertSame('Juni 2026', $data['report_period']);
                 $this->assertSame(4, $data['summary']['total_logs']);
                 $this->assertSame(2, $data['summary']['active_users']);
                 $this->assertSame(3, $data['daily_access'][0]['total_logs']);
                 $this->assertSame(1, $data['top_users'][0]['active_days']);
+                $this->assertSame('Petugas Satu', $data['selected_user_summary']['user_name']);
 
                 return true;
             })
@@ -301,7 +379,7 @@ class MonitoringPenggunaanAplikasiTest extends TestCase
                 )
             );
 
-        $response = $this->get(route('monitoring.penggunaan-aplikasi.export-pdf', ['bulan' => '06']));
+        $response = $this->get(route('monitoring.penggunaan-aplikasi.export-pdf', ['bulan' => '06', 'user_name' => 'Petugas Satu']));
 
         $response->assertStatus(200);
         $response->assertHeader('content-type', 'application/pdf');

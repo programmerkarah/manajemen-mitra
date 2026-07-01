@@ -1,29 +1,10 @@
 import { ContentCard } from '@/components/content-card';
-import AppLayout from '@/layouts/app-layout';
-import { decryptData, encryptFilters } from '@/utils/encryption';
-import { Head } from '@inertiajs/react';
-import React from 'react';
-
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { SearchableSelect } from '@/components/searchable-select';
 import { DatePicker } from '@/components/ui/date-picker';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
-import { router, usePage } from '@inertiajs/react';
+import { decryptData, encryptFilters } from '@/utils/encryption';
+import { Head, router, usePage } from '@inertiajs/react';
 import {
     Activity,
     AlertCircle,
@@ -40,7 +21,25 @@ import {
     Search,
     User as UserIcon,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Administrasi', href: '/admin/dashboard' },
@@ -51,6 +50,7 @@ interface ActivityLog {
     id: number;
     user: string;
     user_id?: number;
+    user_hashed_id?: string | null;
     action: string;
     description?: string;
     status?: 'success' | 'error' | 'warning' | 'info';
@@ -93,11 +93,37 @@ interface PaginationData {
 }
 
 interface Props {
-    logs: string | ActivityLog[]; // Can be encrypted string or array
+    logs: string | ActivityLog[];
     pagination?: PaginationData;
     filters?: FilterState;
     users?: User[];
     [key: string]: unknown;
+}
+
+function parseEncryptedLogs(logs: string | ActivityLog[]): ActivityLog[] {
+    if (typeof logs === 'string') {
+        try {
+            const decrypted = decryptData(logs);
+            return Array.isArray(decrypted) ? decrypted : [];
+        } catch {
+            return [];
+        }
+    }
+
+    return Array.isArray(logs) ? logs : [];
+}
+
+function toUcwords(value: string | null | undefined): string {
+    if (!value) {
+        return '';
+    }
+
+    return value
+        .trim()
+        .toLowerCase()
+        .split(/\s+/)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
 }
 
 export default function ActivityLog() {
@@ -105,39 +131,16 @@ export default function ActivityLog() {
     const { users = [], pagination } = pageProps;
     const activeFilters = pageProps.filters?.decrypted ?? {};
 
-    // Decrypt logs if encrypted
     const [decryptedLogs, setDecryptedLogs] = useState<ActivityLog[]>([]);
-
-    useEffect(() => {
-        if (typeof pageProps.logs === 'string') {
-            // Logs are encrypted, decrypt them
-            try {
-                const decrypted = decryptData(pageProps.logs);
-                if (decrypted && Array.isArray(decrypted)) {
-                    setDecryptedLogs(decrypted);
-                } else {
-                    console.error(
-                        '❌ Failed to decrypt logs or invalid format',
-                    );
-                    setDecryptedLogs([]);
-                }
-            } catch (error) {
-                console.error('❌ Logs decryption error:', error);
-                setDecryptedLogs([]);
-            }
-        } else if (Array.isArray(pageProps.logs)) {
-            // Logs are not encrypted (backward compatibility)
-            setDecryptedLogs(pageProps.logs);
-        } else {
-            setDecryptedLogs([]);
-        }
-    }, [pageProps.logs]);
-
     const [status, setStatus] = useState(activeFilters.status || 'all');
-    const [user, setUser] = useState(activeFilters.user || 'all');
-    const [date, setDate] = useState(activeFilters.date || '');
+    const [user, setUser] = useState(activeFilters.user || '');
+    const [dateFrom, setDateFrom] = useState(
+        activeFilters.date_from || activeFilters.date || '',
+    );
+    const [dateTo, setDateTo] = useState(
+        activeFilters.date_to || activeFilters.date || '',
+    );
     const [searchQuery, setSearchQuery] = useState(activeFilters.search || '');
-    const [filteredLogs, setFilteredLogs] = useState<ActivityLog[]>([]);
     const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [sortField, setSortField] = useState<'time' | 'user' | 'action'>(
@@ -146,154 +149,82 @@ export default function ActivityLog() {
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-    // Filter logs based on search query
     useEffect(() => {
-        const filtered = [...decryptedLogs];
+        setDecryptedLogs(parseEncryptedLogs(pageProps.logs));
+    }, [pageProps.logs]);
 
-        // Apply sorting
-        filtered.sort((a, b) => {
-            let aVal, bVal;
-
-            switch (sortField) {
-                case 'user':
-                    aVal = a.user?.toLowerCase() || '';
-                    bVal = b.user?.toLowerCase() || '';
-                    break;
-                case 'action':
-                    aVal = a.action?.toLowerCase() || '';
-                    bVal = b.action?.toLowerCase() || '';
-                    break;
-                case 'time':
-                default:
-                    aVal = a.time || '';
-                    bVal = b.time || '';
-                    break;
-            }
-
-            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
-            return 0;
-        });
-
-        setFilteredLogs(filtered);
-    }, [decryptedLogs, sortField, sortDirection]);
-
-    const handleFilter = (e: React.FormEvent) => {
-        e.preventDefault();
-
+    const buildFilterData = (page?: number): Record<string, string> => {
         const filterData: Record<string, string> = {};
+
+        if (page) {
+            filterData.page = String(page);
+        }
 
         if (searchQuery.trim()) {
             filterData.search = searchQuery.trim();
         }
 
-        if (status !== 'all' && status) {
+        if (status !== 'all') {
             filterData.status = status;
         }
-        if (user !== 'all' && user) {
+
+        if (user) {
             filterData.user = user;
         }
-        if (date) {
-            filterData.date = date;
+
+        if (dateFrom) {
+            filterData.date_from = dateFrom;
         }
 
+        if (dateTo) {
+            filterData.date_to = dateTo;
+        }
+
+        return filterData;
+    };
+
+    const handleFilter = (e: React.FormEvent) => {
+        e.preventDefault();
         router.post(
             '/admin/activity-log',
             {
-                encrypted_filters: encryptFilters(filterData),
+                encrypted_filters: encryptFilters(buildFilterData()),
             },
             {
                 preserveState: true,
+                preserveScroll: true,
             },
         );
     };
 
     const handleRefresh = () => {
         setIsRefreshing(true);
-        const filterData: Record<string, string> = {
-            page: String(pagination?.current_page ?? 1),
-        };
-
-        if (searchQuery.trim()) {
-            filterData.search = searchQuery.trim();
-        }
-
-        if (status !== 'all' && status) {
-            filterData.status = status;
-        }
-
-        if (user !== 'all' && user) {
-            filterData.user = user;
-        }
-
-        if (date) {
-            filterData.date = date;
-        }
-
         router.post(
             '/admin/activity-log',
             {
-                encrypted_filters: encryptFilters(filterData),
+                encrypted_filters: encryptFilters(
+                    buildFilterData(pagination?.current_page ?? 1),
+                ),
             },
             {
-                onFinish: () => {
-                    setTimeout(() => setIsRefreshing(false), 500);
-                },
+                preserveState: true,
+                preserveScroll: true,
+                onFinish: () => setIsRefreshing(false),
             },
         );
     };
 
     const handleExport = () => {
-        const params = new URLSearchParams();
-
-        if (searchQuery.trim()) {
-            params.append('search', searchQuery.trim());
-        }
-
-        if (status && status !== 'all') {
-            params.append('status', status);
-        }
-        if (user && user !== 'all') {
-            params.append('user', user);
-        }
-        if (date) {
-            params.append('date', date);
-        }
-
-        const url = `/admin/activity-log/export?${params.toString()}`;
-        window.location.href = url;
-    };
-
-    const handleSort = (field: 'time' | 'user' | 'action') => {
-        if (sortField === field) {
-            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortField(field);
-            setSortDirection('desc');
-        }
+        const params = new URLSearchParams(buildFilterData());
+        const queryString = params.toString();
+        window.location.href = `/admin/activity-log/export${queryString ? `?${queryString}` : ''}`;
     };
 
     const handlePageChange = (page: number) => {
-        const filterData: Record<string, string> = { page: page.toString() };
-
-        if (searchQuery.trim()) {
-            filterData.search = searchQuery.trim();
-        }
-
-        if (status !== 'all' && status) {
-            filterData.status = status;
-        }
-        if (user !== 'all' && user) {
-            filterData.user = user;
-        }
-        if (date) {
-            filterData.date = date;
-        }
-
         router.post(
             '/admin/activity-log',
             {
-                encrypted_filters: encryptFilters(filterData),
+                encrypted_filters: encryptFilters(buildFilterData(page)),
             },
             {
                 preserveState: true,
@@ -301,6 +232,70 @@ export default function ActivityLog() {
             },
         );
     };
+
+    const handleSort = (field: 'time' | 'user' | 'action') => {
+        if (sortField === field) {
+            setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+            return;
+        }
+
+        setSortField(field);
+        setSortDirection('desc');
+    };
+
+    const handleCopyLog = async () => {
+        if (!selectedLog) {
+            return;
+        }
+
+        const payload = {
+            id: selectedLog.id,
+            user: selectedLog.user,
+            user_id: selectedLog.user_id,
+            user_hashed_id: selectedLog.user_hashed_id,
+            action: selectedLog.action,
+            description: selectedLog.description,
+            status: selectedLog.status,
+            ip_address: selectedLog.ip_address,
+            user_agent: selectedLog.user_agent,
+            time: selectedLog.time,
+            properties: selectedLog.properties,
+        };
+
+        await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+    };
+
+    const sortedLogs = useMemo(() => {
+        const filtered = [...decryptedLogs];
+
+        filtered.sort((a, b) => {
+            let left = '';
+            let right = '';
+
+            if (sortField === 'user') {
+                left = a.user?.toLowerCase() || '';
+                right = b.user?.toLowerCase() || '';
+            } else if (sortField === 'action') {
+                left = a.action?.toLowerCase() || '';
+                right = b.action?.toLowerCase() || '';
+            } else {
+                left = a.time || '';
+                right = b.time || '';
+            }
+
+            if (left < right) {
+                return sortDirection === 'asc' ? -1 : 1;
+            }
+
+            if (left > right) {
+                return sortDirection === 'asc' ? 1 : -1;
+            }
+
+            return 0;
+        });
+
+        return filtered;
+    }, [decryptedLogs, sortDirection, sortField]);
 
     const getStatusIcon = (status?: string) => {
         switch (status) {
@@ -321,10 +316,7 @@ export default function ActivityLog() {
         switch (status) {
             case 'success':
                 return (
-                    <Badge
-                        variant="default"
-                        className="gap-1 bg-green-600 hover:bg-green-700"
-                    >
+                    <Badge className="gap-1 bg-green-600 hover:bg-green-700">
                         {getStatusIcon(status)} Success
                     </Badge>
                 );
@@ -336,10 +328,7 @@ export default function ActivityLog() {
                 );
             case 'warning':
                 return (
-                    <Badge
-                        variant="default"
-                        className="gap-1 bg-yellow-600 hover:bg-yellow-700"
-                    >
+                    <Badge className="gap-1 bg-yellow-600 hover:bg-yellow-700">
                         {getStatusIcon(status)} Warning
                     </Badge>
                 );
@@ -359,7 +348,10 @@ export default function ActivityLog() {
     };
 
     const SortIcon = ({ field }: { field: 'time' | 'user' | 'action' }) => {
-        if (sortField !== field) return null;
+        if (sortField !== field) {
+            return null;
+        }
+
         return sortDirection === 'asc' ? (
             <ChevronUp className="ml-1 inline h-4 w-4" />
         ) : (
@@ -371,7 +363,7 @@ export default function ActivityLog() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Activity Log" />
             <ContentCard>
-                <div className="mb-6 flex items-center justify-between">
+                <div className="mb-6 flex items-center justify-between gap-4">
                     <div>
                         <h2 className="flex items-center gap-2 text-2xl font-bold">
                             <Activity className="h-6 w-6" />
@@ -397,7 +389,7 @@ export default function ActivityLog() {
                             variant="outline"
                             size="sm"
                             onClick={handleExport}
-                            disabled={decryptedLogs.length === 0}
+                            disabled={sortedLogs.length === 0}
                         >
                             <Download className="mr-2 h-4 w-4" />
                             Export Excel
@@ -405,12 +397,11 @@ export default function ActivityLog() {
                     </div>
                 </div>
 
-                {/* Filters */}
                 <form
                     className="mb-6 flex flex-wrap gap-3 rounded-lg bg-muted/30 p-4"
                     onSubmit={handleFilter}
                 >
-                    <div className="min-w-[200px] flex-1">
+                    <div className="min-w-[220px] flex-1">
                         <label className="mb-1.5 block flex items-center gap-1 text-xs font-medium">
                             <Search className="h-3 w-3" />
                             Search
@@ -419,10 +410,13 @@ export default function ActivityLog() {
                             type="text"
                             placeholder="Cari user, action, IP..."
                             value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onChange={(event) =>
+                                setSearchQuery(event.target.value)
+                            }
                             className="h-9"
                         />
                     </div>
+
                     <div>
                         <label className="mb-1.5 block flex items-center gap-1 text-xs font-medium">
                             <Activity className="h-3 w-3" />
@@ -441,40 +435,54 @@ export default function ActivityLog() {
                             </SelectContent>
                         </Select>
                     </div>
-                    <div>
+
+                    <div className="min-w-[220px] flex-1 sm:max-w-[320px]">
                         <label className="mb-1.5 block flex items-center gap-1 text-xs font-medium">
                             <UserIcon className="h-3 w-3" />
                             User
                         </label>
-                        <Select value={user} onValueChange={setUser}>
-                            <SelectTrigger className="h-9 w-44">
-                                <SelectValue placeholder="Semua" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Semua User</SelectItem>
-                                {users &&
-                                    users.map((u) => (
-                                        <SelectItem
-                                            key={u.id}
-                                            value={u.id + ''}
-                                        >
-                                            {u.name}
-                                        </SelectItem>
-                                    ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <label className="mb-1.5 block flex items-center gap-1 text-xs font-medium">
-                            <Calendar className="h-3 w-3" />
-                            Tanggal
-                        </label>
-                        <DatePicker
-                            value={date}
-                            onChange={(v) => setDate(v)}
-                            className="h-9 w-40"
+                        <SearchableSelect
+                            options={users.map((item) => ({
+                                value: String(item.id),
+                                label: toUcwords(item.name),
+                                searchKeywords: item.name,
+                            }))}
+                            value={user}
+                            onValueChange={setUser}
+                            placeholder="Semua user"
+                            searchPlaceholder="Cari user"
+                            defaultVisibleCount={8}
+                            showClearAction
+                            clearLabel="Clear user"
                         />
                     </div>
+
+                    <div className="min-w-[220px] flex-1">
+                        <label className="mb-1.5 block flex items-center gap-1 text-xs font-medium">
+                            <Calendar className="h-3 w-3" />
+                            Tanggal mulai
+                        </label>
+                        <DatePicker
+                            value={dateFrom}
+                            onChange={setDateFrom}
+                            className="h-9"
+                            placeholder="Tanggal mulai"
+                        />
+                    </div>
+
+                    <div className="min-w-[220px] flex-1">
+                        <label className="mb-1.5 block flex items-center gap-1 text-xs font-medium">
+                            <Calendar className="h-3 w-3" />
+                            Tanggal selesai
+                        </label>
+                        <DatePicker
+                            value={dateTo}
+                            onChange={setDateTo}
+                            className="h-9"
+                            placeholder="Tanggal selesai"
+                        />
+                    </div>
+
                     <div className="flex items-end">
                         <Button type="submit" size="sm" className="h-9">
                             Apply Filter
@@ -482,7 +490,6 @@ export default function ActivityLog() {
                     </div>
                 </form>
 
-                {/* Results count */}
                 <div className="mb-3 flex items-center justify-between text-sm text-muted-foreground">
                     <div>
                         {pagination ? (
@@ -505,7 +512,7 @@ export default function ActivityLog() {
                             <>
                                 Menampilkan{' '}
                                 <span className="font-semibold text-foreground">
-                                    {filteredLogs.length}
+                                    {sortedLogs.length}
                                 </span>{' '}
                                 dari {decryptedLogs.length} log
                             </>
@@ -525,7 +532,6 @@ export default function ActivityLog() {
                     )}
                 </div>
 
-                {/* Table */}
                 <div className="overflow-x-auto rounded-lg border">
                     <table className="min-w-full text-sm">
                         <thead className="bg-muted/50">
@@ -575,7 +581,7 @@ export default function ActivityLog() {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredLogs.length === 0 ? (
+                            {sortedLogs.length === 0 ? (
                                 <tr>
                                     <td
                                         colSpan={6}
@@ -594,24 +600,21 @@ export default function ActivityLog() {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredLogs.map((log, index) => (
+                                sortedLogs.map((log, index) => (
                                     <tr
                                         key={log.id}
-                                        className={`border-t transition-colors hover:bg-muted/30 ${
-                                            index % 2 === 0
-                                                ? 'bg-background'
-                                                : 'bg-muted/10'
-                                        }`}
+                                        className={`border-t transition-colors hover:bg-muted/30 ${index % 2 === 0 ? 'bg-background' : 'bg-muted/10'}`}
                                     >
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-2">
                                                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                                                    {log.user
-                                                        ?.charAt(0)
-                                                        .toUpperCase() || '?'}
+                                                    {toUcwords(
+                                                        log.user,
+                                                    )?.charAt(0) || '?'}
                                                 </div>
                                                 <div className="font-medium">
-                                                    {log.user || 'Unknown'}
+                                                    {toUcwords(log.user) ||
+                                                        'Unknown'}
                                                 </div>
                                             </div>
                                         </td>
@@ -656,7 +659,6 @@ export default function ActivityLog() {
                     </table>
                 </div>
 
-                {/* Pagination */}
                 {pagination && pagination.last_page > 1 && (
                     <div className="mt-4 flex items-center justify-between border-t pt-4">
                         <div className="text-sm text-muted-foreground">
@@ -687,7 +689,7 @@ export default function ActivityLog() {
 
                             <div className="flex items-center gap-1">
                                 {(() => {
-                                    const pages = [];
+                                    const pages: React.ReactElement[] = [];
                                     const maxVisible = 5;
                                     let startPage = Math.max(
                                         1,
@@ -706,26 +708,33 @@ export default function ActivityLog() {
                                         );
                                     }
 
-                                    for (let i = startPage; i <= endPage; i++) {
+                                    for (
+                                        let currentPage = startPage;
+                                        currentPage <= endPage;
+                                        currentPage++
+                                    ) {
                                         pages.push(
                                             <Button
-                                                key={i}
+                                                key={currentPage}
                                                 variant={
-                                                    i ===
+                                                    currentPage ===
                                                     pagination.current_page
                                                         ? 'default'
                                                         : 'outline'
                                                 }
                                                 size="sm"
                                                 onClick={() =>
-                                                    handlePageChange(i)
+                                                    handlePageChange(
+                                                        currentPage,
+                                                    )
                                                 }
                                                 className="w-10"
                                             >
-                                                {i}
+                                                {currentPage}
                                             </Button>,
                                         );
                                     }
+
                                     return pages;
                                 })()}
                             </div>
@@ -763,46 +772,58 @@ export default function ActivityLog() {
                 )}
             </ContentCard>
 
-            {/* Detail Dialog */}
             <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-                <DialogContent className="max-h-[80vh] max-w-4xl overflow-y-auto">
+                <DialogContent className="max-h-[calc(100vh-2rem)] max-w-5xl overflow-hidden">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <Activity className="h-5 w-5" />
-                            Activity Detail
-                        </DialogTitle>
+                        <div className="flex items-start justify-between gap-3">
+                            <DialogTitle className="flex items-center gap-2">
+                                <Activity className="h-5 w-5" />
+                                Activity Detail
+                            </DialogTitle>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={handleCopyLog}
+                                disabled={!selectedLog}
+                            >
+                                Salin Activity Log
+                            </Button>
+                        </div>
                         <DialogDescription>
                             Informasi lengkap tentang aktivitas ini
                         </DialogDescription>
                     </DialogHeader>
 
                     {selectedLog && (
-                        <div className="mt-4 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
+                        <div className="mt-4 space-y-4 overflow-hidden">
+                            <div className="grid min-w-0 grid-cols-2 gap-4">
+                                <div className="min-w-0 rounded-lg bg-muted/20 p-0">
                                     <label className="text-xs font-medium text-muted-foreground">
                                         User
                                     </label>
-                                    <div className="mt-1 flex items-center gap-2">
+                                    <div className="mt-1 flex min-w-0 items-center gap-2 rounded-lg bg-muted/30 p-3">
                                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
-                                            {selectedLog.user
-                                                ?.charAt(0)
-                                                .toUpperCase() || '?'}
+                                            {toUcwords(
+                                                selectedLog.user,
+                                            )?.charAt(0) || '?'}
                                         </div>
-                                        <div>
-                                            <div className="font-medium">
-                                                {selectedLog.user || 'Unknown'}
+                                        <div className="min-w-0 flex-1">
+                                            <div className="truncate font-medium">
+                                                {toUcwords(selectedLog.user) ||
+                                                    'Unknown'}
                                             </div>
-                                            {selectedLog.user_id && (
-                                                <div className="text-xs text-muted-foreground">
-                                                    ID: {selectedLog.user_id}
+                                            {selectedLog.user_hashed_id && (
+                                                <div className="truncate text-xs text-muted-foreground">
+                                                    ID:{' '}
+                                                    {selectedLog.user_hashed_id}
                                                 </div>
                                             )}
                                         </div>
                                     </div>
                                 </div>
 
-                                <div>
+                                <div className="min-w-0">
                                     <label className="text-xs font-medium text-muted-foreground">
                                         Status
                                     </label>
@@ -812,54 +833,54 @@ export default function ActivityLog() {
                                 </div>
                             </div>
 
-                            <div>
+                            <div className="min-w-0 rounded-lg bg-muted/20 p-0">
                                 <label className="text-xs font-medium text-muted-foreground">
                                     Action
                                 </label>
-                                <div className="mt-1 rounded-lg bg-muted/30 p-3 font-medium">
+                                <div className="mt-1 max-h-24 overflow-auto rounded-lg bg-muted/30 p-3 font-medium break-words whitespace-pre-wrap">
                                     {selectedLog.action}
                                 </div>
                             </div>
 
                             {selectedLog.description && (
-                                <div>
+                                <div className="min-w-0 rounded-lg bg-muted/20 p-0">
                                     <label className="text-xs font-medium text-muted-foreground">
                                         Description
                                     </label>
-                                    <div className="mt-1 rounded-lg bg-muted/30 p-3 text-sm">
+                                    <div className="mt-1 max-h-28 overflow-auto rounded-lg bg-muted/30 p-3 text-sm break-words whitespace-pre-wrap">
                                         {selectedLog.description}
                                     </div>
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid min-w-0 grid-cols-2 gap-4">
                                 {selectedLog.ip_address && (
-                                    <div>
+                                    <div className="min-w-0">
                                         <label className="text-xs font-medium text-muted-foreground">
                                             IP Address
                                         </label>
-                                        <div className="mt-1 rounded bg-muted/30 p-2 font-mono text-sm">
+                                        <div className="mt-1 truncate rounded bg-muted/30 p-2 font-mono text-sm">
                                             {selectedLog.ip_address}
                                         </div>
                                     </div>
                                 )}
 
-                                <div>
+                                <div className="min-w-0">
                                     <label className="text-xs font-medium text-muted-foreground">
                                         Timestamp
                                     </label>
-                                    <div className="mt-1 rounded bg-muted/30 p-2 text-sm">
+                                    <div className="mt-1 truncate rounded bg-muted/30 p-2 text-sm">
                                         {selectedLog.time}
                                     </div>
                                 </div>
                             </div>
 
                             {selectedLog.user_agent && (
-                                <div>
+                                <div className="min-w-0 rounded-lg bg-muted/20 p-0">
                                     <label className="text-xs font-medium text-muted-foreground">
                                         User Agent
                                     </label>
-                                    <div className="mt-1 rounded-lg bg-muted/30 p-3 font-mono text-xs break-all">
+                                    <div className="mt-1 max-h-24 overflow-auto rounded-lg bg-muted/30 p-3 font-mono text-xs break-words whitespace-pre-wrap">
                                         {selectedLog.user_agent}
                                     </div>
                                 </div>
@@ -868,12 +889,12 @@ export default function ActivityLog() {
                             {selectedLog.properties &&
                                 Object.keys(selectedLog.properties).length >
                                     0 && (
-                                    <div>
+                                    <div className="min-w-0 rounded-lg bg-muted/20 p-0">
                                         <label className="text-xs font-medium text-muted-foreground">
                                             Additional Data
                                         </label>
-                                        <div className="mt-1 rounded-lg bg-muted/30 p-3 font-mono text-xs">
-                                            <pre className="overflow-x-auto">
+                                        <div className="mt-1 max-h-56 overflow-auto rounded-lg bg-muted/30 p-3 font-mono text-xs">
+                                            <pre className="overflow-x-auto break-words whitespace-pre-wrap">
                                                 {JSON.stringify(
                                                     selectedLog.properties,
                                                     null,

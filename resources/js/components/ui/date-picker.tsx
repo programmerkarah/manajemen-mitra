@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import {
@@ -205,6 +205,34 @@ export function DatePicker({
         setOpen(false);
     };
 
+    const selectDate = (year: number, month: number, day: number) => {
+        const dateStr = toDateStr(year, month + 1, day);
+
+        if (isControlled) {
+            onChange?.(dateStr);
+        } else {
+            setInternalValue(dateStr);
+            onChange?.(dateStr);
+        }
+
+        setViewYear(year);
+        setViewMonth(month);
+        setYearRangeStart(Math.floor(year / 12) * 12);
+        setOpen(false);
+    };
+
+    const handleClear = () => {
+        if (isControlled) {
+            onChange?.('');
+        } else {
+            setInternalValue('');
+            onChange?.('');
+        }
+
+        setCalView('days');
+        setOpen(false);
+    };
+
     const prevMonth = () => {
         if (!canNavigatePrevMonth) {
             return;
@@ -232,12 +260,21 @@ export function DatePicker({
     };
 
     const goToday = () => {
-        setViewYear(today.getFullYear());
-        setViewMonth(today.getMonth());
-        setYearRangeStart(Math.floor(today.getFullYear() / 12) * 12);
-        if (!isDayDisabled(today.getDate())) {
-            handleSelect(today.getDate());
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth();
+        const currentDay = today.getDate();
+
+        const todayDateStr = toDateStr(currentYear, currentMonth + 1, currentDay);
+
+        if (min && todayDateStr < min) {
+            return;
         }
+
+        if (max && todayDateStr > max) {
+            return;
+        }
+
+        selectDate(currentYear, currentMonth, currentDay);
     };
 
     const isDayDisabled = (day: number): boolean => {
@@ -444,13 +481,25 @@ export function DatePicker({
 
                             {/* Footer: Go to today */}
                             <div className="border-t border-neutral-200/40 px-3 py-2 dark:border-neutral-700/40">
-                                <button
-                                    type="button"
-                                    onClick={goToday}
-                                    className="w-full rounded-lg py-1.5 text-xs font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
-                                >
-                                    Hari Ini
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={goToday}
+                                        className="flex-1 rounded-lg py-1.5 text-xs font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+                                    >
+                                        Hari Ini
+                                    </button>
+                                    {normalizedResolvedValue && (
+                                        <button
+                                            type="button"
+                                            onClick={handleClear}
+                                            className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+                                        >
+                                            <X className="h-3.5 w-3.5" />
+                                            Clear
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </>
                     )}
