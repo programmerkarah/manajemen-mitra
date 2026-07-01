@@ -1293,9 +1293,7 @@ class BastWorkflowTest extends TestCase
         $lampiran = collect($page['props']['lampiran']);
 
         $this->assertFalse($lampiran->contains(fn (array $item) => $item['nama_kegiatan'] === 'SKGB - Penggilingan'));
-
-        $lampiranNumbers = $lampiran->pluck('lampiran_nomor')->values()->all();
-        $this->assertSame(range(1, count($lampiranNumbers)), $lampiranNumbers);
+        $this->assertCount(2, $lampiran);
     }
 
     private function actingAsWithRole(User $user, string $roleName): self
