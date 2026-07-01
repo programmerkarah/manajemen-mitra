@@ -187,7 +187,7 @@ class SpkLampiranSensusEkonomiTemplateTest extends TestCase
 
             foreach ($example['frame_muatan_totals'] as $index => $frameMuatanTotal) {
                 $frameSampel = new KegiatanFrameSampel([
-                    'target_unit_sampel' => [1 => $frameMuatanTotal],
+                    'target_unit_sampel' => ['usaha' => $frameMuatanTotal],
                 ]);
 
                 $frameAllocation = new AlokasiPetugasFrameSampel([
@@ -233,5 +233,71 @@ class SpkLampiranSensusEkonomiTemplateTest extends TestCase
             $this->assertSame('60%', $payload['groups'][1]['persentase']);
             $this->assertSame('100%', $payload['total']['persentase']);
         }
+    }
+
+    public function test_pml_sensus_ekonomi_termin_satu_volume_aggregates_linked_ppl_targets(): void
+    {
+        $controller = new SpkController;
+
+        $periode = (object) [
+            'tanggal_mulai' => Carbon::parse('2026-06-15'),
+            'tanggal_selesai' => Carbon::parse('2026-08-31'),
+        ];
+
+        $kegiatan = new Kegiatan;
+        $kegiatan->nama_kegiatan = 'Sensus Ekonomi';
+
+        $pmlReflectionMethod = new \ReflectionMethod(SpkController::class, 'buildPmlSensusEkonomiLampiranPayload');
+        $pmlReflectionMethod->setAccessible(true);
+
+        $periodeAlokasiId = 123;
+
+        $buildFrameAllocation = function (int $frameId): AlokasiPetugasFrameSampel {
+            $frameSampel = new KegiatanFrameSampel([
+                'target_unit_sampel' => ['usaha' => 1],
+            ]);
+
+            $frameAllocation = new AlokasiPetugasFrameSampel([
+                'kegiatan_frame_sampel_id' => $frameId,
+            ]);
+            $frameAllocation->setRelation('kegiatanFrameSampel', $frameSampel);
+
+            return $frameAllocation;
+        };
+
+        $buildAlokasi = function (string $peran, array $frameIds) use ($periodeAlokasiId, $buildFrameAllocation): AlokasiPetugas {
+            $alokasi = new AlokasiPetugas([
+                'peran' => $peran,
+                'periode_alokasi_id' => $periodeAlokasiId,
+            ]);
+
+            $frameAllocations = collect($frameIds)
+                ->map(fn (int $frameId) => $buildFrameAllocation($frameId));
+
+            $alokasi->setRelation('frameSampelAllocations', $frameAllocations);
+
+            return $alokasi;
+        };
+
+        $pmlAlokasi = $buildAlokasi('pml', [1, 2, 3, 4, 5, 6, 7]);
+        $pplSatu = $buildAlokasi('pcl_ppl', [1, 2]);
+        $pplDua = $buildAlokasi('pcl_ppl', [3, 4]);
+        $pplTiga = $buildAlokasi('pcl_ppl', [5, 6, 7]);
+
+        $allAlokasi = collect([$pmlAlokasi, $pplSatu, $pplDua, $pplTiga]);
+
+        $result = $pmlReflectionMethod->invoke(
+            $controller,
+            $periode,
+            [],
+            2500000.0,
+            $kegiatan,
+            $allAlokasi,
+            $pmlAlokasi,
+        );
+
+        $this->assertSame('4 SLS/sub-SLS', $result['groups'][0]['volume']);
+        $this->assertSame('3 SLS/sub-SLS', $result['groups'][1]['volume']);
+        $this->assertSame('Seluruh Muatan 7 SLS/sub-SLS', $result['total']['volume']);
     }
 }

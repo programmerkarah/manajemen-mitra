@@ -25,6 +25,7 @@ import {
     FileText,
     Plus,
     RefreshCw,
+    Trash2,
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
@@ -58,6 +59,11 @@ interface MonthlyPeriodeItem {
     has_incomplete_addendum: boolean; // Ada petugas dengan revisi yang belum punya addendum
     has_addendum_changes: boolean; // Ada perubahan alokasi ke petugas yang sudah punya addendum
     kegiatan_list: KegiatanItem[];
+}
+
+interface CancelAllPeriodeDialogState {
+    open: boolean;
+    item: MonthlyPeriodeItem | null;
 }
 
 interface IndexProps {
@@ -114,6 +120,14 @@ export default function Index({
     const [summaryModalOpen, setSummaryModalOpen] = useState(false);
     const [summaryModalType, setSummaryModalType] =
         useState<SummaryModalType>('all_periods');
+    const [cancelingPeriodeKey, setCancelingPeriodeKey] = useState<
+        string | null
+    >(null);
+    const [cancelAllPeriodeDialog, setCancelAllPeriodeDialog] =
+        useState<CancelAllPeriodeDialogState>({
+            open: false,
+            item: null,
+        });
 
     // Check if user can create SPK (only admin and pj)
     const canCreateSpk =
@@ -267,6 +281,41 @@ export default function Index({
         } finally {
             setCopyingMonth(null);
         }
+    };
+
+    const handleCancelAllPeriode = (monthData: MonthlyPeriodeItem) => {
+        setCancelAllPeriodeDialog({
+            open: true,
+            item: monthData,
+        });
+    };
+
+    const confirmCancelAllPeriode = () => {
+        if (!cancelAllPeriodeDialog.item) {
+            return;
+        }
+
+        const monthData = cancelAllPeriodeDialog.item;
+
+        setCancelingPeriodeKey(monthData.entry_key);
+        setCancelAllPeriodeDialog((prev) => ({
+            ...prev,
+            open: false,
+        }));
+
+        router.delete(
+            `/spk/periode/${monthData.primary_periode_hashed_id}/cancel-all`,
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setCancelingPeriodeKey(null);
+                    setCancelAllPeriodeDialog({
+                        open: false,
+                        item: null,
+                    });
+                },
+            },
+        );
     };
 
     return (
@@ -579,8 +628,9 @@ export default function Index({
                                                         )}
 
                                                     {/* View SPK Details - Always show if SPK exists */}
-                                                    {monthData.total_spk >
-                                                        0 && (
+                                                    {Number(
+                                                        monthData.total_spk,
+                                                    ) > 0 && (
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
@@ -607,6 +657,34 @@ export default function Index({
                                                             Lihat Detail
                                                         </Button>
                                                     )}
+
+                                                    {canCreateSpk &&
+                                                        Number(
+                                                            monthData.total_spk,
+                                                        ) > 0 && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="destructive"
+                                                                onClick={() =>
+                                                                    handleCancelAllPeriode(
+                                                                        monthData,
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    cancelingPeriodeKey ===
+                                                                    monthData.entry_key
+                                                                }
+                                                                className="w-full cursor-pointer justify-start gap-1"
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                                {cancelingPeriodeKey ===
+                                                                monthData.entry_key
+                                                                    ? 'Membatalkan...'
+                                                                    : monthData.is_period_based
+                                                                      ? 'Batalkan Semua PK Sensus'
+                                                                      : 'Batalkan Semua PK Reguler'}
+                                                            </Button>
+                                                        )}
 
                                                     {/* Addendum SPK - Show if:
                                                         1. Has revisions AND
@@ -883,6 +961,56 @@ export default function Index({
                                 })
                             )}
                         </div>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog
+                    open={cancelAllPeriodeDialog.open}
+                    onOpenChange={(open) =>
+                        setCancelAllPeriodeDialog((prev) => ({
+                            ...prev,
+                            open,
+                        }))
+                    }
+                >
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>
+                                {cancelAllPeriodeDialog.item?.is_period_based
+                                    ? 'Batalkan Semua PK Sensus'
+                                    : 'Batalkan Semua PK Reguler'}
+                            </DialogTitle>
+                            <DialogDescription>
+                                {cancelAllPeriodeDialog.item
+                                    ? `Aksi ini akan menghapus seluruh PK pada periode ${cancelAllPeriodeDialog.item.display_label}, termasuk riwayat dokumen, addendum, data turunan terkait, dan semua file hasil generate. Tindakan ini tidak dapat dibatalkan.`
+                                    : 'Aksi ini akan menghapus seluruh data PK pada periode terpilih.'}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                    setCancelAllPeriodeDialog({
+                                        open: false,
+                                        item: null,
+                                    })
+                                }
+                                disabled={Boolean(cancelingPeriodeKey)}
+                            >
+                                Tutup
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                onClick={confirmCancelAllPeriode}
+                                disabled={Boolean(cancelingPeriodeKey)}
+                            >
+                                {cancelingPeriodeKey
+                                    ? 'Membatalkan...'
+                                    : 'Ya, Batalkan Semua'}
+                            </Button>
+                        </DialogFooter>
                     </DialogContent>
                 </Dialog>
             </div>

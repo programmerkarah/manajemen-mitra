@@ -715,6 +715,8 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('spk/periode/{periodeHashedId}/print-selected-lampiran', [SpkController::class, 'printSelectedLampiran'])->name('spk.print.selected.lampiran');
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/preview-addendum', [SpkController::class, 'previewAddendum'])->name('spk.preview-addendum');
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/generate', [SpkController::class, 'generateSpk'])->name('spk.generate');
+        Route::delete('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/cancel', [SpkController::class, 'cancelByPeriodeAndPetugas'])->name('spk.cancel-by-periode-petugas');
+        Route::delete('spk/periode/{periodeHashedId}/cancel-all', [SpkController::class, 'cancelAllByPeriode'])->name('spk.cancel-all-by-periode');
         Route::post('spk/periode/{periodeHashedId}/petugas/{petugasHashedId}/generate-addendum', [SpkController::class, 'generateAddendum'])->name('spk.generate-addendum');
         Route::post('spk/periode/{periodeHashedId}/generate-addendum-batch', [SpkController::class, 'generateBatchAddendum'])->name('spk.generate-addendum-batch');
         Route::post('spk/periode/{periodeHashedId}/generate-all', [SpkController::class, 'generateAllSpk'])->name('spk.generate-all');

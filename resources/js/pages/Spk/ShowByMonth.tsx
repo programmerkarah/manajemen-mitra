@@ -2,6 +2,14 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
@@ -19,6 +27,7 @@ import {
     Download,
     FileText,
     PenLine,
+    Trash2,
     Upload,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -344,6 +353,8 @@ export default function ShowByMonth({
     const isAddendum = decryptedSpk.addendum_number > 0;
     const { auth } = usePage<SharedData>().props;
     const [uploadingDocId, setUploadingDocId] = useState<string | null>(null);
+    const [cancelModalOpen, setCancelModalOpen] = useState(false);
+    const [cancelingPk, setCancelingPk] = useState(false);
     const [downloadingKegiatan, setDownloadingKegiatan] = useState<
         number | null
     >(null);
@@ -496,6 +507,24 @@ export default function ShowByMonth({
         if (e.target.files && e.target.files[0]) {
             setData('file', e.target.files[0]);
         }
+    };
+
+    const handleCancelPk = () => {
+        setCancelModalOpen(true);
+    };
+
+    const confirmCancelPk = () => {
+        setCancelingPk(true);
+        router.delete(
+            `/spk/periode/${periode.hashed_id}/petugas/${decryptedPetugas.hashed_id}/cancel`,
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setCancelingPk(false);
+                    setCancelModalOpen(false);
+                },
+            },
+        );
     };
 
     const getStatusBadge = (status: string) => {
@@ -809,9 +838,23 @@ export default function ShowByMonth({
                     {/* Documents History */}
                     <ContentCard>
                         <div className="space-y-4">
-                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                Riwayat Dokumen {documentLabel}
-                            </h3>
+                            <div className="flex items-start justify-between gap-3">
+                                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                    Riwayat Dokumen {documentLabel}
+                                </h3>
+
+                                {canEdit && (
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={handleCancelPk}
+                                    >
+                                        <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                        Batalkan PK
+                                    </Button>
+                                )}
+                            </div>
 
                             <div className="space-y-3">
                                 {decryptedSpkDocuments.map((doc) => (
@@ -1398,6 +1441,42 @@ export default function ShowByMonth({
                         </div>
                     );
                 })()}
+
+            <Dialog open={cancelModalOpen} onOpenChange={setCancelModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            {isSensusEkonomiContext
+                                ? 'Batalkan PK Sensus Ekonomi'
+                                : 'Batalkan PK Reguler'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Aksi ini akan menghapus seluruh data PK untuk
+                            petugas ini pada periode terpilih, termasuk riwayat
+                            addendum, data turunan terkait, dan semua file hasil
+                            generate. Tindakan ini tidak dapat dibatalkan.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setCancelModalOpen(false)}
+                            disabled={cancelingPk}
+                        >
+                            Tutup
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={confirmCancelPk}
+                            disabled={cancelingPk}
+                        >
+                            {cancelingPk ? 'Membatalkan...' : 'Ya, Batalkan'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }
