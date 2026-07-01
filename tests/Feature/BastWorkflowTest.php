@@ -1206,6 +1206,98 @@ class BastWorkflowTest extends TestCase
         $response->assertHeader('content-type', 'application/pdf');
     }
 
+    public function test_regular_june_bast_excludes_revised_lampiran_and_keeps_numbering_contiguous(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-06-20'));
+
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+
+        $context['spk']->update([
+            'tanggal_mulai_kerja' => '2026-06-01',
+            'tanggal_selesai_kerja' => '2026-06-30',
+        ]);
+
+        $context['kegiatanOwnCompleted']->update([
+            'nama_kegiatan' => 'Awyujon Utama',
+        ]);
+
+        $ownPeriod = $context['spk']->alokasiPetugas->periodeAlokasi;
+        $ownPeriod->update([
+            'bulan' => '6',
+            'tahun' => 2026,
+            'status' => 'dikirim',
+            'tanggal_selesai' => '2026-06-20',
+            'tanggal_selesai_listing' => '2026-06-18',
+        ]);
+
+        $otherPeriod = PeriodeAlokasi::query()
+            ->where('kegiatan_id', $context['kegiatanOther']->id)
+            ->firstOrFail();
+
+        $otherPeriod->update([
+            'bulan' => '06',
+            'tahun' => 2026,
+            'status' => 'dikirim',
+            'tanggal_selesai' => '2026-06-22',
+            'tanggal_selesai_listing' => '2026-06-21',
+        ]);
+
+        $revisedKegiatan = Kegiatan::factory()->create([
+            'nama_kegiatan' => 'SKGB - Penggilingan',
+            'tahun_anggaran' => 2026,
+            'status' => 'divalidasi',
+            'ketua_tim_user_id' => $context['ketuaTimOwn']->id,
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $revisedPeriod = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $revisedKegiatan->id,
+            'bulan' => '06',
+            'tahun' => 2026,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'direvisi',
+            'tanggal_selesai' => '2026-06-19',
+            'tanggal_selesai_listing' => '2026-06-19',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $revisedPeriod->id,
+            'petugas_id' => $context['petugas']->id,
+            'peran' => 'pengolahan',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 2,
+            'jumlah_satuan_listing' => 2,
+            'total_honor' => 200000,
+            'total_honor_listing' => 100000,
+        ]);
+
+        $bast = $this->generateMainBast($context)->fresh('bastKegiatan.kegiatan');
+
+        $this->assertCount(2, $bast->bastKegiatan);
+        $this->assertFalse(
+            $bast->bastKegiatan->contains(fn (BastKegiatan $item) => $item->nama_kegiatan === 'SKGB - Penggilingan')
+        );
+
+        $detailResponse = $this
+            ->actingAsWithRole($context['operator'], 'operator')
+            ->get(route('bast.list', [
+                'bulan' => 6,
+                'tahun' => 2026,
+                'petugas_id' => $context['petugas']->id,
+                'mode' => 'regular',
+            ]));
+
+        $detailResponse->assertOk();
+
+        $page = $detailResponse->viewData('page');
+        $lampiran = collect($page['props']['lampiran']);
+
+        $this->assertFalse($lampiran->contains(fn (array $item) => $item['nama_kegiatan'] === 'SKGB - Penggilingan'));
+
+        $lampiranNumbers = $lampiran->pluck('lampiran_nomor')->values()->all();
+        $this->assertSame(range(1, count($lampiranNumbers)), $lampiranNumbers);
+    }
+
     private function actingAsWithRole(User $user, string $roleName): self
     {
         $role = Role::query()->firstOrCreate(

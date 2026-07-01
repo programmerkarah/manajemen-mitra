@@ -3696,6 +3696,14 @@ class BastController extends Controller
             ])
             ->get();
 
+        if (! $isSeSpk) {
+            $allAlokasi = $allAlokasi
+                ->reject(function (AlokasiPetugas $alokasi) {
+                    return $alokasi->periodeAlokasi?->status === 'direvisi';
+                })
+                ->values();
+        }
+
         $ketuaTim = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->ketuaTim;
 
         $sensusNarrativeData = $this->buildSensusEkonomiNarrativeData($allAlokasi, $seInput);
