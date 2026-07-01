@@ -237,7 +237,7 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     // Function to check if periode is current month or previous month
     const canRevisiPeriode = (bulan: string, tahun: number): boolean => {
         const now = new Date();
-        const currentMonth = now.getMonth() + 2; // getMonth() returns 0-11
+        const currentMonth = now.getMonth() + 1; // getMonth() returns 0-11
         const currentYear = now.getFullYear();
 
         const periodeMonth = parseInt(bulan);
@@ -249,9 +249,10 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
         }
 
         // Check if it's previous month
-        const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+        const previousMonth =
+            currentMonth <= 2 ? currentMonth + 10 : currentMonth - 2;
         const previousMonthYear =
-            currentMonth === 1 ? currentYear - 1 : currentYear;
+            currentMonth <= 2 ? currentYear - 1 : currentYear;
 
         if (
             periodeYear === previousMonthYear &&
