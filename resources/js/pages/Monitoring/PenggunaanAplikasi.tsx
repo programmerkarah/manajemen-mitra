@@ -1,6 +1,5 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
-import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -12,7 +11,8 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
-import { Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import {
     Bar,
     BarChart,
@@ -50,6 +50,13 @@ interface TypeSummaryRow extends Record<string, string | number> {
     type: string;
     label: string;
     total: number;
+}
+
+interface AllUserActivityRow {
+    user_id: number;
+    user_name: string;
+    total_logs: number;
+    active_days: number;
 }
 
 interface ActionRow {
@@ -101,15 +108,17 @@ interface Props {
         bulan: string;
         user_name?: string | null;
     };
+    state_url: string;
     month_label: string;
     summary: Summary;
     daily_access: DailyAccessRow[];
     type_summary: TypeSummaryRow[];
     top_actions: ActionRow[];
+    all_user_activity: AllUserActivityRow[];
     top_users: TopUserRow[];
     user_name_options: UserNameOption[];
     selected_user_name: string | null;
-    selected_user_summary: SelectedUserSummary;
+    selected_user_summary: SelectedUserSummary | null;
     selected_user_daily_access: SelectedUserDailyAccessRow[];
     impact_summary: ImpactRow[];
 }
@@ -147,16 +156,9 @@ const TYPE_COLORS: Record<string, string> = {
     pengajuan_pulsa: '#16a34a',
 };
 
-function formatUserName(value: string | null | undefined): string {
-    return toUcwords(value);
-}
-
 interface ChartTooltipEntry {
     name?: string;
     value?: number;
-    payload?: {
-        label?: string;
-    };
 }
 
 function ChartTooltipContent({
@@ -174,15 +176,17 @@ function ChartTooltipContent({
 
     return (
         <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-xl dark:border-slate-700 dark:bg-neutral-800 dark:text-slate-100">
+            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                Akses Harian
+            </p>
             {label ? (
-                <p className="mb-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-                    {label}
+                <p className="mt-0.5 mb-1 text-xs text-slate-500 dark:text-slate-400">
+                    Tanggal: {label}
                 </p>
             ) : null}
             <div className="space-y-1">
                 {payload.map((entry, index) => {
-                    const displayLabel =
-                        entry.payload?.label ?? entry.name ?? 'Nilai';
+                    const displayLabel = entry.name ?? 'Nilai';
 
                     return (
                         <p
@@ -205,6 +209,20 @@ function formatNumber(value: number): string {
     return new Intl.NumberFormat('id-ID').format(value);
 }
 
+function buildMonitoringUrl(filters: {
+    bulan: string;
+    user_name?: string | null;
+}): string {
+    const searchParams = new URLSearchParams();
+    searchParams.set('bulan', filters.bulan);
+
+    if (filters.user_name) {
+        searchParams.set('user_name', filters.user_name);
+    }
+
+    return `/monlap-pa?${searchParams.toString()}`;
+}
+
 function toUcwords(value: string | null | undefined): string {
     if (!value) {
         return '';
@@ -218,29 +236,58 @@ function toUcwords(value: string | null | undefined): string {
         .join(' ');
 }
 
+function formatUserName(value: string | null | undefined): string {
+    return toUcwords(value);
+}
+
 export default function PenggunaanAplikasi({
     active_year,
     generated_at,
     filters,
+    state_url,
     month_label,
     summary,
     daily_access,
     type_summary,
     top_actions,
+    all_user_activity,
     top_users,
-    user_name_options,
     selected_user_name,
     selected_user_summary,
     selected_user_daily_access,
     impact_summary,
 }: Props) {
+    const selectedUserSummary = selected_user_summary;
+    const [drilldownPage, setDrilldownPage] = useState(1);
+    const drilldownPageSize = 10;
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !state_url) {
+            return;
+        }
+
+        const nextUrl = new URL(state_url, window.location.origin);
+
+        if (
+            `${window.location.pathname}${window.location.search}` !==
+            `${nextUrl.pathname}${nextUrl.search}`
+        ) {
+            window.history.replaceState(
+                window.history.state,
+                '',
+                `${nextUrl.pathname}${nextUrl.search}`,
+            );
+        }
+    }, [state_url]);
+
     const handleMonthChange = (month: string) => {
+        setDrilldownPage(1);
         router.get(
-            '/monlap-pa',
-            {
+            buildMonitoringUrl({
                 bulan: month,
                 user_name: selected_user_name,
-            },
+            }),
+            {},
             {
                 preserveState: true,
                 preserveScroll: true,
@@ -250,12 +297,13 @@ export default function PenggunaanAplikasi({
     };
 
     const handleUserChange = (userName: string) => {
+        setDrilldownPage(1);
         router.get(
-            '/monlap-pa',
-            {
+            buildMonitoringUrl({
                 bulan: filters.bulan,
-                user_name: userName,
-            },
+                user_name: userName || null,
+            }),
+            {},
             {
                 preserveState: true,
                 preserveScroll: true,
@@ -263,6 +311,35 @@ export default function PenggunaanAplikasi({
             },
         );
     };
+
+    const drilldownTotalPages = Math.max(
+        1,
+        Math.ceil(selected_user_daily_access.length / drilldownPageSize),
+    );
+
+    const drilldownRows = selected_user_daily_access.slice(
+        (drilldownPage - 1) * drilldownPageSize,
+        drilldownPage * drilldownPageSize,
+    );
+
+    const drilldownPlaceholderRows = Array.from({
+        length: Math.max(0, drilldownPageSize - drilldownRows.length),
+    });
+
+    const drilldownStart =
+        selected_user_daily_access.length === 0
+            ? 0
+            : (drilldownPage - 1) * drilldownPageSize + 1;
+    const drilldownEnd = Math.min(
+        drilldownPage * drilldownPageSize,
+        selected_user_daily_access.length,
+    );
+
+    const goToDrilldownPage = (page: number) => {
+        setDrilldownPage(Math.min(Math.max(page, 1), drilldownTotalPages));
+    };
+
+    const exportHref = state_url.replace('/monlap-pa', '/monlap-pa/export-pdf');
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -275,27 +352,11 @@ export default function PenggunaanAplikasi({
                 >
                     <div className="flex flex-wrap items-center gap-3">
                         <Button asChild variant="outline" className="shrink-0">
-                            <a
-                                href={`/monlap-pa/export-pdf?bulan=${filters.bulan}${selected_user_name ? `&user_name=${encodeURIComponent(selected_user_name)}` : ''}`}
-                            >
+                            <a href={exportHref}>
                                 <Download className="size-4" />
                                 Export PDF
                             </a>
                         </Button>
-                        <SearchableSelect
-                            options={user_name_options.map((option) => ({
-                                ...option,
-                                label: formatUserName(option.label),
-                                searchKeywords: option.label,
-                            }))}
-                            value={selected_user_name ?? ''}
-                            onValueChange={handleUserChange}
-                            placeholder="Cari pengguna"
-                            searchPlaceholder="Cari nama pengguna"
-                            className="w-full sm:w-[260px]"
-                            showClearAction
-                            clearLabel="Clear user"
-                        />
                         <Select
                             value={filters.bulan}
                             onValueChange={handleMonthChange}
@@ -558,89 +619,56 @@ export default function PenggunaanAplikasi({
                     </ContentCard>
                 </div>
 
-                <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
                     <ContentCard className="space-y-5">
                         <div>
                             <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
                                 Pengguna Paling Aktif
                             </h2>
                             <p className="text-sm text-slate-500 dark:text-slate-400">
-                                Klik nama pengguna untuk memuat rincian harian
-                                di bawah.
+                                Ringkasan pengguna dengan aktivitas paling
+                                tinggi pada bulan terpilih.
                             </p>
                         </div>
-                        <div className="overflow-hidden rounded-2xl border border-slate-200/70 dark:border-slate-800">
-                            <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-                                <thead className="bg-slate-50 dark:bg-neutral-900">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-300">
-                                            Pengguna
-                                        </th>
-                                        <th className="px-4 py-3 text-right font-semibold text-slate-600 dark:text-slate-300">
-                                            Total Akses
-                                        </th>
-                                        <th className="px-4 py-3 text-right font-semibold text-slate-600 dark:text-slate-300">
-                                            Hari Aktif
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-neutral-900/60">
-                                    {top_users.map((user) => {
-                                        const isSelected =
-                                            user.user_name ===
-                                            selected_user_summary.user_name;
-                                        const displayName = formatUserName(
-                                            user.user_name,
-                                        );
-
-                                        return (
-                                            <tr
-                                                key={user.user_id}
-                                                className={
-                                                    isSelected
-                                                        ? 'bg-blue-50/60 dark:bg-blue-950/30'
-                                                        : ''
-                                                }
-                                            >
-                                                <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            handleUserChange(
-                                                                user.user_name,
-                                                            )
-                                                        }
-                                                        className="text-left font-medium text-blue-700 transition-colors hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
-                                                    >
-                                                        {displayName}
-                                                    </button>
-                                                </td>
-                                                <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">
-                                                    {formatNumber(
-                                                        user.total_logs,
-                                                    )}
-                                                </td>
-                                                <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">
-                                                    {formatNumber(
-                                                        user.active_days,
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                    {top_users.length === 0 ? (
-                                        <tr>
-                                            <td
-                                                colSpan={3}
-                                                className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
-                                            >
-                                                Belum ada aktivitas pada bulan
-                                                ini.
-                                            </td>
-                                        </tr>
-                                    ) : null}
-                                </tbody>
-                            </table>
+                        <div className="grid gap-3">
+                            {top_users.map((user, index) => (
+                                <div
+                                    key={user.user_id}
+                                    className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-neutral-900/60"
+                                >
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-900 dark:text-white">
+                                            {formatUserName(user.user_name)}
+                                        </p>
+                                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                            Peringkat #{index + 1}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-5 text-right">
+                                        <div>
+                                            <p className="text-xs tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                                                Total akses
+                                            </p>
+                                            <p className="mt-1 text-base font-semibold text-slate-900 dark:text-white">
+                                                {formatNumber(user.total_logs)}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                                                Hari aktif
+                                            </p>
+                                            <p className="mt-1 text-base font-semibold text-slate-900 dark:text-white">
+                                                {formatNumber(user.active_days)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {top_users.length === 0 ? (
+                                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-slate-500 dark:border-slate-800 dark:bg-neutral-900/40 dark:text-slate-400">
+                                    Belum ada aktivitas pada bulan ini.
+                                </div>
+                            ) : null}
                         </div>
                     </ContentCard>
 
@@ -651,109 +679,280 @@ export default function PenggunaanAplikasi({
                                     Aktivitas Pengguna
                                 </h2>
                                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    Menampilkan ringkasan pengguna yang dipilih
-                                    dan rincian per hari.
-                                </p>
-                            </div>
-                            <div className="text-sm text-slate-500 dark:text-slate-400">
-                                Filter aktif untuk:{' '}
-                                <span className="font-medium text-slate-900 dark:text-white">
-                                    {formatUserName(
-                                        selected_user_summary.user_name,
-                                    ) || '-'}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="grid gap-4 md:grid-cols-3">
-                            <div className="rounded-2xl border border-slate-200/70 bg-white p-4 dark:border-slate-800 dark:bg-neutral-900/60">
-                                <p className="text-xs tracking-wide text-slate-500 uppercase dark:text-slate-400">
-                                    Nama pengguna
-                                </p>
-                                <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
-                                    {formatUserName(
-                                        selected_user_summary.user_name,
-                                    ) || '-'}
-                                </p>
-                            </div>
-                            <div className="rounded-2xl border border-slate-200/70 bg-white p-4 dark:border-slate-800 dark:bg-neutral-900/60">
-                                <p className="text-xs tracking-wide text-slate-500 uppercase dark:text-slate-400">
-                                    Total akses
-                                </p>
-                                <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
-                                    {formatNumber(
-                                        selected_user_summary.total_logs,
-                                    )}
-                                </p>
-                            </div>
-                            <div className="rounded-2xl border border-slate-200/70 bg-white p-4 dark:border-slate-800 dark:bg-neutral-900/60">
-                                <p className="text-xs tracking-wide text-slate-500 uppercase dark:text-slate-400">
-                                    Hari aktif
-                                </p>
-                                <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
-                                    {formatNumber(
-                                        selected_user_summary.active_days,
-                                    )}
+                                    Lihat daftar pengguna dulu, lalu klik nama
+                                    pengguna untuk membuka rincian per hari.
                                 </p>
                             </div>
                         </div>
+                        {selectedUserSummary ? (
+                            <div className="space-y-4 rounded-2xl border border-emerald-200/60 bg-emerald-50/80 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                    <div>
+                                        <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+                                            Rincian Aktivitas Pengguna
+                                        </h3>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                                            Rincian per hari untuk{' '}
+                                            {formatUserName(
+                                                selectedUserSummary.user_name,
+                                            )}
+                                            .
+                                        </p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleUserChange('')}
+                                    >
+                                        Kembali
+                                    </Button>
+                                </div>
 
-                        <div className="overflow-hidden rounded-2xl border border-slate-200/70 dark:border-slate-800">
-                            <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-                                <thead className="bg-slate-50 dark:bg-neutral-900">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-300">
-                                            Tanggal
-                                        </th>
-                                        <th className="px-4 py-3 text-right font-semibold text-slate-600 dark:text-slate-300">
-                                            Total akses
-                                        </th>
-                                        <th className="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-300">
-                                            Aktivitas per kategori
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-neutral-900/60">
-                                    {selected_user_daily_access.map((row) => (
-                                        <tr key={row.date}>
-                                            <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
-                                                {row.label}
-                                            </td>
-                                            <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">
-                                                {formatNumber(row.total_logs)}
-                                            </td>
-                                            <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
-                                                {row.activity_breakdown.length >
-                                                0 ? (
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {row.activity_breakdown.map(
-                                                            (activity) => (
-                                                                <span
-                                                                    key={`${row.date}-${activity.label}`}
-                                                                    className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-neutral-800 dark:text-slate-200"
-                                                                >
-                                                                    {
-                                                                        activity.label
-                                                                    }
-                                                                    :{' '}
-                                                                    {formatNumber(
-                                                                        activity.total,
-                                                                    )}
-                                                                </span>
-                                                            ),
+                                <div className="grid gap-4 md:grid-cols-3">
+                                    <div className="rounded-2xl border border-emerald-200/70 bg-white p-4 dark:border-emerald-900/40 dark:bg-neutral-900/60">
+                                        <p className="text-xs tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                                            Nama
+                                        </p>
+                                        <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
+                                            {formatUserName(
+                                                selectedUserSummary.user_name,
+                                            )}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-2xl border border-emerald-200/70 bg-white p-4 dark:border-emerald-900/40 dark:bg-neutral-900/60">
+                                        <p className="text-xs tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                                            Jumlah akses
+                                        </p>
+                                        <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
+                                            {formatNumber(
+                                                selectedUserSummary.total_logs,
+                                            )}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-2xl border border-emerald-200/70 bg-white p-4 dark:border-emerald-900/40 dark:bg-neutral-900/60">
+                                        <p className="text-xs tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                                            Hari yang aktif
+                                        </p>
+                                        <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
+                                            {formatNumber(
+                                                selectedUserSummary.active_days,
+                                            )}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="overflow-hidden rounded-2xl border border-emerald-200/70 dark:border-emerald-900/40">
+                                    <table className="min-w-full table-fixed divide-y divide-emerald-200 text-sm dark:divide-emerald-900/40">
+                                        <thead className="bg-emerald-50 dark:bg-emerald-950/40">
+                                            <tr>
+                                                <th className="w-[140px] px-4 py-3 text-left font-semibold text-emerald-700 dark:text-emerald-200">
+                                                    Hari
+                                                </th>
+                                                <th className="w-[120px] px-4 py-3 text-right font-semibold text-emerald-700 dark:text-emerald-200">
+                                                    Jumlah akses
+                                                </th>
+                                                <th className="px-4 py-3 text-left font-semibold text-emerald-700 dark:text-emerald-200">
+                                                    Rincian aktivitas
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-emerald-100 bg-white dark:divide-emerald-900/30 dark:bg-neutral-900/60">
+                                            {drilldownRows.map((row) => (
+                                                <tr
+                                                    key={row.date}
+                                                    className="h-16 align-top"
+                                                >
+                                                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
+                                                        {row.label}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">
+                                                        {formatNumber(
+                                                            row.total_logs,
                                                         )}
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-slate-400 dark:text-slate-500">
-                                                        Tidak ada akses
-                                                    </span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                                                        {row.activity_breakdown
+                                                            .length > 0 ? (
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {row.activity_breakdown.map(
+                                                                    (
+                                                                        activity,
+                                                                    ) => (
+                                                                        <span
+                                                                            key={`${row.date}-${activity.label}`}
+                                                                            className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/40 dark:text-emerald-200"
+                                                                        >
+                                                                            {
+                                                                                activity.label
+                                                                            }
+                                                                            :{' '}
+                                                                            {formatNumber(
+                                                                                activity.total,
+                                                                            )}
+                                                                        </span>
+                                                                    ),
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-slate-400 dark:text-slate-500">
+                                                                Tidak ada
+                                                                aktivitas
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {drilldownRows.length === 0 ? (
+                                                <tr>
+                                                    <td
+                                                        colSpan={3}
+                                                        className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
+                                                    >
+                                                        Belum ada rincian
+                                                        aktivitas untuk pengguna
+                                                        ini.
+                                                    </td>
+                                                </tr>
+                                            ) : null}
+                                            {drilldownPlaceholderRows.map(
+                                                (_, index) => (
+                                                    <tr
+                                                        key={`drilldown-placeholder-${index}`}
+                                                        className="h-16"
+                                                    >
+                                                        <td className="px-4 py-3 text-slate-900 dark:text-white">
+                                                            &nbsp;
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">
+                                                            &nbsp;
+                                                        </td>
+                                                        <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                                                            &nbsp;
+                                                        </td>
+                                                    </tr>
+                                                ),
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200/70 bg-white px-4 py-3 text-sm dark:border-emerald-900/40 dark:bg-neutral-900/60 dark:text-slate-300">
+                                    <p>
+                                        Menampilkan {drilldownStart}-
+                                        {drilldownEnd} dari{' '}
+                                        {selected_user_daily_access.length}{' '}
+                                        hari.
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                                goToDrilldownPage(
+                                                    drilldownPage - 1,
+                                                )
+                                            }
+                                            disabled={drilldownPage <= 1}
+                                        >
+                                            <ChevronLeft className="size-4" />
+                                            Sebelumnya
+                                        </Button>
+                                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/40 dark:text-emerald-200">
+                                            Halaman {drilldownPage} dari{' '}
+                                            {drilldownTotalPages}
+                                        </span>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                                goToDrilldownPage(
+                                                    drilldownPage + 1,
+                                                )
+                                            }
+                                            disabled={
+                                                drilldownPage >=
+                                                drilldownTotalPages
+                                            }
+                                        >
+                                            Berikutnya
+                                            <ChevronRight className="size-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="overflow-hidden rounded-2xl border border-slate-200/70 dark:border-slate-800">
+                                    <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+                                        <thead className="bg-slate-50 dark:bg-neutral-900">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-300">
+                                                    Pengguna
+                                                </th>
+                                                <th className="px-4 py-3 text-right font-semibold text-slate-600 dark:text-slate-300">
+                                                    Total Akses
+                                                </th>
+                                                <th className="px-4 py-3 text-right font-semibold text-slate-600 dark:text-slate-300">
+                                                    Hari Aktif
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-neutral-900/60">
+                                            {all_user_activity.map((user) => {
+                                                return (
+                                                    <tr key={user.user_id}>
+                                                        <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    handleUserChange(
+                                                                        user.user_name,
+                                                                    )
+                                                                }
+                                                                className="text-left font-medium text-blue-700 transition-colors hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
+                                                            >
+                                                                {formatUserName(
+                                                                    user.user_name,
+                                                                )}
+                                                            </button>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">
+                                                            {formatNumber(
+                                                                user.total_logs,
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">
+                                                            {formatNumber(
+                                                                user.active_days,
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            {all_user_activity.length === 0 ? (
+                                                <tr>
+                                                    <td
+                                                        colSpan={3}
+                                                        className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
+                                                    >
+                                                        Belum ada aktivitas pada
+                                                        bulan ini.
+                                                    </td>
+                                                </tr>
+                                            ) : null}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-slate-500 dark:border-slate-800 dark:bg-neutral-900/40 dark:text-slate-400">
+                                    Pilih nama pengguna pada tabel di atas untuk
+                                    melihat rincian harian.
+                                </div>
+                            </>
+                        )}
                     </ContentCard>
                 </div>
 

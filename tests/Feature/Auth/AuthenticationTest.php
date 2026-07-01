@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\ActivityLog;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -72,6 +73,13 @@ class AuthenticationTest extends TestCase
 
         $this->assertAuthenticated();
         $response->assertRedirect(route('dashboard', absolute: false));
+
+        $this->assertDatabaseHas('activity_logs', [
+            'user_id' => $user->id,
+            'action' => 'Login',
+            'type' => 'auth',
+            'status' => 'success',
+        ]);
     }
 
     public function test_users_with_two_factor_enabled_are_redirected_to_two_factor_challenge()
@@ -119,6 +127,12 @@ class AuthenticationTest extends TestCase
         ]);
 
         $this->assertGuest();
+
+        $this->assertDatabaseHas('activity_logs', [
+            'action' => 'Login Gagal',
+            'type' => 'auth',
+            'status' => 'warning',
+        ]);
     }
 
     public function test_login_post_redirects_to_sso_when_native_login_is_disabled()

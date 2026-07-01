@@ -7,9 +7,11 @@ use App\Services\ActiveYearService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
+use Throwable;
 
 class MonitoringPenggunaanAplikasiController extends Controller
 {
@@ -21,12 +23,14 @@ class MonitoringPenggunaanAplikasiController extends Controller
 
     public function index(Request $request): Response
     {
-        return Inertia::render('Monitoring/PenggunaanAplikasi', $this->buildReportData($request));
+        $filters = $this->resolveFilters($request);
+
+        return Inertia::render('Monitoring/PenggunaanAplikasi', $this->buildReportData($filters));
     }
 
     public function exportPdf(Request $request): HttpResponse
     {
-        $reportData = $this->buildReportData($request);
+        $reportData = $this->buildReportData($this->resolveFilters($request));
         $pdf = Pdf::loadView('monitoring-penggunaan-aplikasi-pdf', $reportData)
             ->setPaper('a4', 'portrait');
 
@@ -44,25 +48,27 @@ class MonitoringPenggunaanAplikasiController extends Controller
      * @return array{
      *     active_year: int,
      *     generated_at: string,
-     *     filters: array{bulan: string},
+    *     filters: array{bulan: string, user_name: string|null},
+    *     state_url: string,
      *     month_label: string,
      *     report_period: string,
      *     summary: array{active_users: int, total_logs: int, active_days: int, average_logs_per_day: float|int, administrative_actions: int, system_actions: int},
      *     daily_access: array<int, array{day: int, date: string, label: string, total_logs: int, unique_users: int}>,
-        *     type_summary: array<int, array{type: string, label: string, total: int}>,
-        *     top_actions: array<int, array{type: string, label: string, action: string, total: int}>,
-        *     top_users: array<int, array{user_id: int, user_name: string, total_logs: int, active_days: int}>,
-        *     user_name_options: array<int, array{value: string, label: string}>,
-        *     selected_user_name: string|null,
-        *     selected_user_summary: array{user_name: string|null, total_logs: int, active_days: int},
-        *     selected_user_daily_access: array<int, array{day: int, date: string, label: string, total_logs: int, activity_breakdown: array<int, array{label: string, total: int}>}>,
+         *     type_summary: array<int, array{type: string, label: string, total: int}>,
+         *     top_actions: array<int, array{type: string, label: string, action: string, total: int}>,
+         *     all_user_activity: array<int, array{user_id: int, user_name: string, total_logs: int, active_days: int}>,
+         *     top_users: array<int, array{user_id: int, user_name: string, total_logs: int, active_days: int}>,
+         *     user_name_options: array<int, array{value: string, label: string}>,
+         *     selected_user_name: string|null,
+         *     selected_user_summary: array{user_name: string|null, total_logs: int, active_days: int}|null,
+         *     selected_user_daily_access: array<int, array{day: int, date: string, label: string, total_logs: int, activity_breakdown: array<int, array{label: string, total: int}>}>,
      *     impact_summary: array<int, array{label: string, count: int, description: string}>
      * }
      */
-    private function buildReportData(Request $request): array
+    private function buildReportData(array $filters): array
     {
         $activeYear = ActiveYearService::get();
-        $selectedMonth = $this->normalizeMonthValue($request->input('bulan', now()->format('m')));
+        $selectedMonth = $this->normalizeMonthValue($filters['bulan'] ?? now()->format('m'));
         $selectedMonthNumber = (int) $selectedMonth;
         $monthStart = Carbon::create($activeYear, $selectedMonthNumber, 1)->startOfMonth();
         $monthEnd = $monthStart->copy()->endOfMonth();
@@ -179,81 +185,101 @@ class MonitoringPenggunaanAplikasiController extends Controller
             ->values()
             ->all();
 
-        $selectedUserName = $this->normalizeUserNameValue($request->input('user_name'));
+        $allUserActivity = (clone $baseQuery)
+            ->whereNotNull('user_id')
+            ->selectRaw('user_id, user_name, COUNT(*) as total_logs, COUNT(DISTINCT DATE(created_at)) as active_days')
+            ->groupBy('user_id', 'user_name')
+            ->orderByDesc('total_logs')
+            ->orderByDesc('active_days')
+            ->orderBy('user_name')
+            ->get()
+            ->map(function ($row): array {
+                return [
+                    'user_id' => (int) $row->user_id,
+                    'user_name' => $row->user_name,
+                    'total_logs' => (int) $row->total_logs,
+                    'active_days' => (int) $row->active_days,
+                ];
+            })
+            ->values()
+            ->all();
 
-        if ($selectedUserName === null) {
-            $selectedUserName = $topUsers[0]['user_name'] ?? ($userNameOptions[0]['value'] ?? null);
-        } elseif (! in_array($selectedUserName, array_column($userNameOptions, 'value'), true)) {
-            $selectedUserName = $topUsers[0]['user_name'] ?? ($userNameOptions[0]['value'] ?? null);
+        $topUsers = array_slice($allUserActivity, 0, 4);
+
+        $selectedUserName = $this->normalizeUserNameValue($filters['user_name'] ?? null);
+
+        if ($selectedUserName !== null && ! in_array($selectedUserName, array_column($userNameOptions, 'value'), true)) {
+            $selectedUserName = null;
         }
 
-        $selectedUserQuery = clone $baseQuery;
+        $selectedUserSummary = null;
+        $selectedUserDailyAccess = [];
 
         if ($selectedUserName !== null) {
-            $selectedUserQuery->where('user_name', $selectedUserName);
-        }
+            $selectedUserQuery = (clone $baseQuery)->where('user_name', $selectedUserName);
 
-        $selectedUserSummary = [
-            'user_name' => $selectedUserName,
-            'total_logs' => (clone $selectedUserQuery)->count(),
-            'active_days' => (int) ((clone $selectedUserQuery)
-                ->selectRaw('COUNT(DISTINCT DATE(created_at)) as total')
-                ->value('total') ?? 0),
-        ];
+            $selectedUserSummary = [
+                'user_name' => $selectedUserName,
+                'total_logs' => (clone $selectedUserQuery)->count(),
+                'active_days' => (int) ((clone $selectedUserQuery)
+                    ->selectRaw('COUNT(DISTINCT DATE(created_at)) as total')
+                    ->value('total') ?? 0),
+            ];
 
-        $selectedUserLogs = (clone $selectedUserQuery)
-            ->get(['type', 'action', 'created_at']);
+            $selectedUserLogs = (clone $selectedUserQuery)
+                ->get(['type', 'action', 'created_at']);
 
-        $selectedUserDailyAccessRows = $selectedUserLogs
-            ->groupBy(function ($row): string {
-                return Carbon::parse($row->created_at)->toDateString();
-            });
+            $selectedUserDailyAccessRows = $selectedUserLogs
+                ->groupBy(function ($row): string {
+                    return Carbon::parse($row->created_at)->toDateString();
+                });
 
-        $selectedUserActivityRows = $selectedUserLogs
-            ->groupBy(function ($row): string {
-                return Carbon::parse($row->created_at)->toDateString();
-            })
-            ->map(function ($rows) {
-                return $rows
+            $selectedUserActivityRows = $selectedUserLogs
+                ->groupBy(function ($row): string {
+                    return Carbon::parse($row->created_at)->toDateString();
+                })
+                ->map(function ($rows) {
+                    return $rows
+                        ->map(function ($row): array {
+                            return [
+                                'label' => $this->groupActivityLabel((string) $row->type, (string) $row->action),
+                                'total' => 1,
+                            ];
+                        })
+                        ->groupBy('label')
+                        ->map(function ($rows, string $label): array {
+                            return [
+                                'label' => $label,
+                                'total' => $rows->count(),
+                            ];
+                        })
+                        ->sortByDesc('total')
+                        ->values();
+                });
+
+            $selectedUserDailyAccess = collect(range(1, $monthStart->daysInMonth))->map(function (int $day) use ($monthStart, $selectedUserDailyAccessRows, $selectedUserActivityRows) {
+                $date = $monthStart->copy()->day($day);
+                $dateKey = $date->toDateString();
+                $dailyRow = $selectedUserDailyAccessRows->get($dateKey, collect());
+                $activities = $selectedUserActivityRows->get($dateKey, collect())
                     ->map(function ($row): array {
                         return [
-                            'label' => $this->groupActivityLabel((string) $row->type, (string) $row->action),
-                            'total' => 1,
+                            'label' => (string) $row['label'],
+                            'total' => (int) $row['total'],
                         ];
                     })
-                    ->groupBy('label')
-                    ->map(function ($rows, string $label): array {
-                        return [
-                            'label' => $label,
-                            'total' => $rows->count(),
-                        ];
-                    })
-                    ->sortByDesc('total')
-                    ->values();
-            });
+                    ->values()
+                    ->all();
 
-        $selectedUserDailyAccess = collect(range(1, $monthStart->daysInMonth))->map(function (int $day) use ($monthStart, $selectedUserDailyAccessRows, $selectedUserActivityRows) {
-            $date = $monthStart->copy()->day($day);
-            $dateKey = $date->toDateString();
-            $dailyRow = $selectedUserDailyAccessRows->get($dateKey, collect());
-            $activities = $selectedUserActivityRows->get($dateKey, collect())
-                ->map(function ($row): array {
-                    return [
-                        'label' => (string) $row['label'],
-                        'total' => (int) $row['total'],
-                    ];
-                })
-                ->values()
-                ->all();
-
-            return [
-                'day' => $day,
-                'date' => $dateKey,
-                'label' => $date->locale('id')->translatedFormat('d M'),
-                'total_logs' => (int) $dailyRow->count(),
-                'activity_breakdown' => $activities,
-            ];
-        })->values()->all();
+                return [
+                    'day' => $day,
+                    'date' => $dateKey,
+                    'label' => $date->locale('id')->translatedFormat('d M'),
+                    'total_logs' => (int) $dailyRow->count(),
+                    'activity_breakdown' => $activities,
+                ];
+            })->values()->all();
+        }
 
         $impactSummary = [
             [
@@ -283,6 +309,10 @@ class MonitoringPenggunaanAplikasiController extends Controller
                 'bulan' => $selectedMonth,
                 'user_name' => $selectedUserName,
             ],
+            'state_url' => $this->buildStateUrl([
+                'bulan' => $selectedMonth,
+                'user_name' => $selectedUserName,
+            ]),
             'month_label' => $monthName,
             'report_period' => sprintf('%s %s', $monthName, $activeYear),
             'summary' => [
@@ -296,12 +326,68 @@ class MonitoringPenggunaanAplikasiController extends Controller
             'daily_access' => $dailyAccess,
             'type_summary' => $typeSummary,
             'top_actions' => $topActions,
+            'all_user_activity' => $allUserActivity,
             'top_users' => $topUsers,
             'user_name_options' => $userNameOptions,
             'selected_user_name' => $selectedUserName,
             'selected_user_summary' => $selectedUserSummary,
             'selected_user_daily_access' => $selectedUserDailyAccess,
             'impact_summary' => $impactSummary,
+        ];
+    }
+
+    /**
+     * @return array{bulan: string, user_name: string|null}
+     */
+    private function resolveFilters(Request $request): array
+    {
+        $filters = [
+            'bulan' => $request->input('bulan', now()->format('m')),
+            'user_name' => $request->input('user_name'),
+        ];
+
+        if ($request->filled('state')) {
+            $decryptedFilters = $this->decodeState((string) $request->input('state'));
+
+            if ($decryptedFilters !== null) {
+                $filters = array_merge($filters, $decryptedFilters);
+            }
+        }
+
+        return [
+            'bulan' => $this->normalizeMonthValue($filters['bulan'] ?? null),
+            'user_name' => $this->normalizeUserNameValue($filters['user_name'] ?? null),
+        ];
+    }
+
+    /**
+     * @param array{bulan: string, user_name: string|null} $filters
+     */
+    private function buildStateUrl(array $filters): string
+    {
+        return route('monitoring.penggunaan-aplikasi', [
+            'state' => Crypt::encryptString(json_encode($filters, JSON_THROW_ON_ERROR)),
+        ]);
+    }
+
+    /**
+     * @return array{bulan?: string, user_name?: string|null}|null
+     */
+    private function decodeState(string $state): ?array
+    {
+        try {
+            $decoded = json_decode(Crypt::decryptString($state), true, 512, JSON_THROW_ON_ERROR);
+        } catch (Throwable) {
+            return null;
+        }
+
+        if (! is_array($decoded)) {
+            return null;
+        }
+
+        return [
+            'bulan' => $decoded['bulan'] ?? null,
+            'user_name' => $decoded['user_name'] ?? null,
         ];
     }
 

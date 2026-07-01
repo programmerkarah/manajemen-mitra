@@ -156,6 +156,134 @@ class ActivityLogFilterTest extends TestCase
         $this->assertCount(2, $logs);
     }
 
+    public function test_admin_can_filter_activity_log_with_date_from_only_using_today_as_end_date(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 6, 10, 10, 0, 0));
+
+        ActivityLog::query()->insert([
+            [
+                'user_id' => $this->admin->id,
+                'user_name' => $this->admin->name,
+                'action' => 'Login',
+                'type' => 'auth',
+                'description' => 'Masuk ke aplikasi',
+                'status' => 'success',
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'Testing',
+                'metadata' => json_encode([], JSON_THROW_ON_ERROR),
+                'created_at' => Carbon::create(2026, 6, 3, 8, 0, 0),
+                'updated_at' => Carbon::create(2026, 6, 3, 8, 0, 0),
+            ],
+            [
+                'user_id' => $this->admin->id,
+                'user_name' => $this->admin->name,
+                'action' => 'Ubah Data',
+                'type' => 'system',
+                'description' => 'Mengubah data',
+                'status' => 'success',
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'Testing',
+                'metadata' => json_encode([], JSON_THROW_ON_ERROR),
+                'created_at' => Carbon::create(2026, 6, 7, 8, 0, 0),
+                'updated_at' => Carbon::create(2026, 6, 7, 8, 0, 0),
+            ],
+            [
+                'user_id' => $this->admin->id,
+                'user_name' => $this->admin->name,
+                'action' => 'Logout',
+                'type' => 'auth',
+                'description' => 'Keluar dari aplikasi',
+                'status' => 'success',
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'Testing',
+                'metadata' => json_encode([], JSON_THROW_ON_ERROR),
+                'created_at' => Carbon::create(2026, 6, 10, 8, 0, 0),
+                'updated_at' => Carbon::create(2026, 6, 10, 8, 0, 0),
+            ],
+        ]);
+
+        $response = $this->actingAsAdmin()->post(route('admin.activity-log'), [
+            'encrypted_filters' => encryptFilters([
+                'date_from' => '2026-06-07',
+            ]),
+        ]);
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('Admin/ActivityLog')
+            ->where('pagination.total', 2)
+            ->where('filters.decrypted.date_from', '2026-06-07')
+            ->where('filters.decrypted.date_to', '2026-06-10')
+        );
+
+        $logs = collect(decryptData($response->inertiaProps('logs')));
+
+        $this->assertCount(2, $logs);
+    }
+
+    public function test_admin_can_filter_activity_log_with_date_to_only_using_previous_day_as_start_date(): void
+    {
+        ActivityLog::query()->insert([
+            [
+                'user_id' => $this->admin->id,
+                'user_name' => $this->admin->name,
+                'action' => 'Login',
+                'type' => 'auth',
+                'description' => 'Masuk ke aplikasi',
+                'status' => 'success',
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'Testing',
+                'metadata' => json_encode([], JSON_THROW_ON_ERROR),
+                'created_at' => Carbon::create(2026, 6, 5, 8, 0, 0),
+                'updated_at' => Carbon::create(2026, 6, 5, 8, 0, 0),
+            ],
+            [
+                'user_id' => $this->admin->id,
+                'user_name' => $this->admin->name,
+                'action' => 'Ubah Data',
+                'type' => 'system',
+                'description' => 'Mengubah data',
+                'status' => 'success',
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'Testing',
+                'metadata' => json_encode([], JSON_THROW_ON_ERROR),
+                'created_at' => Carbon::create(2026, 6, 6, 8, 0, 0),
+                'updated_at' => Carbon::create(2026, 6, 6, 8, 0, 0),
+            ],
+            [
+                'user_id' => $this->admin->id,
+                'user_name' => $this->admin->name,
+                'action' => 'Logout',
+                'type' => 'auth',
+                'description' => 'Keluar dari aplikasi',
+                'status' => 'success',
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'Testing',
+                'metadata' => json_encode([], JSON_THROW_ON_ERROR),
+                'created_at' => Carbon::create(2026, 6, 7, 8, 0, 0),
+                'updated_at' => Carbon::create(2026, 6, 7, 8, 0, 0),
+            ],
+        ]);
+
+        $response = $this->actingAsAdmin()->post(route('admin.activity-log'), [
+            'encrypted_filters' => encryptFilters([
+                'date_to' => '2026-06-07',
+            ]),
+        ]);
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('Admin/ActivityLog')
+            ->where('pagination.total', 2)
+            ->where('filters.decrypted.date_from', '2026-06-06')
+            ->where('filters.decrypted.date_to', '2026-06-07')
+        );
+
+        $logs = collect(decryptData($response->inertiaProps('logs')));
+
+        $this->assertCount(2, $logs);
+    }
+
     public function test_admin_can_export_activity_log_with_the_same_filter_inputs(): void
     {
         $response = $this->actingAsAdmin()->get(route('admin.activity-log.export', [

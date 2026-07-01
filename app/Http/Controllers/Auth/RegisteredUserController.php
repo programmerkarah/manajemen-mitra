@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterUserRequest;
+use App\Models\ActivityLog;
 use App\Models\User;
 use App\Services\SessionConcurrencyManager;
 use Illuminate\Auth\Events\Registered;
@@ -48,6 +49,16 @@ class RegisteredUserController extends Controller
 
         $request->session()->regenerate();
         $this->sessionConcurrencyManager->activateLatestSession($request, $user->id);
+
+        ActivityLog::logAuth(
+            'Registrasi',
+            'Pengguna berhasil membuat akun baru.',
+            'success',
+            [
+                'source' => 'native',
+                'user_id' => $user->id,
+            ]
+        );
 
         return redirect()->route('dashboard');
     }

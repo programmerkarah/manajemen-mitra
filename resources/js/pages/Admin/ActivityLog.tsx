@@ -2,6 +2,7 @@ import { ContentCard } from '@/components/content-card';
 import { SearchableSelect } from '@/components/searchable-select';
 import { DatePicker } from '@/components/ui/date-picker';
 import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
 import { BreadcrumbItem } from '@/types';
 import { decryptData, encryptFilters } from '@/utils/encryption';
 import { Head, router, usePage } from '@inertiajs/react';
@@ -21,7 +22,7 @@ import {
     Search,
     User as UserIcon,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
@@ -59,6 +61,14 @@ interface ActivityLog {
     time: string;
     created_at?: string;
     properties?: Record<string, unknown>;
+}
+
+function formatDateOnly(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
 }
 
 interface User {
@@ -126,6 +136,9 @@ function toUcwords(value: string | null | undefined): string {
         .join(' ');
 }
 
+const detailCardClassName =
+    'rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-sm shadow-black/10 dark:border-white/5 dark:bg-white/[0.03]';
+
 export default function ActivityLog() {
     const pageProps = usePage<Props>().props;
     const { users = [], pagination } = pageProps;
@@ -143,11 +156,13 @@ export default function ActivityLog() {
     const [searchQuery, setSearchQuery] = useState(activeFilters.search || '');
     const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const [isCopied, setIsCopied] = useState(false);
     const [sortField, setSortField] = useState<'time' | 'user' | 'action'>(
         'time',
     );
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const copyResetTimerRef = useRef<number | null>(null);
 
     useEffect(() => {
         setDecryptedLogs(parseEncryptedLogs(pageProps.logs));
@@ -155,6 +170,7 @@ export default function ActivityLog() {
 
     const buildFilterData = (page?: number): Record<string, string> => {
         const filterData: Record<string, string> = {};
+        const today = formatDateOnly(new Date());
 
         if (page) {
             filterData.page = String(page);
@@ -172,12 +188,20 @@ export default function ActivityLog() {
             filterData.user = user;
         }
 
-        if (dateFrom) {
+        if (dateFrom && !dateTo) {
             filterData.date_from = dateFrom;
-        }
-
-        if (dateTo) {
+            filterData.date_to = today;
+        } else if (!dateFrom && dateTo) {
+            filterData.date_from = `${dateTo.slice(0, 4)}-01-01`;
             filterData.date_to = dateTo;
+        } else {
+            if (dateFrom) {
+                filterData.date_from = dateFrom;
+            }
+
+            if (dateTo) {
+                filterData.date_to = dateTo;
+            }
         }
 
         return filterData;
@@ -263,7 +287,26 @@ export default function ActivityLog() {
         };
 
         await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+
+        setIsCopied(true);
+
+        if (copyResetTimerRef.current) {
+            window.clearTimeout(copyResetTimerRef.current);
+        }
+
+        copyResetTimerRef.current = window.setTimeout(() => {
+            setIsCopied(false);
+            copyResetTimerRef.current = null;
+        }, 2500);
     };
+
+    useEffect(() => {
+        return () => {
+            if (copyResetTimerRef.current) {
+                window.clearTimeout(copyResetTimerRef.current);
+            }
+        };
+    }, []);
 
     const sortedLogs = useMemo(() => {
         const filtered = [...decryptedLogs];
@@ -344,6 +387,54 @@ export default function ActivityLog() {
                         {getStatusIcon(status)} -
                     </Badge>
                 );
+        }
+    };
+
+    const getStatusSummary = (status?: string) => {
+        switch (status) {
+            case 'success':
+                return {
+                    title: 'Berhasil',
+                    description: 'Aktivitas selesai tanpa kendala.',
+                    icon: <CheckCircle2 className="h-4 w-4" />,
+                    cardClass:
+                        'border-emerald-400/15 bg-emerald-500/10 text-emerald-50',
+                    chipClass: 'bg-emerald-500/15 text-emerald-100',
+                };
+            case 'error':
+                return {
+                    title: 'Gagal',
+                    description: 'Ada masalah saat aktivitas diproses.',
+                    icon: <AlertCircle className="h-4 w-4" />,
+                    cardClass: 'border-rose-400/15 bg-rose-500/10 text-rose-50',
+                    chipClass: 'bg-rose-500/15 text-rose-100',
+                };
+            case 'warning':
+                return {
+                    title: 'Perhatian',
+                    description:
+                        'Aktivitas berhasil, tetapi ada catatan penting.',
+                    icon: <AlertTriangle className="h-4 w-4" />,
+                    cardClass:
+                        'border-amber-400/15 bg-amber-500/10 text-amber-50',
+                    chipClass: 'bg-amber-500/15 text-amber-100',
+                };
+            case 'info':
+                return {
+                    title: 'Informasi',
+                    description: 'Aktivitas bersifat informatif.',
+                    icon: <Info className="h-4 w-4" />,
+                    cardClass: 'border-sky-400/15 bg-sky-500/10 text-sky-50',
+                    chipClass: 'bg-sky-500/15 text-sky-100',
+                };
+            default:
+                return {
+                    title: 'Tidak dikenal',
+                    description: 'Status aktivitas tidak tersedia.',
+                    icon: <Activity className="h-4 w-4" />,
+                    cardClass: 'border-zinc-400/15 bg-zinc-500/10 text-zinc-50',
+                    chipClass: 'bg-zinc-500/15 text-zinc-100',
+                };
         }
     };
 
@@ -773,48 +864,40 @@ export default function ActivityLog() {
             </ContentCard>
 
             <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-                <DialogContent className="max-h-[calc(100vh-2rem)] max-w-5xl overflow-hidden">
-                    <DialogHeader>
-                        <div className="flex items-start justify-between gap-3">
-                            <DialogTitle className="flex items-center gap-2">
+                <DialogContent className="!flex max-h-[calc(100vh-2rem)] w-[min(92vw,72rem)] !max-w-[72rem] !flex-col overflow-hidden rounded-[1.75rem] border border-white/10 bg-zinc-950/95 p-5 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)] sm:p-8">
+                    <DialogHeader className="text-left">
+                        <DialogTitle className="flex items-center gap-2 text-xl font-semibold tracking-tight text-white">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/20">
                                 <Activity className="h-5 w-5" />
-                                Activity Detail
-                            </DialogTitle>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={handleCopyLog}
-                                disabled={!selectedLog}
-                            >
-                                Salin Activity Log
-                            </Button>
-                        </div>
-                        <DialogDescription>
-                            Informasi lengkap tentang aktivitas ini
+                            </span>
+                            Activity Detail
+                        </DialogTitle>
+                        <DialogDescription className="max-w-2xl text-sm text-zinc-400">
+                            Informasi lengkap tentang aktivitas ini dalam
+                            tampilan yang lebih nyaman dibaca.
                         </DialogDescription>
                     </DialogHeader>
 
                     {selectedLog && (
-                        <div className="mt-4 space-y-4 overflow-hidden">
-                            <div className="grid min-w-0 grid-cols-2 gap-4">
-                                <div className="min-w-0 rounded-lg bg-muted/20 p-0">
-                                    <label className="text-xs font-medium text-muted-foreground">
+                        <div className="mt-5 min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+                            <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
+                                <div className={detailCardClassName}>
+                                    <label className="text-xs font-medium tracking-[0.12em] text-zinc-400 uppercase">
                                         User
                                     </label>
-                                    <div className="mt-1 flex min-w-0 items-center gap-2 rounded-lg bg-muted/30 p-3">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
+                                    <div className="mt-3 flex min-w-0 items-center gap-3 rounded-2xl border border-white/5 bg-white/5 p-4">
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400/20 to-cyan-400/20 font-semibold text-emerald-200 ring-1 ring-white/10">
                                             {toUcwords(
                                                 selectedLog.user,
                                             )?.charAt(0) || '?'}
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <div className="truncate font-medium">
+                                            <div className="truncate text-base font-semibold text-white">
                                                 {toUcwords(selectedLog.user) ||
                                                     'Unknown'}
                                             </div>
                                             {selectedLog.user_hashed_id && (
-                                                <div className="truncate text-xs text-muted-foreground">
+                                                <div className="truncate text-xs text-zinc-400">
                                                     ID:{' '}
                                                     {selectedLog.user_hashed_id}
                                                 </div>
@@ -823,64 +906,122 @@ export default function ActivityLog() {
                                     </div>
                                 </div>
 
-                                <div className="min-w-0">
-                                    <label className="text-xs font-medium text-muted-foreground">
+                                <div className={detailCardClassName}>
+                                    <label className="text-xs font-medium tracking-[0.12em] text-zinc-400 uppercase">
                                         Status
                                     </label>
-                                    <div className="mt-1">
-                                        {getStatusBadge(selectedLog.status)}
+                                    <div
+                                        className={cn(
+                                            'mt-3 flex min-h-28 flex-col justify-between rounded-2xl border p-4 shadow-sm',
+                                            getStatusSummary(selectedLog.status)
+                                                .cardClass,
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <span
+                                                className={cn(
+                                                    'flex h-10 w-10 items-center justify-center rounded-full ring-1 ring-white/10',
+                                                    getStatusSummary(
+                                                        selectedLog.status,
+                                                    ).chipClass,
+                                                )}
+                                            >
+                                                {
+                                                    getStatusSummary(
+                                                        selectedLog.status,
+                                                    ).icon
+                                                }
+                                            </span>
+                                            <div className="min-w-0">
+                                                <div className="text-base font-semibold text-white">
+                                                    {
+                                                        getStatusSummary(
+                                                            selectedLog.status,
+                                                        ).title
+                                                    }
+                                                </div>
+                                                <div className="text-sm text-zinc-300">
+                                                    {
+                                                        getStatusSummary(
+                                                            selectedLog.status,
+                                                        ).description
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 flex items-center justify-end">
+                                            <Badge
+                                                className={cn(
+                                                    'gap-1 border-0 text-xs font-semibold',
+                                                    getStatusSummary(
+                                                        selectedLog.status,
+                                                    ).chipClass,
+                                                )}
+                                            >
+                                                {
+                                                    getStatusSummary(
+                                                        selectedLog.status,
+                                                    ).icon
+                                                }
+                                                {
+                                                    getStatusSummary(
+                                                        selectedLog.status,
+                                                    ).title
+                                                }
+                                            </Badge>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="min-w-0 rounded-lg bg-muted/20 p-0">
-                                <label className="text-xs font-medium text-muted-foreground">
+                            <div className={detailCardClassName}>
+                                <label className="text-xs font-medium tracking-[0.12em] text-zinc-400 uppercase">
                                     Action
                                 </label>
-                                <div className="mt-1 max-h-24 overflow-auto rounded-lg bg-muted/30 p-3 font-medium break-words whitespace-pre-wrap">
+                                <div className="mt-3 rounded-2xl border border-white/5 bg-white/5 p-4 text-base font-medium break-words whitespace-pre-wrap text-white">
                                     {selectedLog.action}
                                 </div>
                             </div>
 
                             {selectedLog.description && (
-                                <div className="min-w-0 rounded-lg bg-muted/20 p-0">
-                                    <label className="text-xs font-medium text-muted-foreground">
+                                <div className={detailCardClassName}>
+                                    <label className="text-xs font-medium tracking-[0.12em] text-zinc-400 uppercase">
                                         Description
                                     </label>
-                                    <div className="mt-1 max-h-28 overflow-auto rounded-lg bg-muted/30 p-3 text-sm break-words whitespace-pre-wrap">
+                                    <div className="mt-3 rounded-2xl border border-white/5 bg-white/5 p-4 text-sm leading-6 break-words whitespace-pre-wrap text-zinc-100">
                                         {selectedLog.description}
                                     </div>
                                 </div>
                             )}
 
-                            <div className="grid min-w-0 grid-cols-2 gap-4">
+                            <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
                                 {selectedLog.ip_address && (
-                                    <div className="min-w-0">
-                                        <label className="text-xs font-medium text-muted-foreground">
+                                    <div className={detailCardClassName}>
+                                        <label className="text-xs font-medium tracking-[0.12em] text-zinc-400 uppercase">
                                             IP Address
                                         </label>
-                                        <div className="mt-1 truncate rounded bg-muted/30 p-2 font-mono text-sm">
+                                        <div className="mt-3 truncate rounded-2xl border border-white/5 bg-white/5 p-3 font-mono text-sm text-zinc-100">
                                             {selectedLog.ip_address}
                                         </div>
                                     </div>
                                 )}
 
-                                <div className="min-w-0">
-                                    <label className="text-xs font-medium text-muted-foreground">
+                                <div className={detailCardClassName}>
+                                    <label className="text-xs font-medium tracking-[0.12em] text-zinc-400 uppercase">
                                         Timestamp
                                     </label>
-                                    <div className="mt-1 truncate rounded bg-muted/30 p-2 text-sm">
+                                    <div className="mt-3 truncate rounded-2xl border border-white/5 bg-white/5 p-3 text-sm text-zinc-100">
                                         {selectedLog.time}
                                     </div>
                                 </div>
                             </div>
 
                             {selectedLog.user_agent && (
-                                <div className="min-w-0 rounded-lg bg-muted/20 p-0">
-                                    <label className="text-xs font-medium text-muted-foreground">
+                                <div className={detailCardClassName}>
+                                    <label className="text-xs font-medium tracking-[0.12em] text-zinc-400 uppercase">
                                         User Agent
                                     </label>
-                                    <div className="mt-1 max-h-24 overflow-auto rounded-lg bg-muted/30 p-3 font-mono text-xs break-words whitespace-pre-wrap">
+                                    <div className="mt-3 max-h-28 overflow-auto rounded-2xl border border-white/5 bg-white/5 p-4 font-mono text-xs leading-5 break-words whitespace-pre-wrap text-zinc-100">
                                         {selectedLog.user_agent}
                                     </div>
                                 </div>
@@ -889,11 +1030,11 @@ export default function ActivityLog() {
                             {selectedLog.properties &&
                                 Object.keys(selectedLog.properties).length >
                                     0 && (
-                                    <div className="min-w-0 rounded-lg bg-muted/20 p-0">
-                                        <label className="text-xs font-medium text-muted-foreground">
+                                    <div className={detailCardClassName}>
+                                        <label className="text-xs font-medium tracking-[0.12em] text-zinc-400 uppercase">
                                             Additional Data
                                         </label>
-                                        <div className="mt-1 max-h-56 overflow-auto rounded-lg bg-muted/30 p-3 font-mono text-xs">
+                                        <div className="mt-3 max-h-64 overflow-auto rounded-2xl border border-white/5 bg-white/5 p-4 font-mono text-xs leading-5 text-zinc-100">
                                             <pre className="overflow-x-auto break-words whitespace-pre-wrap">
                                                 {JSON.stringify(
                                                     selectedLog.properties,
@@ -906,6 +1047,24 @@ export default function ActivityLog() {
                                 )}
                         </div>
                     )}
+
+                    <DialogFooter className="mt-2 border-t border-white/10 pt-4">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleCopyLog}
+                            disabled={!selectedLog}
+                        >
+                            {isCopied ? 'Sudah disalin' : 'Salin Activity Log'}
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="default"
+                            onClick={() => setIsDetailOpen(false)}
+                        >
+                            Tutup
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </AppLayout>

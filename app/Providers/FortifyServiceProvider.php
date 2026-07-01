@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Events\SessionInvalidated;
+use App\Models\ActivityLog;
 use App\Models\TrustedDevice;
 use App\Models\User;
 use App\Services\SessionConcurrencyManager;
@@ -251,6 +252,16 @@ class FortifyServiceProvider extends ServiceProvider
                         }
 
                         app(SessionConcurrencyManager::class)->activateLatestSession($request, $user->id);
+
+                        ActivityLog::logAuth(
+                            'Login',
+                            'Pengguna berhasil masuk ke aplikasi melalui autentikasi dua faktor.',
+                            'success',
+                            [
+                                'source' => 'native-2fa',
+                                'user_id' => $user->id,
+                            ]
+                        );
                     }
 
                     return redirect()->intended(config('fortify.home'));
@@ -372,6 +383,16 @@ class FortifyServiceProvider extends ServiceProvider
                     }
 
                     app(SessionConcurrencyManager::class)->activateLatestSession($request, $user->id);
+
+                    ActivityLog::logAuth(
+                        'Login',
+                        'Pengguna berhasil masuk ke aplikasi.',
+                        'success',
+                        [
+                            'source' => 'native',
+                            'user_id' => $user->id,
+                        ]
+                    );
                 }
             }
         );

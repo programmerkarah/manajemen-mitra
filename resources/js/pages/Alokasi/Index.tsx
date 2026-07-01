@@ -126,6 +126,18 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     const filteredAlokasi = useMemo(() => {
         let result = [...decryptedAlokasi];
 
+        const normalizeMonthValue = (value: string) => {
+            if (!value) {
+                return '';
+            }
+
+            const numericValue = Number.parseInt(value, 10);
+
+            return Number.isFinite(numericValue)
+                ? String(numericValue).padStart(2, '0')
+                : value;
+        };
+
         // Filter by search (kegiatan name or description)
         if (search) {
             const query = search.toLowerCase();
@@ -147,8 +159,13 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
 
         // Filter by bulan
         if (bulan && bulan !== 'all') {
+            const normalizedBulan = normalizeMonthValue(bulan);
+
             result = result.filter((periode) =>
-                (periode.filter_bulan || [periode.bulan]).includes(bulan),
+                (periode.filter_bulan || [periode.bulan]).some(
+                    (monthValue) =>
+                        normalizeMonthValue(monthValue) === normalizedBulan,
+                ),
             );
         }
 

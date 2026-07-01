@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -66,6 +67,13 @@ class PasswordResetTest extends TestCase
             $response
                 ->assertSessionHasNoErrors()
                 ->assertRedirect(route('login'));
+
+            $this->assertDatabaseHas('activity_logs', [
+                'user_id' => $user->id,
+                'action' => 'Reset Password',
+                'type' => 'auth',
+                'status' => 'success',
+            ]);
 
             return true;
         });

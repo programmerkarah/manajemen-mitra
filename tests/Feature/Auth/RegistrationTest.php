@@ -93,6 +93,11 @@ class RegistrationTest extends TestCase
             'username' => 'testuser',
             'email' => 'test@example.com',
         ]);
+        $this->assertDatabaseHas('activity_logs', [
+            'action' => 'Registrasi',
+            'type' => 'auth',
+            'status' => 'success',
+        ]);
         $response->assertRedirect(route('dashboard'));
     }
 }

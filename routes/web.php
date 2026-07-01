@@ -217,7 +217,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Monitoring Penggunaan Aplikasi
-    Route::get('monlap-pa', [MonitoringPenggunaanAplikasiController::class, 'index'])
+    Route::match(['get', 'post'], 'monlap-pa', [MonitoringPenggunaanAplikasiController::class, 'index'])
         ->name('monitoring.penggunaan-aplikasi');
     Route::get('monlap-pa/export-pdf', [MonitoringPenggunaanAplikasiController::class, 'exportPdf'])
         ->name('monitoring.penggunaan-aplikasi.export-pdf');

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -215,6 +216,12 @@ class SsoOAuthTest extends TestCase
         $response
             ->assertRedirect(route('login'))
             ->assertSessionHasErrors(['username']);
+
+        $this->assertDatabaseHas('activity_logs', [
+            'action' => 'Login SSO Gagal',
+            'type' => 'auth',
+            'status' => 'warning',
+        ]);
     }
 
     public function test_sso_callback_replaces_authenticated_session_when_sso_user_differs(): void

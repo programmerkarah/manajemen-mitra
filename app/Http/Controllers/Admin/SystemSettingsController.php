@@ -96,6 +96,8 @@ class SystemSettingsController
             'date_from' => $request->input('date_from'),
             'date_to' => $request->input('date_to'),
         ];
+
+        $filters = $this->normalizeActivityLogDateFilters($filters);
         if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
@@ -198,12 +200,49 @@ class SystemSettingsController
             'date_to' => $request->input('date_to'),
         ];
 
+        $filters = $this->normalizeActivityLogDateFilters($filters);
+
         // Remove null values
         $filters = array_filter($filters, fn ($value) => $value !== null && $value !== '');
 
         $filename = 'activity-log-'.now()->format('Y-m-d-His').'.xlsx';
 
         return Excel::download(new ActivityLogExport($filters), $filename);
+    }
+
+    /**
+     * @param  array{search?:mixed,status?:mixed,user?:mixed,date?:mixed,date_from?:mixed,date_to?:mixed}  $filters
+     * @return array{search?:mixed,status?:mixed,user?:mixed,date?:mixed,date_from?:mixed,date_to?:mixed}
+     */
+    private function normalizeActivityLogDateFilters(array $filters): array
+    {
+        $dateFrom = $filters['date_from'] ?? null;
+        $dateTo = $filters['date_to'] ?? null;
+        $date = $filters['date'] ?? null;
+
+        if (! $dateFrom && ! $dateTo && $date) {
+            return $filters;
+        }
+
+        if ($dateFrom && ! $dateTo) {
+            $filters['date_to'] = now()->toDateString();
+        }
+
+        if ($dateTo && ! $dateFrom) {
+            $filters['date_from'] = Carbon::parse((string) $dateTo)->startOfYear()->toDateString();
+        }
+
+        if (($filters['date_from'] ?? null) && ($filters['date_to'] ?? null)) {
+            $normalizedFrom = Carbon::parse((string) $filters['date_from']);
+            $normalizedTo = Carbon::parse((string) $filters['date_to']);
+
+            if ($normalizedFrom->greaterThan($normalizedTo)) {
+                $filters['date_from'] = $normalizedTo->toDateString();
+                $filters['date_to'] = $normalizedFrom->toDateString();
+            }
+        }
+
+        return $filters;
     }
 
     public function databaseStatus(): Response

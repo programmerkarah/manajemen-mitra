@@ -87,6 +87,16 @@ class StoreAlokasiPetugasRequest extends FormRequest
         if (! $this->has('status')) {
             $this->merge(['status' => 'draft']);
         }
+
+        if ($this->has('bulan')) {
+            $bulan = trim((string) $this->input('bulan'));
+
+            if (is_numeric($bulan)) {
+                $this->merge([
+                    'bulan' => str_pad((string) ((int) $bulan), 2, '0', STR_PAD_LEFT),
+                ]);
+            }
+        }
     }
 
     private function hasDecimalPart(mixed $value): bool

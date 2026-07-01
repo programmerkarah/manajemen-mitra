@@ -287,6 +287,8 @@ class AlokasiPetugasController extends Controller
             ];
         });
 
+        $allAlokasiData = $this->sortAlokasiIndexData($allAlokasiData);
+
         // Check if any kegiatan exists
         $hasKegiatans = Kegiatan::whereIn('status', ['divalidasi', 'aktif'])
             ->when($effectiveUser->hasActiveRole('ketua_tim'), function ($query) use ($effectiveUser) {
@@ -340,6 +342,38 @@ class AlokasiPetugasController extends Controller
         }
 
         return $tanggalMulai->translatedFormat('F Y').' - '.$tanggalSelesai->translatedFormat('F Y');
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $items
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function sortAlokasiIndexData(Collection $items): Collection
+    {
+        return $items->sort(function (array $left, array $right): int {
+            $leftYear = (int) ($left['tahun'] ?? 0);
+            $rightYear = (int) ($right['tahun'] ?? 0);
+
+            if ($leftYear !== $rightYear) {
+                return $rightYear <=> $leftYear;
+            }
+
+            $leftMonth = (int) ($left['bulan'] ?? 0);
+            $rightMonth = (int) ($right['bulan'] ?? 0);
+
+            if ($leftMonth !== $rightMonth) {
+                return $rightMonth <=> $leftMonth;
+            }
+
+            $leftCreatedAt = $left['latest_created_at'] ?? null;
+            $rightCreatedAt = $right['latest_created_at'] ?? null;
+
+            if ($leftCreatedAt instanceof Carbon && $rightCreatedAt instanceof Carbon) {
+                return $rightCreatedAt->getTimestamp() <=> $leftCreatedAt->getTimestamp();
+            }
+
+            return strcmp((string) $rightCreatedAt, (string) $leftCreatedAt);
+        })->values();
     }
 
     /**
@@ -530,14 +564,19 @@ class AlokasiPetugasController extends Controller
         $merged = [];
 
         foreach ($alokasiItems as $item) {
+            $bulan = (string) ($item['bulan'] ?? '');
+            $normalizedBulan = str_pad((string) ((int) $bulan), 2, '0', STR_PAD_LEFT);
+
             $key = implode('|', [
                 (string) ($item['petugas_id'] ?? ''),
                 Str::lower((string) ($item['peran'] ?? '')),
-                (string) ($item['bulan'] ?? ''),
+                $normalizedBulan,
                 (string) ($item['tahun'] ?? ''),
                 (string) ($item['jenis_kegiatan'] ?? ''),
                 (string) ($item['tahapan'] ?? 'both'),
             ]);
+
+            $item['bulan'] = $normalizedBulan;
 
             if (! isset($merged[$key])) {
                 $merged[$key] = $item;
@@ -919,10 +958,11 @@ class AlokasiPetugasController extends Controller
             }
 
             // Store data grouped by periode
-            $periodeKey = $alokasiData['bulan'].'_'.$alokasiData['tahun'].'_'.$alokasiData['jenis_kegiatan'];
+            $normalizedBulan = str_pad((string) ((int) $alokasiData['bulan']), 2, '0', STR_PAD_LEFT);
+            $periodeKey = $normalizedBulan.'_'.$alokasiData['tahun'].'_'.$alokasiData['jenis_kegiatan'];
             if (! isset($periodeGroups[$periodeKey])) {
                 $periodeGroups[$periodeKey] = [
-                    'bulan' => str_pad($alokasiData['bulan'], 2, '0', STR_PAD_LEFT),
+                    'bulan' => $normalizedBulan,
                     'tahun' => $alokasiData['tahun'],
                     'jenis_kegiatan' => $alokasiData['jenis_kegiatan'],
                     'tahapan' => $alokasiData['tahapan'] ?? 'both',
@@ -1085,7 +1125,7 @@ class AlokasiPetugasController extends Controller
                     // Create new periode
                     $periode = PeriodeAlokasi::create([
                         'kegiatan_id' => $kegiatan->id,
-                        'bulan' => $periodeData['bulan'],
+                        'bulan' => str_pad((string) $periodeData['bulan'], 2, '0', STR_PAD_LEFT),
                         'tahun' => $periodeData['tahun'],
                         'jenis_kegiatan' => $periodeData['jenis_kegiatan'],
                         'tahapan' => $periodeData['tahapan'] ?? 'both',

@@ -106,6 +106,34 @@
     </table>
 
     <div class="section">
+        <div class="section-title">Aktivitas Pengguna (Semua Pengguna)</div>
+        <table class="report">
+            <thead>
+                <tr>
+                    <th class="number">Tanggal</th>
+                    <th>Pengguna</th>
+                    <th class="right">Total Akses</th>
+                    <th class="right">Hari Aktif</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($all_user_activity as $row)
+                    <tr>
+                        <td class="number">{{ $month_label }}</td>
+                        <td>{{ $row['user_name'] }}</td>
+                        <td class="right">{{ number_format($row['total_logs'], 0, ',', '.') }}</td>
+                        <td class="right">{{ number_format($row['active_days'], 0, ',', '.') }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="4" class="muted" style="text-align:center;">Tidak ada data pengguna aktif.</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
         <div class="section-title">Akses Harian</div>
         <table class="report">
             <thead>
@@ -183,54 +211,56 @@
         </table>
     </div>
 
-    <div class="section">
-        <div class="section-title">Aktivitas Pengguna</div>
-        <table class="summary-grid">
-            <tr>
-                <td>
-                    <div class="summary-label">Nama pengguna</div>
-                    <div class="summary-value">{{ $selected_user_summary['user_name'] ?? '-' }}</div>
-                </td>
-                <td>
-                    <div class="summary-label">Total akses</div>
-                    <div class="summary-value">{{ number_format($selected_user_summary['total_logs'], 0, ',', '.') }}</div>
-                </td>
-                <td>
-                    <div class="summary-label">Hari aktif</div>
-                    <div class="summary-value">{{ number_format($selected_user_summary['active_days'], 0, ',', '.') }}</div>
-                </td>
-                <td>
-                    <div class="summary-label">Catatan</div>
-                    <div class="muted">Aksi di /kegiatan digabung sebagai Kelola Kegiatan.</div>
-                </td>
-            </tr>
-        </table>
-
-        <table class="report" style="margin-top: 10px;">
-            <thead>
+    @if(!empty($selected_user_summary['user_name']))
+        <div class="section">
+            <div class="section-title">Drilldown Pengguna</div>
+            <table class="summary-grid">
                 <tr>
-                    <th class="number">Tanggal</th>
-                    <th class="right">Total Akses</th>
-                    <th>Kelompok Aktivitas</th>
+                    <td>
+                        <div class="summary-label">Nama pengguna</div>
+                        <div class="summary-value">{{ $selected_user_summary['user_name'] ?? '-' }}</div>
+                    </td>
+                    <td>
+                        <div class="summary-label">Total akses</div>
+                        <div class="summary-value">{{ number_format($selected_user_summary['total_logs'], 0, ',', '.') }}</div>
+                    </td>
+                    <td>
+                        <div class="summary-label">Hari aktif</div>
+                        <div class="summary-value">{{ number_format($selected_user_summary['active_days'], 0, ',', '.') }}</div>
+                    </td>
+                    <td>
+                        <div class="summary-label">Catatan</div>
+                        <div class="muted">Aksi di /kegiatan digabung sebagai Kelola Kegiatan.</div>
+                    </td>
                 </tr>
-            </thead>
-            <tbody>
-                @foreach($selected_user_daily_access as $row)
+            </table>
+
+            <table class="report" style="margin-top: 10px;">
+                <thead>
                     <tr>
-                        <td class="number">{{ $row['label'] }}</td>
-                        <td class="right">{{ number_format($row['total_logs'], 0, ',', '.') }}</td>
-                        <td>
-                            @forelse($row['activity_breakdown'] as $activity)
-                                <div>{{ $activity['label'] }}: {{ number_format($activity['total'], 0, ',', '.') }}</div>
-                            @empty
-                                <span class="muted">Tidak ada akses</span>
-                            @endforelse
-                        </td>
+                        <th class="number">Tanggal</th>
+                        <th class="right">Total Akses</th>
+                        <th>Kelompok Aktivitas</th>
                     </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
+                </thead>
+                <tbody>
+                    @foreach($selected_user_daily_access as $row)
+                        <tr>
+                            <td class="number">{{ $row['label'] }}</td>
+                            <td class="right">{{ number_format($row['total_logs'], 0, ',', '.') }}</td>
+                            <td>
+                                @forelse($row['activity_breakdown'] as $activity)
+                                    <div>{{ $activity['label'] }}: {{ number_format($activity['total'], 0, ',', '.') }}</div>
+                                @empty
+                                    <span class="muted">Tidak ada akses</span>
+                                @endforelse
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
 
     <div class="section">
         <div class="section-title">Dampak Administratif</div>

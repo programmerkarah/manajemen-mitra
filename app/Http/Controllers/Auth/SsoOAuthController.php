@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\User;
 use App\Services\SessionConcurrencyManager;
 use Carbon\Carbon;
@@ -88,6 +89,16 @@ class SsoOAuthController extends Controller
         $receivedState = $request->string('state')->toString();
 
         if (! is_string($expectedState) || $expectedState === '' || $expectedState !== $receivedState) {
+            ActivityLog::logAuth(
+                'Login SSO Gagal',
+                'State OAuth SSO tidak valid.',
+                'warning',
+                [
+                    'reason' => 'invalid_state',
+                    'sync' => $isSyncRequest,
+                ]
+            );
+
             if ($isSyncRequest) {
                 return $syncTransport === 'iframe'
                     ? $this->syncCompleteRedirect(status: 'failed')
@@ -101,6 +112,17 @@ class SsoOAuthController extends Controller
         }
 
         if ($request->filled('error')) {
+            ActivityLog::logAuth(
+                'Login SSO Gagal',
+                'SSO mengembalikan error saat proses login.',
+                'warning',
+                [
+                    'reason' => 'oauth_error',
+                    'error' => $request->string('error')->toString(),
+                    'sync' => $isSyncRequest,
+                ]
+            );
+
             if ($isSyncRequest) {
                 $oauthError = $request->string('error')->toString();
 
@@ -152,6 +174,16 @@ class SsoOAuthController extends Controller
             ]);
 
         if ($tokenResponse->failed()) {
+            ActivityLog::logAuth(
+                'Login SSO Gagal',
+                'Gagal menukar kode OAuth ke access token.',
+                'error',
+                [
+                    'reason' => 'token_exchange_failed',
+                    'sync' => $isSyncRequest,
+                ]
+            );
+
             return redirect()->route('login')->withErrors([
                 'username' => 'Gagal menukar kode OAuth ke access token.',
             ]);
@@ -160,6 +192,16 @@ class SsoOAuthController extends Controller
         $accessToken = (string) $tokenResponse->json('access_token');
 
         if ($accessToken === '') {
+            ActivityLog::logAuth(
+                'Login SSO Gagal',
+                'Access token SSO tidak valid.',
+                'error',
+                [
+                    'reason' => 'missing_access_token',
+                    'sync' => $isSyncRequest,
+                ]
+            );
+
             return redirect()->route('login')->withErrors([
                 'username' => 'Access token dari SSO tidak valid.',
             ]);
@@ -171,6 +213,16 @@ class SsoOAuthController extends Controller
             ->get(rtrim($this->baseUrl(), '/').$this->userEndpoint());
 
         if ($profileResponse->failed()) {
+            ActivityLog::logAuth(
+                'Login SSO Gagal',
+                'Gagal mengambil profil pengguna dari SSO.',
+                'error',
+                [
+                    'reason' => 'profile_fetch_failed',
+                    'sync' => $isSyncRequest,
+                ]
+            );
+
             return redirect()->route('login')->withErrors([
                 'username' => 'Gagal mengambil profil pengguna dari SSO.',
             ]);
@@ -179,6 +231,16 @@ class SsoOAuthController extends Controller
         $profile = $profileResponse->json();
 
         if (! is_array($profile)) {
+            ActivityLog::logAuth(
+                'Login SSO Gagal',
+                'Format profil pengguna dari SSO tidak valid.',
+                'error',
+                [
+                    'reason' => 'invalid_profile_payload',
+                    'sync' => $isSyncRequest,
+                ]
+            );
+
             return redirect()->route('login')->withErrors([
                 'username' => 'Format profil pengguna dari SSO tidak valid.',
             ]);
@@ -187,6 +249,17 @@ class SsoOAuthController extends Controller
         $organizationType = $this->resolveOrganizationType($profile);
 
         if (! $this->isAllowedOrganizationType($organizationType)) {
+            ActivityLog::logAuth(
+                'Login SSO Gagal',
+                'Akun SSO tidak diizinkan berdasarkan organisasi.',
+                'warning',
+                [
+                    'reason' => 'organization_not_allowed',
+                    'organization_type' => $organizationType,
+                    'sync' => $isSyncRequest,
+                ]
+            );
+
             return redirect()->route('login')->withErrors([
                 'username' => 'Akun Anda tidak diizinkan mengakses aplikasi ini berdasarkan organisasi.',
             ]);
@@ -205,6 +278,16 @@ class SsoOAuthController extends Controller
             : '';
 
         if ($email === '' && $username === '') {
+            ActivityLog::logAuth(
+                'Login SSO Gagal',
+                'Profil SSO tidak memiliki email atau username yang bisa dipakai login.',
+                'warning',
+                [
+                    'reason' => 'missing_login_identity',
+                    'sync' => $isSyncRequest,
+                ]
+            );
+
             return redirect()->route('login')->withErrors([
                 'username' => 'Profil SSO tidak memiliki email/username yang bisa dipakai login.',
             ]);
@@ -217,6 +300,17 @@ class SsoOAuthController extends Controller
         }
 
         if (! $localUser->is_active) {
+            ActivityLog::logAuth(
+                'Login SSO Gagal',
+                'Akun lokal yang dipetakan dari SSO tidak aktif.',
+                'warning',
+                [
+                    'reason' => 'inactive_local_user',
+                    'user_id' => $localUser->id,
+                    'sync' => $isSyncRequest,
+                ]
+            );
+
             return redirect()->route('login')->withErrors([
                 'username' => 'Akun Anda nonaktif. Hubungi admin.',
             ]);
@@ -270,6 +364,16 @@ class SsoOAuthController extends Controller
         $request->session()->regenerate();
         $request->session()->put('last_user_activity_at', now()->timestamp);
         $this->sessionConcurrencyManager->activateLatestSession($request, $localUser->id);
+
+        ActivityLog::logAuth(
+            'Login',
+            'Pengguna berhasil masuk ke aplikasi melalui SSO.',
+            'success',
+            [
+                'source' => 'sso',
+                'user_id' => $localUser->id,
+            ]
+        );
 
         return redirect()->intended(route('dashboard'));
     }
