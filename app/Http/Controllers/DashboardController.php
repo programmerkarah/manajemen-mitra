@@ -14,6 +14,7 @@ use App\Models\ReviewPetugas;
 use App\Models\Sbml;
 use App\Models\SkKpa;
 use App\Models\Spk;
+use App\Traits\EffectivePeriodeScope;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -23,6 +24,8 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    use EffectivePeriodeScope;
+
     public function index(Request $request): Response
     {
         $user = effectiveUser($request);
@@ -610,34 +613,27 @@ class DashboardController extends Controller
         for ($month = 1; $month <= $currentMonth; $month++) {
             $monthName = Carbon::create($currentYear, $month, 1)->format('M');
             $monthFormatted = str_pad((string) $month, 2, '0', STR_PAD_LEFT);
-            $monthCandidates = $this->resolveBulanCandidates($monthFormatted);
-            $isSensusHonorRolloutMonth = in_array($month, [6, 7, 8], true);
 
             // Count total petugas allocated for this month (exclude honor=0)
             $totalPetugasAlokasi = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
-                ->whereIn('periode_alokasi.bulan', $monthCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
-                ->where(function ($query) use ($isSensusHonorRolloutMonth) {
-                    $query->whereRaw('(alokasi_petugas.total_honor + COALESCE(alokasi_petugas.total_honor_listing, 0)) > 0');
-
-                    if ($isSensusHonorRolloutMonth) {
-                        $query->orWhere(function ($sensusQuery) {
-                            $sensusQuery->where('kegiatan.jenis_kegiatan', 'sensus')
-                                ->whereRaw('LOWER(kegiatan.nama_kegiatan) LIKE ?', ['%sensus ekonomi%']);
-                        });
-                    }
-                })
+                ->whereRaw($this->allocationOrHonorExistsClause());
+            $this->applySensusEkonomiMonthFilter($totalPetugasAlokasi, $month, 'kegiatan');
+            $totalPetugasAlokasi = $totalPetugasAlokasi
                 ->distinct('alokasi_petugas.petugas_id')
                 ->count('alokasi_petugas.petugas_id');
 
             // Count kegiatan for this month
-            $kegiatanCount = PeriodeAlokasi::whereIn('bulan', $monthCandidates)
-                ->where('tahun', $currentYear)
-                ->distinct('kegiatan_id')
-                ->count('kegiatan_id');
+            $kegiatanCount = DB::table('periode_alokasi')
+                ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
+                ->where('periode_alokasi.tahun', $currentYear);
+            $this->applySensusEkonomiMonthFilter($kegiatanCount, $month, 'kegiatan');
+            $kegiatanCount = $kegiatanCount
+                ->distinct('periode_alokasi.kegiatan_id')
+                ->count('periode_alokasi.kegiatan_id');
 
             $chartData[] = [
                 'month' => $monthName,
@@ -650,19 +646,11 @@ class DashboardController extends Controller
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
-                ->whereIn('periode_alokasi.bulan', $monthCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->where('petugas.jenis_petugas', 'non-organik')
-                ->where(function ($query) use ($isSensusHonorRolloutMonth) {
-                    $query->whereRaw('(alokasi_petugas.total_honor + COALESCE(alokasi_petugas.total_honor_listing, 0)) > 0');
-
-                    if ($isSensusHonorRolloutMonth) {
-                        $query->orWhere(function ($sensusQuery) {
-                            $sensusQuery->where('kegiatan.jenis_kegiatan', 'sensus')
-                                ->whereRaw('LOWER(kegiatan.nama_kegiatan) LIKE ?', ['%sensus ekonomi%']);
-                        });
-                    }
-                })
+                ->whereRaw($this->allocationOrHonorExistsClause());
+            $this->applySensusEkonomiMonthFilter($alokasiThisMonth, $month, 'kegiatan');
+            $alokasiThisMonth = $alokasiThisMonth
                 ->select('alokasi_petugas.petugas_id', DB::raw('COUNT(*) as jumlah_kegiatan'), DB::raw('SUM(COALESCE(alokasi_petugas.jumlah_satuan, 0) + COALESCE(alokasi_petugas.jumlah_satuan_listing, 0)) as total_satuan'))
                 ->groupBy('alokasi_petugas.petugas_id')
                 ->get();
@@ -751,19 +739,18 @@ class DashboardController extends Controller
         $allPetugasHonorByMonth = []; // [petugas_id => [monthName => total_honor]]
         for ($month = 1; $month <= $currentMonth; $month++) {
             $monthName = Carbon::create($currentYear, $month, 1)->format('M');
-            $monthFormatted = str_pad((string) $month, 2, '0', STR_PAD_LEFT);
-            $monthCandidates = $this->resolveBulanCandidates($monthFormatted);
 
             // Get all honor data for this month, prefer 'perubahan' over 'dikirim' per (petugas, kegiatan)
             $rawAlokasi = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
                 ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
-                ->whereIn('periode_alokasi.bulan', $monthCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan'])
                 ->where('petugas.jenis_petugas', 'non-organik')
-                ->select(
+                ->whereRaw($this->allocationOrHonorExistsClause());
+            $this->applySensusEkonomiMonthFilter($rawAlokasi, $month, 'kegiatan');
+            $rawAlokasi = $rawAlokasi->select(
                     'alokasi_petugas.petugas_id',
                     'periode_alokasi.kegiatan_id',
                     'periode_alokasi.status as periode_status',

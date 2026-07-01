@@ -220,7 +220,7 @@ class DashboardTest extends TestCase
             $this->assertNotNull($monitoringJune);
             $this->assertEquals(2, $chartJune['petugas_count']);
             $this->assertEquals(1, $chartJune['kegiatan_count']);
-            $this->assertEquals(1, $monitoringJune['kegiatan_1_2']);
+            $this->assertEquals(1, $monitoringJune['total_dialokasikan']);
             $this->assertEquals(0, $honorPerPetugas['per_bulan']['Jun']);
             $this->assertEquals(100000, $honorPerPetugas['per_bulan']['Jul']);
             $this->assertEquals(150000, $honorPerPetugas['per_bulan']['Aug']);
@@ -235,6 +235,262 @@ class DashboardTest extends TestCase
             $this->assertEquals(0, $juni['rata_rata_honor']);
             $this->assertEquals(100000, $juli['rata_rata_honor']);
             $this->assertEquals(150000, $agustus['rata_rata_honor']);
+        } finally {
+            Carbon::setTestNow($previousNow);
+        }
+    }
+
+    public function test_dashboard_does_not_split_non_sensus_economy_honor(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $previousNow = Carbon::getTestNow();
+        Carbon::setTestNow(Carbon::create(2026, 8, 15, 12, 0, 0));
+
+        try {
+            $year = 2026;
+
+            $kegiatan = Kegiatan::factory()->create([
+                'status' => 'aktif',
+                'jenis_kegiatan' => 'sensus',
+                'nama_kegiatan' => 'Sensus Sosial 2026',
+                'tahun_anggaran' => $year,
+                'tanggal_mulai' => '2026-06-15',
+                'tanggal_selesai' => '2026-08-31',
+            ]);
+
+            $petugas = Petugas::factory()->create([
+                'nama' => 'Petugas Sensus Non Ekonomi',
+                'status' => 'aktif',
+                'jenis_petugas' => 'non-organik',
+            ]);
+
+            foreach ([6, 7, 8] as $bulan) {
+                $bulanValue = $bulan === 6 ? '6' : str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
+
+                $periode = PeriodeAlokasi::factory()->create([
+                    'kegiatan_id' => $kegiatan->id,
+                    'tahun' => $year,
+                    'bulan' => $bulanValue,
+                    'status' => 'dikirim',
+                ]);
+
+                AlokasiPetugas::query()->create([
+                    'periode_alokasi_id' => $periode->id,
+                    'petugas_id' => $petugas->id,
+                    'jumlah_satuan' => 1,
+                    'total_honor' => 250000,
+                    'total_honor_listing' => 0,
+                    'peran' => 'pcl_ppl',
+                    'status_kepegawaian' => 'non_organik',
+                ]);
+            }
+
+            $response = $this->get(route('dashboard'));
+
+            $response->assertOk();
+
+            $props = $response->original->getData()['page']['props'];
+            $honorPerPetugas = collect($props['honorPerPetugas'])->firstWhere(
+                'petugas_id',
+                $petugas->id,
+            );
+
+            $this->assertNotNull($honorPerPetugas);
+            $this->assertEquals(250000, $honorPerPetugas['per_bulan']['Jun']);
+            $this->assertEquals(250000, $honorPerPetugas['per_bulan']['Jul']);
+            $this->assertEquals(250000, $honorPerPetugas['per_bulan']['Aug']);
+        } finally {
+            Carbon::setTestNow($previousNow);
+        }
+    }
+
+    public function test_dashboard_counts_july_sensus_economy_in_tren_alokasi(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $previousNow = Carbon::getTestNow();
+        Carbon::setTestNow(Carbon::create(2026, 8, 15, 12, 0, 0));
+
+        try {
+            $year = 2026;
+
+            $regularKegiatan = Kegiatan::factory()->create([
+                'status' => 'aktif',
+                'jenis_kegiatan' => 'survei',
+                'nama_kegiatan' => 'Survei Reguler Juli 2026',
+                'tahun_anggaran' => $year,
+                'tanggal_mulai' => '2026-07-01',
+                'tanggal_selesai' => '2026-07-31',
+            ]);
+
+            $seKegiatan = Kegiatan::factory()->create([
+                'status' => 'aktif',
+                'jenis_kegiatan' => 'sensus',
+                'nama_kegiatan' => 'Sensus Ekonomi 2026',
+                'tahun_anggaran' => $year,
+                'tanggal_mulai' => '2026-06-15',
+                'tanggal_selesai' => '2026-08-31',
+            ]);
+
+            $regularPetugas = Petugas::factory()->create([
+                'status' => 'aktif',
+                'jenis_petugas' => 'non-organik',
+            ]);
+
+            $sePetugas = Petugas::factory()->create([
+                'status' => 'aktif',
+                'jenis_petugas' => 'non-organik',
+            ]);
+
+            $periodeRegular = PeriodeAlokasi::factory()->create([
+                'kegiatan_id' => $regularKegiatan->id,
+                'tahun' => $year,
+                'bulan' => '07',
+                'status' => 'dikirim',
+            ]);
+
+            $periodeSe = PeriodeAlokasi::factory()->create([
+                'kegiatan_id' => $seKegiatan->id,
+                'tahun' => $year,
+                'bulan' => '07',
+                'status' => 'dikirim',
+            ]);
+
+            AlokasiPetugas::query()->create([
+                'periode_alokasi_id' => $periodeRegular->id,
+                'petugas_id' => $regularPetugas->id,
+                'jumlah_satuan' => 1,
+                'total_honor' => 150000,
+                'total_honor_listing' => 0,
+                'peran' => 'pcl_ppl',
+                'status_kepegawaian' => 'non_organik',
+            ]);
+
+            AlokasiPetugas::query()->create([
+                'periode_alokasi_id' => $periodeSe->id,
+                'petugas_id' => $sePetugas->id,
+                'jumlah_satuan' => 1,
+                'total_honor' => 250000,
+                'total_honor_listing' => 0,
+                'peran' => 'pcl_ppl',
+                'status_kepegawaian' => 'non_organik',
+            ]);
+
+            $response = $this->get(route('dashboard'));
+
+            $response->assertOk();
+
+            $props = $response->original->getData()['page']['props'];
+            $julyChart = collect($props['chartData'])->firstWhere('month', 'Jul');
+            $julyMonitoring = collect($props['petugasMonitoringData'])->firstWhere('month', 'Jul');
+
+            $this->assertNotNull($julyChart);
+            $this->assertNotNull($julyMonitoring);
+            $this->assertSame(2, $julyChart['petugas_count']);
+            $this->assertSame(2, $julyChart['kegiatan_count']);
+            $this->assertSame(2, $julyMonitoring['total_dialokasikan']);
+        } finally {
+            Carbon::setTestNow($previousNow);
+        }
+    }
+
+    public function test_dashboard_counts_zero_honor_sensus_economy_once_per_petugas_in_june_to_august(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $previousNow = Carbon::getTestNow();
+        Carbon::setTestNow(Carbon::create(2026, 8, 15, 12, 0, 0));
+
+        try {
+            $year = 2026;
+
+            $sensusEkonomi = Kegiatan::factory()->create([
+                'status' => 'aktif',
+                'jenis_kegiatan' => 'sensus',
+                'nama_kegiatan' => 'Sensus Ekonomi 2026',
+                'tahun_anggaran' => $year,
+                'tanggal_mulai' => '2026-06-15',
+                'tanggal_selesai' => '2026-08-31',
+            ]);
+
+            $kegiatanReguler = Kegiatan::factory()->create([
+                'status' => 'aktif',
+                'jenis_kegiatan' => 'survei',
+                'nama_kegiatan' => 'Survei Tambahan Juli 2026',
+                'tahun_anggaran' => $year,
+                'tanggal_mulai' => '2026-07-01',
+                'tanggal_selesai' => '2026-07-31',
+            ]);
+
+            $sensusPetugas = Petugas::factory()->count(77)->create([
+                'status' => 'aktif',
+                'jenis_petugas' => 'non-organik',
+            ]);
+
+            $petugasOverlap = $sensusPetugas->first();
+
+            $periodeSensus = PeriodeAlokasi::factory()->create([
+                'kegiatan_id' => $sensusEkonomi->id,
+                'tahun' => $year,
+                'bulan' => '06',
+                'status' => 'dikirim',
+            ]);
+
+            foreach ($sensusPetugas as $petugas) {
+                AlokasiPetugas::query()->create([
+                    'periode_alokasi_id' => $periodeSensus->id,
+                    'petugas_id' => $petugas->id,
+                    'jumlah_satuan' => 0,
+                    'jumlah_satuan_listing' => 0,
+                    'total_honor' => 0,
+                    'total_honor_listing' => 0,
+                    'peran' => 'pcl_ppl',
+                    'status_kepegawaian' => 'non_organik',
+                ]);
+            }
+
+            $periodeReguler = PeriodeAlokasi::factory()->create([
+                'kegiatan_id' => $kegiatanReguler->id,
+                'tahun' => $year,
+                'bulan' => '07',
+                'status' => 'dikirim',
+            ]);
+
+            AlokasiPetugas::query()->create([
+                'periode_alokasi_id' => $periodeReguler->id,
+                'petugas_id' => $petugasOverlap->id,
+                'jumlah_satuan' => 1,
+                'jumlah_satuan_listing' => 0,
+                'total_honor' => 0,
+                'total_honor_listing' => 0,
+                'peran' => 'pcl_ppl',
+                'status_kepegawaian' => 'non_organik',
+            ]);
+
+            $response = $this->get(route('dashboard'));
+
+            $response->assertOk();
+
+            $props = $response->original->getData()['page']['props'];
+            $jun = collect($props['chartData'])->firstWhere('month', 'Jun');
+            $jul = collect($props['chartData'])->firstWhere('month', 'Jul');
+            $aug = collect($props['chartData'])->firstWhere('month', 'Aug');
+            $julMonitoring = collect($props['petugasMonitoringData'])->firstWhere('month', 'Jul');
+
+            $this->assertNotNull($jun);
+            $this->assertNotNull($jul);
+            $this->assertNotNull($aug);
+            $this->assertSame(77, $jun['petugas_count']);
+            $this->assertSame(77, $jul['petugas_count']);
+            $this->assertSame(77, $aug['petugas_count']);
+            $this->assertSame(1, $jun['kegiatan_count']);
+            $this->assertSame(2, $jul['kegiatan_count']);
+            $this->assertSame(1, $aug['kegiatan_count']);
+            $this->assertSame(77, $julMonitoring['total_dialokasikan']);
         } finally {
             Carbon::setTestNow($previousNow);
         }

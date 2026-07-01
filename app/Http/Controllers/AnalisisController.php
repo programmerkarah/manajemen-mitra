@@ -119,27 +119,22 @@ class AnalisisController extends Controller
         // Tabel Alokasi Petugas per Bulan
         $alokasiPerBulan = [];
         for ($bulan = 1; $bulan <= 12; $bulan++) {
-            $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
-            $bulanCandidates = $this->resolveBulanCandidates($bulanFormatted);
-
             $jumlahPetugas = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
-                ->whereIn('periode_alokasi.bulan', $bulanCandidates)
+                ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->where('petugas.jenis_petugas', 'non-organik')
                 ->whereRaw($this->allocationOrHonorExistsClause());
+            $this->applySensusEkonomiMonthFilter($jumlahPetugas, $bulan, 'kegiatan');
             $this->applyEffectivePeriode($jumlahPetugas);
             $jumlahPetugas = $jumlahPetugas->distinct('alokasi_petugas.petugas_id')
                 ->count('alokasi_petugas.petugas_id');
 
-            $jumlahKegiatan = DB::table('alokasi_petugas')
-                ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
-                ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
-                ->whereIn('periode_alokasi.bulan', $bulanCandidates)
-                ->where('periode_alokasi.tahun', $currentYear)
-                ->where('petugas.jenis_petugas', 'non-organik')
-                ->whereRaw($this->allocationOrHonorExistsClause());
+            $jumlahKegiatan = DB::table('periode_alokasi')
+                ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
+                ->where('periode_alokasi.tahun', $currentYear);
+            $this->applySensusEkonomiMonthFilter($jumlahKegiatan, $bulan, 'kegiatan');
             $this->applyEffectivePeriode($jumlahKegiatan);
             $jumlahKegiatan = $jumlahKegiatan->distinct('periode_alokasi.kegiatan_id')
                 ->count('periode_alokasi.kegiatan_id');
@@ -206,29 +201,30 @@ class AnalisisController extends Controller
             ->get();
 
         // Per-petugas monthly allocation detail
-        $petugasAlokasiRaw = DB::table('alokasi_petugas')
-            ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
-            ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
-            ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
-            ->where('periode_alokasi.tahun', $currentYear)
-            ->where('petugas.jenis_petugas', 'non-organik')
-            ->whereRaw($this->allocationOrHonorExistsClause());
-        $this->applyEffectivePeriode($petugasAlokasiRaw);
-        $petugasAlokasiRaw = $petugasAlokasiRaw->select(
-            'petugas.id as petugas_id',
-            'petugas.nama as petugas_nama',
-            DB::raw('CAST(periode_alokasi.bulan AS UNSIGNED) as bulan'),
-        )
-            ->selectRaw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as jumlah_kegiatan')
-            ->selectRaw("COALESCE(SUM(CASE
-                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN 0
-                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 7 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
-                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 8 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.6
-                ELSE COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)
-            END), 0) as total_honor")
-            ->groupBy('petugas.id', 'petugas.nama')
-            ->groupByRaw('CAST(periode_alokasi.bulan AS UNSIGNED)')
-            ->get();
+        $petugasAlokasiRaw = collect();
+        for ($bulan = 1; $bulan <= 12; $bulan++) {
+            $monthlyQuery = DB::table('alokasi_petugas')
+                ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+                ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+                ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
+                ->where('periode_alokasi.tahun', $currentYear)
+                ->where('petugas.jenis_petugas', 'non-organik')
+                ->whereRaw($this->allocationOrHonorExistsClause());
+            $this->applySensusEkonomiMonthFilter($monthlyQuery, $bulan, 'kegiatan');
+            $this->applyEffectivePeriode($monthlyQuery);
+
+            $monthlyRows = $monthlyQuery->select(
+                'petugas.id as petugas_id',
+                'petugas.nama as petugas_nama',
+                DB::raw($bulan.' as bulan'),
+            )
+                ->selectRaw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as jumlah_kegiatan')
+                ->selectRaw('COALESCE(SUM('.$this->sensusEkonomiHonorSqlCaseForMonth($bulan).'), 0) as total_honor')
+                ->groupBy('petugas.id', 'petugas.nama')
+                ->get();
+
+            $petugasAlokasiRaw = $petugasAlokasiRaw->merge($monthlyRows);
+        }
 
         $petugasAlokasiDetail = $petugasAlokasiRaw->groupBy('petugas_id')->map(function ($items) {
             $first = $items->first();
@@ -488,15 +484,18 @@ class AnalisisController extends Controller
     {
         $currentYear = (int) date('Y');
 
-        // Distribusi Alokasi Pulsa per Bulan
         $pulsaPerBulan = [];
-        for ($bulan = 1; $bulan <= 12; $bulan++) {
-            $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+        $alokasiPulsaPerBulan = [];
 
-            $data = PengajuanPulsa::query()
+        for ($bulan = 1; $bulan <= 12; $bulan++) {
+            $bulanFormatted = str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
+
+            $acceptedPulsaQuery = PengajuanPulsa::query()
                 ->where('bulan', $bulanFormatted)
                 ->where('tahun', $currentYear)
-                ->whereIn('status', ['diterima'])
+                ->where('status', 'diterima');
+
+            $acceptedPulsaStats = (clone $acceptedPulsaQuery)
                 ->selectRaw('COUNT(*) as total_pengajuan')
                 ->selectRaw('COALESCE(SUM(nominal), 0) as total_nominal')
                 ->selectRaw('COALESCE(SUM(nominal_disetujui), 0) as total_disetujui')
@@ -505,37 +504,21 @@ class AnalisisController extends Controller
 
             $pulsaPerBulan[] = [
                 'bulan' => $bulan,
-                'total_pengajuan' => (int) $data->total_pengajuan,
-                'total_nominal' => (float) $data->total_nominal,
-                'total_disetujui' => (float) $data->total_disetujui,
-                'jumlah_petugas' => (int) $data->jumlah_petugas,
-                'rata_rata_per_petugas' => $data->jumlah_petugas > 0
-                    ? round($data->total_disetujui / $data->jumlah_petugas)
+                'jumlah_petugas' => (int) $acceptedPulsaStats->jumlah_petugas,
+                'rata_rata_per_petugas' => $acceptedPulsaStats->jumlah_petugas > 0
+                    ? round($acceptedPulsaStats->total_disetujui / $acceptedPulsaStats->jumlah_petugas)
                     : 0,
             ];
-        }
-
-        // Rata-rata penggunaan pulsa per petugas per bulan (all statuses)
-        $rataRataPulsa = PengajuanPulsa::query()
-            ->where('tahun', $currentYear)
-            ->where('status', 'diterima')
-            ->selectRaw('COALESCE(AVG(nominal_disetujui), 0) as rata_rata')
-            ->value('rata_rata');
-
-        // Tabel alokasi petugas per bulan dan jumlah kegiatan (pulsa context)
-        $alokasiPulsaPerBulan = [];
-        for ($bulan = 1; $bulan <= 12; $bulan++) {
-            $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
             $pulsaStats = PengajuanPulsa::query()
                 ->where('bulan', $bulanFormatted)
                 ->where('tahun', $currentYear)
-                ->selectRaw('COUNT(DISTINCT petugas_id) as jumlah_petugas')
-                ->selectRaw('COUNT(DISTINCT kegiatan_id) as jumlah_kegiatan')
-                ->selectRaw('COUNT(*) as diajukan')
+                ->selectRaw('COUNT(*) as jumlah_kegiatan')
+                ->selectRaw("SUM(CASE WHEN status = 'diajukan' THEN 1 ELSE 0 END) as diajukan")
                 ->selectRaw("SUM(CASE WHEN status = 'diterima' THEN 1 ELSE 0 END) as disetujui")
                 ->selectRaw("SUM(CASE WHEN status = 'ditolak' THEN 1 ELSE 0 END) as ditolak")
                 ->selectRaw("SUM(CASE WHEN status = 'dikirim' THEN 1 ELSE 0 END) as menunggu")
+                ->selectRaw('COUNT(DISTINCT petugas_id) as jumlah_petugas')
                 ->first();
 
             $alokasiPulsaPerBulan[] = [
@@ -549,7 +532,11 @@ class AnalisisController extends Controller
             ];
         }
 
-        // Distribusi per jenis pulsa
+        $rataRataPulsa = (float) (PengajuanPulsa::query()
+            ->where('tahun', $currentYear)
+            ->where('status', 'diterima')
+            ->avg('nominal_disetujui') ?? 0);
+
         $distribusiJenisPulsa = PengajuanPulsa::query()
             ->where('tahun', $currentYear)
             ->where('status', 'diterima')
@@ -731,9 +718,10 @@ class AnalisisController extends Controller
 
                 $totalHonorQuery = DB::table('alokasi_petugas')
                     ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+                    ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
                     ->where('periode_alokasi.kegiatan_id', $kegiatan->id)
                     ->where('periode_alokasi.tahun', $currentYear)
-                    ->whereRaw($this->nonZeroHonorClause().' > 0');
+                    ->whereRaw($this->allocationOrHonorExistsClause());
 
                 $this->applyEffectivePeriode($totalHonorQuery);
 
@@ -759,9 +747,10 @@ class AnalisisController extends Controller
         $bebanKerja = DB::table('alokasi_petugas')
             ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
             ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+            ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
             ->where('periode_alokasi.tahun', $currentYear)
             ->where('petugas.jenis_petugas', 'non-organik')
-            ->whereRaw($this->nonZeroHonorClause().' > 0');
+            ->whereRaw($this->allocationOrHonorExistsClause());
         $this->applyEffectivePeriode($bebanKerja);
         $bebanKerja = $bebanKerja
             ->groupBy('alokasi_petugas.petugas_id')
@@ -788,16 +777,11 @@ class AnalisisController extends Controller
                 ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
                 ->whereIn('periode_alokasi.bulan', $bulanCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
-                ->whereRaw($this->nonZeroHonorClause().' > 0');
+                ->whereRaw($this->allocationOrHonorExistsClause());
             $this->applyEffectivePeriode($data);
             $data = $data
                 ->selectRaw('COUNT(DISTINCT alokasi_petugas.petugas_id) as jumlah_petugas')
-                ->selectRaw("COALESCE(SUM(CASE
-                    WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN 0
-                    WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 7 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
-                    WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 8 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.6
-                    ELSE COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)
-                END), 0) as total_honor")
+                ->selectRaw('COALESCE(SUM('.$this->sensusEkonomiHonorSqlCase().'), 0) as total_honor')
                 ->selectRaw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as total_kegiatan')
                 ->first();
 
@@ -816,9 +800,10 @@ class AnalisisController extends Controller
         $totalPetugasAktifQuery = DB::table('alokasi_petugas')
             ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
             ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+            ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
             ->where('periode_alokasi.tahun', $currentYear)
             ->where('petugas.jenis_petugas', 'non-organik')
-            ->whereRaw($this->nonZeroHonorClause().' > 0');
+            ->whereRaw($this->allocationOrHonorExistsClause());
         $this->applyEffectivePeriode($totalPetugasAktifQuery);
         $totalPetugasAktif = $totalPetugasAktifQuery
             ->distinct('alokasi_petugas.petugas_id')
@@ -870,17 +855,12 @@ class AnalisisController extends Controller
             ->where('periode_alokasi.tahun', $currentYear)
             ->whereRaw('CAST(periode_alokasi.bulan AS UNSIGNED) <= ?', [$currentMonth])
             ->where('petugas.jenis_petugas', 'non-organik')
-            ->whereRaw($this->nonZeroHonorClause().' > 0');
+            ->whereRaw($this->allocationOrHonorExistsClause());
         $this->applyEffectivePeriode($topPetugasQuery);
         $topPetugas = $topPetugasQuery
             ->groupBy('alokasi_petugas.petugas_id', 'petugas.nama', 'petugas.jabatan')
             ->selectRaw('alokasi_petugas.petugas_id, petugas.nama, petugas.jabatan, COUNT(DISTINCT periode_alokasi.kegiatan_id) as jumlah_kegiatan')
-            ->selectRaw("COALESCE(SUM(CASE
-                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN 0
-                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 7 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
-                WHEN kegiatan.jenis_kegiatan = 'sensus' AND CAST(periode_alokasi.bulan AS UNSIGNED) = 8 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.6
-                ELSE COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)
-            END), 0) as total_honor")
+            ->selectRaw('COALESCE(SUM('.$this->sensusEkonomiHonorSqlCase().'), 0) as total_honor')
             ->orderByRaw('total_honor DESC')
             ->limit(10)
             ->get()
@@ -911,12 +891,7 @@ class AnalisisController extends Controller
             return (float) $baseHonor;
         }
 
-        return match ($bulan) {
-            6 => 0.0,
-            7 => (float) $baseHonor * 0.4,
-            8 => (float) $baseHonor * 0.6,
-            default => 0.0,
-        };
+        return $this->sensusEkonomiHonorWeight($bulan) * (float) $baseHonor;
     }
 
     private function nonZeroHonorClause(): string
@@ -931,6 +906,11 @@ class AnalisisController extends Controller
             OR COALESCE(alokasi_petugas.jumlah_satuan_listing, 0) > 0
             OR COALESCE(alokasi_petugas.total_honor, 0) > 0
             OR COALESCE(alokasi_petugas.total_honor_listing, 0) > 0
+            OR (
+                CAST(periode_alokasi.bulan AS UNSIGNED) IN (6, 7, 8)
+                AND COALESCE(kegiatan.jenis_kegiatan, \'\') = \'sensus\'
+                AND LOWER(COALESCE(kegiatan.nama_kegiatan, \'\')) LIKE \'%sensus ekonomi%\'
+            )
         )';
     }
 

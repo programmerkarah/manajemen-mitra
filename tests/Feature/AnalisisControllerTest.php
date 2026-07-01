@@ -230,32 +230,28 @@ class AnalisisControllerTest extends TestCase
             'tanggal_selesai' => '2026-06-30',
         ]);
 
-        foreach ([6, 7, 8] as $bulan) {
-            $bulanValue = $bulan === 6 ? '6' : str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '6',
+            'tahun' => $currentYear,
+            'status' => 'dikirim',
+        ]);
 
-            $periode = PeriodeAlokasi::factory()->create([
-                'kegiatan_id' => $kegiatan->id,
-                'bulan' => $bulanValue,
-                'tahun' => $currentYear,
-                'status' => 'dikirim',
-            ]);
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 250000,
+            'total_honor_listing' => 0,
+        ]);
 
-            AlokasiPetugas::factory()->create([
-                'periode_alokasi_id' => $periode->id,
-                'petugas_id' => $petugas->id,
-                'status_kepegawaian' => 'non_organik',
-                'total_honor' => 250000,
-                'total_honor_listing' => 0,
-            ]);
-
-            AlokasiPetugas::factory()->create([
-                'periode_alokasi_id' => $periode->id,
-                'petugas_id' => $petugasZeroHonor->id,
-                'status_kepegawaian' => 'non_organik',
-                'total_honor' => 0,
-                'total_honor_listing' => 0,
-            ]);
-        }
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugasZeroHonor->id,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 0,
+            'total_honor_listing' => 0,
+        ]);
 
         $response = $this->actingAs($user)
             ->get(route('analisis.petugas'))
@@ -287,6 +283,160 @@ class AnalisisControllerTest extends TestCase
         $this->assertSame(1, $alokasiJuni['jumlah_kegiatan']);
         $this->assertSame(1, $alokasiJuli['jumlah_kegiatan']);
         $this->assertSame(1, $alokasiAgustus['jumlah_kegiatan']);
+    }
+
+    public function test_analisis_petugas_counts_zero_honor_sensus_economy_once_per_petugas_in_june_to_august(): void
+    {
+        $user = User::factory()->admin()->create();
+        $currentYear = (int) date('Y');
+
+        $sensusEkonomi = Kegiatan::factory()->create([
+            'nama_kegiatan' => 'Sensus Ekonomi 2026',
+            'jenis_kegiatan' => 'sensus',
+            'tahun_anggaran' => $currentYear,
+            'status' => 'aktif',
+            'tanggal_mulai' => '2026-06-15',
+            'tanggal_selesai' => '2026-08-31',
+        ]);
+
+        $kegiatanReguler = Kegiatan::factory()->create([
+            'nama_kegiatan' => 'Survei Tambahan Juli 2026',
+            'jenis_kegiatan' => 'survei',
+            'tahun_anggaran' => $currentYear,
+            'status' => 'aktif',
+            'tanggal_mulai' => '2026-07-01',
+            'tanggal_selesai' => '2026-07-31',
+        ]);
+
+        $sensusPetugas = Petugas::factory()->count(77)->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $petugasOverlap = $sensusPetugas->first();
+
+        $periodeSensus = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $sensusEkonomi->id,
+            'bulan' => '06',
+            'tahun' => $currentYear,
+            'status' => 'dikirim',
+        ]);
+
+        foreach ($sensusPetugas as $petugas) {
+            AlokasiPetugas::query()->create([
+                'periode_alokasi_id' => $periodeSensus->id,
+                'petugas_id' => $petugas->id,
+                'jumlah_satuan' => 0,
+                'jumlah_satuan_listing' => 0,
+                'total_honor' => 0,
+                'total_honor_listing' => 0,
+                'status_kepegawaian' => 'non_organik',
+            ]);
+        }
+
+        $periodeReguler = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanReguler->id,
+            'bulan' => '07',
+            'tahun' => $currentYear,
+            'status' => 'dikirim',
+        ]);
+
+        AlokasiPetugas::query()->create([
+            'periode_alokasi_id' => $periodeReguler->id,
+            'petugas_id' => $petugasOverlap->id,
+            'jumlah_satuan' => 1,
+            'jumlah_satuan_listing' => 0,
+            'total_honor' => 0,
+            'total_honor_listing' => 0,
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('analisis.petugas'))
+            ->assertOk();
+
+        $props = $response->original->getData()['page']['props'];
+        $alokasiJuni = collect($props['alokasiPerBulan'])->firstWhere('bulan', 6);
+        $alokasiJuli = collect($props['alokasiPerBulan'])->firstWhere('bulan', 7);
+        $alokasiAgustus = collect($props['alokasiPerBulan'])->firstWhere('bulan', 8);
+        $petugasOverlapDetail = collect($props['petugasAlokasiDetail'])->firstWhere('petugas_nama', $petugasOverlap->nama);
+
+        $this->assertNotNull($alokasiJuni);
+        $this->assertNotNull($alokasiJuli);
+        $this->assertNotNull($alokasiAgustus);
+        $this->assertSame(77, $alokasiJuni['jumlah_petugas']);
+        $this->assertSame(77, $alokasiJuli['jumlah_petugas']);
+        $this->assertSame(77, $alokasiAgustus['jumlah_petugas']);
+        $this->assertSame(1, $alokasiJuni['jumlah_kegiatan']);
+        $this->assertSame(2, $alokasiJuli['jumlah_kegiatan']);
+        $this->assertSame(1, $alokasiAgustus['jumlah_kegiatan']);
+        $this->assertNotNull($petugasOverlapDetail);
+        $this->assertEquals(0, $petugasOverlapDetail['honor'][6]);
+        $this->assertEquals(0, $petugasOverlapDetail['honor'][7]);
+        $this->assertEquals(0, $petugasOverlapDetail['honor'][8]);
+    }
+
+    public function test_analisis_petugas_does_not_split_non_sensus_economy_honor(): void
+    {
+        $user = User::factory()->admin()->create();
+        $currentYear = (int) date('Y');
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Non Ekonomi Analisis',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'nama_kegiatan' => 'Sensus Sosial 2026',
+            'jenis_kegiatan' => 'sensus',
+            'tahun_anggaran' => $currentYear,
+            'status' => 'aktif',
+            'tanggal_mulai' => '2026-06-15',
+            'tanggal_selesai' => '2026-08-31',
+        ]);
+
+        foreach ([6, 7, 8] as $bulan) {
+            $bulanValue = $bulan === 6 ? '6' : str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
+
+            $periode = PeriodeAlokasi::factory()->create([
+                'kegiatan_id' => $kegiatan->id,
+                'bulan' => $bulanValue,
+                'tahun' => $currentYear,
+                'status' => 'dikirim',
+            ]);
+
+            AlokasiPetugas::factory()->create([
+                'periode_alokasi_id' => $periode->id,
+                'petugas_id' => $petugas->id,
+                'status_kepegawaian' => 'non_organik',
+                'total_honor' => 250000,
+                'total_honor_listing' => 0,
+            ]);
+        }
+
+        $response = $this->actingAs($user)
+            ->get(route('analisis.petugas'))
+            ->assertOk();
+
+        $props = $response->original->getData()['page']['props'];
+        $detail = collect($props['petugasAlokasiDetail'])->firstWhere('petugas_nama', 'Petugas Non Ekonomi Analisis');
+
+        $this->assertNotNull($detail);
+        $this->assertEquals(250000, $detail['honor'][6]);
+        $this->assertEquals(250000, $detail['honor'][7]);
+        $this->assertEquals(250000, $detail['honor'][8]);
+
+        $alokasiJuni = collect($props['alokasiPerBulan'])->firstWhere('bulan', 6);
+        $alokasiJuli = collect($props['alokasiPerBulan'])->firstWhere('bulan', 7);
+        $alokasiAgustus = collect($props['alokasiPerBulan'])->firstWhere('bulan', 8);
+
+        $this->assertNotNull($alokasiJuni);
+        $this->assertNotNull($alokasiJuli);
+        $this->assertNotNull($alokasiAgustus);
+        $this->assertSame(1, $alokasiJuni['jumlah_petugas']);
+        $this->assertSame(1, $alokasiJuli['jumlah_petugas']);
+        $this->assertSame(1, $alokasiAgustus['jumlah_petugas']);
     }
 
     public function test_analisis_petugas_merges_zero_padded_and_plain_months_for_honor(): void

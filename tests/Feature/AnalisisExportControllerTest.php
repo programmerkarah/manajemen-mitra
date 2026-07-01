@@ -60,24 +60,20 @@ class AnalisisExportControllerTest extends TestCase
                 'tanggal_selesai' => '2026-08-31',
             ]);
 
-            foreach ([6, 7, 8] as $bulan) {
-                $bulanValue = $bulan === 6 ? '6' : str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
+            $periode = PeriodeAlokasi::factory()->create([
+                'kegiatan_id' => $kegiatan->id,
+                'bulan' => '6',
+                'tahun' => 2026,
+                'status' => 'dikirim',
+            ]);
 
-                $periode = PeriodeAlokasi::factory()->create([
-                    'kegiatan_id' => $kegiatan->id,
-                    'bulan' => $bulanValue,
-                    'tahun' => 2026,
-                    'status' => 'dikirim',
-                ]);
-
-                AlokasiPetugas::factory()->create([
-                    'periode_alokasi_id' => $periode->id,
-                    'petugas_id' => $petugas->id,
-                    'status_kepegawaian' => 'non_organik',
-                    'total_honor' => 250000,
-                    'total_honor_listing' => 0,
-                ]);
-            }
+            AlokasiPetugas::factory()->create([
+                'periode_alokasi_id' => $periode->id,
+                'petugas_id' => $petugas->id,
+                'status_kepegawaian' => 'non_organik',
+                'total_honor' => 250000,
+                'total_honor_listing' => 0,
+            ]);
 
             $response = $this->actingAs($user)
                 ->get(route('analisis.petugas.export-pdf'));
@@ -87,17 +83,25 @@ class AnalisisExportControllerTest extends TestCase
             $this->assertSame('analisis.petugas-pdf', $captured['view']);
 
             $detail = collect($captured['data']['petugasAlokasiDetail'])->firstWhere('petugas_nama', 'Petugas Export Sensus');
-            $alokasiBulan = collect($captured['data']['alokasiPerBulan'])->firstWhere('bulan', 6);
+            $alokasiJuni = collect($captured['data']['alokasiPerBulan'])->firstWhere('bulan', 6);
+            $alokasiJuli = collect($captured['data']['alokasiPerBulan'])->firstWhere('bulan', 7);
+            $alokasiAgustus = collect($captured['data']['alokasiPerBulan'])->firstWhere('bulan', 8);
             $belumDialokasikan = collect($captured['data']['petugasBelumDialokasikan'])->firstWhere('nama', 'Petugas Export Belum Dialokasikan');
 
             $this->assertNotNull($detail);
-            $this->assertEquals(50000, $detail['honor'][6]);
+            $this->assertEquals(0, $detail['honor'][6]);
             $this->assertEquals(100000, $detail['honor'][7]);
-            $this->assertEquals(100000, $detail['honor'][8]);
+            $this->assertEquals(150000, $detail['honor'][8]);
             $this->assertEquals(250000, $detail['total_honor']);
-            $this->assertNotNull($alokasiBulan);
-            $this->assertSame(1, $alokasiBulan['jumlah_petugas']);
-            $this->assertSame(1, $alokasiBulan['jumlah_kegiatan']);
+            $this->assertNotNull($alokasiJuni);
+            $this->assertNotNull($alokasiJuli);
+            $this->assertNotNull($alokasiAgustus);
+            $this->assertSame(1, $alokasiJuni['jumlah_petugas']);
+            $this->assertSame(1, $alokasiJuli['jumlah_petugas']);
+            $this->assertSame(1, $alokasiAgustus['jumlah_petugas']);
+            $this->assertSame(1, $alokasiJuni['jumlah_kegiatan']);
+            $this->assertSame(1, $alokasiJuli['jumlah_kegiatan']);
+            $this->assertSame(1, $alokasiAgustus['jumlah_kegiatan']);
             $this->assertNotNull($belumDialokasikan);
         } finally {
             Carbon::setTestNow($previousNow);
