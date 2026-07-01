@@ -15,6 +15,7 @@ use App\Http\Controllers\DipaController;
 use App\Http\Controllers\KegiatanController;
 use App\Http\Controllers\KegiatanFrameSampelController;
 use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\MonitoringPenggunaanAplikasiController;
 use App\Http\Controllers\MonitoringPenilaianMitraController;
 use App\Http\Controllers\MonitoringPulsaController;
 use App\Http\Controllers\PenandatanganController;
@@ -214,6 +215,12 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
 
     // Dashboard
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Monitoring Penggunaan Aplikasi
+    Route::get('monlap-pa', [MonitoringPenggunaanAplikasiController::class, 'index'])
+        ->name('monitoring.penggunaan-aplikasi');
+    Route::get('monlap-pa/export-pdf', [MonitoringPenggunaanAplikasiController::class, 'exportPdf'])
+        ->name('monitoring.penggunaan-aplikasi.export-pdf');
 
     // Monitoring Penilaian Mitra
     Route::match(['get', 'post'], 'monitoring-penilaian-mitra', [MonitoringPenilaianMitraController::class, 'index']);

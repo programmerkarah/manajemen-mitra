@@ -765,7 +765,7 @@ export default function ActivityLog() {
 
             {/* Detail Dialog */}
             <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-                <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
+                <DialogContent className="max-h-[80vh] max-w-4xl overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <Activity className="h-5 w-5" />

@@ -110,6 +110,11 @@ export function buildNavItems(
                         icon: Smartphone,
                     },
                     {
+                        title: 'Penggunaan Aplikasi',
+                        href: '/monlap-pa',
+                        icon: BarChart3,
+                    },
+                    {
                         title: 'Penilaian Mitra Statistik',
                         href: '/monitoring-penilaian-mitra',
                         icon: LineChart,
@@ -219,6 +224,11 @@ export function buildNavItems(
                         title: 'Rekap Pengadaan Pulsa',
                         href: '/monitoring-pulsa',
                         icon: Smartphone,
+                    },
+                    {
+                        title: 'Penggunaan Aplikasi',
+                        href: '/monlap-pa',
+                        icon: BarChart3,
                     },
                     {
                         title: 'Penilaian Mitra Statistik',
