@@ -750,11 +750,6 @@ export default function ShowByMonth({
                                                                 kegiatan.nama_kegiatan
                                                             }
                                                         </p>
-                                                        <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-                                                            {
-                                                                kegiatan.kode_kegiatan
-                                                            }
-                                                        </p>
                                                         <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
                                                             {
                                                                 kegiatan.jumlah_spk

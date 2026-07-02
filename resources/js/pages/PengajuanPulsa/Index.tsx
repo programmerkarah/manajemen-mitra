@@ -23,13 +23,15 @@ import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     CheckCircle,
+    ChevronLeft,
+    ChevronRight,
     Clock3,
     Eye,
     FileText,
     Plus,
     XCircle,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Pengajuan Pulsa', href: '/pengajuan-pulsa' },
@@ -161,6 +163,8 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
 
     const [bulan, setBulan] = useState(filters.bulan);
     const tahun = filters.tahun;
+    const [currentPage, setCurrentPage] = useState(1);
+    const perPage = 8;
     const [summaryModalOpen, setSummaryModalOpen] = useState(false);
     const [summaryModalType, setSummaryModalType] =
         useState<SummaryModalType>('all');
@@ -198,6 +202,28 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
             })
             .sort((a, b) => a.kegiatanKode.localeCompare(b.kegiatanKode));
     }, [items]);
+
+    const totalPages = Math.max(1, Math.ceil(kegiatanGroups.length / perPage));
+
+    const paginatedKegiatanGroups = useMemo(() => {
+        const startIndex = (currentPage - 1) * perPage;
+
+        return kegiatanGroups.slice(startIndex, startIndex + perPage);
+    }, [currentPage, kegiatanGroups]);
+
+    const pageStart =
+        kegiatanGroups.length === 0 ? 0 : (currentPage - 1) * perPage + 1;
+    const pageEnd = Math.min(currentPage * perPage, kegiatanGroups.length);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [bulan]);
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [currentPage, totalPages]);
 
     const summaryGroups = useMemo(() => {
         const all = kegiatanGroups;
@@ -436,7 +462,7 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                {kegiatanGroups.length === 0 ? (
+                                {paginatedKegiatanGroups.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={6}
@@ -447,7 +473,7 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    kegiatanGroups.map((group) => (
+                                    paginatedKegiatanGroups.map((group) => (
                                         <tr
                                             key={group.kegiatanId}
                                             className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
@@ -512,6 +538,48 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                             </tbody>
                         </table>
                     </div>
+
+                    {kegiatanGroups.length > 0 && (
+                        <div className="flex flex-col gap-3 border-t border-neutral-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-neutral-800">
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Menampilkan {pageStart}-{pageEnd} dari{' '}
+                                {kegiatanGroups.length} kegiatan
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setCurrentPage((page) =>
+                                            Math.max(1, page - 1),
+                                        )
+                                    }
+                                    disabled={currentPage <= 1}
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                    Sebelumnya
+                                </Button>
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    Halaman {currentPage} dari {totalPages}
+                                </span>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setCurrentPage((page) =>
+                                            Math.min(totalPages, page + 1),
+                                        )
+                                    }
+                                    disabled={currentPage >= totalPages}
+                                >
+                                    Berikutnya
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </ContentCard>
 
                 <Dialog
@@ -543,7 +611,6 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                                                 {group.kegiatanNama}
                                             </p>
                                             <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                {group.kegiatanKode} ·{' '}
                                                 {group.jumlahPengajuan} petugas
                                             </p>
                                         </div>

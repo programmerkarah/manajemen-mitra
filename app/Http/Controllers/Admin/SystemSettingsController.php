@@ -7,7 +7,6 @@ use App\Http\Requests\Settings\UpdateMaintenanceRequest;
 use App\Models\ActivityLog;
 use App\Models\User;
 use App\Services\DatabaseBackupService;
-use Vinkla\Hashids\Facades\Hashids;
 use Illuminate\Foundation\Http\MaintenanceModeBypassCookie;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -22,6 +21,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Vinkla\Hashids\Facades\Hashids;
 
 class SystemSettingsController
 {

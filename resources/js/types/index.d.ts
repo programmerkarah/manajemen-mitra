@@ -100,8 +100,18 @@ export interface Kegiatan {
     frame_sampel_pencacahan_id?: number | null;
     unit_sampel_listing_ids?: number[] | null;
     unit_sampel_pencacahan_ids?: number[] | null;
-    metode_pendataan_pencacahan: 'PAPI' | 'CAPI' | null;
-    metode_pendataan_listing: 'PAPI' | 'CAPI' | null;
+    metode_pendataan_pencacahan:
+        | 'PAPI'
+        | 'CAPI'
+        | 'CAPI_FASIH'
+        | 'CAPI_KSA_PRO'
+        | null;
+    metode_pendataan_listing:
+        | 'PAPI'
+        | 'CAPI'
+        | 'CAPI_FASIH'
+        | 'CAPI_KSA_PRO'
+        | null;
     metode_pelatihan:
         | 'daring'
         | 'luring'

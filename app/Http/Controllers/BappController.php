@@ -105,7 +105,8 @@ class BappController extends Controller
      */
     /**
      * Check whether the currently authenticated user may access BAPP pages.
-     * Admins and operators always can. Ketua_tim only if they are the SE kegiatan's ketua_tim.
+     * Admins and operators always can. Ketua_tim can access if they are the
+     * assigned ketua tim or pj lainnya for the Sensus Ekonomi kegiatan.
      */
     private function userCanAccessBapp(Request $request): bool
     {
@@ -126,7 +127,11 @@ class BappController extends Controller
 
         $seKegiatan = $this->getSensusEkonomiKegiatan();
 
-        return $seKegiatan !== null && $seKegiatan->ketua_tim_user_id === $user->id;
+        return $seKegiatan !== null
+            && (
+                $seKegiatan->ketua_tim_user_id === $user->id
+                || $seKegiatan->pj_lainnya_id === $user->id
+            );
     }
 
     private function getSensusEkonomiKegiatan(): ?Kegiatan

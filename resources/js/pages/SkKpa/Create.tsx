@@ -578,10 +578,10 @@ export default function Create({
                                 </div>
                                 <div>
                                     <span className="text-neutral-600 dark:text-neutral-400">
-                                        Kode:{' '}
+                                        Tahun:{' '}
                                     </span>
                                     <span className="text-neutral-900 dark:text-white">
-                                        {kegiatan.kode_kegiatan}
+                                        {kegiatan.tahun_anggaran}
                                     </span>
                                 </div>
                             </div>

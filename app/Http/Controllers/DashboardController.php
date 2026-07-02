@@ -751,18 +751,18 @@ class DashboardController extends Controller
                 ->whereRaw($this->allocationOrHonorExistsClause());
             $this->applySensusEkonomiMonthFilter($rawAlokasi, $month, 'kegiatan');
             $rawAlokasi = $rawAlokasi->select(
-                    'alokasi_petugas.petugas_id',
-                    'periode_alokasi.kegiatan_id',
-                    'periode_alokasi.status as periode_status',
-                    'kegiatan.jenis_kegiatan',
-                    'kegiatan.nama_kegiatan',
-                    'alokasi_petugas.total_honor',
-                    'alokasi_petugas.total_honor_listing',
-                    'alokasi_petugas.is_partial_payment',
-                    'alokasi_petugas.estimasi_honor_partial',
-                    'alokasi_petugas.is_partial_payment_listing',
-                    'alokasi_petugas.estimasi_honor_partial_listing'
-                )
+                'alokasi_petugas.petugas_id',
+                'periode_alokasi.kegiatan_id',
+                'periode_alokasi.status as periode_status',
+                'kegiatan.jenis_kegiatan',
+                'kegiatan.nama_kegiatan',
+                'alokasi_petugas.total_honor',
+                'alokasi_petugas.total_honor_listing',
+                'alokasi_petugas.is_partial_payment',
+                'alokasi_petugas.estimasi_honor_partial',
+                'alokasi_petugas.is_partial_payment_listing',
+                'alokasi_petugas.estimasi_honor_partial_listing'
+            )
                 ->get();
 
             // Group by petugas_id + kegiatan_id, prefer perubahan

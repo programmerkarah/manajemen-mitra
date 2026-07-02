@@ -213,6 +213,8 @@ class KegiatanController extends Controller
             'deskripsi' => $kegiatan->deskripsi,
             'tahun_anggaran' => $kegiatan->tahun_anggaran,
             'has_listing_updating' => $kegiatan->has_listing_updating,
+            'metode_pendataan_pencacahan' => Kegiatan::normalizeMetodePendataan($kegiatan->metode_pendataan_pencacahan),
+            'metode_pendataan_listing' => Kegiatan::normalizeMetodePendataan($kegiatan->metode_pendataan_listing),
             'ketua_tim_user_id' => $kegiatan->ketua_tim_user_id,
             'pj_lainnya_id' => $kegiatan->pj_lainnya_id,
         ];
@@ -1361,9 +1363,6 @@ class KegiatanController extends Controller
 
     private function isFasihOnly(Kegiatan $kegiatan): bool
     {
-        $isPencacahanFasih = $kegiatan->metode_pendataan_pencacahan === 'CAPI';
-        $isListingFasih = ! $kegiatan->has_listing_updating || $kegiatan->metode_pendataan_listing === 'CAPI';
-
-        return $isPencacahanFasih && $isListingFasih;
+        return $kegiatan->usesFasihPendataan();
     }
 }

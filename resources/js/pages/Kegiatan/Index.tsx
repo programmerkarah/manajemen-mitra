@@ -67,8 +67,18 @@ interface Kegiatan {
     has_listing_updating: boolean;
     status: string;
     ketua_tim: User;
-    metode_pendataan_pencacahan: 'PAPI' | 'CAPI' | null;
-    metode_pendataan_listing: 'PAPI' | 'CAPI' | null;
+    metode_pendataan_pencacahan:
+        | 'PAPI'
+        | 'CAPI_FASIH'
+        | 'CAPI_KSA_PRO'
+        | 'CAPI'
+        | null;
+    metode_pendataan_listing:
+        | 'PAPI'
+        | 'CAPI_FASIH'
+        | 'CAPI_KSA_PRO'
+        | 'CAPI'
+        | null;
     metode_pelatihan:
         | 'daring'
         | 'luring'
@@ -1240,7 +1250,6 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                                 {kegiatan.nama_kegiatan}
                                             </p>
                                             <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                {kegiatan.kode_kegiatan} ·{' '}
                                                 {kegiatan.tahun_anggaran}
                                             </p>
                                         </div>

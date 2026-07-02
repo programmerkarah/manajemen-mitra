@@ -207,8 +207,10 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
     ];
 
     const isFasihOnly =
-        kegiatan.metode_pendataan_pencacahan === 'CAPI' &&
+        (kegiatan.metode_pendataan_pencacahan === 'CAPI_FASIH' ||
+            kegiatan.metode_pendataan_pencacahan === 'CAPI') &&
         (!kegiatan.has_listing_updating ||
+            kegiatan.metode_pendataan_listing === 'CAPI_FASIH' ||
             kegiatan.metode_pendataan_listing === 'CAPI');
     const isSensus = kegiatan.jenis_kegiatan === 'sensus';
 
@@ -560,7 +562,7 @@ export default function ManageRateHonor({ kegiatan, satuans }: Props) {
             <div className="space-y-6">
                 <PageHeader
                     title="Kelola Rate Honor"
-                    description={`${kegiatan.nama_kegiatan} (${kegiatan.kode_kegiatan}) · Jenis Kegiatan: ${kegiatan.jenis_kegiatan === 'sensus' ? 'Sensus' : 'Survei'} · ${activeCombinationCount} kombinasi rate honor aktif`}
+                    description={`${kegiatan.nama_kegiatan} · Jenis Kegiatan: ${kegiatan.jenis_kegiatan === 'sensus' ? 'Sensus' : 'Survei'} · ${activeCombinationCount} kombinasi rate honor aktif`}
                 >
                     <Button
                         variant="outline"

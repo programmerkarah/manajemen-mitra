@@ -428,9 +428,6 @@ export default function Show({
                                     <thead className="bg-neutral-50 dark:bg-neutral-800">
                                         <tr>
                                             <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
-                                                Kode Kegiatan
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                                 Nama Kegiatan
                                             </th>
                                             <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
@@ -460,9 +457,6 @@ export default function Show({
                                                             : 'hover:bg-neutral-50 dark:hover:bg-neutral-800'
                                                     }
                                                 >
-                                                    <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-white">
-                                                        {kegiatan.kode_kegiatan}
-                                                    </td>
                                                     <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
                                                         {kegiatan.nama_kegiatan}
                                                     </td>
@@ -830,9 +824,6 @@ export default function Show({
                                                             }
                                                         </div>
                                                         <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                            {
-                                                                kegiatan.kode_kegiatan
-                                                            }{' '}
                                                             •{' '}
                                                             {
                                                                 kegiatan.jumlah_spk
@@ -850,9 +841,6 @@ export default function Show({
                                                             }
                                                         </div>
                                                         <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                            {
-                                                                kegiatan.kode_kegiatan
-                                                            }{' '}
                                                             •{' '}
                                                             {
                                                                 kegiatan.jumlah_spk

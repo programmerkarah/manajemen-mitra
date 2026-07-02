@@ -203,7 +203,7 @@ class MonitoringPenggunaanAplikasiTest extends TestCase
     }
 
     /**
-     * @param array{bulan: string, user_name?: string|null} $filters
+     * @param  array{bulan: string, user_name?: string|null}  $filters
      */
     private function monitoringState(array $filters): string
     {

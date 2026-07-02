@@ -262,9 +262,6 @@ export default function Show({ alokasi }: Props) {
                                 <p className="mt-1 text-gray-900 dark:text-white">
                                     {alokasi.kegiatan.nama_kegiatan}
                                 </p>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    {alokasi.kegiatan.kode_kegiatan}
-                                </p>
                             </div>
 
                             <div>

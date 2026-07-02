@@ -86,6 +86,62 @@ class KegiatanMetodePendataanTest extends TestCase
         ]);
     }
 
+    public function test_store_kegiatan_accepts_capi_fasih_metode_pendataan(): void
+    {
+        [$user, $role] = $this->makeKetuaTim();
+        $unitSampel = $this->makeUnitSampel();
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->post('/kegiatan/store', [
+                'nama_kegiatan' => 'Survei FASIH',
+                'jenis_kegiatan' => 'survei',
+                'tanggal_mulai' => '2025-01-01',
+                'tanggal_selesai' => '2025-12-31',
+                'tahun_anggaran' => 2025,
+                'ketua_tim_user_id' => $user->id,
+                'metode_pendataan_pencacahan' => 'CAPI_FASIH',
+                'has_listing_updating' => false,
+                'metode_pelatihan' => 'daring',
+                'bulan_pelatihan' => 6,
+                'unit_sampel_pencacahan_ids' => [$unitSampel->id],
+            ]);
+
+        $response->assertSessionDoesntHaveErrors('metode_pendataan_pencacahan');
+        $this->assertDatabaseHas('kegiatan', [
+            'nama_kegiatan' => 'Survei FASIH',
+            'metode_pendataan_pencacahan' => 'CAPI_FASIH',
+        ]);
+    }
+
+    public function test_store_kegiatan_accepts_capi_ksa_pro_metode_pendataan(): void
+    {
+        [$user, $role] = $this->makeKetuaTim();
+        $unitSampel = $this->makeUnitSampel();
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->post('/kegiatan/store', [
+                'nama_kegiatan' => 'Survei KSA Pro',
+                'jenis_kegiatan' => 'survei',
+                'tanggal_mulai' => '2025-01-01',
+                'tanggal_selesai' => '2025-12-31',
+                'tahun_anggaran' => 2025,
+                'ketua_tim_user_id' => $user->id,
+                'metode_pendataan_pencacahan' => 'CAPI_KSA_PRO',
+                'has_listing_updating' => false,
+                'metode_pelatihan' => 'daring',
+                'bulan_pelatihan' => 6,
+                'unit_sampel_pencacahan_ids' => [$unitSampel->id],
+            ]);
+
+        $response->assertSessionDoesntHaveErrors('metode_pendataan_pencacahan');
+        $this->assertDatabaseHas('kegiatan', [
+            'nama_kegiatan' => 'Survei KSA Pro',
+            'metode_pendataan_pencacahan' => 'CAPI_KSA_PRO',
+        ]);
+    }
+
     public function test_store_kegiatan_accepts_papi_metode_pendataan(): void
     {
         [$user, $role] = $this->makeKetuaTim();

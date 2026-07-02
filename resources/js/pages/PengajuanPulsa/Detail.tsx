@@ -257,6 +257,25 @@ export default function PengajuanPulsaDetail({
     };
 
     const totalNominal = items.reduce((sum, i) => sum + i.nominal, 0);
+    const acceptedNominal = items.reduce((sum, item) => {
+        if (item.status !== 'diterima') {
+            return sum;
+        }
+
+        return sum + (item.nominal_disetujui ?? item.nominal);
+    }, 0);
+    const statusCounts = items.reduce(
+        (accumulator, item) => {
+            accumulator[item.status] += 1;
+            return accumulator;
+        },
+        {
+            draft: 0,
+            dikirim: 0,
+            diterima: 0,
+            ditolak: 0,
+        } as Record<'draft' | 'dikirim' | 'diterima' | 'ditolak', number>,
+    );
     const showActionColumn = canReview || canResubmit;
 
     const handleResubmitSubmit = () => {
@@ -301,55 +320,107 @@ export default function PengajuanPulsaDetail({
                     </Button>
                 </PageHeader>
 
-                {/* Summary card */}
                 <ContentCard>
-                    <div className="flex flex-wrap gap-6">
-                        {/* <div>
-                            <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
-                                Kegiatan
-                            </p>
-                            <p className="mt-1 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                    <div className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
+                        <div className="rounded-3xl border border-blue-200/70 bg-gradient-to-br from-blue-50 via-white to-sky-50 p-6 shadow-sm dark:border-blue-900/40 dark:from-blue-950/30 dark:via-neutral-950 dark:to-cyan-950/20">
+                            <div className="flex flex-wrap gap-2">
+                                <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">
+                                    {BULAN_LABELS[bulan]} {tahun}
+                                </span>
+                                <span className="rounded-full border border-blue-200 bg-white/80 px-3 py-1 text-xs font-semibold text-blue-700 dark:border-blue-800 dark:bg-neutral-900/70 dark:text-blue-300">
+                                    {kegiatan.metode_pendataan_pencacahan ??
+                                        '-'}
+                                </span>
+                                <span className="rounded-full border border-neutral-200 bg-white/80 px-3 py-1 text-xs font-semibold text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900/70 dark:text-neutral-300">
+                                    {items.length} pengajuan
+                                </span>
+                                <span className="rounded-full border border-neutral-200 bg-white/80 px-3 py-1 text-xs font-semibold text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900/70 dark:text-neutral-300">
+                                    {statusCounts.dikirim} diajukan
+                                </span>
+                            </div>
+
+                            <h3 className="mt-4 text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
                                 {kegiatan.nama_kegiatan}
+                            </h3>
+                            <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-600 dark:text-neutral-400">
+                                Detail ini merangkum nominal yang diajukan,
+                                status review, dan progres per petugas untuk
+                                periode yang sedang dibuka.
                             </p>
-                        </div> */}
-                        <div>
-                            <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
-                                Periode
-                            </p>
-                            <p className="mt-1 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                                {BULAN_LABELS[bulan]} {tahun}
-                            </p>
+
+                            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                <div className="rounded-2xl border border-neutral-200 bg-white/90 p-4 dark:border-neutral-800 dark:bg-neutral-950/70">
+                                    <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                        Total nominal
+                                    </p>
+                                    <p className="mt-2 text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                                        {formatCurrency(totalNominal)}
+                                    </p>
+                                </div>
+                                <div className="rounded-2xl border border-neutral-200 bg-white/90 p-4 dark:border-neutral-800 dark:bg-neutral-950/70">
+                                    <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                        Disetujui
+                                    </p>
+                                    <p className="mt-2 text-lg font-semibold text-green-700 dark:text-green-400">
+                                        {formatCurrency(acceptedNominal)}
+                                    </p>
+                                </div>
+                                <div className="rounded-2xl border border-neutral-200 bg-white/90 p-4 dark:border-neutral-800 dark:bg-neutral-950/70">
+                                    <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                        Diterima
+                                    </p>
+                                    <p className="mt-2 text-lg font-semibold text-blue-700 dark:text-blue-400">
+                                        {statusCounts.diterima}
+                                    </p>
+                                </div>
+                                <div className="rounded-2xl border border-neutral-200 bg-white/90 p-4 dark:border-neutral-800 dark:bg-neutral-950/70">
+                                    <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                        Ditolak
+                                    </p>
+                                    <p className="mt-2 text-lg font-semibold text-red-700 dark:text-red-400">
+                                        {statusCounts.ditolak}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
-                                Jumlah Pengajuan
-                            </p>
-                            <p className="mt-1 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                                {items.length} pengajuan
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
-                                Total Nominal
-                            </p>
-                            <p className="mt-1 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                                {formatCurrency(totalNominal)}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
-                                Metode Pendataan
-                            </p>
-                            <p
-                                className={`mt-1 inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${
-                                    kegiatan.metode_pendataan_pencacahan ===
-                                    'CAPI'
-                                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                                        : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'
-                                }`}
-                            >
-                                {kegiatan.metode_pendataan_pencacahan ?? '-'}
-                            </p>
+
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                            <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950/70">
+                                <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                    Metode pendataan
+                                </p>
+                                <p
+                                    className={`mt-2 inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${
+                                        kegiatan.metode_pendataan_pencacahan ===
+                                        'CAPI'
+                                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                            : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300'
+                                    }`}
+                                >
+                                    {kegiatan.metode_pendataan_pencacahan ??
+                                        '-'}
+                                </p>
+                            </div>
+
+                            <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950/70">
+                                <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                    Status review
+                                </p>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                                        Draft {statusCounts.draft}
+                                    </span>
+                                    <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                        Diajukan {statusCounts.dikirim}
+                                    </span>
+                                    <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                                        Diterima {statusCounts.diterima}
+                                    </span>
+                                    <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                                        Ditolak {statusCounts.ditolak}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </ContentCard>

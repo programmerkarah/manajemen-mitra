@@ -2,25 +2,35 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\PengajuanPulsaTemplateExport;
 use App\Http\Requests\StorePengajuanPulsaRequest;
 use App\Models\ActivityLog;
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
 use App\Models\PengajuanPulsa;
 use App\Models\PeriodeAlokasi;
+use App\Models\Petugas;
 use App\Services\ActiveYearService;
+use App\Traits\EffectivePeriodeScope;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class PengajuanPulsaController extends Controller
 {
+    use EffectivePeriodeScope;
+
     private const PENGOLAHAN_ROLES = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'];
 
     /**
@@ -85,6 +95,11 @@ class PengajuanPulsaController extends Controller
         $bulan = $request->input('bulan', now()->format('m'));
         $tahun = (string) ActiveYearService::get();
         $bulanInt = (int) $bulan;
+        $bulanCandidates = array_values(array_unique([
+            $bulan,
+            (string) $bulanInt,
+            str_pad($bulanInt, 2, '0', STR_PAD_LEFT),
+        ]));
 
         $isAdminOrOperator = $effectiveUser?->isAdmin() || $effectiveUser?->isOperator();
 
@@ -144,7 +159,11 @@ class PengajuanPulsaController extends Controller
         foreach ($pelatihanAlokasiInfo as $kegiatanId => $info) {
             $hasPeriod = PeriodeAlokasi::query()
                 ->where('kegiatan_id', $kegiatanId)
-                ->where('bulan', $info['alokasi_bulan'])
+                ->whereIn('bulan', [
+                    $info['alokasi_bulan'],
+                    (string) ((int) $info['alokasi_bulan']),
+                    str_pad((int) $info['alokasi_bulan'], 2, '0', STR_PAD_LEFT),
+                ])
                 ->where('tahun', $info['alokasi_tahun'])
                 ->whereHas('alokasiPetugas', function ($q) {
                     $q->whereNotIn('peran', self::PENGOLAHAN_ROLES)
@@ -159,7 +178,7 @@ class PengajuanPulsaController extends Controller
 
         // --- Step 2: Find kegiatan with pendataan allocations in current bulan ---
         $kegiatanWithPendataanPeriod = PeriodeAlokasi::query()
-            ->where('bulan', $bulan)
+            ->whereIn('bulan', $bulanCandidates)
             ->where('tahun', $tahun)
             ->whereHas('alokasiPetugas', function ($q) {
                 $q->whereNotIn('peran', self::PENGOLAHAN_ROLES)
@@ -167,8 +186,30 @@ class PengajuanPulsaController extends Controller
             })
             ->pluck('kegiatan_id');
 
-        $kegiatanWithPeriod = $kegiatanWithPendataanPeriod->merge($kegiatanWithPelatihanPeriod)->unique()->values();
+        $sensusEkonomiPeriodIds = PeriodeAlokasi::query()
+            ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
+            ->where('periode_alokasi.tahun', $tahun)
+            ->where('kegiatan.jenis_kegiatan', 'sensus')
+            ->whereRaw('LOWER(COALESCE(kegiatan.nama_kegiatan, \'\')) LIKE ?', ['%sensus ekonomi%'])
+            ->whereRaw('? BETWEEN MONTH(kegiatan.tanggal_mulai) AND MONTH(kegiatan.tanggal_selesai)', [$bulanInt])
+            ->whereRaw('CAST(periode_alokasi.bulan AS UNSIGNED) = MONTH(kegiatan.tanggal_mulai)')
+            ->whereHas('alokasiPetugas', function ($q) {
+                $q->whereNotIn('peran', self::PENGOLAHAN_ROLES)
+                    ->whereHas('petugas', fn ($q2) => $q2->where('jenis_petugas', 'non-organik'));
+            })
+            ->pluck('periode_alokasi.id');
 
+        $sensusEkonomiKegiatanIds = $sensusEkonomiPeriodIds->isNotEmpty()
+            ? PeriodeAlokasi::query()
+                ->whereIn('id', $sensusEkonomiPeriodIds)
+                ->pluck('kegiatan_id')
+            : collect();
+        $kegiatanWithPeriod = $kegiatanWithPendataanPeriod->merge($kegiatanWithPelatihanPeriod)->unique()->values();
+        $kegiatanWithPeriod = $kegiatanWithPendataanPeriod
+            ->merge($kegiatanWithPelatihanPeriod)
+            ->merge($sensusEkonomiKegiatanIds)
+            ->unique()
+            ->values();
         // --- Step 3: Load eligible kegiatan ---
         $kegiatanQuery = Kegiatan::query()
             ->whereIn('id', $kegiatanWithPeriod)
@@ -182,15 +223,22 @@ class PengajuanPulsaController extends Controller
         }
 
         $eligibleKegiatan = $kegiatanQuery
-            ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'metode_pendataan_pencacahan', 'metode_pendataan_listing', 'metode_pelatihan', 'bulan_pelatihan', 'has_listing_updating', 'tanggal_mulai')
-            ->where(function ($q) use ($kegiatanWithPelatihanPeriod) {
+            ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'jenis_kegiatan', 'metode_pendataan_pencacahan', 'metode_pendataan_listing', 'metode_pelatihan', 'bulan_pelatihan', 'has_listing_updating', 'tanggal_mulai', 'tanggal_selesai')
+            ->where(function ($q) use ($kegiatanWithPelatihanPeriod, $bulanInt) {
                 // Show if at least one column is available:
                 // - Pelatihan: kegiatan is in the pelatihan-eligible set (has allocation in configured bulan)
-                // - Pendataan: CAPI method
+                // - Pendataan: FASIH method
                 // - Legacy: metode_pelatihan not yet set
+                // - Sensus Ekonomi: available during the June-August window when allocations exist
                 $q->whereIn('id', $kegiatanWithPelatihanPeriod)
-                    ->orWhere('metode_pendataan_pencacahan', 'CAPI')
-                    ->orWhereNull('metode_pelatihan');
+                    ->orWhereIn('metode_pendataan_pencacahan', ['CAPI_FASIH', 'CAPI'])
+                    ->orWhereNull('metode_pelatihan')
+                    ->orWhere(function ($sensusQuery) use ($bulanInt) {
+                        $sensusQuery
+                            ->where('jenis_kegiatan', 'sensus')
+                            ->whereRaw('LOWER(COALESCE(nama_kegiatan, \'\')) LIKE ?', ['%sensus ekonomi%'])
+                            ->whereRaw('? BETWEEN MONTH(tanggal_mulai) AND MONTH(tanggal_selesai)', [$bulanInt]);
+                    });
             })
             ->orderBy('kode_kegiatan')
             ->get();
@@ -202,7 +250,11 @@ class PengajuanPulsaController extends Controller
         // activated when there is an allocation in that specific month.
         $pendataanAllocations = AlokasiPetugas::query()
             ->whereHas('periodeAlokasi', function ($q) use ($bulan, $tahun, $kegiatanIds) {
-                $q->where('bulan', $bulan)
+                $q->whereIn('bulan', [
+                    $bulan,
+                    (string) ((int) $bulan),
+                    str_pad((int) $bulan, 2, '0', STR_PAD_LEFT),
+                ])
                     ->where('tahun', $tahun)
                     ->whereIn('kegiatan_id', $kegiatanIds);
             })
@@ -213,6 +265,20 @@ class PengajuanPulsaController extends Controller
                 'periodeAlokasi:id,kegiatan_id,bulan,tahun',
             ])
             ->get();
+
+        $sensusPendataanAllocations = collect();
+
+        if ($sensusEkonomiPeriodIds->isNotEmpty()) {
+            $sensusPendataanAllocations = AlokasiPetugas::query()
+                ->whereIn('periode_alokasi_id', $sensusEkonomiPeriodIds)
+                ->whereNotIn('peran', self::PENGOLAHAN_ROLES)
+                ->whereHas('petugas', fn ($q) => $q->where('jenis_petugas', 'non-organik'))
+                ->with([
+                    'petugas:id,nama,jenis_petugas',
+                    'periodeAlokasi:id,kegiatan_id,bulan,tahun',
+                ])
+                ->get();
+        }
 
         $petugasPerKegiatan = $pendataanAllocations
             ->groupBy(fn ($a) => $a->periodeAlokasi?->kegiatan_id)
@@ -226,6 +292,23 @@ class PengajuanPulsaController extends Controller
                 ])
                 ->values()
             );
+
+        $sensusPetugasPerKegiatan = $sensusPendataanAllocations
+            ->groupBy(fn ($a) => $a->periodeAlokasi?->kegiatan_id)
+            ->map(fn ($group) => $group
+                ->unique('petugas_id')
+                ->sortBy('petugas.nama')
+                ->map(fn ($a) => [
+                    'id' => $a->petugas?->id,
+                    'nama' => $a->petugas?->nama,
+                    'peran' => $a->peran,
+                ])
+                ->values()
+            );
+
+        foreach ($sensusPetugasPerKegiatan as $kegiatanId => $petugasList) {
+            $petugasPerKegiatan->put($kegiatanId, $petugasList);
+        }
 
         // --- Step 5: Build petugasPerKegiatanPelatihan (from allocation bulan per kegiatan) ---
         // Group eligible pelatihan kegiatan by their alokasi period to minimize queries
@@ -242,7 +325,11 @@ class PengajuanPulsaController extends Controller
 
             $pelatihanAllocations = AlokasiPetugas::query()
                 ->whereHas('periodeAlokasi', function ($q) use ($alokasiB, $alokasiT, $pelatihanKegiatanIds) {
-                    $q->where('bulan', $alokasiB)
+                    $q->whereIn('bulan', [
+                        $alokasiB,
+                        (string) ((int) $alokasiB),
+                        str_pad((int) $alokasiB, 2, '0', STR_PAD_LEFT),
+                    ])
                         ->where('tahun', $alokasiT)
                         ->whereIn('kegiatan_id', $pelatihanKegiatanIds);
                 })
@@ -275,7 +362,7 @@ class PengajuanPulsaController extends Controller
         // --- Step 6: Build existing submission data ---
         $existingSubmissions = PengajuanPulsa::query()
             ->whereIn('kegiatan_id', $kegiatanIds)
-            ->where('bulan', $bulan)
+            ->whereIn('bulan', $bulanCandidates)
             ->where('tahun', $tahun)
             ->whereNotIn('status', ['ditolak'])
             ->get(['kegiatan_id', 'petugas_id', 'jenis_pulsa', 'nominal', 'nominal_disetujui', 'status']);
@@ -308,7 +395,7 @@ class PengajuanPulsaController extends Controller
         // Used on the form to alert the user when a petugas already has submissions elsewhere.
         $allExistingTotals = PengajuanPulsa::query()
             ->whereIn('petugas_id', $allKnownPetugasIds)
-            ->where('bulan', $bulan)
+            ->whereIn('bulan', $bulanCandidates)
             ->where('tahun', $tahun)
             ->whereNotIn('status', ['ditolak'])
             ->groupBy('petugas_id')
@@ -339,6 +426,426 @@ class PengajuanPulsaController extends Controller
                 'tahun' => $tahun,
             ],
         ]);
+    }
+
+    public function downloadTemplate(Request $request): BinaryFileResponse
+    {
+        $validated = $request->validate([
+            'bulan' => ['required', 'string'],
+            'tahun' => ['required', 'integer'],
+        ]);
+
+        $templateData = $this->buildTemplateDropdownData(
+            $request,
+            (string) $validated['bulan'],
+            (int) $validated['tahun'],
+        );
+
+        return Excel::download(
+            new PengajuanPulsaTemplateExport(
+                bulan: (string) $validated['bulan'],
+                tahun: (int) $validated['tahun'],
+                petugasOptions: $templateData['petugas_options'],
+                kegiatanOptionsByPetugasKey: $templateData['kegiatan_options_by_petugas_key'],
+                jenisOptionsByPetugasKey: $templateData['jenis_options_by_petugas_key'],
+            ),
+            'template-pengajuan-pulsa.xlsx'
+        );
+    }
+
+    public function importPreview(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
+            'bulan' => ['required', 'string'],
+            'tahun' => ['required', 'integer'],
+        ], [
+            'file.required' => 'File harus diupload.',
+            'file.mimes' => 'File harus berupa Excel (.xlsx, .xls) atau CSV.',
+        ]);
+
+        $bulan = str_pad((int) $validated['bulan'], 2, '0', STR_PAD_LEFT);
+        $tahun = (int) $validated['tahun'];
+        $templateData = $this->buildTemplateDropdownData($request, $bulan, $tahun);
+
+        $spreadsheet = IOFactory::load($validated['file']->getRealPath());
+        $rows = $spreadsheet->getSheet(0)->toArray(null, true, true, false);
+
+        $headings = array_map(
+            static fn ($heading) => strtolower(trim((string) $heading)),
+            array_shift($rows) ?? []
+        );
+
+        $previewRows = [];
+        $errors = [];
+        $skippedRows = 0;
+
+        $kegiatanIds = [];
+        $petugasIds = [];
+        $petugasLookup = $templateData['petugas_lookup'];
+        $kegiatanLookup = $templateData['kegiatan_lookup'];
+        $jenisLookup = $templateData['jenis_lookup'];
+
+        foreach ($rows as $row) {
+            $rowData = [];
+            foreach ($headings as $index => $heading) {
+                if ($heading === '') {
+                    continue;
+                }
+
+                $rowData[$heading] = $row[$index] ?? null;
+            }
+
+            $rowBulan = str_pad((int) ($rowData['bulan'] ?? $bulan), 2, '0', STR_PAD_LEFT);
+            $rowTahun = (int) ($rowData['tahun'] ?? $tahun);
+
+            if ($rowBulan !== $bulan || $rowTahun !== $tahun) {
+                $skippedRows++;
+
+                continue;
+            }
+
+            $petugasName = trim((string) ($rowData['petugas_nama'] ?? ''));
+            $kegiatanName = trim((string) ($rowData['kegiatan_nama'] ?? ''));
+            $petugasId = (int) ($rowData['petugas_id'] ?? 0);
+            $kegiatanId = (int) ($rowData['kegiatan_id'] ?? 0);
+            $jenisPulsa = strtolower(trim((string) ($rowData['jenis_pulsa'] ?? '')));
+            $nominalRaw = trim((string) ($rowData['nominal'] ?? ''));
+            $nominal = (float) preg_replace('/[^0-9]/', '', $nominalRaw);
+
+            if ($petugasId <= 0 && $petugasName !== '') {
+                $petugasLookupItem = $petugasLookup[Str::lower($petugasName)] ?? null;
+                $petugasId = (int) ($petugasLookupItem['id'] ?? 0);
+                $petugasName = (string) ($petugasLookupItem['nama'] ?? $petugasName);
+            }
+
+            if ($kegiatanId <= 0 && $petugasName !== '' && $kegiatanName !== '') {
+                $petugasKey = Str::lower($petugasName);
+                $kegiatanLookupItem = $kegiatanLookup[$petugasKey][Str::lower($kegiatanName)] ?? null;
+                $kegiatanId = (int) ($kegiatanLookupItem['id'] ?? 0);
+                $kegiatanName = (string) ($kegiatanLookupItem['nama'] ?? $kegiatanName);
+            }
+
+            if ($petugasName !== '' && $jenisPulsa !== '') {
+                $petugasKey = Str::lower($petugasName);
+                $allowedJenis = $jenisLookup[$petugasKey] ?? [];
+
+                if ($allowedJenis !== [] && ! in_array($jenisPulsa, $allowedJenis, true)) {
+                    $errors[] = "Jenis pulsa {$jenisPulsa} tidak tersedia untuk petugas {$petugasName}.";
+
+                    continue;
+                }
+            }
+
+            if ($kegiatanId <= 0 || $petugasId <= 0 || $jenisPulsa === '' || $nominal <= 0) {
+                if (implode('', $rowData) !== '') {
+                    $errors[] = 'Ada baris yang belum lengkap. Pastikan petugas, kegiatan, jenis pulsa, dan nominal terisi.';
+                }
+
+                continue;
+            }
+
+            if (! in_array($jenisPulsa, ['pelatihan', 'pendataan'], true)) {
+                $errors[] = "Jenis pulsa tidak valid untuk kegiatan ID {$kegiatanId}.";
+
+                continue;
+            }
+
+            $kegiatanIds[] = $kegiatanId;
+            $petugasIds[] = $petugasId;
+
+            $previewRows[] = [
+                'bulan' => $rowBulan,
+                'tahun' => $rowTahun,
+                'kegiatan_id' => $kegiatanId,
+                'kegiatan_nama' => $kegiatanName,
+                'petugas_id' => $petugasId,
+                'petugas_nama' => $petugasName,
+                'jenis_pulsa' => $jenisPulsa,
+                'nominal' => $nominal,
+            ];
+        }
+
+        $kegiatanMap = Kegiatan::query()
+            ->whereIn('id', array_values(array_unique($kegiatanIds)))
+            ->get(['id', 'kode_kegiatan', 'nama_kegiatan'])
+            ->keyBy('id');
+
+        $petugasMap = Petugas::query()
+            ->whereIn('id', array_values(array_unique($petugasIds)))
+            ->get(['id', 'nama'])
+            ->keyBy('id');
+
+        $previewRows = array_map(function (array $row) use ($kegiatanMap, $petugasMap): array {
+            $kegiatan = $kegiatanMap->get($row['kegiatan_id']);
+            $petugas = $petugasMap->get($row['petugas_id']);
+
+            return [
+                ...$row,
+                'kegiatan_kode' => $kegiatan?->kode_kegiatan,
+                'kegiatan_nama' => $kegiatan?->nama_kegiatan,
+                'petugas_nama' => $petugas?->nama,
+            ];
+        }, $previewRows);
+
+        return response()->json([
+            'rows' => $previewRows,
+            'errors' => array_values(array_unique($errors)),
+            'summary' => [
+                'total_rows' => count($rows),
+                'preview_rows' => count($previewRows),
+                'skipped_rows' => $skippedRows,
+                'error_count' => count($errors),
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{
+     *     petugas_options: array<int, array{id:int, nama:string, key:string}>,
+     *     petugas_lookup: array<string, array{id:int, nama:string, key:string}>,
+     *     kegiatan_options_by_petugas_key: array<string, array<int, array{id:int, nama:string}>>,
+    *     kegiatan_lookup: array<string, array<string, array{id:int, nama:string}>>,
+    *     jenis_options_by_petugas_key: array<string, array<int, string>>,
+    *     jenis_lookup: array<string, array<int, string>>
+     * }
+     */
+    private function buildTemplateDropdownData(Request $request, string $bulan, int $tahun): array
+    {
+        $effectiveUser = effectiveUser($request);
+        $bulanInt = (int) $bulan;
+        $bulanCandidates = array_values(array_unique([
+            $bulan,
+            (string) $bulanInt,
+            str_pad($bulanInt, 2, '0', STR_PAD_LEFT),
+        ]));
+
+        $isAdminOrOperator = $effectiveUser?->isAdmin() || $effectiveUser?->isOperator();
+
+        $kegiatanQuery = Kegiatan::query()->where('tahun_anggaran', $tahun);
+
+        if (! $isAdminOrOperator) {
+            $kegiatanQuery->where(function ($query) use ($effectiveUser): void {
+                $query->where('ketua_tim_user_id', $effectiveUser->id)
+                    ->orWhere('pj_lainnya_id', $effectiveUser->id);
+            });
+        }
+
+        $accessibleKegiatanIds = $kegiatanQuery->pluck('id');
+
+        $petugasOptions = [];
+        $petugasLookup = [];
+        $kegiatanOptionsByPetugasKey = [];
+        $kegiatanLookup = [];
+        $jenisOptionsByPetugasKey = [];
+        $jenisLookup = [];
+
+        $appendAllocation = function (object $allocation, string $jenisPulsa) use (&$petugasOptions, &$petugasLookup, &$kegiatanOptionsByPetugasKey, &$kegiatanLookup, &$jenisOptionsByPetugasKey, &$jenisLookup): void {
+            $petugasNama = trim((string) ($allocation->petugas?->nama ?? ''));
+            $kegiatanNama = trim((string) ($allocation->periodeAlokasi?->kegiatan?->nama_kegiatan ?? ''));
+
+            if ($petugasNama === '' || $kegiatanNama === '') {
+                return;
+            }
+
+            $petugasKey = $this->normalizeTemplateKey($petugasNama);
+            $petugasLower = Str::lower($petugasNama);
+            $kegiatanLower = Str::lower($kegiatanNama);
+
+            $petugasOptions[$petugasKey] = [
+                'id' => (int) $allocation->petugas_id,
+                'nama' => $petugasNama,
+                'key' => $petugasKey,
+            ];
+
+            $petugasLookup[$petugasLower] = [
+                'id' => (int) $allocation->petugas_id,
+                'nama' => $petugasNama,
+                'key' => $petugasKey,
+            ];
+
+            $kegiatanOptionsByPetugasKey[$petugasKey][$kegiatanNama] = [
+                'id' => (int) $allocation->periodeAlokasi?->kegiatan_id,
+                'nama' => $kegiatanNama,
+            ];
+
+            $kegiatanLookup[$petugasLower][$kegiatanLower] = [
+                'id' => (int) $allocation->periodeAlokasi?->kegiatan_id,
+                'nama' => $kegiatanNama,
+            ];
+
+            $jenisOptionsByPetugasKey[$petugasKey][$jenisPulsa] = $jenisPulsa;
+            $jenisLookup[$petugasLower][$jenisPulsa] = $jenisPulsa;
+        };
+
+        $pendataanAllocations = AlokasiPetugas::query()
+            ->whereHas('periodeAlokasi', function ($query) use ($bulanCandidates, $tahun, $accessibleKegiatanIds): void {
+                $query->whereIn('bulan', $bulanCandidates)
+                    ->where('tahun', $tahun)
+                    ->whereIn('kegiatan_id', $accessibleKegiatanIds);
+            })
+            ->whereNotIn('peran', self::PENGOLAHAN_ROLES)
+            ->whereHas('petugas', fn ($query) => $query->where('jenis_petugas', 'non-organik'))
+            ->with([
+                'petugas:id,nama,jenis_petugas',
+                'periodeAlokasi:id,kegiatan_id,bulan,tahun',
+                'periodeAlokasi.kegiatan:id,nama_kegiatan',
+            ])
+            ->get();
+
+        foreach ($pendataanAllocations as $allocation) {
+            $appendAllocation($allocation, 'pendataan');
+        }
+
+        $sensusEkonomiPeriodIds = PeriodeAlokasi::query()
+            ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
+            ->where('periode_alokasi.tahun', $tahun)
+            ->whereIn('periode_alokasi.kegiatan_id', $accessibleKegiatanIds)
+            ->where('kegiatan.jenis_kegiatan', 'sensus')
+            ->whereRaw('LOWER(COALESCE(kegiatan.nama_kegiatan, \'\')) LIKE ?', ['%sensus ekonomi%'])
+            ->whereRaw('? BETWEEN MONTH(kegiatan.tanggal_mulai) AND MONTH(kegiatan.tanggal_selesai)', [$bulanInt])
+            ->whereRaw('CAST(periode_alokasi.bulan AS UNSIGNED) = MONTH(kegiatan.tanggal_mulai)')
+            ->whereHas('alokasiPetugas', function ($query): void {
+                $query->whereNotIn('peran', self::PENGOLAHAN_ROLES)
+                    ->whereHas('petugas', fn ($petugasQuery) => $petugasQuery->where('jenis_petugas', 'non-organik'));
+            })
+            ->pluck('periode_alokasi.id');
+
+        if ($sensusEkonomiPeriodIds->isNotEmpty()) {
+            $sensusPendataanAllocations = AlokasiPetugas::query()
+                ->whereIn('periode_alokasi_id', $sensusEkonomiPeriodIds)
+                ->whereNotIn('peran', self::PENGOLAHAN_ROLES)
+                ->whereHas('petugas', fn ($query) => $query->where('jenis_petugas', 'non-organik'))
+                ->with([
+                    'petugas:id,nama,jenis_petugas',
+                    'periodeAlokasi:id,kegiatan_id,bulan,tahun',
+                    'periodeAlokasi.kegiatan:id,nama_kegiatan',
+                ])
+                ->get();
+
+            foreach ($sensusPendataanAllocations as $allocation) {
+                $appendAllocation($allocation, 'pendataan');
+            }
+        }
+
+        $pelatihanKegiatanQuery = Kegiatan::query()
+            ->whereIn('id', $accessibleKegiatanIds)
+            ->where('tahun_anggaran', $tahun)
+            ->where('bulan_pelatihan', $bulanInt)
+            ->whereNotNull('metode_pelatihan')
+            ->where('metode_pelatihan', '!=', 'tidak_ada_pelatihan')
+            ->select('id', 'bulan_pelatihan', 'tanggal_mulai');
+
+        $pelatihanKegiatanList = $pelatihanKegiatanQuery->get();
+
+        $pelatihanAlokasiInfo = $pelatihanKegiatanList->map(function ($kegiatan) use ($bulanInt, $tahun) {
+            $mulaiMonth = $kegiatan->tanggal_mulai?->month;
+            $useSameBulan = $mulaiMonth === $bulanInt;
+
+            if ($useSameBulan) {
+                return [
+                    'kegiatan_id' => $kegiatan->id,
+                    'alokasi_bulan' => str_pad($bulanInt, 2, '0', STR_PAD_LEFT),
+                    'alokasi_tahun' => $tahun,
+                ];
+            }
+
+            $nextBulan = $bulanInt + 1;
+            $nextTahun = (int) $tahun;
+
+            if ($nextBulan > 12) {
+                $nextBulan = 1;
+                $nextTahun++;
+            }
+
+            return [
+                'kegiatan_id' => $kegiatan->id,
+                'alokasi_bulan' => str_pad($nextBulan, 2, '0', STR_PAD_LEFT),
+                'alokasi_tahun' => (string) $nextTahun,
+            ];
+        })->keyBy('kegiatan_id');
+
+        $kegiatanWithPelatihanPeriod = collect();
+        foreach ($pelatihanAlokasiInfo as $kegiatanId => $info) {
+            $hasPeriod = PeriodeAlokasi::query()
+                ->where('kegiatan_id', $kegiatanId)
+                ->whereIn('bulan', [
+                    $info['alokasi_bulan'],
+                    (string) ((int) $info['alokasi_bulan']),
+                    str_pad((int) $info['alokasi_bulan'], 2, '0', STR_PAD_LEFT),
+                ])
+                ->where('tahun', $info['alokasi_tahun'])
+                ->whereHas('alokasiPetugas', function ($query): void {
+                    $query->whereNotIn('peran', self::PENGOLAHAN_ROLES)
+                        ->whereHas('petugas', fn ($petugasQuery) => $petugasQuery->where('jenis_petugas', 'non-organik'));
+                })
+                ->exists();
+
+            if ($hasPeriod) {
+                $kegiatanWithPelatihanPeriod->push($kegiatanId);
+            }
+        }
+
+        $petugasPerKegiatanPelatihan = collect();
+
+        foreach ($pelatihanAlokasiInfo->filter(fn ($info) => $kegiatanWithPelatihanPeriod->contains($info['kegiatan_id']))->groupBy(fn ($info) => $info['alokasi_bulan'].'_'.$info['alokasi_tahun']) as $periodKey => $kegiatanGroup) {
+            [$alokasiB, $alokasiT] = explode('_', $periodKey, 2);
+            $pelatihanKegiatanIds = $kegiatanGroup->pluck('kegiatan_id');
+
+            $pelatihanAllocations = AlokasiPetugas::query()
+                ->whereHas('periodeAlokasi', function ($query) use ($alokasiB, $alokasiT, $pelatihanKegiatanIds): void {
+                    $query->whereIn('bulan', [
+                        $alokasiB,
+                        (string) ((int) $alokasiB),
+                        str_pad((int) $alokasiB, 2, '0', STR_PAD_LEFT),
+                    ])
+                        ->where('tahun', $alokasiT)
+                        ->whereIn('kegiatan_id', $pelatihanKegiatanIds);
+                })
+                ->whereNotIn('peran', self::PENGOLAHAN_ROLES)
+                ->whereHas('petugas', fn ($query) => $query->where('jenis_petugas', 'non-organik'))
+                ->with([
+                    'petugas:id,nama,jenis_petugas',
+                    'periodeAlokasi:id,kegiatan_id,bulan,tahun',
+                    'periodeAlokasi.kegiatan:id,nama_kegiatan',
+                ])
+                ->get();
+
+            foreach ($pelatihanAllocations as $allocation) {
+                $appendAllocation($allocation, 'pelatihan');
+            }
+        }
+
+        foreach ($kegiatanOptionsByPetugasKey as $petugasKey => $activities) {
+            uasort($activities, fn (array $left, array $right): int => strcmp($left['nama'], $right['nama']));
+            $kegiatanOptionsByPetugasKey[$petugasKey] = array_values($activities);
+        }
+
+        foreach ($jenisOptionsByPetugasKey as $petugasKey => $types) {
+            $jenisOptionsByPetugasKey[$petugasKey] = array_values(array_unique($types));
+        }
+
+        ksort($petugasOptions, SORT_NATURAL | SORT_FLAG_CASE);
+
+        return [
+            'petugas_options' => array_values($petugasOptions),
+            'petugas_lookup' => $petugasLookup,
+            'kegiatan_options_by_petugas_key' => $kegiatanOptionsByPetugasKey,
+            'kegiatan_lookup' => $kegiatanLookup,
+            'jenis_options_by_petugas_key' => $jenisOptionsByPetugasKey,
+            'jenis_lookup' => $jenisLookup,
+        ];
+    }
+
+    private function normalizeTemplateKey(string $value): string
+    {
+        $normalized = Str::of($value)
+            ->ascii()
+            ->replaceMatches('/[^A-Za-z0-9]+/', '_')
+            ->trim('_')
+            ->upper();
+
+        return 'PTG_'.($normalized !== '' ? $normalized : 'UNKNOWN');
     }
 
     /**
@@ -399,9 +906,9 @@ class PengajuanPulsaController extends Controller
             if ($item['jenis_pulsa'] === 'pendataan') {
                 /** @var Kegiatan|null $kegiatan */
                 $kegiatan = $validKegiatanById->get($item['kegiatan_id']);
-                if ($kegiatan?->metode_pendataan_pencacahan !== 'CAPI') {
+                if (! Kegiatan::isFasihMetodePendataan($kegiatan?->metode_pendataan_pencacahan)) {
                     return back()->withErrors([
-                        'items' => 'Pulsa pendataan hanya dapat diajukan untuk kegiatan dengan metode pendataan CAPI.',
+                        'items' => 'Pulsa pendataan hanya dapat diajukan untuk kegiatan dengan metode pendataan FASIH.',
                     ]);
                 }
             }

@@ -6,6 +6,13 @@ import { PageHeader } from '@/components/page-header';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -15,7 +22,7 @@ import {
 } from '@/utils/frameSampelExcel';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, Copy, Loader2, Save, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const BULAN_OPTIONS = [
     { value: '1', label: 'Januari' },
@@ -50,6 +57,48 @@ interface KegiatanFrameSampelRow {
     target_unit_sampel: string | number | Record<string, string | number>;
     identitas_tambahan?: Record<string, string> | null;
 }
+
+type MetodePendataan = 'PAPI' | 'CAPI_FASIH' | 'CAPI_KSA_PRO';
+
+const metodePendataanOptions: Array<{
+    value: MetodePendataan;
+    label: string;
+    description: string;
+}> = [
+    {
+        value: 'PAPI',
+        label: 'PAPI',
+        description: '(Kertas)',
+    },
+    {
+        value: 'CAPI_FASIH',
+        label: 'CAPI',
+        description: '(Aplikasi FASIH)',
+    },
+    {
+        value: 'CAPI_KSA_PRO',
+        label: 'CAPI',
+        description: '(KSA PRO/Aplikasi lainnya)',
+    },
+];
+
+const normalizeMetodePendataan = (
+    value: string | null | undefined,
+): '' | MetodePendataan => {
+    if (value === 'CAPI') {
+        return 'CAPI_FASIH';
+    }
+
+    if (
+        value === 'PAPI' ||
+        value === 'CAPI_FASIH' ||
+        value === 'CAPI_KSA_PRO'
+    ) {
+        return value;
+    }
+
+    return '';
+};
 
 interface FormFrameSampelRow {
     tahapan: 'listing' | 'pencacahan';
@@ -216,6 +265,8 @@ interface KegiatanCreateProps {
         deskripsi: string | null;
         tahun_anggaran: number;
         has_listing_updating: boolean;
+        metode_pendataan_pencacahan: string | null;
+        metode_pendataan_listing: string | null;
         ketua_tim_user_id: number;
         pj_lainnya_id: number | null;
     };
@@ -280,8 +331,8 @@ export default function Create({
         pagu_pencacahan: string;
         pagu_listing: string;
         has_listing_updating: boolean;
-        metode_pendataan_pencacahan: '' | 'PAPI' | 'CAPI';
-        metode_pendataan_listing: '' | 'PAPI' | 'CAPI';
+        metode_pendataan_pencacahan: '' | MetodePendataan;
+        metode_pendataan_listing: '' | MetodePendataan;
         metode_pelatihan:
             | ''
             | 'daring'
@@ -309,8 +360,12 @@ export default function Create({
         pagu_pencacahan: '',
         pagu_listing: '',
         has_listing_updating: copyData?.has_listing_updating || false,
-        metode_pendataan_pencacahan: '' as '' | 'PAPI' | 'CAPI',
-        metode_pendataan_listing: '' as '' | 'PAPI' | 'CAPI',
+        metode_pendataan_pencacahan: normalizeMetodePendataan(
+            copyData?.metode_pendataan_pencacahan,
+        ),
+        metode_pendataan_listing: normalizeMetodePendataan(
+            copyData?.metode_pendataan_listing,
+        ),
         metode_pelatihan: '' as
             | ''
             | 'daring'
@@ -364,6 +419,52 @@ export default function Create({
     const [frameImportProcessing, setFrameImportProcessing] = useState(false);
     const [frameImportMessage, setFrameImportMessage] = useState('');
     const [frameImportError, setFrameImportError] = useState('');
+    const [isFrameDetailOpen, setIsFrameDetailOpen] = useState(false);
+    const [wizardStep, setWizardStep] = useState(0);
+    const [frameDetailPage, setFrameDetailPage] = useState(1);
+    const [frameDetailPerPage, setFrameDetailPerPage] = useState(10);
+
+    const wizardSteps = [
+        {
+            key: 'metadata',
+            label: 'Metadata',
+            description: 'Nama, jenis, periode, dan anggaran',
+        },
+        {
+            key: 'lapangan',
+            label: 'Manajemen Lapangan',
+            description: 'Metode dan frame sampel',
+        },
+        {
+            key: 'pelatihan',
+            label: 'Pelatihan',
+            description: 'Metode dan bulan pelatihan',
+        },
+        {
+            key: 'ketua',
+            label: 'Ketua Tim',
+            description: 'Penanggung jawab kegiatan',
+        },
+    ] as const;
+
+    const scrollToWizardSection = (index: number) => {
+        if (!canAccessWizardStep(index)) {
+            return;
+        }
+
+        const sectionIds = [
+            'wizard-step-metadata',
+            'wizard-step-lapangan',
+            'wizard-step-pelatihan',
+            'wizard-step-ketua',
+        ];
+
+        setWizardStep(index);
+        document.getElementById(sectionIds[index])?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+        });
+    };
 
     const isMetadataComplete =
         data.frame_metadata_columns.length > 0 &&
@@ -383,10 +484,91 @@ export default function Create({
     const activeUnitSampelList = activeUnitSampelIds
         .map((id) => masterUnitSampel.find((item) => item.id === id))
         .filter((item): item is MasterSampelOption => item !== undefined);
+    const activeUnitSampelIdsKey = activeUnitSampelIds.join(',');
     const activeFrameRows = data.kegiatan_frame_sampel
         .map((row, index) => ({ row, index }))
         .filter(({ row }) => row.tahapan === data.frame_tahapan);
+    const totalFrameDetailPages = Math.max(
+        1,
+        Math.ceil(activeFrameRows.length / frameDetailPerPage),
+    );
+    const currentFrameDetailPage = Math.min(
+        frameDetailPage,
+        totalFrameDetailPages,
+    );
+    const paginatedFrameRows = useMemo(() => {
+        const startIndex = (currentFrameDetailPage - 1) * frameDetailPerPage;
+        return activeFrameRows.slice(
+            startIndex,
+            startIndex + frameDetailPerPage,
+        );
+    }, [activeFrameRows, currentFrameDetailPage, frameDetailPerPage]);
 
+    const activeFrameSelectionId =
+        data.frame_tahapan === 'listing' &&
+        !isSensus &&
+        data.has_listing_updating
+            ? data.frame_sampel_listing_id
+            : data.frame_sampel_pencacahan_id;
+    const activeFrameSelectionLabel =
+        data.frame_tahapan === 'listing'
+            ? 'Frame Sampel Listing'
+            : 'Frame Sampel Pencacahan';
+    const activeFrameSelection = masterFrameSampel.find(
+        (item) => String(item.id) === activeFrameSelectionId,
+    );
+    const canOpenFrameDetail =
+        activeFrameSelectionId !== '' && activeUnitSampelList.length > 0;
+    const isStepMetadataComplete =
+        data.nama_kegiatan.trim() !== '' &&
+        data.jenis_kegiatan.trim() !== '' &&
+        data.tahun_anggaran !== null &&
+        data.tanggal_mulai.trim() !== '' &&
+        data.tanggal_selesai.trim() !== '';
+    const isStepLapanganComplete =
+        data.metode_pendataan_pencacahan !== '' &&
+        (!isSensus && data.has_listing_updating
+            ? data.metode_pendataan_listing !== ''
+            : true) &&
+        canOpenFrameDetail;
+    const isStepPelatihanComplete =
+        data.metode_pelatihan !== '' &&
+        (data.metode_pelatihan === 'tidak_ada_pelatihan' ||
+            data.bulan_pelatihan.trim() !== '');
+    const isStepKetuaComplete =
+        isKetuaTim || data.ketua_tim_user_id.trim() !== '';
+    const canAccessWizardStep = (index: number): boolean => {
+        if (index <= wizardStep) {
+            return true;
+        }
+
+        const wizardStepRequirements: Array<() => boolean> = [
+            () => true,
+            () => isStepMetadataComplete,
+            () => isStepMetadataComplete && isStepLapanganComplete,
+            () =>
+                isStepMetadataComplete &&
+                isStepLapanganComplete &&
+                isStepPelatihanComplete,
+        ];
+
+        return wizardStepRequirements[index]?.() ?? false;
+    };
+    const isWizardReadyForSubmit =
+        isStepMetadataComplete &&
+        isStepLapanganComplete &&
+        isStepPelatihanComplete &&
+        isStepKetuaComplete;
+    useEffect(() => {
+        if (isFrameDetailOpen) {
+            setFrameDetailPage(1);
+        }
+    }, [
+        isFrameDetailOpen,
+        activeFrameSelectionId,
+        data.frame_tahapan,
+        activeUnitSampelIdsKey,
+    ]);
     useEffect(() => {
         if (isSensus && data.has_listing_updating) {
             setData('has_listing_updating', false);
@@ -867,1209 +1049,1656 @@ export default function Create({
 
                 {/* Form */}
                 <form onSubmit={handleSubmit}>
+                    <div className="grid gap-3 rounded-2xl border border-neutral-200 bg-white p-3 shadow-sm md:grid-cols-4 dark:border-neutral-800 dark:bg-neutral-900">
+                        {wizardSteps.map((step, index) => (
+                            <button
+                                key={step.key}
+                                type="button"
+                                disabled={!canAccessWizardStep(index)}
+                                onClick={() => scrollToWizardSection(index)}
+                                className={`rounded-xl border px-4 py-3 text-left transition-colors ${
+                                    wizardStep === index
+                                        ? 'border-neutral-900 bg-neutral-50 dark:border-neutral-200 dark:bg-neutral-800'
+                                        : canAccessWizardStep(index)
+                                          ? 'border-neutral-200 bg-transparent hover:border-neutral-300 dark:border-neutral-800 dark:hover:border-neutral-700'
+                                          : 'cursor-not-allowed border-neutral-100 bg-neutral-50/40 opacity-55 dark:border-neutral-800 dark:bg-neutral-900/30'
+                                }`}
+                            >
+                                <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                    Langkah {index + 1}
+                                </p>
+                                <p className="mt-1 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                    {step.label}
+                                </p>
+                                <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                                    {step.description}
+                                </p>
+                            </button>
+                        ))}
+                    </div>
+
                     <ContentCard>
                         <div className="space-y-6">
-                            {/* Info: Kode Kegiatan Otomatis */}
-                            <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/50">
-                                <div className="flex items-start space-x-3">
-                                    <svg
-                                        className="mt-0.5 size-5 flex-shrink-0 text-neutral-600 dark:text-neutral-400"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
+                            {wizardStep === 0 && (
+                                <>
+                                    <div
+                                        id="wizard-step-metadata"
+                                        className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/50"
                                     >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                        />
-                                    </svg>
-                                    <div>
-                                        <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                                            Kode Kegiatan Otomatis
-                                        </h3>
-                                        <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
-                                            Kode kegiatan akan dibuat otomatis
-                                            oleh sistem dengan format: KEG-
-                                            {data.tahun_anggaran}-XXX
-                                        </p>
+                                        <div className="flex items-start space-x-3">
+                                            <svg
+                                                className="mt-0.5 size-5 flex-shrink-0 text-neutral-600 dark:text-neutral-400"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                />
+                                            </svg>
+                                            <div>
+                                                <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                                    Identitas Kegiatan Otomatis
+                                                </h3>
+                                                <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300">
+                                                    Identitas kegiatan akan
+                                                    dibuat otomatis oleh sistem
+                                                    setelah data disimpan.
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
 
-                            {/* Nama Kegiatan */}
-                            <div>
-                                <label
-                                    htmlFor="nama_kegiatan"
-                                    className="block text-base font-semibold text-gray-900 dark:text-gray-100"
-                                >
-                                    Nama Kegiatan{' '}
-                                    <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    id="nama_kegiatan"
-                                    value={data.nama_kegiatan}
-                                    onChange={(e) =>
-                                        setData('nama_kegiatan', e.target.value)
-                                    }
-                                    className="mt-2 block h-11 w-full rounded-lg border border-neutral-200/70 bg-white/50 px-3 py-2 text-base shadow-sm backdrop-blur-md transition-colors hover:border-neutral-300 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/20 focus:outline-none dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-white dark:placeholder:text-neutral-400 dark:hover:border-neutral-700 dark:focus:border-neutral-500 dark:focus:ring-neutral-500/20"
-                                    placeholder="Masukkan nama kegiatan..."
-                                />
-                                <InputError
-                                    message={errors.nama_kegiatan}
-                                    className="mt-2"
-                                />
-                            </div>
-
-                            {/* Jenis Kegiatan */}
-                            <div>
-                                <label
-                                    htmlFor="jenis_kegiatan"
-                                    className="block text-base font-semibold text-gray-900 dark:text-gray-100"
-                                >
-                                    Jenis Kegiatan{' '}
-                                    <span className="text-red-500">*</span>
-                                    {isCopyMode && (
-                                        <span className="ml-2 text-sm font-normal text-gray-500">
-                                            (dari kegiatan yang disalin)
-                                        </span>
-                                    )}
-                                </label>
-                                <SearchableSelect
-                                    options={[
-                                        { value: 'survei', label: 'Survei' },
-                                        { value: 'sensus', label: 'Sensus' },
-                                    ]}
-                                    value={data.jenis_kegiatan}
-                                    onValueChange={(value) =>
-                                        setData(
-                                            'jenis_kegiatan',
-                                            value as 'sensus' | 'survei',
-                                        )
-                                    }
-                                    placeholder="Pilih jenis kegiatan"
-                                    searchPlaceholder="Cari jenis kegiatan..."
-                                    disabled={
-                                        isCopyMode && hasSourceJenisKegiatan
-                                    }
-                                    className="mt-2"
-                                />
-                                <InputError
-                                    message={errors.jenis_kegiatan}
-                                    className="mt-2"
-                                />
-                                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                                    💡 Jenis kegiatan akan menentukan rate honor
-                                    yang tersedia
-                                </p>
-                            </div>
-
-                            {/* Deskripsi */}
-                            <div>
-                                <label
-                                    htmlFor="deskripsi"
-                                    className="block text-base font-semibold text-gray-900 dark:text-gray-100"
-                                >
-                                    Deskripsi
-                                </label>
-                                <Textarea
-                                    id="deskripsi"
-                                    rows={4}
-                                    value={data.deskripsi}
-                                    onChange={(e) =>
-                                        setData('deskripsi', e.target.value)
-                                    }
-                                    placeholder="Masukkan deskripsi kegiatan... (opsional)"
-                                    className="mt-2 text-base"
-                                />
-                                <InputError
-                                    message={errors.deskripsi}
-                                    className="mt-2"
-                                />
-                            </div>
-
-                            {/* Tahun Anggaran */}
-                            <div>
-                                <label
-                                    htmlFor="tahun_anggaran"
-                                    className="block text-base font-semibold text-gray-900 dark:text-gray-100"
-                                >
-                                    Tahun Anggaran{' '}
-                                    <span className="text-red-500">*</span>
-                                    {isCopyMode && (
-                                        <span className="ml-2 text-sm font-normal text-gray-500">
-                                            (dari kegiatan yang disalin)
-                                        </span>
-                                    )}
-                                </label>
-                                <SearchableSelect
-                                    options={tahunOptions.map((tahun) => ({
-                                        value: tahun.toString(),
-                                        label: tahun.toString(),
-                                    }))}
-                                    value={data.tahun_anggaran.toString()}
-                                    onValueChange={(value) =>
-                                        setData(
-                                            'tahun_anggaran',
-                                            parseInt(value),
-                                        )
-                                    }
-                                    placeholder="Pilih tahun anggaran"
-                                    searchPlaceholder="Cari tahun..."
-                                    disabled={
-                                        isCopyMode && hasSourceTahunAnggaran
-                                    }
-                                    className="mt-2"
-                                />
-                                <InputError
-                                    message={errors.tahun_anggaran}
-                                    className="mt-2"
-                                />
-                            </div>
-
-                            {!isSensus && (
-                                <div>
-                                    <label
-                                        htmlFor="has_listing_updating"
-                                        className="block text-base font-semibold text-gray-900 dark:text-gray-100"
-                                    >
-                                        Apakah kegiatan ini memiliki tahapan
-                                        Listing/Updating?
-                                    </label>
-                                    <div className="mt-3 flex items-start gap-3">
+                                    {/* Nama Kegiatan */}
+                                    <div>
+                                        <label
+                                            htmlFor="nama_kegiatan"
+                                            className="block text-base font-semibold text-gray-900 dark:text-gray-100"
+                                        >
+                                            Nama Kegiatan{' '}
+                                            <span className="text-red-500">
+                                                *
+                                            </span>
+                                        </label>
                                         <input
-                                            type="checkbox"
-                                            id="has_listing_updating"
-                                            checked={data.has_listing_updating}
+                                            type="text"
+                                            id="nama_kegiatan"
+                                            value={data.nama_kegiatan}
                                             onChange={(e) =>
                                                 setData(
-                                                    'has_listing_updating',
-                                                    e.target.checked,
+                                                    'nama_kegiatan',
+                                                    e.target.value,
                                                 )
                                             }
-                                            className="mt-1 h-5 w-5 rounded border-2 border-neutral-300 text-neutral-900 focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 dark:focus:ring-neutral-500/20"
+                                            className="mt-2 block h-11 w-full rounded-lg border border-neutral-200/70 bg-white/50 px-3 py-2 text-base shadow-sm backdrop-blur-md transition-colors hover:border-neutral-300 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/20 focus:outline-none dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-white dark:placeholder:text-neutral-400 dark:hover:border-neutral-700 dark:focus:border-neutral-500 dark:focus:ring-neutral-500/20"
+                                            placeholder="Masukkan nama kegiatan..."
                                         />
-                                        <span className="text-base text-gray-700 dark:text-gray-300">
-                                            Aktifkan jika ada tahapan
-                                            listing/updating sebelum
-                                            pencacahan/pendataan lapangan.
-                                        </span>
+                                        <InputError
+                                            message={errors.nama_kegiatan}
+                                            className="mt-2"
+                                        />
                                     </div>
-                                </div>
-                            )}
 
-                            {/* Pagu Listing */}
-                            {data.has_listing_updating && (
-                                <div>
-                                    <label
-                                        htmlFor="pagu_listing"
-                                        className="block text-base font-semibold text-gray-900 dark:text-gray-100"
-                                    >
-                                        Pagu Listing/Updating (Rp)
-                                    </label>
-                                    <input
-                                        type="text"
-                                        id="pagu_listing"
-                                        value={
-                                            data.pagu_listing
-                                                ? formatCurrency(
-                                                      data.pagu_listing,
-                                                  )
-                                                : ''
-                                        }
-                                        onChange={(e) => {
-                                            const raw = parseCurrency(
-                                                e.target.value,
-                                            );
-                                            setData('pagu_listing', raw);
-                                        }}
-                                        className="mt-2 block h-11 w-full rounded-lg border border-neutral-200/70 bg-white/50 px-3 py-2 text-base shadow-sm backdrop-blur-md transition-colors hover:border-neutral-300 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/20 focus:outline-none dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-white dark:placeholder:text-neutral-400 dark:hover:border-neutral-700 dark:focus:border-neutral-500 dark:focus:ring-neutral-500/20"
-                                        placeholder="Masukkan nominal pagu listing..."
-                                    />
-                                    <InputError
-                                        message={errors.pagu_listing}
-                                        className="mt-2"
-                                    />
-                                </div>
-                            )}
-
-                            {/* Metode Pendataan Pencacahan */}
-                            <div>
-                                <label
-                                    htmlFor="metode_pendataan_pencacahan"
-                                    className="block text-base font-semibold text-gray-900 dark:text-gray-100"
-                                >
-                                    Metode Pendataan Pencacahan{' '}
-                                    <span className="text-red-500">*</span>
-                                </label>
-                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                    CAPI = menggunakan aplikasi FASIH di
-                                    smartphone. PAPI = menggunakan kertas.
-                                </p>
-                                <div className="mt-2 flex gap-4">
-                                    {['PAPI', 'CAPI'].map((metode) => (
+                                    {/* Jenis Kegiatan */}
+                                    <div>
                                         <label
-                                            key={metode}
-                                            className={`flex flex-1 cursor-pointer items-center gap-3 rounded-lg border-2 px-4 py-3 transition-colors ${
-                                                data.metode_pendataan_pencacahan ===
-                                                metode
-                                                    ? 'border-neutral-900 bg-neutral-50 dark:border-neutral-300 dark:bg-neutral-800'
-                                                    : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
-                                            }`}
+                                            htmlFor="jenis_kegiatan"
+                                            className="block text-base font-semibold text-gray-900 dark:text-gray-100"
                                         >
-                                            <input
-                                                type="radio"
-                                                name="metode_pendataan_pencacahan"
-                                                value={metode}
-                                                checked={
-                                                    data.metode_pendataan_pencacahan ===
-                                                    metode
-                                                }
-                                                onChange={() =>
-                                                    setData(
-                                                        'metode_pendataan_pencacahan',
-                                                        metode as
-                                                            | 'PAPI'
-                                                            | 'CAPI',
-                                                    )
-                                                }
-                                                className="h-4 w-4 text-neutral-900"
-                                            />
-                                            <div>
-                                                <span className="font-semibold text-gray-900 dark:text-gray-100">
-                                                    {metode}
+                                            Jenis Kegiatan{' '}
+                                            <span className="text-red-500">
+                                                *
+                                            </span>
+                                            {isCopyMode && (
+                                                <span className="ml-2 text-sm font-normal text-gray-500">
+                                                    (dari kegiatan yang disalin)
                                                 </span>
-                                                <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
-                                                    {metode === 'CAPI'
-                                                        ? '(FASIH)'
-                                                        : '(Kertas)'}
-                                                </span>
-                                            </div>
+                                            )}
                                         </label>
-                                    ))}
-                                </div>
-                                <InputError
-                                    message={errors.metode_pendataan_pencacahan}
-                                    className="mt-2"
-                                />
-                            </div>
+                                        <SearchableSelect
+                                            options={[
+                                                {
+                                                    value: 'survei',
+                                                    label: 'Survei',
+                                                },
+                                                {
+                                                    value: 'sensus',
+                                                    label: 'Sensus',
+                                                },
+                                            ]}
+                                            value={data.jenis_kegiatan}
+                                            onValueChange={(value) =>
+                                                setData(
+                                                    'jenis_kegiatan',
+                                                    value as
+                                                        | 'sensus'
+                                                        | 'survei',
+                                                )
+                                            }
+                                            placeholder="Pilih jenis kegiatan"
+                                            searchPlaceholder="Cari jenis kegiatan..."
+                                            disabled={
+                                                isCopyMode &&
+                                                hasSourceJenisKegiatan
+                                            }
+                                            className="mt-2"
+                                        />
+                                        <InputError
+                                            message={errors.jenis_kegiatan}
+                                            className="mt-2"
+                                        />
+                                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                                            💡 Jenis kegiatan akan menentukan
+                                            rate honor yang tersedia
+                                        </p>
+                                    </div>
 
-                            {/* Metode Pendataan Listing - hanya tampil jika has_listing_updating */}
-                            {data.has_listing_updating && (
-                                <div>
-                                    <label
-                                        htmlFor="metode_pendataan_listing"
-                                        className="block text-base font-semibold text-gray-900 dark:text-gray-100"
-                                    >
-                                        Metode Pendataan Listing{' '}
-                                        <span className="text-red-500">*</span>
-                                    </label>
-                                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                        Metode pendataan khusus untuk tahap
-                                        listing/updating.
-                                    </p>
-                                    <div className="mt-2 flex gap-4">
-                                        {['PAPI', 'CAPI'].map((metode) => (
+                                    {/* Deskripsi */}
+                                    <div>
+                                        <label
+                                            htmlFor="deskripsi"
+                                            className="block text-base font-semibold text-gray-900 dark:text-gray-100"
+                                        >
+                                            Deskripsi
+                                        </label>
+                                        <Textarea
+                                            id="deskripsi"
+                                            rows={4}
+                                            value={data.deskripsi}
+                                            onChange={(e) =>
+                                                setData(
+                                                    'deskripsi',
+                                                    e.target.value,
+                                                )
+                                            }
+                                            placeholder="Masukkan deskripsi kegiatan... (opsional)"
+                                            className="mt-2 text-base"
+                                        />
+                                        <InputError
+                                            message={errors.deskripsi}
+                                            className="mt-2"
+                                        />
+                                    </div>
+
+                                    {/* Tahun Anggaran */}
+                                    <div>
+                                        <label
+                                            htmlFor="tahun_anggaran"
+                                            className="block text-base font-semibold text-gray-900 dark:text-gray-100"
+                                        >
+                                            Tahun Anggaran{' '}
+                                            <span className="text-red-500">
+                                                *
+                                            </span>
+                                            {isCopyMode && (
+                                                <span className="ml-2 text-sm font-normal text-gray-500">
+                                                    (dari kegiatan yang disalin)
+                                                </span>
+                                            )}
+                                        </label>
+                                        <SearchableSelect
+                                            options={tahunOptions.map(
+                                                (tahun) => ({
+                                                    value: tahun.toString(),
+                                                    label: tahun.toString(),
+                                                }),
+                                            )}
+                                            value={data.tahun_anggaran.toString()}
+                                            onValueChange={(value) =>
+                                                setData(
+                                                    'tahun_anggaran',
+                                                    parseInt(value),
+                                                )
+                                            }
+                                            placeholder="Pilih tahun anggaran"
+                                            searchPlaceholder="Cari tahun..."
+                                            disabled={
+                                                isCopyMode &&
+                                                hasSourceTahunAnggaran
+                                            }
+                                            className="mt-2"
+                                        />
+                                        <InputError
+                                            message={errors.tahun_anggaran}
+                                            className="mt-2"
+                                        />
+                                    </div>
+
+                                    {!isSensus && (
+                                        <div>
                                             <label
-                                                key={metode}
-                                                className={`flex flex-1 cursor-pointer items-center gap-3 rounded-lg border-2 px-4 py-3 transition-colors ${
-                                                    data.metode_pendataan_listing ===
-                                                    metode
-                                                        ? 'border-neutral-900 bg-neutral-50 dark:border-neutral-300 dark:bg-neutral-800'
-                                                        : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
-                                                }`}
+                                                htmlFor="has_listing_updating"
+                                                className="block text-base font-semibold text-gray-900 dark:text-gray-100"
                                             >
+                                                Apakah kegiatan ini memiliki
+                                                tahapan Listing/Updating?
+                                            </label>
+                                            <div className="mt-3 flex items-start gap-3">
                                                 <input
-                                                    type="radio"
-                                                    name="metode_pendataan_listing"
-                                                    value={metode}
+                                                    type="checkbox"
+                                                    id="has_listing_updating"
                                                     checked={
-                                                        data.metode_pendataan_listing ===
-                                                        metode
+                                                        data.has_listing_updating
                                                     }
-                                                    onChange={() =>
+                                                    onChange={(e) =>
                                                         setData(
-                                                            'metode_pendataan_listing',
-                                                            metode as
-                                                                | 'PAPI'
-                                                                | 'CAPI',
+                                                            'has_listing_updating',
+                                                            e.target.checked,
                                                         )
                                                     }
-                                                    className="h-4 w-4 text-neutral-900"
+                                                    className="mt-1 h-5 w-5 rounded border-2 border-neutral-300 text-neutral-900 focus:ring-2 focus:ring-neutral-900/20 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 dark:focus:ring-neutral-500/20"
                                                 />
-                                                <div>
-                                                    <span className="font-semibold text-gray-900 dark:text-gray-100">
-                                                        {metode}
-                                                    </span>
-                                                    <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
-                                                        {metode === 'CAPI'
-                                                            ? '(FASIH)'
-                                                            : '(Kertas)'}
-                                                    </span>
-                                                </div>
+                                                <span className="text-base text-gray-700 dark:text-gray-300">
+                                                    Aktifkan jika ada tahapan
+                                                    listing/updating sebelum
+                                                    pencacahan/pendataan
+                                                    lapangan.
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Pagu Listing */}
+                                    {data.has_listing_updating && (
+                                        <div>
+                                            <label
+                                                htmlFor="pagu_listing"
+                                                className="block text-base font-semibold text-gray-900 dark:text-gray-100"
+                                            >
+                                                Pagu Listing/Updating (Rp)
                                             </label>
-                                        ))}
+                                            <input
+                                                type="text"
+                                                id="pagu_listing"
+                                                value={
+                                                    data.pagu_listing
+                                                        ? formatCurrency(
+                                                              data.pagu_listing,
+                                                          )
+                                                        : ''
+                                                }
+                                                onChange={(e) => {
+                                                    const raw = parseCurrency(
+                                                        e.target.value,
+                                                    );
+                                                    setData(
+                                                        'pagu_listing',
+                                                        raw,
+                                                    );
+                                                }}
+                                                className="mt-2 block h-11 w-full rounded-lg border border-neutral-200/70 bg-white/50 px-3 py-2 text-base shadow-sm backdrop-blur-md transition-colors hover:border-neutral-300 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/20 focus:outline-none dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-white dark:placeholder:text-neutral-400 dark:hover:border-neutral-700 dark:focus:border-neutral-500 dark:focus:ring-neutral-500/20"
+                                                placeholder="Masukkan nominal pagu listing..."
+                                            />
+                                            <InputError
+                                                message={errors.pagu_listing}
+                                                className="mt-2"
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                        <div>
+                                            <label
+                                                htmlFor="tanggal_mulai"
+                                                className="block text-base font-semibold text-gray-900 dark:text-gray-100"
+                                            >
+                                                Tanggal Mulai{' '}
+                                                <span className="text-red-500">
+                                                    *
+                                                </span>
+                                            </label>
+                                            <DatePicker
+                                                id="tanggal_mulai"
+                                                value={data.tanggal_mulai}
+                                                onChange={(v) =>
+                                                    setData('tanggal_mulai', v)
+                                                }
+                                                className="mt-2 h-11"
+                                            />
+                                            <InputError
+                                                message={errors.tanggal_mulai}
+                                                className="mt-2"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label
+                                                htmlFor="tanggal_selesai"
+                                                className="block text-base font-semibold text-gray-900 dark:text-gray-100"
+                                            >
+                                                Tanggal Selesai{' '}
+                                                <span className="text-red-500">
+                                                    *
+                                                </span>
+                                            </label>
+                                            <DatePicker
+                                                id="tanggal_selesai"
+                                                value={data.tanggal_selesai}
+                                                onChange={(v) =>
+                                                    setData(
+                                                        'tanggal_selesai',
+                                                        v,
+                                                    )
+                                                }
+                                                className="mt-2 h-11"
+                                            />
+                                            <InputError
+                                                message={errors.tanggal_selesai}
+                                                className="mt-2"
+                                            />
+                                        </div>
                                     </div>
-                                    <InputError
-                                        message={
-                                            errors.metode_pendataan_listing
-                                        }
-                                        className="mt-2"
-                                    />
-                                </div>
+                                </>
                             )}
 
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                <div>
-                                    <label className="block text-base font-semibold text-gray-900 dark:text-gray-100">
-                                        Frame Sampel Pencacahan
-                                    </label>
-                                    <SearchableSelect
-                                        options={[
-                                            {
-                                                value: '',
-                                                label: 'Pilih Frame Sampel Pencacahan',
-                                            },
-                                            ...masterFrameSampel.map(
-                                                (item) => ({
-                                                    value: String(item.id),
-                                                    label: `${item.nama} (${item.kode})`,
-                                                }),
-                                            ),
-                                        ]}
-                                        value={data.frame_sampel_pencacahan_id}
-                                        onValueChange={(value) =>
-                                            setData(
-                                                'frame_sampel_pencacahan_id',
-                                                value,
-                                            )
-                                        }
-                                        placeholder="Pilih Frame Sampel Pencacahan"
-                                        searchPlaceholder="Cari frame sampel..."
-                                        className="mt-2"
-                                    />
-                                    <InputError
-                                        message={
-                                            errors.frame_sampel_pencacahan_id
-                                        }
-                                        className="mt-2"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-base font-semibold text-gray-900 dark:text-gray-100">
-                                        Unit Sampel Pencacahan{' '}
-                                        <span className="text-red-500">*</span>
-                                    </label>
-                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                        Pilih minimal 1 unit sampel. Bisa lebih
-                                        dari 1 (mis. Sensus Ekonomi).
-                                    </p>
-                                    <MultiSelectCheckbox
-                                        className="mt-2"
-                                        options={masterUnitSampel.map(
-                                            (item) => ({
-                                                value: item.id,
-                                                label: item.nama,
-                                                subLabel: item.kode,
-                                            }),
-                                        )}
-                                        values={data.unit_sampel_pencacahan_ids}
-                                        onValuesChange={(values) =>
-                                            setData(
-                                                'unit_sampel_pencacahan_ids',
-                                                values,
-                                            )
-                                        }
-                                        placeholder="Pilih unit sampel pencacahan..."
-                                    />
-                                    <InputError
-                                        message={
-                                            errors.unit_sampel_pencacahan_ids
-                                        }
-                                        className="mt-2"
-                                    />
-                                </div>
-
-                                {!isSensus && data.has_listing_updating && (
-                                    <>
-                                        <div>
-                                            <label className="block text-base font-semibold text-gray-900 dark:text-gray-100">
-                                                Frame Sampel Listing
-                                            </label>
-                                            <SearchableSelect
-                                                options={[
-                                                    {
-                                                        value: '',
-                                                        label: 'Pilih Frame Sampel Listing',
-                                                    },
-                                                    ...masterFrameSampel.map(
-                                                        (item) => ({
-                                                            value: String(
-                                                                item.id,
-                                                            ),
-                                                            label: `${item.nama} (${item.kode})`,
-                                                        }),
-                                                    ),
-                                                ]}
-                                                value={
-                                                    data.frame_sampel_listing_id
-                                                }
-                                                onValueChange={(value) =>
-                                                    setData(
-                                                        'frame_sampel_listing_id',
-                                                        value,
-                                                    )
-                                                }
-                                                placeholder="Pilih Frame Sampel Listing"
-                                                searchPlaceholder="Cari frame sampel..."
-                                                className="mt-2"
-                                            />
-                                            <InputError
-                                                message={
-                                                    errors.frame_sampel_listing_id
-                                                }
-                                                className="mt-2"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-base font-semibold text-gray-900 dark:text-gray-100">
-                                                Unit Sampel Listing
-                                            </label>
-                                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                Pilih satu atau lebih unit
-                                                sampel listing.
-                                            </p>
-                                            <MultiSelectCheckbox
-                                                className="mt-2"
-                                                options={masterUnitSampel.map(
-                                                    (item) => ({
-                                                        value: item.id,
-                                                        label: item.nama,
-                                                        subLabel: item.kode,
-                                                    }),
-                                                )}
-                                                values={
-                                                    data.unit_sampel_listing_ids
-                                                }
-                                                onValuesChange={(values) =>
-                                                    setData(
-                                                        'unit_sampel_listing_ids',
-                                                        values,
-                                                    )
-                                                }
-                                                placeholder="Pilih unit sampel listing..."
-                                            />
-                                            <InputError
-                                                message={
-                                                    errors.unit_sampel_listing_ids
-                                                }
-                                                className="mt-2"
-                                            />
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-
-                            <div className="space-y-3 rounded-lg border border-neutral-200 p-4 dark:border-neutral-700">
-                                <div className="space-y-3">
-                                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                                        Frame Sampel
-                                    </h3>
-
-                                    <FrameSampelTahapanSelect
-                                        value={data.frame_tahapan}
-                                        onValueChange={updateFrameTahapan}
-                                        allowListing={
-                                            !isSensus &&
-                                            data.has_listing_updating
-                                        }
-                                        className="w-full md:w-auto"
-                                    />
-
-                                    <div className="space-y-2 rounded-md border border-neutral-200 p-3 dark:border-neutral-700">
-                                        <div className="flex items-center justify-between">
-                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                Metadata Frame (isi nama kolom
-                                                dulu)
-                                            </label>
-                                            {!canManageDetailFrame && (
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={addMetadataColumn}
-                                                >
-                                                    Tambah Metadata
-                                                </Button>
-                                            )}
-                                        </div>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                                            Susun berurutan dari tingkat
-                                            tertinggi ke rendah.
-                                        </p>
-                                        <div className="space-y-2">
-                                            {data.frame_metadata_columns.map(
-                                                (column, columnIndex) => (
-                                                    <div
-                                                        key={`column-${columnIndex}`}
-                                                        className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1.5fr_2fr_auto]"
+                            {wizardStep === 1 && (
+                                <>
+                                    {/* Metode Pendataan Pencacahan */}
+                                    <div>
+                                        <label
+                                            htmlFor="metode_pendataan_pencacahan"
+                                            className="block text-base font-semibold text-gray-900 dark:text-gray-100"
+                                        >
+                                            Metode Pendataan Pencacahan{' '}
+                                            <span className="text-red-500">
+                                                *
+                                            </span>
+                                        </label>
+                                        <div className="mt-2 flex gap-4">
+                                            {metodePendataanOptions.map(
+                                                (metode) => (
+                                                    <label
+                                                        key={metode.value}
+                                                        className={`flex flex-1 cursor-pointer items-center gap-3 rounded-lg border-2 px-4 py-3 transition-colors ${
+                                                            data.metode_pendataan_pencacahan ===
+                                                            metode.value
+                                                                ? 'border-neutral-900 bg-neutral-50 dark:border-neutral-300 dark:bg-neutral-800'
+                                                                : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
+                                                        }`}
                                                     >
                                                         <input
-                                                            type="text"
-                                                            value={column.code}
-                                                            disabled={
-                                                                canManageDetailFrame
+                                                            type="radio"
+                                                            name="metode_pendataan_pencacahan"
+                                                            value={metode.value}
+                                                            checked={
+                                                                data.metode_pendataan_pencacahan ===
+                                                                metode.value
                                                             }
-                                                            onChange={(e) =>
-                                                                updateMetadataColumn(
-                                                                    columnIndex,
-                                                                    'code',
-                                                                    e.target
-                                                                        .value,
+                                                            onChange={() =>
+                                                                setData(
+                                                                    'metode_pendataan_pencacahan',
+                                                                    metode.value,
                                                                 )
                                                             }
-                                                            className="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                                                            placeholder="Kode metadata (contoh: kdkec)"
+                                                            className="h-4 w-4 text-neutral-900"
                                                         />
-                                                        <input
-                                                            type="text"
-                                                            value={column.label}
-                                                            disabled={
-                                                                canManageDetailFrame
-                                                            }
-                                                            onChange={(e) =>
-                                                                updateMetadataColumn(
-                                                                    columnIndex,
-                                                                    'label',
-                                                                    e.target
-                                                                        .value,
-                                                                )
-                                                            }
-                                                            className="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                                                            placeholder="Label UI (contoh: Kecamatan)"
-                                                        />
-                                                        <input
-                                                            type="text"
-                                                            value={
-                                                                column.description
-                                                            }
-                                                            disabled={
-                                                                canManageDetailFrame
-                                                            }
-                                                            onChange={(e) =>
-                                                                updateMetadataColumn(
-                                                                    columnIndex,
-                                                                    'description',
-                                                                    e.target
-                                                                        .value,
-                                                                )
-                                                            }
-                                                            className="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                                                            placeholder="Deskripsi (contoh: Kode Kecamatan)"
-                                                        />
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            variant="destructive"
-                                                            disabled={
-                                                                canManageDetailFrame
-                                                            }
-                                                            onClick={() =>
-                                                                removeMetadataColumn(
-                                                                    columnIndex,
-                                                                )
-                                                            }
-                                                        >
-                                                            Hapus
-                                                        </Button>
-                                                    </div>
+                                                        <div>
+                                                            <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                                                {metode.label}
+                                                            </span>
+                                                            <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
+                                                                {
+                                                                    metode.description
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                    </label>
                                                 ),
                                             )}
                                         </div>
-                                        {metadataActionError && (
-                                            <p className="text-sm text-red-600 dark:text-red-400">
-                                                {metadataActionError}
-                                            </p>
-                                        )}
-                                        <div className="flex justify-end gap-2">
-                                            {canManageDetailFrame ? (
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={
-                                                        enableMetadataEditing
-                                                    }
-                                                >
-                                                    Ubah Metadata
-                                                </Button>
-                                            ) : (
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    onClick={
-                                                        saveMetadataColumns
-                                                    }
-                                                    disabled={
-                                                        !isMetadataComplete
-                                                    }
-                                                >
-                                                    Simpan Metadata
-                                                </Button>
-                                            )}
-                                        </div>
+                                        <InputError
+                                            message={
+                                                errors.metode_pendataan_pencacahan
+                                            }
+                                            className="mt-2"
+                                        />
                                     </div>
 
-                                    {canManageDetailFrame && (
-                                        <div className="space-y-3">
-                                            <div className="flex flex-wrap items-center justify-between gap-3">
-                                                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                                                    Detail Frame Sampel
-                                                </h4>
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={
-                                                            handleGenerateFrameTemplate
-                                                        }
-                                                    >
-                                                        Generate Excel
-                                                    </Button>
-                                                    <input
-                                                        type="file"
-                                                        accept=".xlsx,.xls,.csv"
-                                                        onChange={(e) =>
-                                                            setFrameImportFile(
-                                                                e.target
-                                                                    .files?.[0] ||
-                                                                    null,
-                                                            )
-                                                        }
-                                                        className="block text-sm text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-neutral-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white dark:text-gray-300 dark:file:bg-neutral-200 dark:file:text-neutral-900"
-                                                    />
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={
-                                                            handleImportFrameSampel
-                                                        }
-                                                        disabled={
-                                                            frameImportProcessing ||
-                                                            !frameImportFile
-                                                        }
-                                                    >
-                                                        {frameImportProcessing
-                                                            ? 'Mengimpor...'
-                                                            : 'Import Excel'}
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={
-                                                            addFrameSampelRow
-                                                        }
-                                                    >
-                                                        Tambah Frame
-                                                    </Button>
-                                                </div>
+                                    {/* Metode Pendataan Listing - hanya tampil jika has_listing_updating */}
+                                    {data.has_listing_updating && (
+                                        <div>
+                                            <label
+                                                htmlFor="metode_pendataan_listing"
+                                                className="block text-base font-semibold text-gray-900 dark:text-gray-100"
+                                            >
+                                                Metode Pendataan Listing{' '}
+                                                <span className="text-red-500">
+                                                    *
+                                                </span>
+                                            </label>
+                                            <div className="mt-2 flex gap-4">
+                                                {metodePendataanOptions.map(
+                                                    (metode) => (
+                                                        <label
+                                                            key={metode.value}
+                                                            className={`flex flex-1 cursor-pointer items-center gap-3 rounded-lg border-2 px-4 py-3 transition-colors ${
+                                                                data.metode_pendataan_listing ===
+                                                                metode.value
+                                                                    ? 'border-neutral-900 bg-neutral-50 dark:border-neutral-300 dark:bg-neutral-800'
+                                                                    : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
+                                                            }`}
+                                                        >
+                                                            <input
+                                                                type="radio"
+                                                                name="metode_pendataan_listing"
+                                                                value={
+                                                                    metode.value
+                                                                }
+                                                                checked={
+                                                                    data.metode_pendataan_listing ===
+                                                                    metode.value
+                                                                }
+                                                                onChange={() =>
+                                                                    setData(
+                                                                        'metode_pendataan_listing',
+                                                                        metode.value,
+                                                                    )
+                                                                }
+                                                                className="h-4 w-4 text-neutral-900"
+                                                            />
+                                                            <div>
+                                                                <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                                                    {
+                                                                        metode.label
+                                                                    }
+                                                                </span>
+                                                                <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
+                                                                    {
+                                                                        metode.description
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                        </label>
+                                                    ),
+                                                )}
                                             </div>
-                                            {frameImportMessage && (
-                                                <p className="text-sm text-green-700 dark:text-green-400">
-                                                    {frameImportMessage}
-                                                </p>
-                                            )}
-                                            {frameImportError && (
-                                                <p className="text-sm text-red-600 dark:text-red-400">
-                                                    {frameImportError}
-                                                </p>
-                                            )}
+                                            <InputError
+                                                message={
+                                                    errors.metode_pendataan_listing
+                                                }
+                                                className="mt-2"
+                                            />
                                         </div>
                                     )}
-                                </div>
 
-                                {!canManageDetailFrame && (
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        Simpan metadata terlebih dahulu sebelum
-                                        mengisi detail frame sampel, generate
-                                        template, atau import Excel.
-                                    </p>
-                                )}
+                                    <div
+                                        id="wizard-step-lapangan"
+                                        className="rounded-2xl border border-neutral-200/70 bg-gradient-to-br from-neutral-50 via-white to-neutral-100 p-5 shadow-sm dark:border-neutral-800 dark:from-neutral-900 dark:via-neutral-900 dark:to-neutral-800/80"
+                                    >
+                                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                            <div className="space-y-2">
+                                                <div className="inline-flex rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                                                    Pengaturan lapangan
+                                                </div>
+                                                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                                                    Frame Sampel
+                                                </h3>
+                                                <p className="max-w-2xl text-sm leading-6 text-gray-500 dark:text-gray-400">
+                                                    Pilih tahapan, tentukan
+                                                    master frame dan unit
+                                                    sampel, lalu buka detail
+                                                    hanya saat semuanya sudah
+                                                    siap. Alurnya dibuat
+                                                    bertahap supaya lebih tenang
+                                                    saat dibaca.
+                                                </p>
+                                            </div>
 
-                                {canManageDetailFrame &&
-                                    activeFrameRows.length === 0 && (
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                                            Belum ada data frame sampel.
-                                        </p>
-                                    )}
+                                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:w-[440px]">
+                                                <div className="rounded-2xl border border-white/70 bg-white/85 px-3 py-3 text-center shadow-sm dark:border-neutral-700 dark:bg-neutral-950/70">
+                                                    <p className="text-[11px] font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                                        Tahap
+                                                    </p>
+                                                    <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                                                        {data.frame_tahapan ===
+                                                        'listing'
+                                                            ? 'Listing'
+                                                            : 'Pencacahan'}
+                                                    </p>
+                                                </div>
+                                                <div className="rounded-2xl border border-white/70 bg-white/85 px-3 py-3 text-center shadow-sm dark:border-neutral-700 dark:bg-neutral-950/70">
+                                                    <p className="text-[11px] font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                                        Frame
+                                                    </p>
+                                                    <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                                                        {activeFrameSelection
+                                                            ? 'Sudah dipilih'
+                                                            : 'Belum dipilih'}
+                                                    </p>
+                                                </div>
+                                                <div className="rounded-2xl border border-white/70 bg-white/85 px-3 py-3 text-center shadow-sm dark:border-neutral-700 dark:bg-neutral-950/70">
+                                                    <p className="text-[11px] font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                                        Unit
+                                                    </p>
+                                                    <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                                                        {data.frame_tahapan ===
+                                                            'listing' &&
+                                                        !isSensus &&
+                                                        data.has_listing_updating
+                                                            ? data
+                                                                  .unit_sampel_listing_ids
+                                                                  .length
+                                                            : data
+                                                                  .unit_sampel_pencacahan_ids
+                                                                  .length}{' '}
+                                                        dipilih
+                                                    </p>
+                                                </div>
+                                                <div className="rounded-2xl border border-white/70 bg-white/85 px-3 py-3 text-center shadow-sm dark:border-neutral-700 dark:bg-neutral-950/70">
+                                                    <p className="text-[11px] font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                                        Baris
+                                                    </p>
+                                                    <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                                                        {activeFrameRows.length}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                {canManageDetailFrame && (
-                                    <div className="space-y-3">
-                                        {activeFrameRows.map(
-                                            ({ row, index }) => (
-                                                <div
-                                                    key={`frame-row-${row.tahapan}-${index}`}
-                                                    className="space-y-3 rounded-md border border-neutral-200 p-3 dark:border-neutral-700"
-                                                >
-                                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                                        {data.frame_metadata_columns.map(
-                                                            (
-                                                                column,
-                                                                columnIndex,
-                                                            ) => (
-                                                                <div
-                                                                    key={`frame-${index}-col-${columnIndex}`}
-                                                                >
-                                                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                                        {column.label ||
-                                                                            `Kolom ${columnIndex + 1}`}
-                                                                    </label>
-                                                                    <div className="mt-1 grid grid-cols-1 gap-2 md:grid-cols-2">
-                                                                        <input
-                                                                            type="text"
-                                                                            value={getFrameMetadataValue(
-                                                                                row,
-                                                                                column.code,
-                                                                                'codeValue',
-                                                                            )}
-                                                                            onChange={(
-                                                                                e,
-                                                                            ) =>
-                                                                                updateFrameMetadataValue(
-                                                                                    index,
-                                                                                    column.code,
-                                                                                    'codeValue',
-                                                                                    e
-                                                                                        .target
-                                                                                        .value,
-                                                                                )
-                                                                            }
-                                                                            className="block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                                                                            placeholder={`Kode ${column.label || 'metadata'}`}
-                                                                        />
-                                                                        <input
-                                                                            type="text"
-                                                                            value={getFrameMetadataValue(
-                                                                                row,
-                                                                                column.code,
-                                                                                'labelValue',
-                                                                            )}
-                                                                            onChange={(
-                                                                                e,
-                                                                            ) =>
-                                                                                updateFrameMetadataValue(
-                                                                                    index,
-                                                                                    column.code,
-                                                                                    'labelValue',
-                                                                                    e
-                                                                                        .target
-                                                                                        .value,
-                                                                                )
-                                                                            }
-                                                                            className="block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                                                                            placeholder={
-                                                                                column.label ||
-                                                                                'metadata'
-                                                                            }
-                                                                        />
-                                                                    </div>
-                                                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                                        {
-                                                                            column.code
-                                                                        }
-                                                                        {column.description
-                                                                            ? ` - ${column.description}`
-                                                                            : ''}
-                                                                    </p>
-                                                                </div>
-                                                            ),
-                                                        )}
+                                        <div className="mt-5">
+                                            <FrameSampelTahapanSelect
+                                                value={data.frame_tahapan}
+                                                onValueChange={
+                                                    updateFrameTahapan
+                                                }
+                                                allowListing={
+                                                    !isSensus &&
+                                                    data.has_listing_updating
+                                                }
+                                                className="w-full max-w-xl"
+                                            />
+                                        </div>
+
+                                        <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
+                                            <div className="rounded-2xl border border-neutral-200 bg-white/80 p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-950/40">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                                            Master frame
+                                                        </p>
+                                                        <label className="mt-2 block text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                                            {
+                                                                activeFrameSelectionLabel
+                                                            }{' '}
+                                                            <span className="text-red-500">
+                                                                *
+                                                            </span>
+                                                        </label>
+                                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                            Pilih satu frame
+                                                            dulu agar detail
+                                                            yang dibuka terasa
+                                                            lebih terarah.
+                                                        </p>
                                                     </div>
+                                                    <div className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-[11px] font-medium text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                                                        {activeFrameSelection
+                                                            ? `${activeFrameSelection.nama} (${activeFrameSelection.kode})`
+                                                            : 'Belum dipilih'}
+                                                    </div>
+                                                </div>
+                                                <SearchableSelect
+                                                    options={[
+                                                        {
+                                                            value: '',
+                                                            label: `Pilih ${activeFrameSelectionLabel}`,
+                                                        },
+                                                        ...masterFrameSampel.map(
+                                                            (item) => ({
+                                                                value: String(
+                                                                    item.id,
+                                                                ),
+                                                                label: `${item.nama} (${item.kode})`,
+                                                            }),
+                                                        ),
+                                                    ]}
+                                                    value={
+                                                        activeFrameSelectionId
+                                                    }
+                                                    onValueChange={(value) => {
+                                                        if (
+                                                            data.frame_tahapan ===
+                                                                'listing' &&
+                                                            !isSensus &&
+                                                            data.has_listing_updating
+                                                        ) {
+                                                            setData(
+                                                                'frame_sampel_listing_id',
+                                                                value,
+                                                            );
+                                                        } else {
+                                                            setData(
+                                                                'frame_sampel_pencacahan_id',
+                                                                value,
+                                                            );
+                                                        }
+                                                    }}
+                                                    placeholder={`Pilih ${activeFrameSelectionLabel}`}
+                                                    searchPlaceholder="Cari frame sampel..."
+                                                    className="mt-3"
+                                                />
+                                                <InputError
+                                                    message={
+                                                        data.frame_tahapan ===
+                                                            'listing' &&
+                                                        !isSensus &&
+                                                        data.has_listing_updating
+                                                            ? errors.frame_sampel_listing_id
+                                                            : errors.frame_sampel_pencacahan_id
+                                                    }
+                                                    className="mt-2"
+                                                />
+                                            </div>
 
-                                                    <div className="flex items-end justify-between gap-3">
-                                                        <div className="flex flex-wrap gap-3">
-                                                            {activeUnitSampelList.length ===
-                                                            0 ? (
-                                                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                                                    Pilih unit
-                                                                    sampel
-                                                                    terlebih
-                                                                    dahulu untuk
-                                                                    mengisi
-                                                                    jumlah.
+                                            <div className="rounded-2xl border border-neutral-200 bg-white/80 p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-950/40">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                                            Unit sampel
+                                                        </p>
+                                                        <label className="mt-2 block text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                                            {data.frame_tahapan ===
+                                                            'listing'
+                                                                ? 'Listing'
+                                                                : 'Pencacahan'}{' '}
+                                                            <span className="text-red-500">
+                                                                *
+                                                            </span>
+                                                        </label>
+                                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                            Pilih unit yang
+                                                            benar-benar dipakai
+                                                            agar detail frame
+                                                            lebih mudah dibaca.
+                                                        </p>
+                                                    </div>
+                                                    <div className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-[11px] font-medium text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                                                        {data.frame_tahapan ===
+                                                            'listing' &&
+                                                        !isSensus &&
+                                                        data.has_listing_updating
+                                                            ? data
+                                                                  .unit_sampel_listing_ids
+                                                                  .length
+                                                            : data
+                                                                  .unit_sampel_pencacahan_ids
+                                                                  .length}{' '}
+                                                        opsi
+                                                    </div>
+                                                </div>
+                                                <MultiSelectCheckbox
+                                                    className="mt-3"
+                                                    options={masterUnitSampel.map(
+                                                        (item) => ({
+                                                            value: item.id,
+                                                            label: item.nama,
+                                                            subLabel: item.kode,
+                                                        }),
+                                                    )}
+                                                    values={
+                                                        data.frame_tahapan ===
+                                                            'listing' &&
+                                                        !isSensus &&
+                                                        data.has_listing_updating
+                                                            ? data.unit_sampel_listing_ids
+                                                            : data.unit_sampel_pencacahan_ids
+                                                    }
+                                                    onValuesChange={(
+                                                        values,
+                                                    ) => {
+                                                        if (
+                                                            data.frame_tahapan ===
+                                                                'listing' &&
+                                                            !isSensus &&
+                                                            data.has_listing_updating
+                                                        ) {
+                                                            setData(
+                                                                'unit_sampel_listing_ids',
+                                                                values,
+                                                            );
+                                                        } else {
+                                                            setData(
+                                                                'unit_sampel_pencacahan_ids',
+                                                                values,
+                                                            );
+                                                        }
+                                                    }}
+                                                    placeholder="Pilih unit sampel..."
+                                                />
+                                                <InputError
+                                                    message={
+                                                        data.frame_tahapan ===
+                                                            'listing' &&
+                                                        !isSensus &&
+                                                        data.has_listing_updating
+                                                            ? errors.unit_sampel_listing_ids
+                                                            : errors.unit_sampel_pencacahan_ids
+                                                    }
+                                                    className="mt-2"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-neutral-300 bg-white/80 p-4 dark:border-neutral-700 dark:bg-neutral-950/40">
+                                            <div className="space-y-1">
+                                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                    Daftar Frame Sampel
+                                                </p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                    Buka detail saat master
+                                                    frame dan unit sudah
+                                                    dipilih. Di dalam popup,
+                                                    metadata dan baris frame
+                                                    akan diatur lebih rapi.
+                                                </p>
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setFrameDetailPage(1);
+                                                    setIsFrameDetailOpen(true);
+                                                }}
+                                                disabled={
+                                                    !canOpenFrameDetail ||
+                                                    !isMetadataSaved
+                                                }
+                                            >
+                                                Buka Detail Frame
+                                            </Button>
+                                        </div>
+
+                                        {!isMetadataSaved && (
+                                            <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+                                                Simpan metadata terlebih dahulu
+                                                sebelum membuka detail frame
+                                                sampel.
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <Dialog
+                                        open={isFrameDetailOpen}
+                                        onOpenChange={setIsFrameDetailOpen}
+                                    >
+                                        <DialogContent className="max-h-[90vh] overflow-hidden sm:max-w-6xl">
+                                            <div className="flex h-full max-h-[90vh] flex-col overflow-hidden">
+                                                <div className="shrink-0 space-y-4 border-b border-neutral-200 bg-white px-6 pt-6 pb-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-950">
+                                                    <DialogHeader>
+                                                        <DialogTitle>
+                                                            Daftar Frame Sampel
+                                                        </DialogTitle>
+                                                        <DialogDescription>
+                                                            {canOpenFrameDetail
+                                                                ? `Lengkapi metadata dan baris detail untuk ${activeFrameSelectionLabel.toLowerCase()}.`
+                                                                : 'Pilih Frame Sampel dan Unit Sampel terlebih dahulu sebelum mengisi detail.'}
+                                                        </DialogDescription>
+                                                    </DialogHeader>
+
+                                                    <div className="space-y-2 rounded-xl border border-neutral-200 bg-neutral-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/40">
+                                                        <div className="flex flex-wrap items-center justify-between gap-3">
+                                                            <div>
+                                                                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                                                    Metadata
+                                                                    Frame
+                                                                </h4>
+                                                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                                    Susun
+                                                                    metadata
+                                                                    sebelum
+                                                                    menambah
+                                                                    baris detail
+                                                                    frame.
                                                                 </p>
+                                                            </div>
+                                                            {!canManageDetailFrame ? (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={
+                                                                        addMetadataColumn
+                                                                    }
+                                                                >
+                                                                    Tambah
+                                                                    Metadata
+                                                                </Button>
                                                             ) : (
-                                                                activeUnitSampelList.map(
-                                                                    (
-                                                                        unitSampel,
-                                                                    ) => (
-                                                                        <div
-                                                                            key={
-                                                                                unitSampel.id
-                                                                            }
-                                                                            className="w-full max-w-xs"
-                                                                        >
-                                                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                                                Jumlah{' '}
-                                                                                {
-                                                                                    unitSampel.nama
-                                                                                }{' '}
-                                                                                dalam
-                                                                                frame
-                                                                            </label>
-                                                                            <input
-                                                                                type="number"
-                                                                                min={
-                                                                                    0
-                                                                                }
-                                                                                value={
-                                                                                    row
-                                                                                        .target_unit_sampel[
-                                                                                        String(
-                                                                                            unitSampel.id,
-                                                                                        )
-                                                                                    ] ??
-                                                                                    ''
-                                                                                }
-                                                                                onChange={(
-                                                                                    e,
-                                                                                ) =>
-                                                                                    updateFrameSampelRowTarget(
-                                                                                        index,
-                                                                                        String(
-                                                                                            unitSampel.id,
-                                                                                        ),
-                                                                                        e
-                                                                                            .target
-                                                                                            .value,
-                                                                                    )
-                                                                                }
-                                                                                className="mt-1 block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                                                                                placeholder="Contoh: 2"
-                                                                            />
-                                                                            <InputError
-                                                                                message={
-                                                                                    errors[
-                                                                                        `kegiatan_frame_sampel.${index}.target_unit_sampel.${unitSampel.id}`
-                                                                                    ]
-                                                                                }
-                                                                                className="mt-1"
-                                                                            />
-                                                                        </div>
-                                                                    ),
-                                                                )
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={
+                                                                        enableMetadataEditing
+                                                                    }
+                                                                >
+                                                                    Ubah
+                                                                    Metadata
+                                                                </Button>
                                                             )}
                                                         </div>
 
-                                                        <Button
-                                                            type="button"
-                                                            variant="destructive"
-                                                            size="sm"
-                                                            onClick={() =>
-                                                                removeFrameSampelRow(
-                                                                    index,
-                                                                )
-                                                            }
-                                                        >
-                                                            Hapus
-                                                        </Button>
+                                                        <div className="space-y-2">
+                                                            {data.frame_metadata_columns.map(
+                                                                (
+                                                                    column,
+                                                                    columnIndex,
+                                                                ) => (
+                                                                    <div
+                                                                        key={`column-${columnIndex}`}
+                                                                        className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1.5fr_2fr_auto]"
+                                                                    >
+                                                                        <input
+                                                                            type="text"
+                                                                            value={
+                                                                                column.code
+                                                                            }
+                                                                            disabled={
+                                                                                canManageDetailFrame
+                                                                            }
+                                                                            onChange={(
+                                                                                e,
+                                                                            ) =>
+                                                                                updateMetadataColumn(
+                                                                                    columnIndex,
+                                                                                    'code',
+                                                                                    e
+                                                                                        .target
+                                                                                        .value,
+                                                                                )
+                                                                            }
+                                                                            className="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                            placeholder="Kode metadata (contoh: kdkec)"
+                                                                        />
+                                                                        <input
+                                                                            type="text"
+                                                                            value={
+                                                                                column.label
+                                                                            }
+                                                                            disabled={
+                                                                                canManageDetailFrame
+                                                                            }
+                                                                            onChange={(
+                                                                                e,
+                                                                            ) =>
+                                                                                updateMetadataColumn(
+                                                                                    columnIndex,
+                                                                                    'label',
+                                                                                    e
+                                                                                        .target
+                                                                                        .value,
+                                                                                )
+                                                                            }
+                                                                            className="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                            placeholder="Label UI (contoh: Kecamatan)"
+                                                                        />
+                                                                        <input
+                                                                            type="text"
+                                                                            value={
+                                                                                column.description
+                                                                            }
+                                                                            disabled={
+                                                                                canManageDetailFrame
+                                                                            }
+                                                                            onChange={(
+                                                                                e,
+                                                                            ) =>
+                                                                                updateMetadataColumn(
+                                                                                    columnIndex,
+                                                                                    'description',
+                                                                                    e
+                                                                                        .target
+                                                                                        .value,
+                                                                                )
+                                                                            }
+                                                                            className="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                            placeholder="Deskripsi (contoh: Kode Kecamatan)"
+                                                                        />
+                                                                        <Button
+                                                                            type="button"
+                                                                            size="sm"
+                                                                            variant="destructive"
+                                                                            disabled={
+                                                                                canManageDetailFrame
+                                                                            }
+                                                                            onClick={() =>
+                                                                                removeMetadataColumn(
+                                                                                    columnIndex,
+                                                                                )
+                                                                            }
+                                                                        >
+                                                                            Hapus
+                                                                        </Button>
+                                                                    </div>
+                                                                ),
+                                                            )}
+                                                        </div>
+
+                                                        {metadataActionError && (
+                                                            <p className="text-sm text-red-600 dark:text-red-400">
+                                                                {
+                                                                    metadataActionError
+                                                                }
+                                                            </p>
+                                                        )}
+
+                                                        <div className="flex justify-end gap-2">
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                onClick={
+                                                                    saveMetadataColumns
+                                                                }
+                                                                disabled={
+                                                                    !isMetadataComplete
+                                                                }
+                                                            >
+                                                                Simpan Metadata
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-900">
+                                                        <div className="space-y-1">
+                                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                                Total{' '}
+                                                                {
+                                                                    activeFrameRows.length
+                                                                }{' '}
+                                                                baris aktif
+                                                            </p>
+                                                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                                Menampilkan{' '}
+                                                                {activeFrameRows.length ===
+                                                                0
+                                                                    ? 0
+                                                                    : (currentFrameDetailPage -
+                                                                          1) *
+                                                                          frameDetailPerPage +
+                                                                      1}
+                                                                -
+                                                                {Math.min(
+                                                                    currentFrameDetailPage *
+                                                                        frameDetailPerPage,
+                                                                    activeFrameRows.length,
+                                                                )}{' '}
+                                                                dari{' '}
+                                                                {
+                                                                    activeFrameRows.length
+                                                                }{' '}
+                                                                baris.
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex flex-wrap items-center gap-3">
+                                                            <label className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                                                Baris per
+                                                                halaman
+                                                                <select
+                                                                    value={
+                                                                        frameDetailPerPage
+                                                                    }
+                                                                    onChange={(
+                                                                        event,
+                                                                    ) => {
+                                                                        setFrameDetailPerPage(
+                                                                            Number(
+                                                                                event
+                                                                                    .target
+                                                                                    .value,
+                                                                            ),
+                                                                        );
+                                                                        setFrameDetailPage(
+                                                                            1,
+                                                                        );
+                                                                    }}
+                                                                    className="h-9 rounded-lg border border-neutral-200 bg-white px-2 text-sm text-gray-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-gray-100"
+                                                                >
+                                                                    {[
+                                                                        5, 10,
+                                                                        20,
+                                                                    ].map(
+                                                                        (
+                                                                            option,
+                                                                        ) => (
+                                                                            <option
+                                                                                key={
+                                                                                    option
+                                                                                }
+                                                                                value={
+                                                                                    option
+                                                                                }
+                                                                            >
+                                                                                {
+                                                                                    option
+                                                                                }
+                                                                            </option>
+                                                                        ),
+                                                                    )}
+                                                                </select>
+                                                            </label>
+                                                            <div className="flex items-center gap-2">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() =>
+                                                                        setFrameDetailPage(
+                                                                            (
+                                                                                prev,
+                                                                            ) =>
+                                                                                Math.max(
+                                                                                    prev -
+                                                                                        1,
+                                                                                    1,
+                                                                                ),
+                                                                        )
+                                                                    }
+                                                                    disabled={
+                                                                        currentFrameDetailPage ===
+                                                                        1
+                                                                    }
+                                                                >
+                                                                    Sebelumnya
+                                                                </Button>
+                                                                <span className="text-xs font-medium text-neutral-600 dark:text-neutral-300">
+                                                                    Halaman{' '}
+                                                                    {
+                                                                        currentFrameDetailPage
+                                                                    }{' '}
+                                                                    dari{' '}
+                                                                    {
+                                                                        totalFrameDetailPages
+                                                                    }
+                                                                </span>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() =>
+                                                                        setFrameDetailPage(
+                                                                            (
+                                                                                prev,
+                                                                            ) =>
+                                                                                Math.min(
+                                                                                    prev +
+                                                                                        1,
+                                                                                    totalFrameDetailPages,
+                                                                                ),
+                                                                        )
+                                                                    }
+                                                                    disabled={
+                                                                        currentFrameDetailPage ===
+                                                                        totalFrameDetailPages
+                                                                    }
+                                                                >
+                                                                    Berikutnya
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-3 rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-950/40">
+                                                        <div className="flex flex-wrap items-center justify-between gap-3">
+                                                            <div>
+                                                                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                                                    Detail Frame
+                                                                    Sampel
+                                                                </h4>
+                                                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                                    Generate
+                                                                    template,
+                                                                    import
+                                                                    Excel, atau
+                                                                    tambah baris
+                                                                    manual.
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={
+                                                                        handleGenerateFrameTemplate
+                                                                    }
+                                                                    disabled={
+                                                                        !canOpenFrameDetail ||
+                                                                        !isMetadataSaved
+                                                                    }
+                                                                >
+                                                                    Generate
+                                                                    Excel
+                                                                </Button>
+                                                                <input
+                                                                    type="file"
+                                                                    accept=".xlsx,.xls,.csv"
+                                                                    onChange={(
+                                                                        e,
+                                                                    ) =>
+                                                                        setFrameImportFile(
+                                                                            e
+                                                                                .target
+                                                                                .files?.[0] ||
+                                                                                null,
+                                                                        )
+                                                                    }
+                                                                    className="block text-sm text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-neutral-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white dark:text-gray-300 dark:file:bg-neutral-200 dark:file:text-neutral-900"
+                                                                />
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={
+                                                                        handleImportFrameSampel
+                                                                    }
+                                                                    disabled={
+                                                                        frameImportProcessing ||
+                                                                        !frameImportFile ||
+                                                                        !canOpenFrameDetail ||
+                                                                        !isMetadataSaved
+                                                                    }
+                                                                >
+                                                                    {frameImportProcessing
+                                                                        ? 'Mengimpor...'
+                                                                        : 'Import Excel'}
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={
+                                                                        addFrameSampelRow
+                                                                    }
+                                                                    disabled={
+                                                                        !canOpenFrameDetail ||
+                                                                        !isMetadataSaved
+                                                                    }
+                                                                >
+                                                                    Tambah Frame
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+
+                                                        {frameImportMessage && (
+                                                            <p className="text-sm text-green-700 dark:text-green-400">
+                                                                {
+                                                                    frameImportMessage
+                                                                }
+                                                            </p>
+                                                        )}
+                                                        {frameImportError && (
+                                                            <p className="text-sm text-red-600 dark:text-red-400">
+                                                                {
+                                                                    frameImportError
+                                                                }
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 </div>
-                                            ),
-                                        )}
-                                    </div>
-                                )}
-                            </div>
 
-                            {/* Metode Pelatihan */}
-                            <div>
-                                <label className="block text-base font-semibold text-gray-900 dark:text-gray-100">
-                                    Metode Pelatihan Petugas{' '}
-                                    <span className="text-red-500">*</span>
-                                </label>
-                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                    Apakah pelatihan petugas dilaksanakan secara
-                                    daring, luring, atau hybrid?
-                                </p>
-                                <div
-                                    className={`mt-2 grid grid-cols-1 gap-3 ${isSensus ? 'sm:grid-cols-3' : 'sm:grid-cols-4'}`}
-                                >
-                                    {(
-                                        [
-                                            {
-                                                value: 'daring',
-                                                label: 'Daring',
-                                                desc: '(Online)',
-                                            },
-                                            {
-                                                value: 'luring',
-                                                label: 'Luring',
-                                                desc: '(Tatap Muka)',
-                                            },
-                                            {
-                                                value: 'hybrid',
-                                                label: 'Hybrid',
-                                                desc: '(Campuran)',
-                                            },
-                                            {
-                                                value: 'tidak_ada_pelatihan',
-                                                label: 'Tidak Ada',
-                                                desc: '(Tidak ada pelatihan)',
-                                            },
-                                        ] as const
-                                    )
-                                        .filter(
-                                            (opt) =>
-                                                !isSensus ||
-                                                opt.value !==
-                                                    'tidak_ada_pelatihan',
-                                        )
-                                        .map((opt) => (
-                                            <label
-                                                key={opt.value}
-                                                className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 px-4 py-3 transition-colors ${
-                                                    data.metode_pelatihan ===
-                                                    opt.value
-                                                        ? 'border-neutral-900 bg-neutral-50 dark:border-neutral-300 dark:bg-neutral-800'
-                                                        : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
-                                                }`}
-                                            >
-                                                <input
-                                                    type="radio"
-                                                    name="metode_pelatihan"
-                                                    value={opt.value}
-                                                    checked={
-                                                        data.metode_pelatihan ===
-                                                        opt.value
-                                                    }
-                                                    onChange={() =>
-                                                        setData(
-                                                            'metode_pelatihan',
-                                                            opt.value,
-                                                        )
-                                                    }
-                                                    className="h-4 w-4 text-neutral-900"
-                                                />
-                                                <div>
-                                                    <span className="font-semibold text-gray-900 dark:text-gray-100">
-                                                        {opt.label}
-                                                    </span>
-                                                    <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">
-                                                        {opt.desc}
-                                                    </span>
+                                                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pt-4 pb-6">
+                                                    {paginatedFrameRows.length ===
+                                                    0 ? (
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                            Belum ada data frame
+                                                            sampel.
+                                                        </p>
+                                                    ) : (
+                                                        <div className="space-y-3">
+                                                            {paginatedFrameRows.map(
+                                                                ({
+                                                                    row,
+                                                                    index,
+                                                                }) => (
+                                                                    <div
+                                                                        key={`frame-row-${row.tahapan}-${index}`}
+                                                                        className="space-y-3 rounded-md border border-neutral-200 p-3 dark:border-neutral-700"
+                                                                    >
+                                                                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                                                            {data.frame_metadata_columns.map(
+                                                                                (
+                                                                                    column,
+                                                                                    columnIndex,
+                                                                                ) => (
+                                                                                    <div
+                                                                                        key={`frame-${index}-col-${columnIndex}`}
+                                                                                    >
+                                                                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                                                            {column.label ||
+                                                                                                `Kolom ${columnIndex + 1}`}
+                                                                                        </label>
+                                                                                        <div className="mt-1 grid grid-cols-1 gap-2 md:grid-cols-2">
+                                                                                            <input
+                                                                                                type="text"
+                                                                                                value={getFrameMetadataValue(
+                                                                                                    row,
+                                                                                                    column.code,
+                                                                                                    'codeValue',
+                                                                                                )}
+                                                                                                onChange={(
+                                                                                                    e,
+                                                                                                ) =>
+                                                                                                    updateFrameMetadataValue(
+                                                                                                        index,
+                                                                                                        column.code,
+                                                                                                        'codeValue',
+                                                                                                        e
+                                                                                                            .target
+                                                                                                            .value,
+                                                                                                    )
+                                                                                                }
+                                                                                                className="block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                                                placeholder={`Kode ${column.label || 'metadata'}`}
+                                                                                            />
+                                                                                            <input
+                                                                                                type="text"
+                                                                                                value={getFrameMetadataValue(
+                                                                                                    row,
+                                                                                                    column.code,
+                                                                                                    'labelValue',
+                                                                                                )}
+                                                                                                onChange={(
+                                                                                                    e,
+                                                                                                ) =>
+                                                                                                    updateFrameMetadataValue(
+                                                                                                        index,
+                                                                                                        column.code,
+                                                                                                        'labelValue',
+                                                                                                        e
+                                                                                                            .target
+                                                                                                            .value,
+                                                                                                    )
+                                                                                                }
+                                                                                                className="block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                                                placeholder={
+                                                                                                    column.label ||
+                                                                                                    'metadata'
+                                                                                                }
+                                                                                            />
+                                                                                        </div>
+                                                                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                                                            {
+                                                                                                column.code
+                                                                                            }
+                                                                                            {column.description
+                                                                                                ? ` - ${column.description}`
+                                                                                                : ''}
+                                                                                        </p>
+                                                                                    </div>
+                                                                                ),
+                                                                            )}
+                                                                        </div>
+
+                                                                        <div className="flex items-end justify-between gap-3">
+                                                                            <div className="flex flex-wrap gap-3">
+                                                                                {activeUnitSampelList.length ===
+                                                                                0 ? (
+                                                                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                                                        Pilih
+                                                                                        unit
+                                                                                        sampel
+                                                                                        terlebih
+                                                                                        dahulu
+                                                                                        untuk
+                                                                                        mengisi
+                                                                                        jumlah.
+                                                                                    </p>
+                                                                                ) : (
+                                                                                    activeUnitSampelList.map(
+                                                                                        (
+                                                                                            unitSampel,
+                                                                                        ) => (
+                                                                                            <div
+                                                                                                key={
+                                                                                                    unitSampel.id
+                                                                                                }
+                                                                                                className="w-full max-w-xs"
+                                                                                            >
+                                                                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                                                                    Jumlah{' '}
+                                                                                                    {
+                                                                                                        unitSampel.nama
+                                                                                                    }{' '}
+                                                                                                    dalam
+                                                                                                    frame
+                                                                                                </label>
+                                                                                                <input
+                                                                                                    type="number"
+                                                                                                    min={
+                                                                                                        0
+                                                                                                    }
+                                                                                                    value={
+                                                                                                        row
+                                                                                                            .target_unit_sampel[
+                                                                                                            String(
+                                                                                                                unitSampel.id,
+                                                                                                            )
+                                                                                                        ] ??
+                                                                                                        ''
+                                                                                                    }
+                                                                                                    onChange={(
+                                                                                                        e,
+                                                                                                    ) =>
+                                                                                                        updateFrameSampelRowTarget(
+                                                                                                            index,
+                                                                                                            String(
+                                                                                                                unitSampel.id,
+                                                                                                            ),
+                                                                                                            e
+                                                                                                                .target
+                                                                                                                .value,
+                                                                                                        )
+                                                                                                    }
+                                                                                                    className="mt-1 block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                                                    placeholder="Contoh: 2"
+                                                                                                />
+                                                                                                <InputError
+                                                                                                    message={
+                                                                                                        errors[
+                                                                                                            `kegiatan_frame_sampel.${index}.target_unit_sampel.${unitSampel.id}`
+                                                                                                        ]
+                                                                                                    }
+                                                                                                    className="mt-1"
+                                                                                                />
+                                                                                            </div>
+                                                                                        ),
+                                                                                    )
+                                                                                )}
+                                                                            </div>
+
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="destructive"
+                                                                                size="sm"
+                                                                                onClick={() =>
+                                                                                    removeFrameSampelRow(
+                                                                                        index,
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                Hapus
+                                                                            </Button>
+                                                                        </div>
+                                                                    </div>
+                                                                ),
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            </label>
-                                        ))}
-                                </div>
-                                <InputError
-                                    message={errors.metode_pelatihan}
-                                    className="mt-2"
-                                />
-                            </div>
+                                            </div>
+                                        </DialogContent>
+                                    </Dialog>
+                                </>
+                            )}
 
-                            {data.metode_pelatihan !== '' &&
-                                data.metode_pelatihan !==
-                                    'tidak_ada_pelatihan' && (
-                                    <div>
-                                        <label
-                                            htmlFor="bulan_pelatihan"
-                                            className="block text-base font-semibold text-gray-900 dark:text-gray-100"
-                                        >
-                                            Bulan Pelatihan{' '}
+                            {wizardStep === 2 && (
+                                <>
+                                    {/* Metode Pelatihan */}
+                                    <div id="wizard-step-pelatihan">
+                                        <label className="block text-base font-semibold text-gray-900 dark:text-gray-100">
+                                            Metode Pelatihan Petugas{' '}
                                             <span className="text-red-500">
                                                 *
                                             </span>
                                         </label>
                                         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                            Pilih bulan pelaksanaan pelatihan
-                                            untuk sinkronisasi pengajuan pulsa
-                                            pelatihan.
+                                            Apakah pelatihan petugas
+                                            dilaksanakan secara daring, luring,
+                                            atau hybrid?
                                         </p>
-                                        <SearchableSelect
-                                            options={BULAN_OPTIONS.map(
-                                                (bulan) => ({
-                                                    value: bulan.value,
-                                                    label: bulan.label,
-                                                }),
-                                            )}
-                                            value={data.bulan_pelatihan}
-                                            onValueChange={(value) =>
-                                                setData(
-                                                    'bulan_pelatihan',
-                                                    value,
+                                        <div
+                                            className={`mt-2 grid grid-cols-1 gap-3 ${isSensus ? 'sm:grid-cols-3' : 'sm:grid-cols-4'}`}
+                                        >
+                                            {(
+                                                [
+                                                    {
+                                                        value: 'daring',
+                                                        label: 'Daring',
+                                                        desc: '(Online)',
+                                                    },
+                                                    {
+                                                        value: 'luring',
+                                                        label: 'Luring',
+                                                        desc: '(Tatap Muka)',
+                                                    },
+                                                    {
+                                                        value: 'hybrid',
+                                                        label: 'Hybrid',
+                                                        desc: '(Campuran)',
+                                                    },
+                                                    {
+                                                        value: 'tidak_ada_pelatihan',
+                                                        label: 'Tidak Ada',
+                                                        desc: '(Tidak ada pelatihan)',
+                                                    },
+                                                ] as const
+                                            )
+                                                .filter(
+                                                    (opt) =>
+                                                        !isSensus ||
+                                                        opt.value !==
+                                                            'tidak_ada_pelatihan',
                                                 )
-                                            }
-                                            placeholder="Pilih Bulan Pelatihan"
-                                            searchPlaceholder="Cari bulan..."
-                                            className="mt-2"
-                                        />
+                                                .map((opt) => (
+                                                    <label
+                                                        key={opt.value}
+                                                        className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 px-4 py-3 transition-colors ${
+                                                            data.metode_pelatihan ===
+                                                            opt.value
+                                                                ? 'border-neutral-900 bg-neutral-50 dark:border-neutral-300 dark:bg-neutral-800'
+                                                                : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
+                                                        }`}
+                                                    >
+                                                        <input
+                                                            type="radio"
+                                                            name="metode_pelatihan"
+                                                            value={opt.value}
+                                                            checked={
+                                                                data.metode_pelatihan ===
+                                                                opt.value
+                                                            }
+                                                            onChange={() =>
+                                                                setData(
+                                                                    'metode_pelatihan',
+                                                                    opt.value,
+                                                                )
+                                                            }
+                                                            className="h-4 w-4 text-neutral-900"
+                                                        />
+                                                        <div>
+                                                            <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                                                {opt.label}
+                                                            </span>
+                                                            <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">
+                                                                {opt.desc}
+                                                            </span>
+                                                        </div>
+                                                    </label>
+                                                ))}
+                                        </div>
                                         <InputError
-                                            message={errors.bulan_pelatihan}
+                                            message={errors.metode_pelatihan}
                                             className="mt-2"
                                         />
                                     </div>
-                                )}
 
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-1">
-                                {/* Pagu Pencacahan */}
-                                <div>
-                                    <label
-                                        htmlFor="pagu_pencacahan"
-                                        className="block text-base font-semibold text-gray-900 dark:text-gray-100"
-                                    >
-                                        Pagu Pencacahan (Rp)
-                                    </label>
-                                    <input
-                                        type="text"
-                                        id="pagu_pencacahan"
-                                        value={
-                                            data.pagu_pencacahan
-                                                ? formatCurrency(
-                                                      data.pagu_pencacahan,
-                                                  )
-                                                : ''
-                                        }
-                                        onChange={(e) => {
-                                            const raw = parseCurrency(
-                                                e.target.value,
-                                            );
-                                            setData('pagu_pencacahan', raw);
-                                        }}
-                                        className="mt-2 block h-11 w-full rounded-lg border border-neutral-200/70 bg-white/50 px-3 py-2 text-base shadow-sm backdrop-blur-md transition-colors hover:border-neutral-300 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/20 focus:outline-none dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-white dark:placeholder:text-neutral-400 dark:hover:border-neutral-700 dark:focus:border-neutral-500 dark:focus:ring-neutral-500/20"
-                                        placeholder="Masukkan nominal pagu pencacahan..."
-                                    />
-                                    <InputError
-                                        message={errors.pagu_pencacahan}
-                                        className="mt-2"
-                                    />
-                                </div>
-                            </div>
+                                    {data.metode_pelatihan !== '' &&
+                                        data.metode_pelatihan !==
+                                            'tidak_ada_pelatihan' && (
+                                            <div>
+                                                <label
+                                                    htmlFor="bulan_pelatihan"
+                                                    className="block text-base font-semibold text-gray-900 dark:text-gray-100"
+                                                >
+                                                    Bulan Pelatihan{' '}
+                                                    <span className="text-red-500">
+                                                        *
+                                                    </span>
+                                                </label>
+                                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                                    Pilih bulan pelaksanaan
+                                                    pelatihan untuk sinkronisasi
+                                                    pengajuan pulsa pelatihan.
+                                                </p>
+                                                <SearchableSelect
+                                                    options={BULAN_OPTIONS.map(
+                                                        (bulan) => ({
+                                                            value: bulan.value,
+                                                            label: bulan.label,
+                                                        }),
+                                                    )}
+                                                    value={data.bulan_pelatihan}
+                                                    onValueChange={(value) =>
+                                                        setData(
+                                                            'bulan_pelatihan',
+                                                            value,
+                                                        )
+                                                    }
+                                                    placeholder="Pilih Bulan Pelatihan"
+                                                    searchPlaceholder="Cari bulan..."
+                                                    className="mt-2"
+                                                />
+                                                <InputError
+                                                    message={
+                                                        errors.bulan_pelatihan
+                                                    }
+                                                    className="mt-2"
+                                                />
+                                            </div>
+                                        )}
 
-                            {/* Ketua Tim - Hidden for ketua_tim role */}
-                            {!isKetuaTim && (
-                                <div>
-                                    <label
-                                        htmlFor="ketua_tim_user_id"
-                                        className="block text-base font-semibold text-gray-900 dark:text-gray-100"
-                                    >
-                                        Ketua Tim{' '}
-                                        <span className="text-red-500">*</span>
-                                    </label>
-                                    <SearchableSelect
-                                        options={[
-                                            {
-                                                value: '',
-                                                label: 'Pilih Ketua Tim',
-                                            },
-                                            ...ketuaTimUsers.map((user) => ({
-                                                value: user.id.toString(),
-                                                label: `${user.name} - ${user.email}`,
-                                                searchKeywords: `${user.name} ${user.email}`,
-                                            })),
-                                        ]}
-                                        value={data.ketua_tim_user_id}
-                                        onValueChange={(value) =>
-                                            setData('ketua_tim_user_id', value)
-                                        }
-                                        placeholder="Pilih Ketua Tim"
-                                        searchPlaceholder="Cari ketua tim..."
-                                        className="mt-2"
-                                    />
-                                    <InputError
-                                        message={errors.ketua_tim_user_id}
-                                        className="mt-2"
-                                    />
-                                </div>
+                                    <div className="grid grid-cols-1 gap-6 md:grid-cols-1">
+                                        {/* Pagu Pencacahan */}
+                                        <div>
+                                            <label
+                                                htmlFor="pagu_pencacahan"
+                                                className="block text-base font-semibold text-gray-900 dark:text-gray-100"
+                                            >
+                                                Pagu Pencacahan (Rp)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                id="pagu_pencacahan"
+                                                value={
+                                                    data.pagu_pencacahan
+                                                        ? formatCurrency(
+                                                              data.pagu_pencacahan,
+                                                          )
+                                                        : ''
+                                                }
+                                                onChange={(e) => {
+                                                    const raw = parseCurrency(
+                                                        e.target.value,
+                                                    );
+                                                    setData(
+                                                        'pagu_pencacahan',
+                                                        raw,
+                                                    );
+                                                }}
+                                                className="mt-2 block h-11 w-full rounded-lg border border-neutral-200/70 bg-white/50 px-3 py-2 text-base shadow-sm backdrop-blur-md transition-colors hover:border-neutral-300 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/20 focus:outline-none dark:border-neutral-800 dark:bg-neutral-800/60 dark:text-white dark:placeholder:text-neutral-400 dark:hover:border-neutral-700 dark:focus:border-neutral-500 dark:focus:ring-neutral-500/20"
+                                                placeholder="Masukkan nominal pagu pencacahan..."
+                                            />
+                                            <InputError
+                                                message={errors.pagu_pencacahan}
+                                                className="mt-2"
+                                            />
+                                        </div>
+                                    </div>
+                                </>
                             )}
 
-                            {/* PJ Lainnya - Optional */}
-                            <div>
-                                <label
-                                    htmlFor="pj_lainnya_id"
-                                    className="block text-base font-semibold text-gray-900 dark:text-gray-100"
-                                >
-                                    Ketua Tim Lainnya (opsional)
-                                </label>
-                                <SearchableSelect
-                                    options={[
-                                        {
-                                            value: '',
-                                            label: 'Pilih Ketua Tim Lainnya (opsional)',
-                                        },
-                                        ...pjLainnyaUsers.map((user: User) => ({
-                                            value: user.id.toString(),
-                                            label: `${user.name} - ${user.email}`,
-                                            searchKeywords: `${user.name} ${user.email}`,
-                                        })),
-                                    ]}
-                                    value={data.pj_lainnya_id}
-                                    onValueChange={(value) =>
-                                        setData('pj_lainnya_id', value)
-                                    }
-                                    placeholder="Pilih Ketua Tim Lainnya (opsional)"
-                                    searchPlaceholder="Cari ketua tim..."
-                                    className="mt-2"
-                                />
-                                <InputError
-                                    message={errors.pj_lainnya_id}
-                                    className="mt-2"
-                                />
-                            </div>
+                            {wizardStep === 3 && (
+                                <>
+                                    {/* Ketua Tim - Hidden for ketua_tim role */}
+                                    <div id="wizard-step-ketua">
+                                        {!isKetuaTim && (
+                                            <div>
+                                                <label
+                                                    htmlFor="ketua_tim_user_id"
+                                                    className="block text-base font-semibold text-gray-900 dark:text-gray-100"
+                                                >
+                                                    Ketua Tim{' '}
+                                                    <span className="text-red-500">
+                                                        *
+                                                    </span>
+                                                </label>
+                                                <SearchableSelect
+                                                    options={[
+                                                        {
+                                                            value: '',
+                                                            label: 'Pilih Ketua Tim',
+                                                        },
+                                                        ...ketuaTimUsers.map(
+                                                            (user) => ({
+                                                                value: user.id.toString(),
+                                                                label: `${user.name} - ${user.email}`,
+                                                                searchKeywords: `${user.name} ${user.email}`,
+                                                            }),
+                                                        ),
+                                                    ]}
+                                                    value={
+                                                        data.ketua_tim_user_id
+                                                    }
+                                                    onValueChange={(value) =>
+                                                        setData(
+                                                            'ketua_tim_user_id',
+                                                            value,
+                                                        )
+                                                    }
+                                                    placeholder="Pilih Ketua Tim"
+                                                    searchPlaceholder="Cari ketua tim..."
+                                                    className="mt-2"
+                                                />
+                                                <InputError
+                                                    message={
+                                                        errors.ketua_tim_user_id
+                                                    }
+                                                    className="mt-2"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
 
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                {/* Tanggal Mulai */}
-                                <div>
-                                    <label
-                                        htmlFor="tanggal_mulai"
-                                        className="block text-base font-semibold text-gray-900 dark:text-gray-100"
-                                    >
-                                        Tanggal Mulai{' '}
-                                        <span className="text-red-500">*</span>
-                                    </label>
-                                    <DatePicker
-                                        id="tanggal_mulai"
-                                        value={data.tanggal_mulai}
-                                        onChange={(v) =>
-                                            setData('tanggal_mulai', v)
-                                        }
-                                        className="mt-2 h-11"
-                                    />
-                                    <InputError
-                                        message={errors.tanggal_mulai}
-                                        className="mt-2"
-                                    />
-                                </div>
-
-                                {/* Tanggal Selesai */}
-                                <div>
-                                    <label
-                                        htmlFor="tanggal_selesai"
-                                        className="block text-base font-semibold text-gray-900 dark:text-gray-100"
-                                    >
-                                        Tanggal Selesai{' '}
-                                        <span className="text-red-500">*</span>
-                                    </label>
-                                    <DatePicker
-                                        id="tanggal_selesai"
-                                        value={data.tanggal_selesai}
-                                        onChange={(v) =>
-                                            setData('tanggal_selesai', v)
-                                        }
-                                        className="mt-2 h-11"
-                                    />
-                                    <InputError
-                                        message={errors.tanggal_selesai}
-                                        className="mt-2"
-                                    />
-                                </div>
-                            </div>
+                                    {/* PJ Lainnya - Optional */}
+                                    <div>
+                                        <label
+                                            htmlFor="pj_lainnya_id"
+                                            className="block text-base font-semibold text-gray-900 dark:text-gray-100"
+                                        >
+                                            Ketua Tim Lainnya (opsional)
+                                        </label>
+                                        <SearchableSelect
+                                            options={[
+                                                {
+                                                    value: '',
+                                                    label: 'Pilih Ketua Tim Lainnya (opsional)',
+                                                },
+                                                ...pjLainnyaUsers.map(
+                                                    (user: User) => ({
+                                                        value: user.id.toString(),
+                                                        label: `${user.name} - ${user.email}`,
+                                                        searchKeywords: `${user.name} ${user.email}`,
+                                                    }),
+                                                ),
+                                            ]}
+                                            value={data.pj_lainnya_id}
+                                            onValueChange={(value) =>
+                                                setData('pj_lainnya_id', value)
+                                            }
+                                            placeholder="Pilih Ketua Tim Lainnya (opsional)"
+                                            searchPlaceholder="Cari ketua tim..."
+                                            className="mt-2"
+                                        />
+                                        <InputError
+                                            message={errors.pj_lainnya_id}
+                                            className="mt-2"
+                                        />
+                                    </div>
+                                </>
+                            )}
 
                             {/* Actions */}
                             <div className="mt-6 flex justify-end gap-3 border-t border-neutral-200 pt-6 dark:border-neutral-800">
@@ -2087,7 +2716,9 @@ export default function Create({
                                 </Button>
                                 <Button
                                     type="submit"
-                                    disabled={processing}
+                                    disabled={
+                                        processing || !isWizardReadyForSubmit
+                                    }
                                     className="min-w-[180px] gap-2"
                                 >
                                     {processing ? (

@@ -486,7 +486,7 @@ interface AlokasiCreateProps {
     isViewMode?: boolean;
 }
 
-type JenisPerubahanRevisi = 'perubahan_beban_tugas' | 'perubahan_petugas';
+type JenisPerubahanRevisi = 'perubahan_alokasi' | 'perubahan_petugas';
 
 export default function Create({
     kegiatans,
@@ -663,15 +663,22 @@ export default function Create({
     const [isImportPreviewDialogOpen, setIsImportPreviewDialogOpen] =
         useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const [jenisPerubahanRevisi, setJenisPerubahanRevisi] =
-        useState<JenisPerubahanRevisi>('perubahan_beban_tugas');
+    const [jenisPerubahanRevisi, setJenisPerubahanRevisi] = useState<
+        JenisPerubahanRevisi | ''
+    >('');
+    const wizardSectionRefs = useRef<Array<HTMLDivElement | null>>([]);
     const [frameSampelDialogIndex, setFrameSampelDialogIndex] = useState<
         number | null
     >(null);
 
     const isPerubahanPetugasMode =
         isRevisiMode && jenisPerubahanRevisi === 'perubahan_petugas';
-    const isRevisiLockedMode = isRevisiMode && !isPerubahanPetugasMode;
+    const isPerubahanAlokasiMode =
+        isRevisiMode && jenisPerubahanRevisi === 'perubahan_alokasi';
+    const isJenisPerubahanRevisiSelected =
+        isPerubahanPetugasMode || jenisPerubahanRevisi === 'perubahan_alokasi';
+    const isJenisPerubahanRevisiPending =
+        isRevisiMode && !isJenisPerubahanRevisiSelected;
 
     // Combine local errors with backend errors
     const allErrors = useMemo(
@@ -1449,6 +1456,20 @@ export default function Create({
         );
     }, [selectedKegiatanSuggestion, bulan, active_year]);
 
+    const editPetugasIds = useMemo(() => {
+        if (!isEditMode || !copiedAlokasi?.length) {
+            return [] as string[];
+        }
+
+        return Array.from(
+            new Set(
+                copiedAlokasi
+                    .map((alokasi) => String(alokasi.petugas_id))
+                    .filter(Boolean),
+            ),
+        );
+    }, [copiedAlokasi, isEditMode]);
+
     const reviewRecommendationByPetugas = useMemo(
         () => petugas_review_recommendations.by_petugas || {},
         [petugas_review_recommendations],
@@ -1458,7 +1479,11 @@ export default function Create({
         petugas_review_recommendations.has_review_data;
 
     const suggestedPetugasOrder = useMemo(() => {
-        const previousSet = new Set(previousPeriodPetugasIds);
+        const primaryPetugasIds =
+            editPetugasIds.length > 0
+                ? editPetugasIds
+                : previousPeriodPetugasIds;
+        const primarySet = new Set(primaryPetugasIds);
         const statusPriority: Record<string, number> = {
             recommended: 0,
             neutral: 1,
@@ -1466,7 +1491,7 @@ export default function Create({
         };
 
         const remainingPetugasIds = [...petugas]
-            .filter((petugasItem) => !previousSet.has(String(petugasItem.id)))
+            .filter((petugasItem) => !primarySet.has(String(petugasItem.id)))
             .sort((a, b) => {
                 const aRecommendation = reviewRecommendationByPetugas[
                     Number(a.id)
@@ -1523,9 +1548,10 @@ export default function Create({
             .map((petugasItem) => String(petugasItem.id));
 
         return Array.from(
-            new Set([...previousPeriodPetugasIds, ...remainingPetugasIds]),
+            new Set([...primaryPetugasIds, ...remainingPetugasIds]),
         );
     }, [
+        editPetugasIds,
         previousPeriodPetugasIds,
         petugas,
         hasReviewRecommendationData,
@@ -2651,6 +2677,117 @@ export default function Create({
     const isSufficientPencacahan = sisaPaguPencacahan >= 0;
     const isSufficientListing = sisaPaguListing >= 0;
 
+    const isStepOneComplete = useMemo(() => {
+        if (!selectedKegiatanId || !selectedKegiatan) {
+            return false;
+        }
+
+        if (selectedKegiatan.has_listing_updating) {
+            if (tahapan === 'both') {
+                return Boolean(
+                    tanggalMulaiListing &&
+                    tanggalSelesaiListing &&
+                    tanggalMulai &&
+                    tanggalSelesai,
+                );
+            }
+
+            if (tahapan === 'listing_only') {
+                return Boolean(tanggalMulaiListing && tanggalSelesaiListing);
+            }
+
+            return Boolean(tanggalMulai && tanggalSelesai);
+        }
+
+        return Boolean(tanggalMulai && tanggalSelesai);
+    }, [
+        selectedKegiatan,
+        selectedKegiatanId,
+        tahapan,
+        tanggalMulai,
+        tanggalMulaiListing,
+        tanggalSelesai,
+        tanggalSelesaiListing,
+    ]);
+
+    const isStepTwoComplete = useMemo(() => {
+        const jumlah = Number(jumlahPetugas);
+        return Number.isFinite(jumlah) && jumlah > 0;
+    }, [jumlahPetugas]);
+
+    const isStepThreeComplete = useMemo(() => {
+        if (!isStepOneComplete || !isStepTwoComplete) {
+            return false;
+        }
+
+        const hasInvalidItem = alokasiItems.some((item) => {
+            if (!item.petugas_id || !item.peran) {
+                return true;
+            }
+
+            if (selectedKegiatan?.has_listing_updating) {
+                if (tahapan === 'both') {
+                    if (!item.jumlah_satuan || !item.jumlah_satuan_listing) {
+                        return true;
+                    }
+                } else if (tahapan === 'listing_only') {
+                    if (!item.jumlah_satuan_listing) {
+                        return true;
+                    }
+                } else if (!item.jumlah_satuan) {
+                    return true;
+                }
+            } else if (!item.jumlah_satuan) {
+                return true;
+            }
+
+            if (isFrameSampelSelectionEnabled) {
+                const selectedFrames = item.frame_sampel_ids || [];
+                if (selectedFrames.length === 0) {
+                    return true;
+                }
+
+                if (getEffectiveJumlahUnitSampel(item) <= 0) {
+                    return true;
+                }
+            }
+
+            return false;
+        });
+
+        return !hasInvalidItem;
+    }, [
+        alokasiItems,
+        getEffectiveJumlahUnitSampel,
+        isFrameSampelSelectionEnabled,
+        isStepOneComplete,
+        isStepTwoComplete,
+        selectedKegiatan,
+        tahapan,
+    ]);
+
+    const isWizardReadyForSubmit =
+        isStepOneComplete && isStepTwoComplete && isStepThreeComplete;
+
+    const canAccessWizardStep = useCallback(
+        (step: number) => {
+            if (isViewMode) {
+                return true;
+            }
+
+            if (step <= 1) {
+                return true;
+            }
+
+            if (step === 2) {
+                return isStepOneComplete;
+            }
+
+            return isStepOneComplete && isStepTwoComplete;
+        },
+        [isStepOneComplete, isStepTwoComplete, isViewMode],
+    );
+
     // Format currency
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', {
@@ -2743,13 +2880,21 @@ export default function Create({
             }
         }
 
+        if (isRevisiMode && !isEditMode && !isJenisPerubahanRevisiSelected) {
+            setErrors({
+                jenis_perubahan_revisi:
+                    'Pilih jenis revisi terlebih dahulu: Perubahan Alokasi atau Perubahan Petugas.',
+            });
+            setProcessing(false);
+            return;
+        }
+
         // Prepare data
         const formData = {
             tahun: active_year,
             bulan: effectiveBulan,
-            jenis_perubahan_revisi: isRevisiMode
-                ? jenisPerubahanRevisi
-                : undefined,
+            jenis_perubahan_revisi:
+                isRevisiMode && !isEditMode ? jenisPerubahanRevisi : undefined,
             tanggal_mulai:
                 tahapan !== 'listing_only'
                     ? tanggalMulai || undefined
@@ -3385,7 +3530,68 @@ export default function Create({
                 </Button>
             </PageHeader>
 
-            {isRevisiMode && (
+            <ContentCard>
+                <div className="grid gap-4 lg:grid-cols-[1.3fr_0.7fr] lg:items-start">
+                    <div className="space-y-3">
+                        <div>
+                            <p className="text-xs font-semibold tracking-[0.24em] text-indigo-600 uppercase dark:text-indigo-400">
+                                Ringkasan Cepat
+                            </p>
+                            <h3 className="mt-1 text-base font-semibold text-neutral-900 dark:text-neutral-100">
+                                {selectedKegiatan
+                                    ? selectedKegiatan.nama_kegiatan
+                                    : 'Pilih kegiatan terlebih dahulu'}
+                            </h3>
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                                {selectedKegiatan
+                                    ? 'Periode dan beban alokasi akan menyesuaikan kegiatan yang dipilih.'
+                                    : 'Kegiatan yang dipilih akan menentukan periode, tahapan, dan beban alokasi.'}
+                            </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                            <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs font-medium text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
+                                {selectedKegiatan?.jenis_kegiatan ??
+                                    'Jenis kegiatan belum dipilih'}
+                            </span>
+                            <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs font-medium text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
+                                Bulan{' '}
+                                {months.find((month) => month.value === bulan)
+                                    ?.label ?? bulan}
+                            </span>
+                            <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs font-medium text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
+                                {tahapan === 'both'
+                                    ? 'Listing + Pencacahan'
+                                    : tahapan === 'listing_only'
+                                      ? 'Listing saja'
+                                      : 'Pencacahan saja'}
+                            </span>
+                            <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs font-medium text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
+                                {alokasiItems.length} baris alokasi
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/40">
+                        <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                            Alur singkat
+                        </p>
+                        <ol className="mt-3 space-y-2 text-sm text-neutral-600 dark:text-neutral-400">
+                            <li>Pilih kegiatan dan periode yang aktif.</li>
+                            <li>
+                                Lengkapi jadwal, frame sampel, dan detail
+                                alokasi.
+                            </li>
+                            <li>
+                                Periksa total beban sebelum menyimpan atau
+                                mengirim.
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+            </ContentCard>
+
+            {isRevisiMode && !isViewMode && (
                 <div className="rounded-xl border border-indigo-400/30 bg-gradient-to-r from-indigo-500/15 via-sky-500/10 to-indigo-500/15 p-4 shadow-lg backdrop-blur-xl dark:border-indigo-500/25 dark:from-indigo-600/15 dark:via-sky-600/10 dark:to-indigo-600/15">
                     <div className="flex flex-col gap-1">
                         <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-300">
@@ -3393,8 +3599,8 @@ export default function Create({
                         </p>
                         <p className="text-sm text-indigo-800 dark:text-indigo-400">
                             {isPerubahanPetugasMode
-                                ? 'Jenis revisi: Perubahan Petugas (jumlah petugas, nama petugas, dan peran dapat diubah).'
-                                : 'Jenis revisi: Perubahan Beban Tugas (hanya beban tugas dan nilai terkait yang diubah).'}
+                                ? 'Jenis revisi: Perubahan Petugas (mengganti petugas dan alokasi).'
+                                : 'Jenis revisi: Perubahan Alokasi (hanya memperbaiki alokasi petugas).'}
                         </p>
                     </div>
                     <div className="space-y-2">
@@ -3409,20 +3615,17 @@ export default function Create({
                             <Button
                                 type="button"
                                 variant={
-                                    jenisPerubahanRevisi ===
-                                    'perubahan_beban_tugas'
+                                    jenisPerubahanRevisi === 'perubahan_alokasi'
                                         ? 'default'
                                         : 'ghost'
                                 }
                                 className="w-1/2 rounded-r-none"
                                 disabled={isViewMode}
                                 onClick={() =>
-                                    setJenisPerubahanRevisi(
-                                        'perubahan_beban_tugas',
-                                    )
+                                    setJenisPerubahanRevisi('perubahan_alokasi')
                                 }
                             >
-                                Perubahan Beban Tugas
+                                Perubahan Alokasi
                             </Button>
                             <Button
                                 type="button"
@@ -3441,9 +3644,9 @@ export default function Create({
                             </Button>
                         </div>
                         <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                            Perubahan beban tugas: edit beban tugas saja.
-                            Perubahan petugas: jumlah petugas, nama petugas, dan
-                            peran dapat diubah.
+                            Wajib pilih salah satu. Perubahan Alokasi: hanya
+                            alokasi petugas yang dapat diubah. Perubahan
+                            Petugas: petugas dan alokasi dapat diganti.
                         </p>
                     </div>
                 </div>
@@ -3514,480 +3717,225 @@ export default function Create({
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Step 1: Periode Kegiatan */}
-                <ContentCard>
-                    <div className="space-y-6">
-                        <div>
-                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                1. Periode Kegiatan
-                            </h3>
-                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                Pilih kegiatan dan periode alokasi
-                            </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                            {/* Kegiatan */}
-                            <div className="space-y-2 md:col-span-2">
-                                <Label htmlFor="kegiatan_id">
-                                    Kegiatan{' '}
-                                    <span className="text-red-500">*</span>
-                                </Label>
-                                <SearchableSelect
-                                    options={kegiatanOptions.map(
-                                        (kegiatan) => ({
-                                            value: kegiatan.id,
-                                            label: kegiatan.nama_kegiatan,
-                                            searchKeywords: `${kegiatan.kode_kegiatan} ${kegiatan.nama_kegiatan} ${kegiatan.deskripsi || ''}`,
-                                        }),
-                                    )}
-                                    value={selectedKegiatanId}
-                                    onValueChange={(value) => {
-                                        setSelectedKegiatanId(value);
-                                        setRestorableItemsByCount([]);
-                                    }}
-                                    placeholder="Pilih Kegiatan"
-                                    searchPlaceholder="Cari kegiatan..."
-                                    defaultVisibleCount={15}
-                                    disabled={isEditMode || isViewMode}
-                                />
-                                {allErrors.kegiatan_id && (
-                                    <p className="text-sm text-red-500">
-                                        {allErrors.kegiatan_id}
-                                    </p>
-                                )}
+                <div
+                    ref={(node) => {
+                        wizardSectionRefs.current[0] = node;
+                    }}
+                    className="scroll-mt-24"
+                >
+                    <ContentCard>
+                        <div className="space-y-6">
+                            <div>
+                                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                    1. Periode Kegiatan
+                                </h3>
+                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    Pilih kegiatan dan periode alokasi
+                                </p>
                             </div>
 
-                            {/* Tahapan Dropdown - only for kegiatan with listing */}
-                            {selectedKegiatan?.has_listing_updating && (
-                                <div className="space-y-2">
-                                    <Label htmlFor="tahapan">
-                                        Tahapan Periode{' '}
+                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                {/* Kegiatan */}
+                                <div className="space-y-2 md:col-span-2">
+                                    <Label htmlFor="kegiatan_id">
+                                        Kegiatan{' '}
                                         <span className="text-red-500">*</span>
                                     </Label>
-                                    <Select
-                                        value={tahapan}
-                                        onValueChange={(value) =>
-                                            setTahapan(
-                                                value as
-                                                    | 'both'
-                                                    | 'listing_only'
-                                                    | 'pencacahan_only',
-                                            )
-                                        }
-                                        disabled={isRevisiMode || isViewMode}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Pilih Tahapan" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="both">
-                                                Listing dan Pencacahan
-                                            </SelectItem>
-                                            <SelectItem value="listing_only">
-                                                Listing Saja
-                                            </SelectItem>
-                                            <SelectItem value="pencacahan_only">
-                                                Pencacahan Saja
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <SearchableSelect
+                                        options={kegiatanOptions.map(
+                                            (kegiatan) => ({
+                                                value: kegiatan.id,
+                                                label: kegiatan.nama_kegiatan,
+                                                searchKeywords: `${kegiatan.kode_kegiatan} ${kegiatan.nama_kegiatan} ${kegiatan.deskripsi || ''}`,
+                                            }),
+                                        )}
+                                        value={selectedKegiatanId}
+                                        onValueChange={(value) => {
+                                            setSelectedKegiatanId(value);
+                                            setRestorableItemsByCount([]);
+                                        }}
+                                        placeholder="Pilih Kegiatan"
+                                        searchPlaceholder="Cari kegiatan..."
+                                        defaultVisibleCount={15}
+                                        disabled={isEditMode || isViewMode}
+                                    />
+                                    {allErrors.kegiatan_id && (
+                                        <p className="text-sm text-red-500">
+                                            {allErrors.kegiatan_id}
+                                        </p>
+                                    )}
                                 </div>
-                            )}
 
-                            {!isSensusEkonomi2026 && (
-                                <>
-                                    {/* Bulan */}
+                                {/* Tahapan Dropdown - only for kegiatan with listing */}
+                                {selectedKegiatan?.has_listing_updating && (
                                     <div className="space-y-2">
-                                        <Label htmlFor="bulan">
-                                            Bulan{' '}
+                                        <Label htmlFor="tahapan">
+                                            Tahapan Periode{' '}
                                             <span className="text-red-500">
                                                 *
                                             </span>
                                         </Label>
-                                        {isSensusKegiatan ? (
-                                            <>
-                                                <Input
-                                                    id="bulan"
-                                                    value={
-                                                        months.find(
-                                                            (m) =>
-                                                                m.value ===
-                                                                effectiveBulan,
-                                                        )?.label || '-'
-                                                    }
-                                                    disabled
-                                                    className="cursor-not-allowed bg-neutral-100 dark:bg-neutral-900"
-                                                />
-                                                <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                    Untuk kegiatan sensus,
-                                                    periode alokasi menggunakan
-                                                    satu perjanjian kerja untuk
-                                                    seluruh masa pelaksanaan.
-                                                </p>
-                                            </>
-                                        ) : (
-                                            <Select
-                                                value={bulan.toString()}
-                                                onValueChange={(value) =>
-                                                    setBulan(parseInt(value))
-                                                }
-                                                disabled={
-                                                    isRevisiMode || isViewMode
-                                                }
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {availableMonthsForTahapan.map(
-                                                        (month) => (
-                                                            <SelectItem
-                                                                key={
-                                                                    month.value
-                                                                }
-                                                                value={month.value.toString()}
-                                                            >
-                                                                {month.label}
-                                                            </SelectItem>
-                                                        ),
-                                                    )}
-                                                </SelectContent>
-                                            </Select>
-                                        )}
+                                        <Select
+                                            value={tahapan}
+                                            onValueChange={(value) =>
+                                                setTahapan(
+                                                    value as
+                                                        | 'both'
+                                                        | 'listing_only'
+                                                        | 'pencacahan_only',
+                                                )
+                                            }
+                                            disabled={
+                                                isRevisiMode || isViewMode
+                                            }
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Pilih Tahapan" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="both">
+                                                    Listing dan Pencacahan
+                                                </SelectItem>
+                                                <SelectItem value="listing_only">
+                                                    Listing Saja
+                                                </SelectItem>
+                                                <SelectItem value="pencacahan_only">
+                                                    Pencacahan Saja
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
+                                )}
 
-                                    {/* Tahun (from Active Year) */}
-                                    <div className="space-y-2">
-                                        <Label htmlFor="tahun">Tahun</Label>
-                                        <Input
-                                            type="text"
-                                            id="tahun"
-                                            value={active_year}
-                                            disabled
-                                            className="cursor-not-allowed bg-neutral-100 dark:bg-neutral-900"
-                                        />
-                                    </div>
-                                </>
-                            )}
-
-                            {isSensusEkonomi2026 && (
-                                <div className="space-y-2 md:col-span-2">
-                                    <p className="rounded-md border border-blue-300/40 bg-blue-100/40 px-3 py-2 text-sm text-blue-900 dark:border-blue-400/30 dark:bg-blue-500/10 dark:text-blue-300">
-                                        Periode bulan dan tahun untuk Sensus
-                                        Ekonomi diatur otomatis oleh sistem.
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Jadwal Kegiatan Section */}
-                        {selectedKegiatanId && bulan && (
-                            <div className="space-y-4 border-t pt-6">
-                                <div>
-                                    <h4 className="text-base font-semibold text-neutral-900 dark:text-white">
-                                        Jadwal Kegiatan
-                                    </h4>
-                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                        Tentukan tanggal pelaksanaan kegiatan
-                                        untuk periode ini
-                                    </p>
-                                </div>
-
-                                {/* Jadwal Listing - Show only if tahapan includes listing */}
-                                {tahapan === 'both' &&
-                                    selectedKegiatan?.has_listing_updating && (
-                                        <div className="rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 p-4 shadow-lg backdrop-blur-xl dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10">
-                                            <h5 className="mb-3 text-sm font-semibold text-blue-900 dark:text-blue-300">
-                                                Jadwal Listing
-                                            </h5>
-                                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="tanggal_mulai_listing">
-                                                        Tanggal Mulai Listing
-                                                        <span className="text-red-500">
-                                                            *
-                                                        </span>
-                                                    </Label>
-                                                    <DatePicker
-                                                        id="tanggal_mulai_listing"
-                                                        value={
-                                                            tanggalMulaiListing
-                                                        }
-                                                        onChange={(v) =>
-                                                            setTanggalMulaiListing(
-                                                                v,
-                                                            )
-                                                        }
-                                                        min={mergeDateMin()}
-                                                        max={mergeDateMax()}
-                                                        disabled={isViewMode}
-                                                    />
-                                                    {allErrors.tanggal_mulai_listing && (
-                                                        <p className="text-sm text-red-500">
-                                                            {
-                                                                allErrors.tanggal_mulai_listing
-                                                            }
-                                                        </p>
-                                                    )}
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="tanggal_selesai_listing">
-                                                        Tanggal Selesai Listing
-                                                        <span className="text-red-500">
-                                                            *
-                                                        </span>
-                                                    </Label>
-                                                    <DatePicker
-                                                        id="tanggal_selesai_listing"
-                                                        value={
-                                                            tanggalSelesaiListing
-                                                        }
-                                                        onChange={(v) =>
-                                                            setTanggalSelesaiListing(
-                                                                v,
-                                                            )
-                                                        }
-                                                        min={mergeDateMin(
-                                                            tanggalMulaiListing,
-                                                        )}
-                                                        max={mergeDateMax()}
-                                                        disabled={isViewMode}
-                                                    />
-                                                    {allErrors.tanggal_selesai_listing && (
-                                                        <p className="text-sm text-red-500">
-                                                            {
-                                                                allErrors.tanggal_selesai_listing
-                                                            }
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                {/* Jadwal Pencacahan */}
-                                <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
-                                    <h5 className="mb-3 text-sm font-semibold text-green-900 dark:text-green-300">
-                                        Jadwal{' '}
-                                        {tahapan === 'listing_only'
-                                            ? 'Listing'
-                                            : 'Pencacahan'}
-                                    </h5>
-                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                        <div className="space-y-2">
-                                            <Label
-                                                htmlFor={
-                                                    tahapan === 'listing_only'
-                                                        ? 'tanggal_mulai_listing'
-                                                        : 'tanggal_mulai'
-                                                }
-                                            >
-                                                Tanggal Mulai
-                                                <span className="text-red-500">
-                                                    *
-                                                </span>
-                                            </Label>
-                                            <DatePicker
-                                                id={
-                                                    tahapan === 'listing_only'
-                                                        ? 'tanggal_mulai_listing'
-                                                        : 'tanggal_mulai'
-                                                }
-                                                value={
-                                                    tahapan === 'listing_only'
-                                                        ? tanggalMulaiListing
-                                                        : tanggalMulai
-                                                }
-                                                onChange={(v) =>
-                                                    tahapan === 'listing_only'
-                                                        ? setTanggalMulaiListing(
-                                                              v,
-                                                          )
-                                                        : setTanggalMulai(v)
-                                                }
-                                                min={mergeDateMin()}
-                                                max={mergeDateMax()}
-                                                disabled={isViewMode}
-                                            />
-                                            {tahapan === 'listing_only'
-                                                ? allErrors.tanggal_mulai_listing && (
-                                                      <p className="text-sm text-red-500">
-                                                          {
-                                                              allErrors.tanggal_mulai_listing
-                                                          }
-                                                      </p>
-                                                  )
-                                                : allErrors.tanggal_mulai && (
-                                                      <p className="text-sm text-red-500">
-                                                          {
-                                                              allErrors.tanggal_mulai
-                                                          }
-                                                      </p>
-                                                  )}
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label
-                                                htmlFor={
-                                                    tahapan === 'listing_only'
-                                                        ? 'tanggal_selesai_listing'
-                                                        : 'tanggal_selesai'
-                                                }
-                                            >
-                                                Tanggal Selesai
-                                                <span className="text-red-500">
-                                                    *
-                                                </span>
-                                            </Label>
-                                            <DatePicker
-                                                id={
-                                                    tahapan === 'listing_only'
-                                                        ? 'tanggal_selesai_listing'
-                                                        : 'tanggal_selesai'
-                                                }
-                                                value={
-                                                    tahapan === 'listing_only'
-                                                        ? tanggalSelesaiListing
-                                                        : tanggalSelesai
-                                                }
-                                                onChange={(v) =>
-                                                    tahapan === 'listing_only'
-                                                        ? setTanggalSelesaiListing(
-                                                              v,
-                                                          )
-                                                        : setTanggalSelesai(v)
-                                                }
-                                                min={mergeDateMin(
-                                                    tahapan === 'listing_only'
-                                                        ? tanggalMulaiListing
-                                                        : tanggalMulai,
-                                                )}
-                                                max={mergeDateMax()}
-                                                disabled={isViewMode}
-                                            />
-                                            {tahapan === 'listing_only'
-                                                ? allErrors.tanggal_selesai_listing && (
-                                                      <p className="text-sm text-red-500">
-                                                          {
-                                                              allErrors.tanggal_selesai_listing
-                                                          }
-                                                      </p>
-                                                  )
-                                                : allErrors.tanggal_selesai && (
-                                                      <p className="text-sm text-red-500">
-                                                          {
-                                                              allErrors.tanggal_selesai
-                                                          }
-                                                      </p>
-                                                  )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Jadwal Pengolahan Section - Show conditionally based on rate honor having pengolahan role */}
-                                {selectedKegiatan?.rate_honors?.some(
-                                    (r) =>
-                                        r.jenis_penugasan === 'pengolahan' ||
-                                        r.jenis_penugasan ===
-                                            'pengawas_pengolahan',
-                                ) && (
+                                {!isSensusEkonomi2026 && (
                                     <>
-                                        {/* Jadwal Pengolahan Listing */}
-                                        {(tahapan === 'both' ||
-                                            tahapan === 'listing_only') &&
-                                            selectedKegiatan?.has_listing_updating && (
-                                                <div className="rounded-lg border border-purple-200 bg-purple-50 p-4 dark:border-purple-800 dark:bg-purple-900/20">
-                                                    <h5 className="mb-3 text-sm font-semibold text-purple-900 dark:text-purple-300">
-                                                        Jadwal Pengolahan
-                                                        Listing (Opsional)
-                                                    </h5>
-                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                                        <div className="space-y-2">
-                                                            <Label htmlFor="jadwal_pengolahan_listing_mulai">
-                                                                Tanggal Mulai
-                                                                Pengolahan
-                                                                Listing
-                                                            </Label>
-                                                            <DatePicker
-                                                                id="jadwal_pengolahan_listing_mulai"
-                                                                value={
-                                                                    jadwalPengolahanListingMulai
-                                                                }
-                                                                onChange={(v) =>
-                                                                    setJadwalPengolahanListingMulai(
-                                                                        v,
-                                                                    )
-                                                                }
-                                                                min={mergeDateMin()}
-                                                                max={mergeDateMax()}
-                                                                disabled={
-                                                                    isViewMode
-                                                                }
-                                                            />
-                                                            {allErrors.jadwal_pengolahan_listing_mulai && (
-                                                                <p className="text-sm text-red-500">
-                                                                    {
-                                                                        allErrors.jadwal_pengolahan_listing_mulai
+                                        {/* Bulan */}
+                                        <div className="space-y-2">
+                                            <Label htmlFor="bulan">
+                                                Bulan{' '}
+                                                <span className="text-red-500">
+                                                    *
+                                                </span>
+                                            </Label>
+                                            {isSensusKegiatan ? (
+                                                <>
+                                                    <Input
+                                                        id="bulan"
+                                                        value={
+                                                            months.find(
+                                                                (m) =>
+                                                                    m.value ===
+                                                                    effectiveBulan,
+                                                            )?.label || '-'
+                                                        }
+                                                        disabled
+                                                        className="cursor-not-allowed bg-neutral-100 dark:bg-neutral-900"
+                                                    />
+                                                    <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                        Untuk kegiatan sensus,
+                                                        periode alokasi
+                                                        menggunakan satu
+                                                        perjanjian kerja untuk
+                                                        seluruh masa
+                                                        pelaksanaan.
+                                                    </p>
+                                                </>
+                                            ) : (
+                                                <Select
+                                                    value={bulan.toString()}
+                                                    onValueChange={(value) =>
+                                                        setBulan(
+                                                            parseInt(value),
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        isRevisiMode ||
+                                                        isViewMode
+                                                    }
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {availableMonthsForTahapan.map(
+                                                            (month) => (
+                                                                <SelectItem
+                                                                    key={
+                                                                        month.value
                                                                     }
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            <Label htmlFor="jadwal_pengolahan_listing_selesai">
-                                                                Tanggal Selesai
-                                                                Pengolahan
-                                                                Listing
-                                                            </Label>
-                                                            <DatePicker
-                                                                id="jadwal_pengolahan_listing_selesai"
-                                                                value={
-                                                                    jadwalPengolahanListingSelesai
-                                                                }
-                                                                onChange={(v) =>
-                                                                    setJadwalPengolahanListingSelesai(
-                                                                        v,
-                                                                    )
-                                                                }
-                                                                min={mergeDateMin(
-                                                                    jadwalPengolahanListingMulai,
-                                                                )}
-                                                                max={mergeDateMax()}
-                                                                disabled={
-                                                                    isViewMode
-                                                                }
-                                                            />
-                                                            {allErrors.jadwal_pengolahan_listing_selesai && (
-                                                                <p className="text-sm text-red-500">
+                                                                    value={month.value.toString()}
+                                                                >
                                                                     {
-                                                                        allErrors.jadwal_pengolahan_listing_selesai
+                                                                        month.label
                                                                     }
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                                </SelectItem>
+                                                            ),
+                                                        )}
+                                                    </SelectContent>
+                                                </Select>
                                             )}
+                                        </div>
 
-                                        {/* Jadwal Pengolahan Pencacahan */}
-                                        {(tahapan === 'both' ||
-                                            tahapan === 'pencacahan_only') && (
-                                            <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-900/20">
-                                                <h5 className="mb-3 text-sm font-semibold text-orange-900 dark:text-orange-300">
-                                                    Jadwal Pengolahan Pencacahan
-                                                    Lapangan (Opsional)
+                                        {/* Tahun (from Active Year) */}
+                                        <div className="space-y-2">
+                                            <Label htmlFor="tahun">Tahun</Label>
+                                            <Input
+                                                type="text"
+                                                id="tahun"
+                                                value={active_year}
+                                                disabled
+                                                className="cursor-not-allowed bg-neutral-100 dark:bg-neutral-900"
+                                            />
+                                        </div>
+                                    </>
+                                )}
+
+                                {isSensusEkonomi2026 && (
+                                    <div className="space-y-2 md:col-span-2">
+                                        <p className="rounded-md border border-blue-300/40 bg-blue-100/40 px-3 py-2 text-sm text-blue-900 dark:border-blue-400/30 dark:bg-blue-500/10 dark:text-blue-300">
+                                            Periode bulan dan tahun untuk Sensus
+                                            Ekonomi diatur otomatis oleh sistem.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Jadwal Kegiatan Section */}
+                            {selectedKegiatanId && bulan && (
+                                <div className="space-y-4 border-t pt-6">
+                                    <div>
+                                        <h4 className="text-base font-semibold text-neutral-900 dark:text-white">
+                                            Jadwal Kegiatan
+                                        </h4>
+                                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                            Tentukan tanggal pelaksanaan
+                                            kegiatan untuk periode ini
+                                        </p>
+                                    </div>
+
+                                    {/* Jadwal Listing - Show only if tahapan includes listing */}
+                                    {tahapan === 'both' &&
+                                        selectedKegiatan?.has_listing_updating && (
+                                            <div className="rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 p-4 shadow-lg backdrop-blur-xl dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10">
+                                                <h5 className="mb-3 text-sm font-semibold text-blue-900 dark:text-blue-300">
+                                                    Jadwal Listing
                                                 </h5>
                                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                                     <div className="space-y-2">
-                                                        <Label htmlFor="jadwal_pengolahan_pencacahan_mulai">
+                                                        <Label htmlFor="tanggal_mulai_listing">
                                                             Tanggal Mulai
-                                                            Pengolahan
+                                                            Listing
+                                                            <span className="text-red-500">
+                                                                *
+                                                            </span>
                                                         </Label>
                                                         <DatePicker
-                                                            id="jadwal_pengolahan_pencacahan_mulai"
+                                                            id="tanggal_mulai_listing"
                                                             value={
-                                                                jadwalPengolahanPencacahanMulai
+                                                                tanggalMulaiListing
                                                             }
                                                             onChange={(v) =>
-                                                                setJadwalPengolahanPencacahanMulai(
+                                                                setTanggalMulaiListing(
                                                                     v,
                                                                 )
                                                             }
@@ -3997,41 +3945,44 @@ export default function Create({
                                                                 isViewMode
                                                             }
                                                         />
-                                                        {allErrors.jadwal_pengolahan_pencacahan_mulai && (
+                                                        {allErrors.tanggal_mulai_listing && (
                                                             <p className="text-sm text-red-500">
                                                                 {
-                                                                    allErrors.jadwal_pengolahan_pencacahan_mulai
+                                                                    allErrors.tanggal_mulai_listing
                                                                 }
                                                             </p>
                                                         )}
                                                     </div>
                                                     <div className="space-y-2">
-                                                        <Label htmlFor="jadwal_pengolahan_pencacahan_selesai">
+                                                        <Label htmlFor="tanggal_selesai_listing">
                                                             Tanggal Selesai
-                                                            Pengolahan
+                                                            Listing
+                                                            <span className="text-red-500">
+                                                                *
+                                                            </span>
                                                         </Label>
                                                         <DatePicker
-                                                            id="jadwal_pengolahan_pencacahan_selesai"
+                                                            id="tanggal_selesai_listing"
                                                             value={
-                                                                jadwalPengolahanPencacahanSelesai
+                                                                tanggalSelesaiListing
                                                             }
                                                             onChange={(v) =>
-                                                                setJadwalPengolahanPencacahanSelesai(
+                                                                setTanggalSelesaiListing(
                                                                     v,
                                                                 )
                                                             }
                                                             min={mergeDateMin(
-                                                                jadwalPengolahanPencacahanMulai,
+                                                                tanggalMulaiListing,
                                                             )}
                                                             max={mergeDateMax()}
                                                             disabled={
                                                                 isViewMode
                                                             }
                                                         />
-                                                        {allErrors.jadwal_pengolahan_pencacahan_selesai && (
+                                                        {allErrors.tanggal_selesai_listing && (
                                                             <p className="text-sm text-red-500">
                                                                 {
-                                                                    allErrors.jadwal_pengolahan_pencacahan_selesai
+                                                                    allErrors.tanggal_selesai_listing
                                                                 }
                                                             </p>
                                                         )}
@@ -4039,12 +3990,308 @@ export default function Create({
                                                 </div>
                                             </div>
                                         )}
-                                    </>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </ContentCard>
+
+                                    {/* Jadwal Pencacahan */}
+                                    <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
+                                        <h5 className="mb-3 text-sm font-semibold text-green-900 dark:text-green-300">
+                                            Jadwal{' '}
+                                            {tahapan === 'listing_only'
+                                                ? 'Listing'
+                                                : 'Pencacahan'}
+                                        </h5>
+                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <Label
+                                                    htmlFor={
+                                                        tahapan ===
+                                                        'listing_only'
+                                                            ? 'tanggal_mulai_listing'
+                                                            : 'tanggal_mulai'
+                                                    }
+                                                >
+                                                    Tanggal Mulai
+                                                    <span className="text-red-500">
+                                                        *
+                                                    </span>
+                                                </Label>
+                                                <DatePicker
+                                                    id={
+                                                        tahapan ===
+                                                        'listing_only'
+                                                            ? 'tanggal_mulai_listing'
+                                                            : 'tanggal_mulai'
+                                                    }
+                                                    value={
+                                                        tahapan ===
+                                                        'listing_only'
+                                                            ? tanggalMulaiListing
+                                                            : tanggalMulai
+                                                    }
+                                                    onChange={(v) =>
+                                                        tahapan ===
+                                                        'listing_only'
+                                                            ? setTanggalMulaiListing(
+                                                                  v,
+                                                              )
+                                                            : setTanggalMulai(v)
+                                                    }
+                                                    min={mergeDateMin()}
+                                                    max={mergeDateMax()}
+                                                    disabled={isViewMode}
+                                                />
+                                                {tahapan === 'listing_only'
+                                                    ? allErrors.tanggal_mulai_listing && (
+                                                          <p className="text-sm text-red-500">
+                                                              {
+                                                                  allErrors.tanggal_mulai_listing
+                                                              }
+                                                          </p>
+                                                      )
+                                                    : allErrors.tanggal_mulai && (
+                                                          <p className="text-sm text-red-500">
+                                                              {
+                                                                  allErrors.tanggal_mulai
+                                                              }
+                                                          </p>
+                                                      )}
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label
+                                                    htmlFor={
+                                                        tahapan ===
+                                                        'listing_only'
+                                                            ? 'tanggal_selesai_listing'
+                                                            : 'tanggal_selesai'
+                                                    }
+                                                >
+                                                    Tanggal Selesai
+                                                    <span className="text-red-500">
+                                                        *
+                                                    </span>
+                                                </Label>
+                                                <DatePicker
+                                                    id={
+                                                        tahapan ===
+                                                        'listing_only'
+                                                            ? 'tanggal_selesai_listing'
+                                                            : 'tanggal_selesai'
+                                                    }
+                                                    value={
+                                                        tahapan ===
+                                                        'listing_only'
+                                                            ? tanggalSelesaiListing
+                                                            : tanggalSelesai
+                                                    }
+                                                    onChange={(v) =>
+                                                        tahapan ===
+                                                        'listing_only'
+                                                            ? setTanggalSelesaiListing(
+                                                                  v,
+                                                              )
+                                                            : setTanggalSelesai(
+                                                                  v,
+                                                              )
+                                                    }
+                                                    min={mergeDateMin(
+                                                        tahapan ===
+                                                            'listing_only'
+                                                            ? tanggalMulaiListing
+                                                            : tanggalMulai,
+                                                    )}
+                                                    max={mergeDateMax()}
+                                                    disabled={isViewMode}
+                                                />
+                                                {tahapan === 'listing_only'
+                                                    ? allErrors.tanggal_selesai_listing && (
+                                                          <p className="text-sm text-red-500">
+                                                              {
+                                                                  allErrors.tanggal_selesai_listing
+                                                              }
+                                                          </p>
+                                                      )
+                                                    : allErrors.tanggal_selesai && (
+                                                          <p className="text-sm text-red-500">
+                                                              {
+                                                                  allErrors.tanggal_selesai
+                                                              }
+                                                          </p>
+                                                      )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Jadwal Pengolahan Section - Show conditionally based on rate honor having pengolahan role */}
+                                    {selectedKegiatan?.rate_honors?.some(
+                                        (r) =>
+                                            r.jenis_penugasan ===
+                                                'pengolahan' ||
+                                            r.jenis_penugasan ===
+                                                'pengawas_pengolahan',
+                                    ) && (
+                                        <>
+                                            {/* Jadwal Pengolahan Listing */}
+                                            {(tahapan === 'both' ||
+                                                tahapan === 'listing_only') &&
+                                                selectedKegiatan?.has_listing_updating && (
+                                                    <div className="rounded-lg border border-purple-200 bg-purple-50 p-4 dark:border-purple-800 dark:bg-purple-900/20">
+                                                        <h5 className="mb-3 text-sm font-semibold text-purple-900 dark:text-purple-300">
+                                                            Jadwal Pengolahan
+                                                            Listing (Opsional)
+                                                        </h5>
+                                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                            <div className="space-y-2">
+                                                                <Label htmlFor="jadwal_pengolahan_listing_mulai">
+                                                                    Tanggal
+                                                                    Mulai
+                                                                    Pengolahan
+                                                                    Listing
+                                                                </Label>
+                                                                <DatePicker
+                                                                    id="jadwal_pengolahan_listing_mulai"
+                                                                    value={
+                                                                        jadwalPengolahanListingMulai
+                                                                    }
+                                                                    onChange={(
+                                                                        v,
+                                                                    ) =>
+                                                                        setJadwalPengolahanListingMulai(
+                                                                            v,
+                                                                        )
+                                                                    }
+                                                                    min={mergeDateMin()}
+                                                                    max={mergeDateMax()}
+                                                                    disabled={
+                                                                        isViewMode
+                                                                    }
+                                                                />
+                                                                {allErrors.jadwal_pengolahan_listing_mulai && (
+                                                                    <p className="text-sm text-red-500">
+                                                                        {
+                                                                            allErrors.jadwal_pengolahan_listing_mulai
+                                                                        }
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <Label htmlFor="jadwal_pengolahan_listing_selesai">
+                                                                    Tanggal
+                                                                    Selesai
+                                                                    Pengolahan
+                                                                    Listing
+                                                                </Label>
+                                                                <DatePicker
+                                                                    id="jadwal_pengolahan_listing_selesai"
+                                                                    value={
+                                                                        jadwalPengolahanListingSelesai
+                                                                    }
+                                                                    onChange={(
+                                                                        v,
+                                                                    ) =>
+                                                                        setJadwalPengolahanListingSelesai(
+                                                                            v,
+                                                                        )
+                                                                    }
+                                                                    min={mergeDateMin(
+                                                                        jadwalPengolahanListingMulai,
+                                                                    )}
+                                                                    max={mergeDateMax()}
+                                                                    disabled={
+                                                                        isViewMode
+                                                                    }
+                                                                />
+                                                                {allErrors.jadwal_pengolahan_listing_selesai && (
+                                                                    <p className="text-sm text-red-500">
+                                                                        {
+                                                                            allErrors.jadwal_pengolahan_listing_selesai
+                                                                        }
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                            {/* Jadwal Pengolahan Pencacahan */}
+                                            {(tahapan === 'both' ||
+                                                tahapan ===
+                                                    'pencacahan_only') && (
+                                                <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-900/20">
+                                                    <h5 className="mb-3 text-sm font-semibold text-orange-900 dark:text-orange-300">
+                                                        Jadwal Pengolahan
+                                                        Pencacahan Lapangan
+                                                        (Opsional)
+                                                    </h5>
+                                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="jadwal_pengolahan_pencacahan_mulai">
+                                                                Tanggal Mulai
+                                                                Pengolahan
+                                                            </Label>
+                                                            <DatePicker
+                                                                id="jadwal_pengolahan_pencacahan_mulai"
+                                                                value={
+                                                                    jadwalPengolahanPencacahanMulai
+                                                                }
+                                                                onChange={(v) =>
+                                                                    setJadwalPengolahanPencacahanMulai(
+                                                                        v,
+                                                                    )
+                                                                }
+                                                                min={mergeDateMin()}
+                                                                max={mergeDateMax()}
+                                                                disabled={
+                                                                    isViewMode
+                                                                }
+                                                            />
+                                                            {allErrors.jadwal_pengolahan_pencacahan_mulai && (
+                                                                <p className="text-sm text-red-500">
+                                                                    {
+                                                                        allErrors.jadwal_pengolahan_pencacahan_mulai
+                                                                    }
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="jadwal_pengolahan_pencacahan_selesai">
+                                                                Tanggal Selesai
+                                                                Pengolahan
+                                                            </Label>
+                                                            <DatePicker
+                                                                id="jadwal_pengolahan_pencacahan_selesai"
+                                                                value={
+                                                                    jadwalPengolahanPencacahanSelesai
+                                                                }
+                                                                onChange={(v) =>
+                                                                    setJadwalPengolahanPencacahanSelesai(
+                                                                        v,
+                                                                    )
+                                                                }
+                                                                min={mergeDateMin(
+                                                                    jadwalPengolahanPencacahanMulai,
+                                                                )}
+                                                                max={mergeDateMax()}
+                                                                disabled={
+                                                                    isViewMode
+                                                                }
+                                                            />
+                                                            {allErrors.jadwal_pengolahan_pencacahan_selesai && (
+                                                                <p className="text-sm text-red-500">
+                                                                    {
+                                                                        allErrors.jadwal_pengolahan_pencacahan_selesai
+                                                                    }
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </ContentCard>
+                </div>
 
                 <ContentCard>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -4432,591 +4679,857 @@ export default function Create({
                 )}
 
                 {/* Step 2: Jumlah Petugas */}
-                <ContentCard>
-                    <div className="space-y-4">
-                        <div>
-                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                2. Jumlah Petugas
-                            </h3>
-                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                Tentukan berapa petugas yang akan dialokasikan
-                                (PML, PCL, dll)
-                            </p>
-                        </div>
+                <div
+                    ref={(node) => {
+                        wizardSectionRefs.current[1] = node;
+                    }}
+                    className="scroll-mt-24"
+                >
+                    <ContentCard>
+                        <div
+                            className={`space-y-4 ${canAccessWizardStep(2) || isViewMode ? '' : 'pointer-events-none opacity-60'}`}
+                        >
+                            {!canAccessWizardStep(2) && !isViewMode && (
+                                <div className="rounded-2xl border border-dashed border-indigo-300 bg-indigo-50/60 px-4 py-3 text-sm text-indigo-800 dark:border-indigo-800 dark:bg-indigo-950/20 dark:text-indigo-300">
+                                    Selesaikan langkah 1 terlebih dahulu agar
+                                    jumlah petugas bisa diatur.
+                                </div>
+                            )}
+                            <div>
+                                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                    2. Jumlah Petugas
+                                </h3>
+                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    Tentukan berapa petugas yang akan
+                                    dialokasikan (PML, PCL, dll)
+                                </p>
+                            </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="jumlah_petugas">
-                                Jumlah Petugas{' '}
-                                <span className="text-red-500">*</span>
-                            </Label>
-                            <Input
-                                type="number"
-                                id="jumlah_petugas"
-                                value={
-                                    jumlahPetugas === '' ? '' : jumlahPetugas
-                                }
-                                onChange={(e) => {
-                                    const inputValue = e.target.value;
-                                    if (inputValue === '') {
-                                        // Allow blank but don't change alokasiItems (keep at least 1)
-                                        setJumlahPetugas('');
-                                    } else {
-                                        const value = parseInt(inputValue);
-                                        if (!isNaN(value)) {
+                            <div className="space-y-2">
+                                <Label htmlFor="jumlah_petugas">
+                                    Jumlah Petugas{' '}
+                                    <span className="text-red-500">*</span>
+                                </Label>
+                                <Input
+                                    type="number"
+                                    id="jumlah_petugas"
+                                    value={
+                                        jumlahPetugas === ''
+                                            ? ''
+                                            : jumlahPetugas
+                                    }
+                                    onChange={(e) => {
+                                        const inputValue = e.target.value;
+                                        if (inputValue === '') {
+                                            // Allow blank but don't change alokasiItems (keep at least 1)
+                                            setJumlahPetugas('');
+                                        } else {
+                                            const value = parseInt(inputValue);
+                                            if (!isNaN(value)) {
+                                                handleJumlahPetugasChange(
+                                                    value,
+                                                );
+                                            }
+                                        }
+                                    }}
+                                    onBlur={(e) => {
+                                        // When focus is lost, restore actual count or minimum 1
+                                        const value = parseInt(e.target.value);
+                                        if (isNaN(value) || value < 1) {
+                                            // Set to actual alokasiItems length or 1
+                                            setJumlahPetugas(
+                                                Math.max(
+                                                    1,
+                                                    alokasiItems.length,
+                                                ),
+                                            );
+                                        } else {
                                             handleJumlahPetugasChange(value);
                                         }
+                                    }}
+                                    min="1"
+                                    max="100"
+                                    placeholder="Masukkan jumlah petugas"
+                                    disabled={
+                                        isJenisPerubahanRevisiPending ||
+                                        isPerubahanAlokasiMode ||
+                                        isViewMode
                                     }
-                                }}
-                                onBlur={(e) => {
-                                    // When focus is lost, restore actual count or minimum 1
-                                    const value = parseInt(e.target.value);
-                                    if (isNaN(value) || value < 1) {
-                                        // Set to actual alokasiItems length or 1
-                                        setJumlahPetugas(
-                                            Math.max(1, alokasiItems.length),
-                                        );
-                                    } else {
-                                        handleJumlahPetugasChange(value);
+                                    className={
+                                        isJenisPerubahanRevisiPending ||
+                                        isPerubahanAlokasiMode ||
+                                        isViewMode
+                                            ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
+                                            : ''
                                     }
-                                }}
-                                min="1"
-                                max="100"
-                                placeholder="Masukkan jumlah petugas"
-                                disabled={isRevisiLockedMode || isViewMode}
-                                className={
-                                    isRevisiLockedMode || isViewMode
-                                        ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
-                                        : ''
-                                }
-                            />
-                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                Minimal 1 petugas. {jumlahPetugas} baris input
-                                petugas akan ditampilkan.
-                            </p>
+                                />
+                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    Minimal 1 petugas. {jumlahPetugas} baris
+                                    input petugas akan ditampilkan.
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                </ContentCard>
+                    </ContentCard>
+                </div>
 
                 {/* Step 3: Data Petugas */}
                 {selectedKegiatanId && (
-                    <ContentCard>
-                        <div className="space-y-4">
-                            <div>
-                                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                    3. Data Petugas
-                                </h3>
-                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                    Isi data setiap petugas yang akan
-                                    dialokasikan
-                                </p>
-                                {previousPeriodPetugasIds.length > 0 && (
-                                    <p className="mt-1 text-sm text-emerald-600 dark:text-emerald-400">
-                                        Sugesti diutamakan dari petugas yang
-                                        pernah dialokasikan pada periode
-                                        sebelumnya untuk kegiatan ini.
-                                    </p>
+                    <div
+                        ref={(node) => {
+                            wizardSectionRefs.current[2] = node;
+                        }}
+                        className="scroll-mt-24"
+                    >
+                        <ContentCard>
+                            <div
+                                className={`space-y-4 ${canAccessWizardStep(3) || isViewMode ? '' : 'pointer-events-none opacity-60'}`}
+                            >
+                                {!canAccessWizardStep(3) && !isViewMode && (
+                                    <div className="rounded-2xl border border-dashed border-emerald-300 bg-emerald-50/60 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-300">
+                                        Selesaikan langkah 2 terlebih dahulu
+                                        untuk mengisi data petugas.
+                                    </div>
                                 )}
-                                {hasReviewRecommendationData && (
-                                    <p className="mt-1 text-sm text-sky-700 dark:text-sky-300">
-                                        Urutan sugesti mempertimbangkan review:
-                                        rekomendasi ditampilkan lebih awal,
-                                        tidak direkomendasikan ditampilkan di
-                                        bagian bawah.
+                                <div>
+                                    <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                        3. Data Petugas
+                                    </h3>
+                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        Isi data setiap petugas yang akan
+                                        dialokasikan
                                     </p>
-                                )}
-                            </div>
-
-                            {allErrors.alokasi && (
-                                <div className="rounded-xl border border-red-400/30 bg-gradient-to-br from-red-500/10 via-red-400/5 to-red-300/10 p-3 backdrop-blur-xl dark:border-red-500/20 dark:from-red-600/10 dark:via-red-500/5 dark:to-red-400/10">
-                                    <p className="text-sm text-red-600 dark:text-red-400">
-                                        {allErrors.alokasi}
-                                    </p>
+                                    {previousPeriodPetugasIds.length > 0 && (
+                                        <p className="mt-1 text-sm text-emerald-600 dark:text-emerald-400">
+                                            Sugesti diutamakan dari petugas yang
+                                            pernah dialokasikan pada periode
+                                            sebelumnya untuk kegiatan ini.
+                                        </p>
+                                    )}
+                                    {hasReviewRecommendationData && (
+                                        <p className="mt-1 text-sm text-sky-700 dark:text-sky-300">
+                                            Urutan sugesti mempertimbangkan
+                                            review: rekomendasi ditampilkan
+                                            lebih awal, tidak direkomendasikan
+                                            ditampilkan di bagian bawah.
+                                        </p>
+                                    )}
                                 </div>
-                            )}
 
-                            <div className="space-y-4">
-                                {alokasiItems.map((item, index) => (
-                                    <div
-                                        key={index}
-                                        className="rounded-2xl border border-neutral-300/30 bg-white/30 p-4 backdrop-blur-xl dark:border-neutral-700/30 dark:bg-neutral-800/30"
-                                    >
-                                        <div className="mb-3 flex items-center justify-between">
-                                            <h4 className="font-medium text-neutral-900 dark:text-white">
-                                                Petugas #{index + 1}
-                                            </h4>
-                                            {!isViewMode && (
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        handleDeleteAlokasiRow(
-                                                            index,
-                                                        )
-                                                    }
-                                                    disabled={
-                                                        isRevisiLockedMode ||
-                                                        alokasiItems.length <= 1
-                                                    }
-                                                    className="h-8 cursor-pointer gap-1.5"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                    Hapus
-                                                </Button>
-                                            )}
-                                        </div>
-                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                                            {/* Nama Petugas */}
-                                            <div className="space-y-2 md:col-span-2">
-                                                <Label
-                                                    htmlFor={`petugas_${index}`}
-                                                >
-                                                    Nama Petugas{' '}
-                                                    <span className="text-red-500">
-                                                        *
-                                                    </span>
-                                                </Label>
-                                                <SearchableSelect
-                                                    options={(() => {
-                                                        const petugasById =
-                                                            new Map(
-                                                                petugas.map(
-                                                                    (p) => [
-                                                                        String(
-                                                                            p.id,
-                                                                        ),
-                                                                        p,
-                                                                    ],
-                                                                ),
-                                                            );
+                                {allErrors.alokasi && (
+                                    <div className="rounded-xl border border-red-400/30 bg-gradient-to-br from-red-500/10 via-red-400/5 to-red-300/10 p-3 backdrop-blur-xl dark:border-red-500/20 dark:from-red-600/10 dark:via-red-500/5 dark:to-red-400/10">
+                                        <p className="text-sm text-red-600 dark:text-red-400">
+                                            {allErrors.alokasi}
+                                        </p>
+                                    </div>
+                                )}
 
-                                                        const sortedByName = [
-                                                            ...petugas,
-                                                        ].sort((a, b) =>
-                                                            a.nama.localeCompare(
-                                                                b.nama,
-                                                            ),
-                                                        );
-
-                                                        const suggestedPetugas =
-                                                            suggestedPetugasOrder
-                                                                .map(
-                                                                    (
-                                                                        petugasId,
-                                                                    ) =>
-                                                                        petugasById.get(
-                                                                            petugasId,
-                                                                        ),
-                                                                )
-                                                                .filter(
-                                                                    (
-                                                                        item,
-                                                                    ): item is Petugas =>
-                                                                        Boolean(
-                                                                            item,
-                                                                        ),
+                                <div className="space-y-4">
+                                    {alokasiItems.map((item, index) => (
+                                        <div
+                                            key={index}
+                                            className="rounded-2xl border border-neutral-300/30 bg-white/30 p-4 backdrop-blur-xl dark:border-neutral-700/30 dark:bg-neutral-800/30"
+                                        >
+                                            <div className="mb-3 flex items-center justify-between">
+                                                <h4 className="font-medium text-neutral-900 dark:text-white">
+                                                    Petugas #{index + 1}
+                                                </h4>
+                                                {!isViewMode && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            handleDeleteAlokasiRow(
+                                                                index,
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            isJenisPerubahanRevisiPending ||
+                                                            isPerubahanAlokasiMode ||
+                                                            alokasiItems.length <=
+                                                                1
+                                                        }
+                                                        className="h-8 cursor-pointer gap-1.5"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                        Hapus
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                                                {/* Nama Petugas */}
+                                                <div className="space-y-2 md:col-span-2">
+                                                    <Label
+                                                        htmlFor={`petugas_${index}`}
+                                                    >
+                                                        Nama Petugas{' '}
+                                                        <span className="text-red-500">
+                                                            *
+                                                        </span>
+                                                    </Label>
+                                                    <SearchableSelect
+                                                        options={(() => {
+                                                            const petugasById =
+                                                                new Map(
+                                                                    petugas.map(
+                                                                        (p) => [
+                                                                            String(
+                                                                                p.id,
+                                                                            ),
+                                                                            p,
+                                                                        ],
+                                                                    ),
                                                                 );
 
-                                                        const suggestedPetugasIds =
-                                                            new Set(
-                                                                suggestedPetugas.map(
-                                                                    (p) =>
-                                                                        String(
-                                                                            p.id,
-                                                                        ),
-                                                                ),
-                                                            );
+                                                            const sortedByName =
+                                                                [
+                                                                    ...petugas,
+                                                                ].sort((a, b) =>
+                                                                    a.nama.localeCompare(
+                                                                        b.nama,
+                                                                    ),
+                                                                );
 
-                                                        const suggestedOrderedPetugas =
-                                                            [
-                                                                ...suggestedPetugas,
-                                                                ...sortedByName.filter(
+                                                            const suggestedPetugas =
+                                                                suggestedPetugasOrder
+                                                                    .map(
+                                                                        (
+                                                                            petugasId,
+                                                                        ) =>
+                                                                            petugasById.get(
+                                                                                petugasId,
+                                                                            ),
+                                                                    )
+                                                                    .filter(
+                                                                        (
+                                                                            item,
+                                                                        ): item is Petugas =>
+                                                                            Boolean(
+                                                                                item,
+                                                                            ),
+                                                                    );
+
+                                                            const suggestedPetugasIds =
+                                                                new Set(
+                                                                    suggestedPetugas.map(
+                                                                        (p) =>
+                                                                            String(
+                                                                                p.id,
+                                                                            ),
+                                                                    ),
+                                                                );
+
+                                                            const suggestedOrderedPetugas =
+                                                                [
+                                                                    ...suggestedPetugas,
+                                                                    ...sortedByName.filter(
+                                                                        (p) =>
+                                                                            !suggestedPetugasIds.has(
+                                                                                String(
+                                                                                    p.id,
+                                                                                ),
+                                                                            ),
+                                                                    ),
+                                                                ];
+
+                                                            // Separate selected and unselected
+                                                            const selectedIds =
+                                                                alokasiItems
+                                                                    .map(
+                                                                        (
+                                                                            item,
+                                                                        ) =>
+                                                                            String(
+                                                                                item.petugas_id,
+                                                                            ),
+                                                                    )
+                                                                    .filter(
+                                                                        Boolean,
+                                                                    );
+                                                            const selectedPetugas =
+                                                                suggestedOrderedPetugas.filter(
                                                                     (p) =>
-                                                                        !suggestedPetugasIds.has(
+                                                                        selectedIds.includes(
                                                                             String(
                                                                                 p.id,
                                                                             ),
                                                                         ),
-                                                                ),
-                                                            ];
-
-                                                        // Separate selected and unselected
-                                                        const selectedIds =
-                                                            alokasiItems
-                                                                .map((item) =>
-                                                                    String(
-                                                                        item.petugas_id,
-                                                                    ),
-                                                                )
-                                                                .filter(
-                                                                    Boolean,
                                                                 );
-                                                        const selectedPetugas =
-                                                            suggestedOrderedPetugas.filter(
-                                                                (p) =>
-                                                                    selectedIds.includes(
-                                                                        String(
-                                                                            p.id,
-                                                                        ),
-                                                                    ),
-                                                            );
-                                                        const unselectedPetugas =
-                                                            suggestedOrderedPetugas.filter(
-                                                                (p) =>
-                                                                    !selectedIds.includes(
-                                                                        String(
-                                                                            p.id,
-                                                                        ),
-                                                                    ),
-                                                            );
-
-                                                        // Combine: selected first, then unselected
-                                                        const finalOrderedPetugas =
-                                                            [
-                                                                ...selectedPetugas,
-                                                                ...unselectedPetugas,
-                                                            ];
-
-                                                        return finalOrderedPetugas.map(
-                                                            (p) => {
-                                                                const isSelectedInOtherRow =
-                                                                    alokasiItems.some(
-                                                                        (
-                                                                            otherItem,
-                                                                            otherIndex,
-                                                                        ) =>
-                                                                            otherIndex !==
-                                                                                index &&
-                                                                            String(
-                                                                                otherItem.petugas_id,
-                                                                            ) ===
-                                                                                String(
-                                                                                    p.id,
-                                                                                ),
-                                                                    );
-
-                                                                const jenisPetugasLabel =
-                                                                    p.jenis_petugas ===
-                                                                    'organik'
-                                                                        ? 'Organik'
-                                                                        : 'Non-Organik';
-                                                                const desaKelurahanLabel =
-                                                                    p.desa_kelurahan ||
-                                                                    '-';
-                                                                const jumlahAlokasi =
-                                                                    petugas_allocation_counts[
-                                                                        Number(
-                                                                            p.id,
-                                                                        )
-                                                                    ] || 0;
-                                                                const jumlahKegiatan =
-                                                                    petugas_unique_kegiatan_counts[
-                                                                        Number(
-                                                                            p.id,
-                                                                        )
-                                                                    ] || 0;
-
-                                                                const helperLabel =
-                                                                    p.jenis_petugas ===
-                                                                    'organik'
-                                                                        ? `${p.nama} - ${jenisPetugasLabel} - ${jumlahKegiatan} kegiatan`
-                                                                        : `${p.nama} - ${jenisPetugasLabel} - ${desaKelurahanLabel} - ${jumlahAlokasi} kegiatan`;
-
-                                                                const recommendation =
-                                                                    reviewRecommendationByPetugas[
-                                                                        Number(
-                                                                            p.id,
-                                                                        )
-                                                                    ];
-
-                                                                let itemClassName =
-                                                                    '';
-                                                                let badgeLabel =
-                                                                    '';
-                                                                let badgeClassName =
-                                                                    '';
-
-                                                                if (
-                                                                    hasReviewRecommendationData &&
-                                                                    recommendation?.status ===
-                                                                        'recommended'
-                                                                ) {
-                                                                    itemClassName =
-                                                                        'bg-emerald-50 text-emerald-900 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-950/40';
-                                                                    badgeLabel =
-                                                                        'Rekomendasi';
-                                                                    badgeClassName =
-                                                                        'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300';
-                                                                }
-
-                                                                if (
-                                                                    hasReviewRecommendationData &&
-                                                                    recommendation?.status ===
-                                                                        'not_recommended'
-                                                                ) {
-                                                                    itemClassName =
-                                                                        'bg-rose-50 text-rose-900 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-300 dark:hover:bg-rose-950/40';
-                                                                    badgeLabel =
-                                                                        'Tidak Direkomendasikan';
-                                                                    badgeClassName =
-                                                                        'bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300';
-                                                                }
-
-                                                                return {
-                                                                    value: String(
-                                                                        p.id,
-                                                                    ),
-                                                                    label: helperLabel,
-                                                                    displayLabel:
-                                                                        p.nama,
-                                                                    disabled:
-                                                                        isSelectedInOtherRow,
-                                                                    itemClassName,
-                                                                    badgeLabel,
-                                                                    badgeClassName,
-                                                                };
-                                                            },
-                                                        );
-                                                    })()}
-                                                    value={item.petugas_id}
-                                                    onValueChange={(value) =>
-                                                        updateAlokasiItem(
-                                                            index,
-                                                            'petugas_id',
-                                                            value,
-                                                        )
-                                                    }
-                                                    placeholder="Pilih Petugas"
-                                                    searchPlaceholder="Cari petugas..."
-                                                    disabled={
-                                                        isRevisiLockedMode ||
-                                                        isViewMode
-                                                    }
-                                                />
-                                            </div>
-
-                                            {/* Peran */}
-                                            <div className="space-y-2">
-                                                <Label
-                                                    htmlFor={`peran_${index}`}
-                                                >
-                                                    Peran{' '}
-                                                    <span className="text-red-500">
-                                                        *
-                                                    </span>
-                                                </Label>
-                                                <Select
-                                                    value={String(
-                                                        item.peran || '',
-                                                    )}
-                                                    onValueChange={(value) =>
-                                                        updateAlokasiItem(
-                                                            index,
-                                                            'peran',
-                                                            value,
-                                                        )
-                                                    }
-                                                    disabled={
-                                                        isRevisiLockedMode ||
-                                                        isViewMode
-                                                    }
-                                                >
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Pilih Peran" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {(() => {
-                                                            const selectedPetugas =
-                                                                petugas.find(
+                                                            const unselectedPetugas =
+                                                                suggestedOrderedPetugas.filter(
                                                                     (p) =>
-                                                                        String(
-                                                                            p.id,
-                                                                        ) ===
-                                                                        String(
-                                                                            item.petugas_id,
+                                                                        !selectedIds.includes(
+                                                                            String(
+                                                                                p.id,
+                                                                            ),
                                                                         ),
                                                                 );
 
-                                                            // Mapping ke label
-                                                            const labelMap: Record<
-                                                                string,
-                                                                string
-                                                            > = {
-                                                                pcl_ppl: 'PCL',
-                                                                pml: 'PML',
-                                                                pengolahan:
-                                                                    'Petugas Pengolahan',
-                                                                pengawas_pengolahan:
-                                                                    'Pengawas Pengolahan',
-                                                                koseka: 'Koseka',
-                                                            };
+                                                            // Combine: selected first, then unselected
+                                                            const finalOrderedPetugas =
+                                                                [
+                                                                    ...selectedPetugas,
+                                                                    ...unselectedPetugas,
+                                                                ];
 
-                                                            const statusKepegawaian =
-                                                                selectedPetugas
-                                                                    ? selectedPetugas.jenis_petugas ===
-                                                                      'organik'
-                                                                        ? 'organik'
-                                                                        : 'non_organik'
-                                                                    : null;
+                                                            return finalOrderedPetugas.map(
+                                                                (p) => {
+                                                                    const isSelectedInOtherRow =
+                                                                        alokasiItems.some(
+                                                                            (
+                                                                                otherItem,
+                                                                                otherIndex,
+                                                                            ) =>
+                                                                                otherIndex !==
+                                                                                    index &&
+                                                                                String(
+                                                                                    otherItem.petugas_id,
+                                                                                ) ===
+                                                                                    String(
+                                                                                        p.id,
+                                                                                    ),
+                                                                        );
 
-                                                            const uniqueJenisPenugasan =
-                                                                !selectedKegiatan ||
-                                                                !statusKepegawaian
-                                                                    ? []
-                                                                    : Array.from(
-                                                                          new Set(
-                                                                              selectedKegiatan.rate_honors
-                                                                                  .filter(
-                                                                                      (
-                                                                                          rh,
-                                                                                      ) =>
-                                                                                          rh.status_kepegawaian ===
-                                                                                          statusKepegawaian,
-                                                                                  )
-                                                                                  .map(
-                                                                                      (
-                                                                                          rh,
-                                                                                      ) =>
-                                                                                          rh.jenis_penugasan,
-                                                                                  ),
-                                                                          ),
-                                                                      );
+                                                                    const jenisPetugasLabel =
+                                                                        p.jenis_petugas ===
+                                                                        'organik'
+                                                                            ? 'Organik'
+                                                                            : 'Non-Organik';
+                                                                    const desaKelurahanLabel =
+                                                                        p.desa_kelurahan ||
+                                                                        '-';
+                                                                    const jumlahAlokasi =
+                                                                        petugas_allocation_counts[
+                                                                            Number(
+                                                                                p.id,
+                                                                            )
+                                                                        ] || 0;
+                                                                    const jumlahKegiatan =
+                                                                        petugas_unique_kegiatan_counts[
+                                                                            Number(
+                                                                                p.id,
+                                                                            )
+                                                                        ] || 0;
 
-                                                            const options =
-                                                                uniqueJenisPenugasan.map(
-                                                                    (jp) => ({
-                                                                        key: jp,
-                                                                        value:
-                                                                            labelMap[
-                                                                                jp
-                                                                            ] ||
-                                                                            jp,
-                                                                        label:
-                                                                            labelMap[
-                                                                                jp
-                                                                            ] ||
-                                                                            jp,
-                                                                    }),
-                                                                );
+                                                                    const helperLabel =
+                                                                        p.jenis_petugas ===
+                                                                        'organik'
+                                                                            ? `${p.nama} - ${jenisPetugasLabel} - ${jumlahKegiatan} kegiatan`
+                                                                            : `${p.nama} - ${jenisPetugasLabel} - ${desaKelurahanLabel} - ${jumlahAlokasi} kegiatan`;
 
-                                                            // Fallback for copy/revisi rows: keep existing peran selectable
-                                                            // even when no active rate option is available for selected petugas.
-                                                            if (
-                                                                item.peran &&
-                                                                !options.some(
-                                                                    (opt) =>
-                                                                        opt.value ===
-                                                                        item.peran,
-                                                                )
-                                                            ) {
-                                                                options.unshift(
-                                                                    {
-                                                                        key: `fallback-${item.peran}`,
-                                                                        value: item.peran,
-                                                                        label: item.peran,
-                                                                    },
-                                                                );
-                                                            }
+                                                                    const recommendation =
+                                                                        reviewRecommendationByPetugas[
+                                                                            Number(
+                                                                                p.id,
+                                                                            )
+                                                                        ];
 
-                                                            return options.map(
-                                                                (opt) => (
-                                                                    <SelectItem
-                                                                        key={
-                                                                            opt.key
-                                                                        }
-                                                                        value={
-                                                                            opt.value
-                                                                        }
-                                                                    >
-                                                                        {
-                                                                            opt.label
-                                                                        }
-                                                                    </SelectItem>
-                                                                ),
+                                                                    let itemClassName =
+                                                                        '';
+                                                                    let badgeLabel =
+                                                                        '';
+                                                                    let badgeClassName =
+                                                                        '';
+
+                                                                    if (
+                                                                        hasReviewRecommendationData &&
+                                                                        recommendation?.status ===
+                                                                            'recommended'
+                                                                    ) {
+                                                                        itemClassName =
+                                                                            'bg-emerald-50 text-emerald-900 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-950/40';
+                                                                        badgeLabel =
+                                                                            'Rekomendasi';
+                                                                        badgeClassName =
+                                                                            'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300';
+                                                                    }
+
+                                                                    if (
+                                                                        hasReviewRecommendationData &&
+                                                                        recommendation?.status ===
+                                                                            'not_recommended'
+                                                                    ) {
+                                                                        itemClassName =
+                                                                            'bg-rose-50 text-rose-900 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-300 dark:hover:bg-rose-950/40';
+                                                                        badgeLabel =
+                                                                            'Tidak Direkomendasikan';
+                                                                        badgeClassName =
+                                                                            'bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300';
+                                                                    }
+
+                                                                    return {
+                                                                        value: String(
+                                                                            p.id,
+                                                                        ),
+                                                                        label: helperLabel,
+                                                                        displayLabel:
+                                                                            p.nama,
+                                                                        disabled:
+                                                                            isSelectedInOtherRow,
+                                                                        itemClassName,
+                                                                        badgeLabel,
+                                                                        badgeClassName,
+                                                                    };
+                                                                },
                                                             );
                                                         })()}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
+                                                        value={item.petugas_id}
+                                                        onValueChange={(
+                                                            value,
+                                                        ) =>
+                                                            updateAlokasiItem(
+                                                                index,
+                                                                'petugas_id',
+                                                                value,
+                                                            )
+                                                        }
+                                                        placeholder="Pilih Petugas"
+                                                        searchPlaceholder="Cari petugas..."
+                                                        disabled={
+                                                            isJenisPerubahanRevisiPending ||
+                                                            isPerubahanAlokasiMode ||
+                                                            isViewMode
+                                                        }
+                                                    />
+                                                </div>
 
-                                            {isFrameSampelSelectionEnabled && (
-                                                <>
-                                                    <div className="space-y-2 md:col-span-2">
-                                                        <Label>
-                                                            Pilih Sampel{' '}
-                                                            <span className="text-red-500">
-                                                                *
-                                                            </span>
-                                                        </Label>
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            onClick={() =>
-                                                                setFrameSampelDialogIndex(
-                                                                    index,
-                                                                )
-                                                            }
-                                                            disabled={
-                                                                isRevisiLockedMode ||
-                                                                isViewMode ||
-                                                                filteredFrameSampelOptions.length ===
-                                                                    0
-                                                            }
-                                                            className="w-full justify-between"
-                                                        >
-                                                            <span>
-                                                                Pilih Sampel
-                                                            </span>
-                                                            <span className="text-xs text-neutral-500">
-                                                                {
-                                                                    getSelectedFrameSampelDetails(
-                                                                        item.frame_sampel_ids,
-                                                                    ).length
-                                                                }{' '}
-                                                                dipilih
-                                                            </span>
-                                                        </Button>
-                                                        <div className="rounded-md border border-dashed border-neutral-300 bg-neutral-50/70 px-3 py-2 text-sm text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-300">
-                                                            {getSelectedFrameSampelSummary(
-                                                                item.frame_sampel_ids,
-                                                            )}
+                                                {/* Peran */}
+                                                <div className="space-y-2">
+                                                    <Label
+                                                        htmlFor={`peran_${index}`}
+                                                    >
+                                                        Peran{' '}
+                                                        <span className="text-red-500">
+                                                            *
+                                                        </span>
+                                                    </Label>
+                                                    <Select
+                                                        value={String(
+                                                            item.peran || '',
+                                                        )}
+                                                        onValueChange={(
+                                                            value,
+                                                        ) =>
+                                                            updateAlokasiItem(
+                                                                index,
+                                                                'peran',
+                                                                value,
+                                                            )
+                                                        }
+                                                        disabled={isViewMode}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Pilih Peran" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {(() => {
+                                                                const selectedPetugas =
+                                                                    petugas.find(
+                                                                        (p) =>
+                                                                            String(
+                                                                                p.id,
+                                                                            ) ===
+                                                                            String(
+                                                                                item.petugas_id,
+                                                                            ),
+                                                                    );
+
+                                                                // Mapping ke label
+                                                                const labelMap: Record<
+                                                                    string,
+                                                                    string
+                                                                > = {
+                                                                    pcl_ppl:
+                                                                        'PCL',
+                                                                    pml: 'PML',
+                                                                    pengolahan:
+                                                                        'Petugas Pengolahan',
+                                                                    pengawas_pengolahan:
+                                                                        'Pengawas Pengolahan',
+                                                                    koseka: 'Koseka',
+                                                                };
+
+                                                                const statusKepegawaian =
+                                                                    selectedPetugas
+                                                                        ? selectedPetugas.jenis_petugas ===
+                                                                          'organik'
+                                                                            ? 'organik'
+                                                                            : 'non_organik'
+                                                                        : null;
+
+                                                                const uniqueJenisPenugasan =
+                                                                    !selectedKegiatan ||
+                                                                    !statusKepegawaian
+                                                                        ? []
+                                                                        : Array.from(
+                                                                              new Set(
+                                                                                  selectedKegiatan.rate_honors
+                                                                                      .filter(
+                                                                                          (
+                                                                                              rh,
+                                                                                          ) =>
+                                                                                              rh.status_kepegawaian ===
+                                                                                              statusKepegawaian,
+                                                                                      )
+                                                                                      .map(
+                                                                                          (
+                                                                                              rh,
+                                                                                          ) =>
+                                                                                              rh.jenis_penugasan,
+                                                                                      ),
+                                                                              ),
+                                                                          );
+
+                                                                const options =
+                                                                    uniqueJenisPenugasan.map(
+                                                                        (
+                                                                            jp,
+                                                                        ) => ({
+                                                                            key: jp,
+                                                                            value:
+                                                                                labelMap[
+                                                                                    jp
+                                                                                ] ||
+                                                                                jp,
+                                                                            label:
+                                                                                labelMap[
+                                                                                    jp
+                                                                                ] ||
+                                                                                jp,
+                                                                        }),
+                                                                    );
+
+                                                                // Fallback for copy/revisi rows: keep existing peran selectable
+                                                                // even when no active rate option is available for selected petugas.
+                                                                if (
+                                                                    item.peran &&
+                                                                    !options.some(
+                                                                        (opt) =>
+                                                                            opt.value ===
+                                                                            item.peran,
+                                                                    )
+                                                                ) {
+                                                                    options.unshift(
+                                                                        {
+                                                                            key: `fallback-${item.peran}`,
+                                                                            value: item.peran,
+                                                                            label: item.peran,
+                                                                        },
+                                                                    );
+                                                                }
+
+                                                                return options.map(
+                                                                    (opt) => (
+                                                                        <SelectItem
+                                                                            key={
+                                                                                opt.key
+                                                                            }
+                                                                            value={
+                                                                                opt.value
+                                                                            }
+                                                                        >
+                                                                            {
+                                                                                opt.label
+                                                                            }
+                                                                        </SelectItem>
+                                                                    ),
+                                                                );
+                                                            })()}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+
+                                                {isFrameSampelSelectionEnabled && (
+                                                    <>
+                                                        <div className="space-y-2 md:col-span-2">
+                                                            <Label>
+                                                                Pilih Sampel{' '}
+                                                                <span className="text-red-500">
+                                                                    *
+                                                                </span>
+                                                            </Label>
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                onClick={() =>
+                                                                    setFrameSampelDialogIndex(
+                                                                        index,
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    isJenisPerubahanRevisiPending ||
+                                                                    isPerubahanAlokasiMode ||
+                                                                    isViewMode ||
+                                                                    filteredFrameSampelOptions.length ===
+                                                                        0
+                                                                }
+                                                                className="w-full justify-between"
+                                                            >
+                                                                <span>
+                                                                    Pilih Sampel
+                                                                </span>
+                                                                <span className="text-xs text-neutral-500">
+                                                                    {
+                                                                        getSelectedFrameSampelDetails(
+                                                                            item.frame_sampel_ids,
+                                                                        ).length
+                                                                    }{' '}
+                                                                    dipilih
+                                                                </span>
+                                                            </Button>
+                                                            <div className="rounded-md border border-dashed border-neutral-300 bg-neutral-50/70 px-3 py-2 text-sm text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-300">
+                                                                {getSelectedFrameSampelSummary(
+                                                                    item.frame_sampel_ids,
+                                                                )}
+                                                            </div>
+                                                            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                                {isSensusEkonomiWithFramePool
+                                                                    ? 'Jumlah unit sampel mengikuti sampel terpilih. Estimasi honor tetap 2,5 x rate honor.'
+                                                                    : 'Jumlah unit sampel mengikuti jumlah beban tugas.'}
+                                                            </p>
                                                         </div>
-                                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                            {isSensusEkonomiWithFramePool
-                                                                ? 'Jumlah unit sampel mengikuti sampel terpilih. Estimasi honor tetap 2,5 x rate honor.'
-                                                                : 'Jumlah unit sampel mengikuti jumlah beban tugas.'}
-                                                        </p>
-                                                    </div>
-                                                </>
-                                            )}
+                                                    </>
+                                                )}
 
-                                            {/* Dual-phase: Listing fields */}
-                                            {selectedKegiatan?.has_listing_updating &&
-                                                (tahapan === 'both' ||
+                                                {/* Dual-phase: Listing fields */}
+                                                {selectedKegiatan?.has_listing_updating &&
+                                                    (tahapan === 'both' ||
+                                                        tahapan ===
+                                                            'listing_only') && (
+                                                        <>
+                                                            <div className="space-y-2">
+                                                                <Label
+                                                                    htmlFor={`satuan_listing_${index}`}
+                                                                >
+                                                                    Jumlah Beban
+                                                                    Tugas
+                                                                    Listing{' '}
+                                                                    <span className="text-red-500">
+                                                                        *
+                                                                    </span>
+                                                                </Label>
+                                                                <Input
+                                                                    type="number"
+                                                                    id={`satuan_listing_${index}`}
+                                                                    value={
+                                                                        item.jumlah_satuan_listing ||
+                                                                        ''
+                                                                    }
+                                                                    onChange={(
+                                                                        e,
+                                                                    ) =>
+                                                                        updateAlokasiItem(
+                                                                            index,
+                                                                            'jumlah_satuan_listing',
+                                                                            e
+                                                                                .target
+                                                                                .value,
+                                                                        )
+                                                                    }
+                                                                    min="0"
+                                                                    step="1"
+                                                                    placeholder="0"
+                                                                    disabled={
+                                                                        isViewMode ||
+                                                                        isAutoWorkloadFromFrame
+                                                                    }
+                                                                    className={
+                                                                        isAutoWorkloadFromFrame
+                                                                            ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
+                                                                            : ''
+                                                                    }
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2 md:col-span-4">
+                                                                <Label
+                                                                    htmlFor={`estimasi_listing_${index}`}
+                                                                >
+                                                                    Estimasi
+                                                                    Honor
+                                                                    Listing
+                                                                </Label>
+                                                                <Input
+                                                                    type="text"
+                                                                    id={`estimasi_listing_${index}`}
+                                                                    value={formatCurrency(
+                                                                        item.estimasi_honor_listing ||
+                                                                            0,
+                                                                    )}
+                                                                    readOnly
+                                                                    className="bg-neutral-50 dark:bg-neutral-900"
+                                                                />
+                                                            </div>
+
+                                                            {/* Pembayaran Parsial Listing */}
+                                                            <>
+                                                                <div className="space-y-2 md:col-span-4">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <Label
+                                                                            htmlFor={`partial_payment_listing_${index}`}
+                                                                        >
+                                                                            Pembayaran
+                                                                            Parsial
+                                                                            Listing?
+                                                                        </Label>
+                                                                        <Switch
+                                                                            id={`partial_payment_listing_${index}`}
+                                                                            checked={
+                                                                                item.is_partial_payment_listing ||
+                                                                                false
+                                                                            }
+                                                                            onCheckedChange={(
+                                                                                checked: boolean,
+                                                                            ) => {
+                                                                                updateAlokasiItem(
+                                                                                    index,
+                                                                                    'is_partial_payment_listing',
+                                                                                    checked,
+                                                                                );
+                                                                            }}
+                                                                            disabled={
+                                                                                isViewMode
+                                                                            }
+                                                                        />
+                                                                    </div>
+                                                                    <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                        Aktifkan
+                                                                        jika
+                                                                        honor
+                                                                        listing
+                                                                        yang
+                                                                        dibayarkan
+                                                                        berbeda
+                                                                        dari
+                                                                        estimasi
+                                                                    </p>
+                                                                </div>
+
+                                                                {item.is_partial_payment_listing && (
+                                                                    <>
+                                                                        <div className="space-y-2 md:col-span-4">
+                                                                            <Label
+                                                                                htmlFor={`partial_jumlah_satuan_listing_value_${index}`}
+                                                                            >
+                                                                                Jumlah
+                                                                                Beban
+                                                                                Tugas
+                                                                                Listing
+                                                                                Parsial{' '}
+                                                                                <span className="text-red-500">
+                                                                                    *
+                                                                                </span>
+                                                                            </Label>
+                                                                            <Input
+                                                                                type="number"
+                                                                                id={`partial_jumlah_satuan_listing_value_${index}`}
+                                                                                value={
+                                                                                    item.partial_jumlah_satuan_listing ||
+                                                                                    ''
+                                                                                }
+                                                                                onChange={(
+                                                                                    e,
+                                                                                ) =>
+                                                                                    updateAlokasiItem(
+                                                                                        index,
+                                                                                        'partial_jumlah_satuan_listing',
+                                                                                        e
+                                                                                            .target
+                                                                                            .value,
+                                                                                    )
+                                                                                }
+                                                                                min="0"
+                                                                                step="1"
+                                                                                max={
+                                                                                    item.jumlah_satuan_listing ||
+                                                                                    undefined
+                                                                                }
+                                                                                placeholder="0"
+                                                                                disabled={
+                                                                                    isViewMode
+                                                                                }
+                                                                            />
+                                                                            <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                                Maksimal:{' '}
+                                                                                {item.jumlah_satuan_listing ||
+                                                                                    0}{' '}
+                                                                                (jumlah
+                                                                                beban
+                                                                                tugas
+                                                                                listing
+                                                                                awal)
+                                                                            </p>
+                                                                        </div>
+
+                                                                        <div className="space-y-2 md:col-span-4">
+                                                                            <Label
+                                                                                htmlFor={`estimasi_honor_partial_listing_${index}`}
+                                                                            >
+                                                                                Estimasi
+                                                                                Honor
+                                                                                Listing
+                                                                                Parsial
+                                                                            </Label>
+                                                                            <Input
+                                                                                type="text"
+                                                                                id={`estimasi_honor_partial_listing_${index}`}
+                                                                                value={formatCurrency(
+                                                                                    item.estimasi_honor_partial_listing ||
+                                                                                        0,
+                                                                                )}
+                                                                                readOnly
+                                                                                className="bg-neutral-50 dark:bg-neutral-900"
+                                                                            />
+                                                                            <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                                Dihitung
+                                                                                otomatis
+                                                                                berdasarkan
+                                                                                jumlah
+                                                                                beban
+                                                                                tugas
+                                                                                listing
+                                                                                parsial
+                                                                            </p>
+                                                                        </div>
+                                                                    </>
+                                                                )}
+                                                            </>
+                                                        </>
+                                                    )}
+
+                                                {/* Jumlah Beban Tugas Pencacahan */}
+                                                {(!selectedKegiatan?.has_listing_updating ||
+                                                    tahapan === 'both' ||
                                                     tahapan ===
-                                                        'listing_only') && (
+                                                        'pencacahan_only') && (
                                                     <>
                                                         <div className="space-y-2">
                                                             <Label
-                                                                htmlFor={`satuan_listing_${index}`}
+                                                                htmlFor={`satuan_${index}`}
                                                             >
                                                                 Jumlah Beban
-                                                                Tugas Listing{' '}
+                                                                Tugas
+                                                                {selectedKegiatan?.has_listing_updating
+                                                                    ? ' Pencacahan'
+                                                                    : ''}{' '}
                                                                 <span className="text-red-500">
                                                                     *
                                                                 </span>
                                                             </Label>
                                                             <Input
                                                                 type="number"
-                                                                id={`satuan_listing_${index}`}
+                                                                id={`satuan_${index}`}
                                                                 value={
-                                                                    item.jumlah_satuan_listing ||
-                                                                    ''
+                                                                    jenisKegiatan ===
+                                                                    'sensus'
+                                                                        ? isSensusEkonomi2026
+                                                                            ? '2.5'
+                                                                            : '1'
+                                                                        : item.jumlah_satuan
                                                                 }
                                                                 onChange={(e) =>
                                                                     updateAlokasiItem(
                                                                         index,
-                                                                        'jumlah_satuan_listing',
+                                                                        'jumlah_satuan',
                                                                         e.target
                                                                             .value,
                                                                     )
@@ -5026,49 +5539,64 @@ export default function Create({
                                                                 placeholder="0"
                                                                 disabled={
                                                                     isViewMode ||
+                                                                    jenisKegiatan ===
+                                                                        'sensus' ||
                                                                     isAutoWorkloadFromFrame
                                                                 }
                                                                 className={
+                                                                    jenisKegiatan ===
+                                                                        'sensus' ||
                                                                     isAutoWorkloadFromFrame
                                                                         ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
                                                                         : ''
                                                                 }
                                                             />
+                                                            {(jenisKegiatan ===
+                                                                'sensus' ||
+                                                                isAutoWorkloadFromFrame) && (
+                                                                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                                    {isAutoWorkloadFromFrame
+                                                                        ? '🔒 Beban tugas otomatis dari total target unit sampel frame terpilih.'
+                                                                        : `🔒 Beban tugas sensus otomatis ${isSensusEkonomi2026 ? '2,5' : '1'} OB per petugas/bulan`}
+                                                                </p>
+                                                            )}
                                                         </div>
+
+                                                        {/* Estimasi Honor Pencacahan (Read only) */}
                                                         <div className="space-y-2 md:col-span-4">
                                                             <Label
-                                                                htmlFor={`estimasi_listing_${index}`}
+                                                                htmlFor={`estimasi_${index}`}
                                                             >
                                                                 Estimasi Honor
-                                                                Listing
+                                                                {selectedKegiatan?.has_listing_updating
+                                                                    ? ' Pencacahan'
+                                                                    : ''}
                                                             </Label>
                                                             <Input
                                                                 type="text"
-                                                                id={`estimasi_listing_${index}`}
+                                                                id={`estimasi_${index}`}
                                                                 value={formatCurrency(
-                                                                    item.estimasi_honor_listing ||
-                                                                        0,
+                                                                    item.estimasi_honor,
                                                                 )}
                                                                 readOnly
                                                                 className="bg-neutral-50 dark:bg-neutral-900"
                                                             />
                                                         </div>
 
-                                                        {/* Pembayaran Parsial Listing */}
+                                                        {/* Pembayaran Parsial Pencacahan */}
                                                         <>
                                                             <div className="space-y-2 md:col-span-4">
                                                                 <div className="flex items-center justify-between">
                                                                     <Label
-                                                                        htmlFor={`partial_payment_listing_${index}`}
+                                                                        htmlFor={`partial_payment_${index}`}
                                                                     >
                                                                         Pembayaran
-                                                                        Parsial
-                                                                        Listing?
+                                                                        Parsial?
                                                                     </Label>
                                                                     <Switch
-                                                                        id={`partial_payment_listing_${index}`}
+                                                                        id={`partial_payment_${index}`}
                                                                         checked={
-                                                                            item.is_partial_payment_listing ||
+                                                                            item.is_partial_payment ||
                                                                             false
                                                                         }
                                                                         onCheckedChange={(
@@ -5076,7 +5604,7 @@ export default function Create({
                                                                         ) => {
                                                                             updateAlokasiItem(
                                                                                 index,
-                                                                                'is_partial_payment_listing',
+                                                                                'is_partial_payment',
                                                                                 checked,
                                                                             );
                                                                         }}
@@ -5088,23 +5616,22 @@ export default function Create({
                                                                 <p className="text-xs text-neutral-600 dark:text-neutral-400">
                                                                     Aktifkan
                                                                     jika honor
-                                                                    listing yang
+                                                                    yang
                                                                     dibayarkan
                                                                     berbeda dari
                                                                     estimasi
                                                                 </p>
                                                             </div>
 
-                                                            {item.is_partial_payment_listing && (
+                                                            {item.is_partial_payment && (
                                                                 <>
                                                                     <div className="space-y-2 md:col-span-4">
                                                                         <Label
-                                                                            htmlFor={`partial_jumlah_satuan_listing_value_${index}`}
+                                                                            htmlFor={`partial_jumlah_satuan_value_${index}`}
                                                                         >
                                                                             Jumlah
                                                                             Beban
                                                                             Tugas
-                                                                            Listing
                                                                             Parsial{' '}
                                                                             <span className="text-red-500">
                                                                                 *
@@ -5112,9 +5639,9 @@ export default function Create({
                                                                         </Label>
                                                                         <Input
                                                                             type="number"
-                                                                            id={`partial_jumlah_satuan_listing_value_${index}`}
+                                                                            id={`partial_jumlah_satuan_value_${index}`}
                                                                             value={
-                                                                                item.partial_jumlah_satuan_listing ||
+                                                                                item.partial_jumlah_satuan ||
                                                                                 ''
                                                                             }
                                                                             onChange={(
@@ -5122,7 +5649,7 @@ export default function Create({
                                                                             ) =>
                                                                                 updateAlokasiItem(
                                                                                     index,
-                                                                                    'partial_jumlah_satuan_listing',
+                                                                                    'partial_jumlah_satuan',
                                                                                     e
                                                                                         .target
                                                                                         .value,
@@ -5131,7 +5658,7 @@ export default function Create({
                                                                             min="0"
                                                                             step="1"
                                                                             max={
-                                                                                item.jumlah_satuan_listing ||
+                                                                                item.jumlah_satuan ||
                                                                                 undefined
                                                                             }
                                                                             placeholder="0"
@@ -5141,30 +5668,28 @@ export default function Create({
                                                                         />
                                                                         <p className="text-xs text-neutral-600 dark:text-neutral-400">
                                                                             Maksimal:{' '}
-                                                                            {item.jumlah_satuan_listing ||
+                                                                            {item.jumlah_satuan ||
                                                                                 0}{' '}
                                                                             (jumlah
                                                                             beban
                                                                             tugas
-                                                                            listing
                                                                             awal)
                                                                         </p>
                                                                     </div>
 
                                                                     <div className="space-y-2 md:col-span-4">
                                                                         <Label
-                                                                            htmlFor={`estimasi_honor_partial_listing_${index}`}
+                                                                            htmlFor={`estimasi_honor_partial_${index}`}
                                                                         >
                                                                             Estimasi
                                                                             Honor
-                                                                            Listing
                                                                             Parsial
                                                                         </Label>
                                                                         <Input
                                                                             type="text"
-                                                                            id={`estimasi_honor_partial_listing_${index}`}
+                                                                            id={`estimasi_honor_partial_${index}`}
                                                                             value={formatCurrency(
-                                                                                item.estimasi_honor_partial_listing ||
+                                                                                item.estimasi_honor_partial ||
                                                                                     0,
                                                                             )}
                                                                             readOnly
@@ -5177,7 +5702,6 @@ export default function Create({
                                                                             jumlah
                                                                             beban
                                                                             tugas
-                                                                            listing
                                                                             parsial
                                                                         </p>
                                                                     </div>
@@ -5187,271 +5711,62 @@ export default function Create({
                                                     </>
                                                 )}
 
-                                            {/* Jumlah Beban Tugas Pencacahan */}
-                                            {(!selectedKegiatan?.has_listing_updating ||
-                                                tahapan === 'both' ||
-                                                tahapan ===
-                                                    'pencacahan_only') && (
-                                                <>
-                                                    <div className="space-y-2">
-                                                        <Label
-                                                            htmlFor={`satuan_${index}`}
-                                                        >
-                                                            Jumlah Beban Tugas
-                                                            {selectedKegiatan?.has_listing_updating
-                                                                ? ' Pencacahan'
-                                                                : ''}{' '}
-                                                            <span className="text-red-500">
-                                                                *
-                                                            </span>
-                                                        </Label>
-                                                        <Input
-                                                            type="number"
-                                                            id={`satuan_${index}`}
-                                                            value={
-                                                                jenisKegiatan ===
-                                                                'sensus'
-                                                                    ? isSensusEkonomi2026
-                                                                        ? '2.5'
-                                                                        : '1'
-                                                                    : item.jumlah_satuan
-                                                            }
-                                                            onChange={(e) =>
-                                                                updateAlokasiItem(
-                                                                    index,
-                                                                    'jumlah_satuan',
-                                                                    e.target
-                                                                        .value,
-                                                                )
-                                                            }
-                                                            min="0"
-                                                            step="1"
-                                                            placeholder="0"
-                                                            disabled={
-                                                                isViewMode ||
-                                                                jenisKegiatan ===
-                                                                    'sensus' ||
-                                                                isAutoWorkloadFromFrame
-                                                            }
-                                                            className={
-                                                                jenisKegiatan ===
-                                                                    'sensus' ||
-                                                                isAutoWorkloadFromFrame
-                                                                    ? 'cursor-not-allowed bg-neutral-100 dark:bg-neutral-900'
-                                                                    : ''
-                                                            }
-                                                        />
-                                                        {(jenisKegiatan ===
-                                                            'sensus' ||
-                                                            isAutoWorkloadFromFrame) && (
-                                                            <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                                {isAutoWorkloadFromFrame
-                                                                    ? '🔒 Beban tugas otomatis dari total target unit sampel frame terpilih.'
-                                                                    : `🔒 Beban tugas sensus otomatis ${isSensusEkonomi2026 ? '2,5' : '1'} OB per petugas/bulan`}
-                                                            </p>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Estimasi Honor Pencacahan (Read only) */}
-                                                    <div className="space-y-2 md:col-span-4">
-                                                        <Label
-                                                            htmlFor={`estimasi_${index}`}
-                                                        >
-                                                            Estimasi Honor
-                                                            {selectedKegiatan?.has_listing_updating
-                                                                ? ' Pencacahan'
-                                                                : ''}
-                                                        </Label>
-                                                        <Input
-                                                            type="text"
-                                                            id={`estimasi_${index}`}
-                                                            value={formatCurrency(
-                                                                item.estimasi_honor,
-                                                            )}
-                                                            readOnly
-                                                            className="bg-neutral-50 dark:bg-neutral-900"
-                                                        />
-                                                    </div>
-
-                                                    {/* Pembayaran Parsial Pencacahan */}
-                                                    <>
-                                                        <div className="space-y-2 md:col-span-4">
-                                                            <div className="flex items-center justify-between">
-                                                                <Label
-                                                                    htmlFor={`partial_payment_${index}`}
-                                                                >
-                                                                    Pembayaran
-                                                                    Parsial?
-                                                                </Label>
-                                                                <Switch
-                                                                    id={`partial_payment_${index}`}
-                                                                    checked={
-                                                                        item.is_partial_payment ||
-                                                                        false
-                                                                    }
-                                                                    onCheckedChange={(
-                                                                        checked: boolean,
-                                                                    ) => {
-                                                                        updateAlokasiItem(
-                                                                            index,
-                                                                            'is_partial_payment',
-                                                                            checked,
-                                                                        );
-                                                                    }}
-                                                                    disabled={
-                                                                        isViewMode
-                                                                    }
-                                                                />
-                                                            </div>
-                                                            <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                                                                Aktifkan jika
-                                                                honor yang
-                                                                dibayarkan
-                                                                berbeda dari
-                                                                estimasi
-                                                            </p>
-                                                        </div>
-
-                                                        {item.is_partial_payment && (
-                                                            <>
-                                                                <div className="space-y-2 md:col-span-4">
-                                                                    <Label
-                                                                        htmlFor={`partial_jumlah_satuan_value_${index}`}
-                                                                    >
-                                                                        Jumlah
-                                                                        Beban
-                                                                        Tugas
-                                                                        Parsial{' '}
-                                                                        <span className="text-red-500">
-                                                                            *
-                                                                        </span>
-                                                                    </Label>
-                                                                    <Input
-                                                                        type="number"
-                                                                        id={`partial_jumlah_satuan_value_${index}`}
-                                                                        value={
-                                                                            item.partial_jumlah_satuan ||
-                                                                            ''
-                                                                        }
-                                                                        onChange={(
-                                                                            e,
-                                                                        ) =>
-                                                                            updateAlokasiItem(
-                                                                                index,
-                                                                                'partial_jumlah_satuan',
-                                                                                e
-                                                                                    .target
-                                                                                    .value,
-                                                                            )
-                                                                        }
-                                                                        min="0"
-                                                                        step="1"
-                                                                        max={
-                                                                            item.jumlah_satuan ||
-                                                                            undefined
-                                                                        }
-                                                                        placeholder="0"
-                                                                        disabled={
-                                                                            isViewMode
-                                                                        }
-                                                                    />
-                                                                    <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                                                                        Maksimal:{' '}
-                                                                        {item.jumlah_satuan ||
-                                                                            0}{' '}
-                                                                        (jumlah
-                                                                        beban
-                                                                        tugas
-                                                                        awal)
-                                                                    </p>
-                                                                </div>
-
-                                                                <div className="space-y-2 md:col-span-4">
-                                                                    <Label
-                                                                        htmlFor={`estimasi_honor_partial_${index}`}
-                                                                    >
-                                                                        Estimasi
-                                                                        Honor
-                                                                        Parsial
-                                                                    </Label>
-                                                                    <Input
-                                                                        type="text"
-                                                                        id={`estimasi_honor_partial_${index}`}
-                                                                        value={formatCurrency(
-                                                                            item.estimasi_honor_partial ||
-                                                                                0,
-                                                                        )}
-                                                                        readOnly
-                                                                        className="bg-neutral-50 dark:bg-neutral-900"
-                                                                    />
-                                                                    <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                                                                        Dihitung
-                                                                        otomatis
-                                                                        berdasarkan
-                                                                        jumlah
-                                                                        beban
-                                                                        tugas
-                                                                        parsial
-                                                                    </p>
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                    </>
-                                                </>
-                                            )}
-
-                                            {/* Catatan */}
-                                            <div className="space-y-2 md:col-span-4">
-                                                <Label
-                                                    htmlFor={`catatan_${index}`}
-                                                >
-                                                    Catatan
-                                                </Label>
-                                                <Input
-                                                    type="text"
-                                                    id={`catatan_${index}`}
-                                                    value={item.catatan}
-                                                    onChange={(e) =>
-                                                        updateAlokasiItem(
-                                                            index,
-                                                            'catatan',
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    placeholder="Catatan tambahan (opsional)"
-                                                    disabled={
-                                                        isRevisiMode ||
-                                                        isViewMode
-                                                    }
-                                                />
+                                                {/* Catatan */}
+                                                <div className="space-y-2 md:col-span-4">
+                                                    <Label
+                                                        htmlFor={`catatan_${index}`}
+                                                    >
+                                                        Catatan
+                                                    </Label>
+                                                    <Input
+                                                        type="text"
+                                                        id={`catatan_${index}`}
+                                                        value={item.catatan}
+                                                        onChange={(e) =>
+                                                            updateAlokasiItem(
+                                                                index,
+                                                                'catatan',
+                                                                e.target.value,
+                                                            )
+                                                        }
+                                                        placeholder="Catatan tambahan (opsional)"
+                                                        disabled={
+                                                            isRevisiMode ||
+                                                            isViewMode
+                                                        }
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
 
-                                {/* Add Petugas Button - Outside individual cards */}
-                                {!isViewMode && (
-                                    <div className="mt-4 flex justify-center border-t border-neutral-200 pt-4 dark:border-neutral-700">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() =>
-                                                handleAddPetugasAfter(
-                                                    alokasiItems.length - 1,
-                                                )
-                                            }
-                                            disabled={isRevisiLockedMode}
-                                            className="gap-1.5"
-                                        >
-                                            <Plus className="h-4 w-4" />
-                                            Tambah Petugas
-                                        </Button>
-                                    </div>
-                                )}
+                                    {/* Add Petugas Button - Outside individual cards */}
+                                    {!isViewMode && (
+                                        <div className="mt-4 flex justify-center border-t border-neutral-200 pt-4 dark:border-neutral-700">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() =>
+                                                    handleAddPetugasAfter(
+                                                        alokasiItems.length - 1,
+                                                    )
+                                                }
+                                                disabled={
+                                                    isJenisPerubahanRevisiPending ||
+                                                    isPerubahanAlokasiMode
+                                                }
+                                                className="gap-1.5"
+                                            >
+                                                <Plus className="h-4 w-4" />
+                                                Tambah Petugas
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    </ContentCard>
+                        </ContentCard>
+                    </div>
                 )}
 
                 {/* Estimasi Sisa Pagu */}
@@ -5884,7 +6199,11 @@ export default function Create({
                         </Button>
                         <Button
                             type="submit"
-                            disabled={processing || !selectedKegiatanId}
+                            disabled={
+                                processing ||
+                                !selectedKegiatanId ||
+                                !isWizardReadyForSubmit
+                            }
                             className="min-w-[180px] gap-2"
                         >
                             {processing ? (
@@ -5982,7 +6301,8 @@ export default function Create({
                                                 );
                                             }}
                                             disabled={
-                                                isRevisiLockedMode ||
+                                                isJenisPerubahanRevisiPending ||
+                                                isPerubahanAlokasiMode ||
                                                 isViewMode ||
                                                 isBlockedForOtherPetugas
                                             }

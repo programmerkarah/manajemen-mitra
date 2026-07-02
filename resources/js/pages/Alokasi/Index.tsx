@@ -1578,7 +1578,6 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                             {item.kegiatan.nama_kegiatan}
                                         </p>
                                         <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                                            {item.kegiatan.kode_kegiatan} ·{' '}
                                             {item.display_bulan}
                                         </p>
                                     </div>

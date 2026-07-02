@@ -48,20 +48,20 @@ class MonitoringPenggunaanAplikasiController extends Controller
      * @return array{
      *     active_year: int,
      *     generated_at: string,
-    *     filters: array{bulan: string, user_name: string|null},
-    *     state_url: string,
+     *     filters: array{bulan: string, user_name: string|null},
+     *     state_url: string,
      *     month_label: string,
      *     report_period: string,
      *     summary: array{active_users: int, total_logs: int, active_days: int, average_logs_per_day: float|int, administrative_actions: int, system_actions: int},
      *     daily_access: array<int, array{day: int, date: string, label: string, total_logs: int, unique_users: int}>,
-         *     type_summary: array<int, array{type: string, label: string, total: int}>,
-         *     top_actions: array<int, array{type: string, label: string, action: string, total: int}>,
-         *     all_user_activity: array<int, array{user_id: int, user_name: string, total_logs: int, active_days: int}>,
-         *     top_users: array<int, array{user_id: int, user_name: string, total_logs: int, active_days: int}>,
-         *     user_name_options: array<int, array{value: string, label: string}>,
-         *     selected_user_name: string|null,
-         *     selected_user_summary: array{user_name: string|null, total_logs: int, active_days: int}|null,
-         *     selected_user_daily_access: array<int, array{day: int, date: string, label: string, total_logs: int, activity_breakdown: array<int, array{label: string, total: int}>}>,
+     *     type_summary: array<int, array{type: string, label: string, total: int}>,
+     *     top_actions: array<int, array{type: string, label: string, action: string, total: int}>,
+     *     all_user_activity: array<int, array{user_id: int, user_name: string, total_logs: int, active_days: int}>,
+     *     top_users: array<int, array{user_id: int, user_name: string, total_logs: int, active_days: int}>,
+     *     user_name_options: array<int, array{value: string, label: string}>,
+     *     selected_user_name: string|null,
+     *     selected_user_summary: array{user_name: string|null, total_logs: int, active_days: int}|null,
+     *     selected_user_daily_access: array<int, array{day: int, date: string, label: string, total_logs: int, activity_breakdown: array<int, array{label: string, total: int}>}>,
      *     impact_summary: array<int, array{label: string, count: int, description: string}>
      * }
      */
@@ -361,7 +361,7 @@ class MonitoringPenggunaanAplikasiController extends Controller
     }
 
     /**
-     * @param array{bulan: string, user_name: string|null} $filters
+     * @param  array{bulan: string, user_name: string|null}  $filters
      */
     private function buildStateUrl(array $filters): string
     {

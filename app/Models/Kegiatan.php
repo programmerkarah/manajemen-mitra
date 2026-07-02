@@ -13,6 +13,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Kegiatan extends Model
 {
+    public const METODE_PENDATAAN_PAPI = 'PAPI';
+
+    public const METODE_PENDATAAN_CAPI_FASIH = 'CAPI_FASIH';
+
+    public const METODE_PENDATAAN_CAPI_KSA_PRO = 'CAPI_KSA_PRO';
+
+    public const METODE_PENDATAAN_CAPI_LEGACY = 'CAPI';
+
     /** @use HasFactory<KegiatanFactory> */
     use HasFactory, HasHashedRouteKey, SoftDeletes;
 
@@ -95,6 +103,28 @@ class Kegiatan extends Model
     public function frameSampelPencacahan(): BelongsTo
     {
         return $this->belongsTo(MasterFrameSampel::class, 'frame_sampel_pencacahan_id');
+    }
+
+    public static function isFasihMetodePendataan(?string $value): bool
+    {
+        return in_array($value, [self::METODE_PENDATAAN_CAPI_FASIH, self::METODE_PENDATAAN_CAPI_LEGACY], true);
+    }
+
+    public static function normalizeMetodePendataan(?string $value): ?string
+    {
+        return match ($value) {
+            self::METODE_PENDATAAN_CAPI_LEGACY => self::METODE_PENDATAAN_CAPI_FASIH,
+            self::METODE_PENDATAAN_PAPI,
+            self::METODE_PENDATAAN_CAPI_FASIH,
+            self::METODE_PENDATAAN_CAPI_KSA_PRO => $value,
+            default => null,
+        };
+    }
+
+    public function usesFasihPendataan(): bool
+    {
+        return self::isFasihMetodePendataan($this->metode_pendataan_pencacahan)
+            && (! $this->has_listing_updating || self::isFasihMetodePendataan($this->metode_pendataan_listing));
     }
 
     /**

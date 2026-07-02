@@ -1,13 +1,15 @@
 <?php
-require __DIR__ . '/../vendor/autoload.php';
+
+require __DIR__.'/../vendor/autoload.php';
 // Bootstrap Laravel application
-$app = require __DIR__ . '/../bootstrap/app.php';
-$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+$app = require __DIR__.'/../bootstrap/app.php';
+$kernel = $app->make(Kernel::class);
 $kernel->bootstrap();
 // This script is a quick DB inspector; run via `php debug_queries/list_june_periodes.php` from project root.
-use App\Models\PeriodeAlokasi;
 use App\Models\AlokasiPetugas;
+use App\Models\PeriodeAlokasi;
 use App\Models\Spk;
+use Illuminate\Contracts\Console\Kernel;
 
 $tahun = (int) date('Y');
 $bulan = 6; // June

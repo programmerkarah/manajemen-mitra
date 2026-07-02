@@ -1,6 +1,14 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -14,8 +22,20 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { AlertTriangle, ArrowLeft, Info, Send } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import {
+    AlertTriangle,
+    ArrowLeft,
+    Check,
+    ChevronLeft,
+    ChevronRight,
+    Download,
+    FileUp,
+    Info,
+    Loader2,
+    Send,
+    Upload,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Pengajuan Pulsa', href: '/pengajuan-pulsa' },
@@ -109,6 +129,25 @@ const formatCurrency = (value: number) =>
 /** State for nominal inputs: key = `${kegiatanId}__${petugasId}__${jenisPulsa}` */
 type NominalMap = Record<string, number>;
 
+interface PengajuanPulsaImportRow {
+    bulan: string;
+    tahun: number;
+    kegiatan_id: number;
+    petugas_id: number;
+    jenis_pulsa: 'pelatihan' | 'pendataan';
+    nominal: number;
+    kegiatan_kode?: string | null;
+    kegiatan_nama?: string | null;
+    petugas_nama?: string | null;
+}
+
+interface PengajuanPulsaImportSummary {
+    total_rows: number;
+    preview_rows: number;
+    skipped_rows: number;
+    error_count: number;
+}
+
 export default function PengajuanPulsaCreate({
     eligibleKegiatan,
     petugasPerKegiatan,
@@ -120,10 +159,23 @@ export default function PengajuanPulsaCreate({
 }: Props) {
     const [bulan, setBulan] = useState(filters.bulan);
     const tahun = filters.tahun;
+    const [currentPage, setCurrentPage] = useState(1);
+    const perPage = 6;
     const [catatan, setCatatan] = useState('');
     const [nominals, setNominals] = useState<NominalMap>({});
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+    const [importFile, setImportFile] = useState<File | null>(null);
+    const [isImportProcessing, setIsImportProcessing] = useState(false);
+    const [importPreviewRows, setImportPreviewRows] = useState<
+        PengajuanPulsaImportRow[]
+    >([]);
+    const [importPreviewSummary, setImportPreviewSummary] =
+        useState<PengajuanPulsaImportSummary | null>(null);
+    const [importPreviewErrors, setImportPreviewErrors] = useState<string[]>(
+        [],
+    );
 
     const getNominal = useCallback(
         (
@@ -162,11 +214,26 @@ export default function PengajuanPulsaCreate({
 
     const totalForPetugas = useCallback(
         (petugasId: number) => {
-            const existing = existingTotals[petugasId] ?? 0;
+            const existing = allExistingTotals[petugasId] ?? 0;
             const newTotal = newTotalPerPetugas[petugasId] ?? 0;
             return existing + newTotal;
         },
-        [existingTotals, newTotalPerPetugas],
+        [allExistingTotals, newTotalPerPetugas],
+    );
+
+    const overLimitPetugasIds = useMemo(() => {
+        return Object.keys(newTotalPerPetugas).filter(
+            (petugasId) =>
+                totalForPetugas(Number(petugasId)) > MAX_PULSA_PER_PETUGAS,
+        );
+    }, [newTotalPerPetugas, totalForPetugas]);
+
+    const hasNominalFormatErrors = useMemo(
+        () =>
+            Object.values(nominals).some(
+                (value) => value > 0 && value % 1000 !== 0,
+            ),
+        [nominals],
     );
 
     const isOverLimit = useCallback(
@@ -208,6 +275,48 @@ export default function PengajuanPulsaCreate({
         );
     }, [eligibleKegiatan, petugasPerKegiatan, petugasPerKegiatanPelatihan]);
 
+    const totalPages = Math.max(
+        1,
+        Math.ceil(petugasWithKegiatan.length / perPage),
+    );
+
+    const paginatedPetugasWithKegiatan = useMemo(() => {
+        const startIndex = (currentPage - 1) * perPage;
+        return petugasWithKegiatan.slice(startIndex, startIndex + perPage);
+    }, [currentPage, petugasWithKegiatan]);
+
+    const pageStart =
+        petugasWithKegiatan.length === 0 ? 0 : (currentPage - 1) * perPage + 1;
+    const pageEnd = Math.min(currentPage * perPage, petugasWithKegiatan.length);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [bulan]);
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [currentPage, totalPages]);
+
+    const kegiatanById = useMemo(
+        () =>
+            new Map(
+                eligibleKegiatan.map((kegiatan) => [kegiatan.id, kegiatan]),
+            ),
+        [eligibleKegiatan],
+    );
+
+    const petugasById = useMemo(() => {
+        const map = new Map<number, PetugasItem>();
+
+        for (const { petugas } of petugasWithKegiatan) {
+            map.set(petugas.id, petugas);
+        }
+
+        return map;
+    }, [petugasWithKegiatan]);
+
     const handleFilterChange = (newBulan: string) => {
         router.get(
             '/pengajuan-pulsa/create',
@@ -216,16 +325,101 @@ export default function PengajuanPulsaCreate({
         );
     };
 
-    const handleSubmit = () => {
-        const overLimitPetugas = Object.keys(newTotalPerPetugas).filter(
-            (id) => totalForPetugas(Number(id)) > MAX_PULSA_PER_PETUGAS,
-        );
+    const handleDownloadTemplate = () => {
+        window.location.href = `/pengajuan-pulsa/template?bulan=${bulan}&tahun=${tahun}`;
+    };
 
-        // Validate multiples of 1000
-        const invalidNominals = Object.values(nominals).filter(
-            (v) => v > 0 && v % 1000 !== 0,
-        );
-        if (invalidNominals.length > 0) {
+    const handlePreviewImport = async () => {
+        if (!importFile) {
+            setErrors({
+                general:
+                    'Pilih file Excel terlebih dahulu sebelum melakukan preview import.',
+            });
+
+            return;
+        }
+
+        setIsImportProcessing(true);
+        setErrors({});
+        setImportPreviewErrors([]);
+
+        try {
+            const csrfToken =
+                document
+                    .querySelector('meta[name="csrf-token"]')
+                    ?.getAttribute('content') ?? '';
+
+            const formData = new FormData();
+            formData.append('file', importFile);
+            formData.append('bulan', bulan);
+            formData.append('tahun', tahun);
+
+            const response = await fetch('/pengajuan-pulsa/import-preview', {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: formData,
+            });
+
+            const payload = await response.json();
+
+            if (!response.ok) {
+                setErrors({
+                    general:
+                        payload?.message ??
+                        'Gagal memproses file import pengajuan pulsa.',
+                });
+
+                return;
+            }
+
+            setImportPreviewRows(payload.rows ?? []);
+            setImportPreviewSummary(payload.summary ?? null);
+            setImportPreviewErrors(payload.errors ?? []);
+            setIsImportDialogOpen(true);
+        } catch (error) {
+            setErrors({
+                general:
+                    error instanceof Error
+                        ? error.message
+                        : 'Gagal memproses file import pengajuan pulsa.',
+            });
+        } finally {
+            setIsImportProcessing(false);
+        }
+    };
+
+    const applyImportedRows = () => {
+        if (importPreviewRows.length === 0) {
+            return;
+        }
+
+        setNominals((previousNominals) => {
+            const nextNominals = { ...previousNominals };
+
+            for (const row of importPreviewRows) {
+                if (
+                    !kegiatanById.has(row.kegiatan_id) ||
+                    !petugasById.has(row.petugas_id)
+                ) {
+                    continue;
+                }
+
+                nextNominals[
+                    `${row.kegiatan_id}__${row.petugas_id}__${row.jenis_pulsa}`
+                ] = row.nominal;
+            }
+
+            return nextNominals;
+        });
+
+        setIsImportDialogOpen(false);
+    };
+
+    const handleSubmit = () => {
+        if (hasNominalFormatErrors) {
             setErrors({
                 general:
                     'Semua nominal pulsa harus merupakan kelipatan Rp1.000.',
@@ -233,7 +427,7 @@ export default function PengajuanPulsaCreate({
             return;
         }
 
-        if (overLimitPetugas.length > 0) {
+        if (overLimitPetugasIds.length > 0) {
             setErrors({
                 general: `Beberapa petugas melebihi batas pulsa Rp100.000 per bulan. Sesuaikan nominal sebelum mengirim.`,
             });
@@ -283,6 +477,10 @@ export default function PengajuanPulsaCreate({
     };
 
     const hasEligibleKegiatan = petugasWithKegiatan.length > 0;
+    const isSubmitDisabled =
+        isSubmitting ||
+        hasNominalFormatErrors ||
+        overLimitPetugasIds.length > 0;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -300,32 +498,58 @@ export default function PengajuanPulsaCreate({
                     </Button>
                 </PageHeader>
 
-                {/* Periode Filter */}
                 <ContentCard>
-                    <h3 className="mb-4 text-base font-semibold text-neutral-900 dark:text-neutral-100">
-                        Periode
-                    </h3>
-                    <div className="flex flex-wrap gap-4">
-                        <div className="space-y-1.5">
-                            <Label>Bulan</Label>
-                            <Select
-                                value={bulan}
-                                onValueChange={(v) => {
-                                    setBulan(v);
-                                    handleFilterChange(v);
-                                }}
-                            >
-                                <SelectTrigger className="w-40">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {BULAN_LIST.map(([val, label]) => (
-                                        <SelectItem key={val} value={val}>
-                                            {label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                        <div>
+                            <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
+                                Periode
+                            </h3>
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                                Filter bulan aktif, lalu gunakan template import
+                                untuk mengisi nominal dengan lebih cepat.
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap items-end gap-3">
+                            <div className="space-y-1.5">
+                                <Label>Bulan</Label>
+                                <Select
+                                    value={bulan}
+                                    onValueChange={(v) => {
+                                        setBulan(v);
+                                        handleFilterChange(v);
+                                    }}
+                                >
+                                    <SelectTrigger className="w-40">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {BULAN_LIST.map(([val, label]) => (
+                                            <SelectItem key={val} value={val}>
+                                                {label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="gap-2"
+                                    onClick={handleDownloadTemplate}
+                                >
+                                    <Download className="h-4 w-4" />
+                                    Template
+                                </Button>
+                                <Button
+                                    type="button"
+                                    className="gap-2"
+                                    onClick={() => setIsImportDialogOpen(true)}
+                                >
+                                    <FileUp className="h-4 w-4" />
+                                    Import Excel
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </ContentCard>
@@ -352,11 +576,61 @@ export default function PengajuanPulsaCreate({
                             </div>
                         )}
 
+                        <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-neutral-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-neutral-800 dark:bg-neutral-900/40">
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Menampilkan {pageStart}-{pageEnd} dari{' '}
+                                {petugasWithKegiatan.length} petugas
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setCurrentPage((page) =>
+                                            Math.max(1, page - 1),
+                                        )
+                                    }
+                                    disabled={currentPage <= 1}
+                                    className="gap-1.5"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                    Sebelumnya
+                                </Button>
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    Halaman {currentPage} dari {totalPages}
+                                </span>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setCurrentPage((page) =>
+                                            Math.min(totalPages, page + 1),
+                                        )
+                                    }
+                                    disabled={currentPage >= totalPages}
+                                    className="gap-1.5"
+                                >
+                                    Berikutnya
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+
                         {/* Per-petugas cards */}
-                        {petugasWithKegiatan.map(
+                        {paginatedPetugasWithKegiatan.map(
                             ({ petugas, kegiatan: kegiatanList }) => {
                                 const total = totalForPetugas(petugas.id);
                                 const over = isOverLimit(petugas.id);
+                                const petugasError =
+                                    errors[`petugas_${petugas.id}`];
+                                const currentActivityTotal =
+                                    existingTotals[petugas.id] ?? 0;
+                                const globalExistingTotal =
+                                    allExistingTotals[petugas.id] ?? 0;
+                                const externalTotal =
+                                    globalExistingTotal - currentActivityTotal;
 
                                 return (
                                     <ContentCard
@@ -388,49 +662,35 @@ export default function PengajuanPulsaCreate({
                                                         Melebihi batas Rp100.000
                                                     </div>
                                                 )}
-                                                {!over &&
-                                                    existingTotals[petugas.id] >
-                                                        0 && (
-                                                        <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                            Sudah diajukan
-                                                            (kegiatan ini):{' '}
-                                                            {formatCurrency(
-                                                                existingTotals[
-                                                                    petugas.id
-                                                                ],
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                {(() => {
-                                                    const allTotal =
-                                                        allExistingTotals[
-                                                            petugas.id
-                                                        ] ?? 0;
-                                                    const ownTotal =
-                                                        existingTotals[
-                                                            petugas.id
-                                                        ] ?? 0;
-                                                    const externalTotal =
-                                                        allTotal - ownTotal;
-                                                    if (externalTotal <= 0) {
-                                                        return null;
-                                                    }
-                                                    return (
-                                                        <div className="mt-0.5 flex items-center justify-end gap-1 text-xs text-amber-600 dark:text-amber-400">
-                                                            <Info className="h-3 w-3 shrink-0" />
-                                                            +
-                                                            {formatCurrency(
-                                                                externalTotal,
-                                                            )}{' '}
-                                                            dari kegiatan lain
-                                                            (total:{' '}
-                                                            {formatCurrency(
-                                                                allTotal,
-                                                            )}
-                                                            )
-                                                        </div>
-                                                    );
-                                                })()}
+                                                {currentActivityTotal > 0 && (
+                                                    <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                        Sudah diajukan (kegiatan
+                                                        ini):{' '}
+                                                        {formatCurrency(
+                                                            currentActivityTotal,
+                                                        )}
+                                                    </div>
+                                                )}
+                                                {externalTotal > 0 && (
+                                                    <div className="mt-0.5 flex items-center justify-end gap-1 text-xs text-amber-600 dark:text-amber-400">
+                                                        <Info className="h-3 w-3 shrink-0" />
+                                                        +
+                                                        {formatCurrency(
+                                                            externalTotal,
+                                                        )}{' '}
+                                                        dari kegiatan lain
+                                                        (total:{' '}
+                                                        {formatCurrency(
+                                                            globalExistingTotal,
+                                                        )}
+                                                        )
+                                                    </div>
+                                                )}
+                                                {petugasError && (
+                                                    <div className="mt-1 text-xs text-red-600 dark:text-red-400">
+                                                        {petugasError}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 
@@ -557,7 +817,9 @@ export default function PengajuanPulsaCreate({
                                                                                     (raw %
                                                                                         1000 !==
                                                                                         0 ||
-                                                                                        raw >
+                                                                                        totalForPetugas(
+                                                                                            petugas.id,
+                                                                                        ) >
                                                                                             MAX_PULSA_PER_PETUGAS);
                                                                                 return (
                                                                                     <div className="space-y-1">
@@ -587,9 +849,13 @@ export default function PengajuanPulsaCreate({
                                                                                         {invalid && (
                                                                                             <p className="text-xs text-red-500">
                                                                                                 Kelipatan
-                                                                                                1.000,
+                                                                                                1.000
+                                                                                                dan
+                                                                                                total
+                                                                                                per
+                                                                                                petugas
                                                                                                 maks
-                                                                                                100.000
+                                                                                                Rp100.000
                                                                                             </p>
                                                                                         )}
                                                                                     </div>
@@ -624,7 +890,9 @@ export default function PengajuanPulsaCreate({
                                                                                     (raw %
                                                                                         1000 !==
                                                                                         0 ||
-                                                                                        raw >
+                                                                                        totalForPetugas(
+                                                                                            petugas.id,
+                                                                                        ) >
                                                                                             MAX_PULSA_PER_PETUGAS);
                                                                                 return (
                                                                                     <div className="space-y-1">
@@ -654,9 +922,13 @@ export default function PengajuanPulsaCreate({
                                                                                         {invalid && (
                                                                                             <p className="text-xs text-red-500">
                                                                                                 Kelipatan
-                                                                                                1.000,
+                                                                                                1.000
+                                                                                                dan
+                                                                                                total
+                                                                                                per
+                                                                                                petugas
                                                                                                 maks
-                                                                                                100.000
+                                                                                                Rp100.000
                                                                                             </p>
                                                                                         )}
                                                                                     </div>
@@ -697,7 +969,7 @@ export default function PengajuanPulsaCreate({
                             </Button>
                             <Button
                                 onClick={handleSubmit}
-                                disabled={isSubmitting}
+                                disabled={isSubmitDisabled}
                                 className="gap-2"
                             >
                                 <Send className="h-4 w-4" />
@@ -708,6 +980,211 @@ export default function PengajuanPulsaCreate({
                         </div>
                     </>
                 )}
+
+                <Dialog
+                    open={isImportDialogOpen}
+                    onOpenChange={setIsImportDialogOpen}
+                >
+                    <DialogContent className="max-h-[90vh] overflow-hidden sm:max-w-5xl">
+                        <DialogHeader>
+                            <DialogTitle>
+                                Import Excel Pengajuan Pulsa
+                            </DialogTitle>
+                            <DialogDescription>
+                                Unggah template Excel untuk melihat preview data
+                                sebelum nominal diterapkan ke form.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="space-y-4">
+                            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/40">
+                                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                    <div>
+                                        <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                                            Pilih file Excel
+                                        </p>
+                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                            Format yang didukung: `.xlsx`,
+                                            `.xls`, atau `.csv`.
+                                        </p>
+                                    </div>
+                                    <Input
+                                        type="file"
+                                        accept=".xlsx,.xls,.csv"
+                                        onChange={(event) =>
+                                            setImportFile(
+                                                event.target.files?.[0] ?? null,
+                                            )
+                                        }
+                                        className="max-w-md"
+                                    />
+                                </div>
+                            </div>
+
+                            {importPreviewSummary && (
+                                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                                    <div className="rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-950/40">
+                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                            Total baris
+                                        </p>
+                                        <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                                            {importPreviewSummary.total_rows}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-950/40">
+                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                            Baris preview
+                                        </p>
+                                        <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                                            {importPreviewSummary.preview_rows}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-950/40">
+                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                            Dilewati
+                                        </p>
+                                        <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                                            {importPreviewSummary.skipped_rows}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-950/40">
+                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                            Error
+                                        </p>
+                                        <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                                            {importPreviewSummary.error_count}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {importPreviewErrors.length > 0 && (
+                                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+                                    <p className="mb-2 font-semibold">
+                                        Catatan import
+                                    </p>
+                                    <ul className="space-y-1">
+                                        {importPreviewErrors.map(
+                                            (message, index) => (
+                                                <li key={`${message}-${index}`}>
+                                                    {message}
+                                                </li>
+                                            ),
+                                        )}
+                                    </ul>
+                                </div>
+                            )}
+
+                            <div className="max-h-[38vh] overflow-auto rounded-xl border border-neutral-200 dark:border-neutral-800">
+                                <table className="w-full text-sm">
+                                    <thead className="sticky top-0 bg-neutral-50 dark:bg-neutral-900">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left font-semibold text-neutral-900 dark:text-neutral-100">
+                                                Kegiatan
+                                            </th>
+                                            <th className="px-4 py-3 text-left font-semibold text-neutral-900 dark:text-neutral-100">
+                                                Petugas
+                                            </th>
+                                            <th className="px-4 py-3 text-left font-semibold text-neutral-900 dark:text-neutral-100">
+                                                Jenis
+                                            </th>
+                                            <th className="px-4 py-3 text-right font-semibold text-neutral-900 dark:text-neutral-100">
+                                                Nominal
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                                        {importPreviewRows.length === 0 ? (
+                                            <tr>
+                                                <td
+                                                    colSpan={4}
+                                                    className="px-4 py-8 text-center text-neutral-500 dark:text-neutral-400"
+                                                >
+                                                    Belum ada data preview. Klik
+                                                    Preview Import setelah
+                                                    memilih file.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            importPreviewRows.map((row) => {
+                                                const kegiatan =
+                                                    kegiatanById.get(
+                                                        row.kegiatan_id,
+                                                    );
+                                                const petugas = petugasById.get(
+                                                    row.petugas_id,
+                                                );
+
+                                                return (
+                                                    <tr
+                                                        key={`${row.kegiatan_id}_${row.petugas_id}_${row.jenis_pulsa}`}
+                                                    >
+                                                        <td className="px-4 py-3 text-neutral-900 dark:text-neutral-100">
+                                                            <div className="font-medium">
+                                                                {kegiatan?.nama_kegiatan ??
+                                                                    row.kegiatan_nama ??
+                                                                    `Kegiatan #${row.kegiatan_id}`}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-neutral-900 dark:text-neutral-100">
+                                                            {petugas?.nama ??
+                                                                row.petugas_nama ??
+                                                                `Petugas #${row.petugas_id}`}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300">
+                                                            {row.jenis_pulsa ===
+                                                            'pelatihan'
+                                                                ? 'Pelatihan'
+                                                                : 'Pendataan'}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-semibold text-neutral-900 dark:text-neutral-100">
+                                                            {formatCurrency(
+                                                                row.nominal,
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <DialogFooter className="gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsImportDialogOpen(false)}
+                            >
+                                Tutup
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="gap-2"
+                                onClick={handlePreviewImport}
+                                disabled={isImportProcessing}
+                            >
+                                {isImportProcessing ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Upload className="h-4 w-4" />
+                                )}
+                                Preview Import
+                            </Button>
+                            <Button
+                                type="button"
+                                className="gap-2"
+                                onClick={applyImportedRows}
+                                disabled={importPreviewRows.length === 0}
+                            >
+                                <Check className="h-4 w-4" />
+                                Terapkan ke Form
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </AppLayout>
     );

@@ -272,4 +272,94 @@ class PengajuanPulsaPelatihanAllokasiTest extends TestCase
                 });
         });
     }
+
+    public function test_sensus_ekonomi_appears_from_june_to_august_when_allocations_exist(): void
+    {
+        [$user, $role] = $this->makeUserWithRole('admin');
+        $tahun = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'kode_kegiatan' => 'SE-'.substr((string) $tahun, -2).'-001',
+            'nama_kegiatan' => 'Sensus Ekonomi '.$tahun,
+            'jenis_kegiatan' => 'sensus',
+            'metode_pendataan_pencacahan' => 'PAPI',
+            'metode_pelatihan' => 'tidak_ada_pelatihan',
+            'bulan_pelatihan' => null,
+            'tahun_anggaran' => $tahun,
+            'tanggal_mulai' => "{$tahun}-06-01",
+            'tanggal_selesai' => "{$tahun}-08-31",
+        ]);
+
+        $petugas = Petugas::factory()->create(['jenis_petugas' => 'non-organik']);
+
+        $this->createPeriodeWithPetugas($kegiatan->id, '06', $tahun, $petugas->id);
+
+        foreach (['06', '07', '08'] as $bulan) {
+            $response = $this->actingAs($user)
+                ->withSession(['active_role_id' => $role->id])
+                ->get('/pengajuan-pulsa/create?bulan='.$bulan);
+
+            $response->assertStatus(200);
+            $response->assertInertia(fn ($page) => $page
+                ->component('PengajuanPulsa/Create')
+                ->where("petugasPerKegiatan.{$kegiatan->id}", function ($list) use ($petugas) {
+                    return in_array($petugas->id, collect($list)->pluck('id')->toArray());
+                })
+            );
+        }
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->get('/pengajuan-pulsa/create?bulan=05');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('PengajuanPulsa/Create')
+            ->missing('eligibleKegiatan.0.id')
+        );
+    }
+
+    public function test_sensus_ekonomi_july_and_august_petugas_are_found_with_non_padded_period_months(): void
+    {
+        [$user, $role] = $this->makeUserWithRole('admin');
+        $tahun = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'kode_kegiatan' => 'SE-'.substr((string) $tahun, -2).'-002',
+            'nama_kegiatan' => 'Sensus Ekonomi '.$tahun,
+            'jenis_kegiatan' => 'sensus',
+            'metode_pendataan_pencacahan' => 'PAPI',
+            'metode_pelatihan' => 'tidak_ada_pelatihan',
+            'bulan_pelatihan' => null,
+            'tahun_anggaran' => $tahun,
+            'tanggal_mulai' => "{$tahun}-06-01",
+            'tanggal_selesai' => "{$tahun}-08-31",
+        ]);
+
+        $petugasJuli = Petugas::factory()->create(['jenis_petugas' => 'non-organik']);
+        $petugasAgustus = Petugas::factory()->create(['jenis_petugas' => 'non-organik']);
+
+        $this->createPeriodeWithPetugas($kegiatan->id, '7', $tahun, $petugasJuli->id);
+        $this->createPeriodeWithPetugas($kegiatan->id, '8', $tahun, $petugasAgustus->id);
+
+        $responseJuli = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->get('/pengajuan-pulsa/create?bulan=07');
+
+        $responseJuli->assertStatus(200);
+        $responseJuli->assertInertia(fn ($page) => $page
+            ->component('PengajuanPulsa/Create')
+            ->where("petugasPerKegiatan.{$kegiatan->id}.0.id", $petugasJuli->id)
+        );
+
+        $responseAgustus = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->get('/pengajuan-pulsa/create?bulan=08');
+
+        $responseAgustus->assertStatus(200);
+        $responseAgustus->assertInertia(fn ($page) => $page
+            ->component('PengajuanPulsa/Create')
+            ->where("petugasPerKegiatan.{$kegiatan->id}.0.id", $petugasAgustus->id)
+        );
+    }
 }

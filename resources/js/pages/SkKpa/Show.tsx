@@ -290,8 +290,7 @@ export default function Show({ skKpa, kegiatan, sk_history }: ShowProps) {
                                                 Kegiatan
                                             </Label>
                                             <p className="font-medium break-words text-neutral-900 dark:text-white">
-                                                {kegiatan.nama_kegiatan} (
-                                                {kegiatan.kode_kegiatan})
+                                                {kegiatan.nama_kegiatan}
                                             </p>
                                         </div>
                                     </div>

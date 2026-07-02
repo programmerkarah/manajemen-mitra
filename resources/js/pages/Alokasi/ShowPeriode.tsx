@@ -6,8 +6,6 @@ import type { BreadcrumbItem, Kegiatan, SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
-    Calendar,
-    DollarSign,
     Edit,
     FileText,
     History,
@@ -170,6 +168,26 @@ function getDisplayedHonor(alokasi: AlokasiPetugas): number {
 
 export default function ShowPeriode({ periode, revisions }: Props) {
     const bulanLabel = months[parseInt(periode.bulan) - 1];
+    const effectiveRevisionNumber = useMemo(() => {
+        if (periode.revision_number > 0) {
+            return periode.revision_number;
+        }
+
+        if (periode.parent_periode_id) {
+            return Math.max(revisions.length, 1);
+        }
+
+        return 0;
+    }, [periode.parent_periode_id, periode.revision_number, revisions.length]);
+
+    const effectiveRevisionCount = useMemo(() => {
+        if (effectiveRevisionNumber > 0) {
+            return effectiveRevisionNumber;
+        }
+
+        return revisions.length;
+    }, [effectiveRevisionNumber, revisions.length]);
+
     const hasListingValues = periode.alokasi_petugas.some((alokasi) => {
         const listingBeban =
             alokasi.jumlah_satuan_listing_dibayarkan ??
@@ -222,6 +240,8 @@ export default function ShowPeriode({ periode, revisions }: Props) {
         periode.status,
     );
     const summaryColSpan = isKetuaTim && hasPendataanRole ? 8 : 7;
+    const totalListing = periode.total_estimasi_listing ?? 0;
+    const totalPencacahan = periode.total_estimasi_pencacahan ?? 0;
 
     const handleEditToggle = () => {
         if (!canEditNonResponse) {
@@ -297,129 +317,133 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                 </Button>
             </PageHeader>
 
-            {/* Ringkasan Periode */}
             <ContentCard>
-                <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                        Ringkasan Periode
-                    </h3>
-
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                        {/* Kegiatan */}
-                        <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
-                                <FileText className="h-4 w-4" />
-                                <span>Kegiatan</span>
-                            </div>
-                            <div>
-                                <div className="font-semibold break-words text-neutral-900 dark:text-white">
-                                    {periode.kegiatan.nama_kegiatan}
-                                </div>
-                                <div className="text-sm text-neutral-500 dark:text-neutral-400">
-                                    {periode.kegiatan.kode_kegiatan}
-                                </div>
-                            </div>
+                <div className="grid gap-4 lg:grid-cols-[1.3fr_0.7fr]">
+                    <div className="rounded-3xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50 via-white to-sky-50 p-6 shadow-sm dark:border-indigo-900/40 dark:from-indigo-950/30 dark:via-neutral-950 dark:to-cyan-950/20">
+                        <div className="flex flex-wrap gap-2">
+                            <span className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white">
+                                {bulanLabel} {periode.tahun}
+                            </span>
+                            <span className="rounded-full border border-indigo-200 bg-white/80 px-3 py-1 text-xs font-semibold text-indigo-700 dark:border-indigo-800 dark:bg-neutral-900/70 dark:text-indigo-300">
+                                {periode.jenis_kegiatan === 'sensus'
+                                    ? 'Sensus'
+                                    : 'Survei'}
+                            </span>
+                            <span className="rounded-full border border-neutral-200 bg-white/80 px-3 py-1 text-xs font-semibold text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900/70 dark:text-neutral-300">
+                                {periode.jumlah_petugas} petugas
+                            </span>
+                            <span className="rounded-full border border-neutral-200 bg-white/80 px-3 py-1 text-xs font-semibold text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900/70 dark:text-neutral-300">
+                                Rev. {effectiveRevisionNumber}
+                            </span>
                         </div>
 
-                        {/* Periode */}
-                        <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
-                                <Calendar className="h-4 w-4" />
-                                <span>Periode</span>
-                            </div>
-                            <div>
-                                <div className="font-semibold text-neutral-900 dark:text-white">
-                                    {bulanLabel} {periode.tahun}
-                                </div>
-                                <div className="text-sm text-neutral-500 dark:text-neutral-400">
-                                    Jenis:{' '}
-                                    {periode.jenis_kegiatan === 'sensus'
-                                        ? 'Sensus'
-                                        : 'Survei'}
-                                </div>
-                                <div className="text-sm text-neutral-500 dark:text-neutral-400">
-                                    Pelaksanaan: {pelaksanaanRangeLabel}
-                                </div>
-                            </div>
-                        </div>
+                        <h3 className="mt-4 text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
+                            {periode.kegiatan.nama_kegiatan}
+                        </h3>
+                        <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-600 dark:text-neutral-400">
+                            Detail periode ini menampilkan komposisi petugas,
+                            rentang pelaksanaan, dan total estimasi honor dalam
+                            satu tampilan yang lebih ringkas.
+                        </p>
 
-                        {/* Jumlah Petugas */}
-                        <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
-                                <Users className="h-4 w-4" />
-                                <span>Jumlah Petugas</span>
-                            </div>
-                            <div>
-                                <div className="text-2xl font-bold text-neutral-900 dark:text-white">
-                                    {periode.jumlah_petugas}
-                                </div>
-                                <div className="text-sm text-neutral-500 dark:text-neutral-400">
-                                    Petugas dialokasikan
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Total Estimasi */}
-                        <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
-                                <DollarSign className="h-4 w-4" />
-                                <span>Total Estimasi Honor</span>
-                            </div>
-                            <div>
-                                <div className="text-xl font-bold text-green-600 dark:text-green-400">
+                        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            <div className="rounded-2xl border border-neutral-200 bg-white/90 p-4 dark:border-neutral-800 dark:bg-neutral-950/70">
+                                <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                    Total estimasi
+                                </p>
+                                <p className="mt-2 text-lg font-semibold text-green-700 dark:text-green-400">
                                     {formatCurrency(periode.total_estimasi)}
-                                </div>
-                                {showListingSection && (
-                                    <div className="mt-1 space-y-0.5 text-xs text-neutral-500 dark:text-neutral-400">
-                                        <div>
-                                            Listing:{' '}
-                                            {formatCurrency(
-                                                periode.total_estimasi_listing ||
-                                                    0,
-                                            )}
-                                        </div>
-                                        {showPencacahanSection && (
-                                            <div>
-                                                Pencacahan:{' '}
-                                                {formatCurrency(
-                                                    periode.total_estimasi_pencacahan ||
-                                                        0,
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
+                                </p>
+                            </div>
+                            <div className="rounded-2xl border border-neutral-200 bg-white/90 p-4 dark:border-neutral-800 dark:bg-neutral-950/70">
+                                <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                    Listing
+                                </p>
+                                <p className="mt-2 text-lg font-semibold text-blue-700 dark:text-blue-400">
+                                    {formatCurrency(totalListing)}
+                                </p>
+                            </div>
+                            <div className="rounded-2xl border border-neutral-200 bg-white/90 p-4 dark:border-neutral-800 dark:bg-neutral-950/70">
+                                <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                    Pencacahan
+                                </p>
+                                <p className="mt-2 text-lg font-semibold text-amber-700 dark:text-amber-400">
+                                    {formatCurrency(totalPencacahan)}
+                                </p>
+                            </div>
+                            <div className="rounded-2xl border border-neutral-200 bg-white/90 p-4 dark:border-neutral-800 dark:bg-neutral-950/70">
+                                <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                    Status
+                                </p>
+                                <p
+                                    className={`mt-2 inline-flex rounded-full px-3 py-1 text-sm font-medium ${statusColors[periode.status]}`}
+                                >
+                                    {statusLabels[periode.status]}
+                                </p>
                             </div>
                         </div>
                     </div>
 
-                    {/* Status and Submission Info */}
-                    <div className="flex flex-wrap items-center gap-4 border-t border-neutral-200 pt-4 dark:border-neutral-800">
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                                Status:
-                            </span>
-                            <span
-                                className={`rounded-full px-3 py-1 text-xs font-semibold ${statusColors[periode.status]}`}
-                            >
-                                {statusLabels[periode.status]}
-                            </span>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                        <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950/70">
+                            <div className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+                                <FileText className="h-4 w-4" />
+                                <span>Pelaksanaan & Status</span>
+                            </div>
+                            <div className="mt-3 space-y-2">
+                                <div>
+                                    <p className="text-xs tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                        Pelaksanaan
+                                    </p>
+                                    <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                                        {pelaksanaanRangeLabel}
+                                    </p>
+                                </div>
+                                {periode.revision_number > 0 && (
+                                    <div className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
+                                        <History className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
+                                        <span>
+                                            Revisi ke-{periode.revision_number}
+                                        </span>
+                                    </div>
+                                )}
+                                {periode.submitted_at && (
+                                    <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        Dikirim oleh{' '}
+                                        <strong>
+                                            {periode.submitted_by_name}
+                                        </strong>{' '}
+                                        pada{' '}
+                                        {formatDateTime(periode.submitted_at)}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        {periode.revision_number > 0 && (
-                            <div className="flex items-center gap-2">
-                                <History className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
-                                <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                                    Revisi ke-{periode.revision_number}
-                                </span>
+
+                        <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950/70">
+                            <div className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+                                <Users className="h-4 w-4" />
+                                <span>Komposisi alokasi</span>
                             </div>
-                        )}
-                        {periode.submitted_at && (
-                            <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                                Dikirim oleh{' '}
-                                <strong>{periode.submitted_by_name}</strong>{' '}
-                                pada {formatDateTime(periode.submitted_at)}
+                            <div className="mt-3 grid grid-cols-2 gap-3">
+                                <div className="rounded-xl bg-neutral-50 p-3 dark:bg-neutral-900/60">
+                                    <p className="text-xs tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                        Petugas
+                                    </p>
+                                    <p className="mt-1 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                        {periode.jumlah_petugas}
+                                    </p>
+                                </div>
+                                <div className="rounded-xl bg-neutral-50 p-3 dark:bg-neutral-900/60">
+                                    <p className="text-xs tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                        Revisi
+                                    </p>
+                                    <p className="mt-1 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                        {effectiveRevisionCount}
+                                    </p>
+                                </div>
                             </div>
-                        )}
+                        </div>
                     </div>
                 </div>
             </ContentCard>

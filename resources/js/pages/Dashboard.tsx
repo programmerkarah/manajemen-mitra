@@ -2617,7 +2617,7 @@ export default function Dashboard({
                                         event.target.value,
                                     )
                                 }
-                                placeholder="Cari nama atau kode kegiatan..."
+                                placeholder="Cari nama kegiatan..."
                                 className="pl-9"
                             />
                         </div>

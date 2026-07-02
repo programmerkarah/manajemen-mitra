@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\FilterRequest;
 use App\Models\AlokasiPetugas;
+use App\Models\Kegiatan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\Sbml;
@@ -47,7 +48,7 @@ class SbmlReportController extends Controller
             'periodeAlokasi:id,kegiatan_id,jenis_kegiatan,tahun,bulan,status',
             'periodeAlokasi.kegiatan:id,nama_kegiatan,jenis_kegiatan',
         ])
-            ->whereHas('periodeAlokasi', function ($query) use ($tahun, $bulan) {
+            ->whereHas('periodeAlokasi', function ($query) use ($tahun) {
                 $query->where('tahun', $tahun)
                     ->whereIn('status', ['draft', 'dikirim', 'perubahan']);
             })
@@ -66,8 +67,8 @@ class SbmlReportController extends Controller
                     return null;
                 }
 
-                    $positiveAlokasis = $alokasis->filter(function ($alokasi) use ($bulanInt, $tahun) {
-                        if (! $this->shouldIncludeInMonthlyReport($alokasi, $bulanInt, $tahun)) {
+                $positiveAlokasis = $alokasis->filter(function ($alokasi) use ($bulanInt, $tahun) {
+                    if (! $this->shouldIncludeInMonthlyReport($alokasi, $bulanInt, $tahun)) {
                         return false;
                     }
 
@@ -287,7 +288,7 @@ class SbmlReportController extends Controller
         };
     }
 
-    private function isSensusEkonomi2026(\App\Models\Kegiatan $kegiatan): bool
+    private function isSensusEkonomi2026(Kegiatan $kegiatan): bool
     {
         return $kegiatan->jenis_kegiatan === 'sensus'
             && str_contains(
@@ -299,7 +300,7 @@ class SbmlReportController extends Controller
     private function calculateMonthlyHonorForAllocation(
         float $baseHonor,
         int $bulan,
-        ?\App\Models\Kegiatan $kegiatan
+        ?Kegiatan $kegiatan
     ): float {
         if (! $kegiatan || ! $this->isSensusEkonomi2026($kegiatan)) {
             return $baseHonor;
@@ -324,7 +325,7 @@ class SbmlReportController extends Controller
         };
     }
 
-    private function isSensusEkonomiKegiatan(?\App\Models\Kegiatan $kegiatan): bool
+    private function isSensusEkonomiKegiatan(?Kegiatan $kegiatan): bool
     {
         return $kegiatan !== null
             && $kegiatan->jenis_kegiatan === 'sensus'
@@ -426,7 +427,7 @@ class SbmlReportController extends Controller
         return array_values(array_unique($candidates));
     }
 
-    private function shouldIncludeInMonthlyReport(\App\Models\AlokasiPetugas $alokasi, int $reportMonth, int $tahun): bool
+    private function shouldIncludeInMonthlyReport(AlokasiPetugas $alokasi, int $reportMonth, int $tahun): bool
     {
         $kegiatan = $alokasi->periodeAlokasi?->kegiatan;
 
@@ -437,7 +438,7 @@ class SbmlReportController extends Controller
         return (int) ($alokasi->periodeAlokasi?->bulan ?? 0) === $reportMonth;
     }
 
-    private function resolveReportMonthForAllocation(\App\Models\AlokasiPetugas $alokasi, int $reportMonth): int
+    private function resolveReportMonthForAllocation(AlokasiPetugas $alokasi, int $reportMonth): int
     {
         if ($this->isSensusEkonomiKegiatan($alokasi->periodeAlokasi?->kegiatan)) {
             return $reportMonth;

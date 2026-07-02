@@ -11,6 +11,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\ActiveYearService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class PengajuanPulsaTest extends TestCase
@@ -27,6 +28,26 @@ class PengajuanPulsaTest extends TestCase
         $user->roles()->attach($role->id);
 
         return [$user, $role];
+    }
+
+    private function createPeriodeWithPetugas(int $kegiatanId, string $bulan, int $tahun, int $petugasId): PeriodeAlokasi
+    {
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanId,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'status' => 'disetujui',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugasId,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        return $periode;
     }
 
     public function test_index_is_accessible_by_ketua_tim(): void
@@ -71,6 +92,56 @@ class PengajuanPulsaTest extends TestCase
             ->get('/pengajuan-pulsa/create');
 
         $response->assertStatus(200);
+    }
+
+    public function test_template_download_is_accessible_by_ketua_tim(): void
+    {
+        [$user, $role] = $this->makeUserWithRole('ketua_tim');
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->get('/pengajuan-pulsa/template?bulan=06&tahun='.date('Y'));
+
+        $response->assertOk();
+        $response->assertHeader('content-disposition');
+    }
+
+    public function test_import_preview_filters_rows_by_selected_bulan_and_tahun(): void
+    {
+        [$user, $role] = $this->makeUserWithRole('ketua_tim');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'ketua_tim_user_id' => $user->id,
+            'metode_pendataan_pencacahan' => 'CAPI',
+            'tahun_anggaran' => date('Y'),
+        ]);
+
+        $petugas = Petugas::factory()->create();
+
+        $this->createPeriodeWithPetugas($kegiatan->id, '06', (int) date('Y'), $petugas->id);
+
+        $csv = implode("\n", [
+            'bulan,tahun,petugas_nama,kegiatan_nama,jenis_pulsa,nominal',
+            '06,'.date('Y').','.$petugas->nama.','.$kegiatan->nama_kegiatan.',pendataan,50000',
+            '05,'.date('Y').','.$petugas->nama.','.$kegiatan->nama_kegiatan.',pendataan,50000',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->post('/pengajuan-pulsa/import-preview', [
+                'bulan' => '06',
+                'tahun' => date('Y'),
+                'file' => UploadedFile::fake()->createWithContent('pengajuan-pulsa.csv', $csv),
+            ]);
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'rows');
+        $response->assertJsonPath('rows.0.kegiatan_id', $kegiatan->id);
+        $response->assertJsonPath('rows.0.kegiatan_nama', $kegiatan->nama_kegiatan);
+        $response->assertJsonPath('rows.0.petugas_id', $petugas->id);
+        $response->assertJsonPath('rows.0.petugas_nama', $petugas->nama);
+        $response->assertJsonPath('summary.preview_rows', 1);
+        $response->assertJsonPath('summary.skipped_rows', 1);
     }
 
     public function test_store_rejects_non_capi_kegiatan(): void
@@ -613,6 +684,159 @@ class PengajuanPulsaTest extends TestCase
             ->where("existingPerKegiatan.{$kegiatan->id}_{$petugas->id}_pendataan", 30000)
             ->where("existingTotals.{$petugas->id}", 30000)
         );
+    }
+
+    public function test_create_page_exposes_global_totals_for_cross_team_limit_check(): void
+    {
+        [$ketuaTim, $ketuaTimRole] = $this->makeUserWithRole('ketua_tim');
+        [$otherKetuaTim] = $this->makeUserWithRole('ketua_tim');
+        $tahun = ActiveYearService::get();
+
+        $petugas = Petugas::factory()->create(['jenis_petugas' => 'non-organik']);
+
+        $kegiatanUtama = Kegiatan::factory()->create([
+            'ketua_tim_user_id' => $ketuaTim->id,
+            'metode_pendataan_pencacahan' => 'CAPI',
+            'tahun_anggaran' => $tahun,
+            'tanggal_mulai' => "{$tahun}-06-01",
+            'tanggal_selesai' => "{$tahun}-08-31",
+        ]);
+
+        $kegiatanLain = Kegiatan::factory()->create([
+            'ketua_tim_user_id' => $otherKetuaTim->id,
+            'metode_pendataan_pencacahan' => 'CAPI',
+            'tahun_anggaran' => $tahun,
+            'tanggal_mulai' => "{$tahun}-06-01",
+            'tanggal_selesai' => "{$tahun}-08-31",
+        ]);
+
+        $periodeUtama = $this->createPeriodeWithPetugas($kegiatanUtama->id, '06', $tahun, $petugas->id);
+        $periodeLain = $this->createPeriodeWithPetugas($kegiatanLain->id, '06', $tahun, $petugas->id);
+
+        PengajuanPulsa::create([
+            'petugas_id' => $petugas->id,
+            'kegiatan_id' => $kegiatanUtama->id,
+            'periode_alokasi_id' => $periodeUtama->id,
+            'bulan' => '06',
+            'tahun' => $tahun,
+            'jenis_pulsa' => 'pendataan',
+            'nominal' => 37000,
+            'status' => 'diterima',
+            'nominal_disetujui' => 37000,
+            'submitted_by' => $ketuaTim->id,
+            'submitted_at' => now(),
+            'reviewed_by' => $ketuaTim->id,
+            'reviewed_at' => now(),
+        ]);
+
+        PengajuanPulsa::create([
+            'petugas_id' => $petugas->id,
+            'kegiatan_id' => $kegiatanLain->id,
+            'periode_alokasi_id' => $periodeLain->id,
+            'bulan' => '06',
+            'tahun' => $tahun,
+            'jenis_pulsa' => 'pendataan',
+            'nominal' => 37000,
+            'status' => 'diterima',
+            'nominal_disetujui' => 37000,
+            'submitted_by' => $otherKetuaTim->id,
+            'submitted_at' => now(),
+            'reviewed_by' => $otherKetuaTim->id,
+            'reviewed_at' => now(),
+        ]);
+
+        $response = $this->actingAs($ketuaTim)
+            ->withSession(['active_role_id' => $ketuaTimRole->id])
+            ->get('/pengajuan-pulsa/create?bulan=06');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('PengajuanPulsa/Create')
+            ->where("existingTotals.{$petugas->id}", 37000)
+            ->where("allExistingTotals.{$petugas->id}", 74000)
+            ->where("petugasPerKegiatan.{$kegiatanUtama->id}.0.id", $petugas->id)
+        );
+    }
+
+    public function test_store_rejects_when_global_total_exceeds_monthly_limit(): void
+    {
+        [$ketuaTim, $ketuaTimRole] = $this->makeUserWithRole('ketua_tim');
+        [$otherKetuaTim] = $this->makeUserWithRole('ketua_tim');
+        $tahun = ActiveYearService::get();
+
+        $petugas = Petugas::factory()->create(['jenis_petugas' => 'non-organik']);
+
+        $kegiatanUtama = Kegiatan::factory()->create([
+            'ketua_tim_user_id' => $ketuaTim->id,
+            'metode_pendataan_pencacahan' => 'CAPI',
+            'tahun_anggaran' => $tahun,
+            'tanggal_mulai' => "{$tahun}-06-01",
+            'tanggal_selesai' => "{$tahun}-08-31",
+        ]);
+
+        $kegiatanLain = Kegiatan::factory()->create([
+            'ketua_tim_user_id' => $otherKetuaTim->id,
+            'metode_pendataan_pencacahan' => 'CAPI',
+            'tahun_anggaran' => $tahun,
+            'tanggal_mulai' => "{$tahun}-06-01",
+            'tanggal_selesai' => "{$tahun}-08-31",
+        ]);
+
+        $periodeUtama = $this->createPeriodeWithPetugas($kegiatanUtama->id, '06', $tahun, $petugas->id);
+        $periodeLain = $this->createPeriodeWithPetugas($kegiatanLain->id, '06', $tahun, $petugas->id);
+
+        PengajuanPulsa::create([
+            'petugas_id' => $petugas->id,
+            'kegiatan_id' => $kegiatanUtama->id,
+            'periode_alokasi_id' => $periodeUtama->id,
+            'bulan' => '06',
+            'tahun' => $tahun,
+            'jenis_pulsa' => 'pendataan',
+            'nominal' => 37000,
+            'status' => 'diterima',
+            'nominal_disetujui' => 37000,
+            'submitted_by' => $ketuaTim->id,
+            'submitted_at' => now(),
+            'reviewed_by' => $ketuaTim->id,
+            'reviewed_at' => now(),
+        ]);
+
+        PengajuanPulsa::create([
+            'petugas_id' => $petugas->id,
+            'kegiatan_id' => $kegiatanLain->id,
+            'periode_alokasi_id' => $periodeLain->id,
+            'bulan' => '06',
+            'tahun' => $tahun,
+            'jenis_pulsa' => 'pendataan',
+            'nominal' => 37000,
+            'status' => 'diterima',
+            'nominal_disetujui' => 37000,
+            'submitted_by' => $otherKetuaTim->id,
+            'submitted_at' => now(),
+            'reviewed_by' => $otherKetuaTim->id,
+            'reviewed_at' => now(),
+        ]);
+
+        $response = $this->actingAs($ketuaTim)
+            ->withSession(['active_role_id' => $ketuaTimRole->id])
+            ->post('/pengajuan-pulsa', [
+                'bulan' => '06',
+                'tahun' => $tahun,
+                'items' => [
+                    [
+                        'kegiatan_id' => $kegiatanUtama->id,
+                        'petugas_id' => $petugas->id,
+                        'jenis_pulsa' => 'pendataan',
+                        'nominal' => 37000,
+                    ],
+                ],
+            ]);
+
+        $response->assertSessionHasErrors([
+            'petugas_'.$petugas->id,
+        ]);
+
+        $this->assertDatabaseCount('pengajuan_pulsa', 2);
     }
 
     public function test_ketua_tim_can_resubmit_rejected_pengajuan_with_revised_nominal(): void

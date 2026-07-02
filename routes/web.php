@@ -750,6 +750,8 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
     Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
         Route::get('pengajuan-pulsa', [PengajuanPulsaController::class, 'index'])->name('pengajuan-pulsa.index');
         Route::get('pengajuan-pulsa/create', [PengajuanPulsaController::class, 'create'])->name('pengajuan-pulsa.create');
+        Route::get('pengajuan-pulsa/template', [PengajuanPulsaController::class, 'downloadTemplate'])->name('pengajuan-pulsa.template');
+        Route::post('pengajuan-pulsa/import-preview', [PengajuanPulsaController::class, 'importPreview'])->name('pengajuan-pulsa.import-preview');
         Route::get('pengajuan-pulsa/detail', [PengajuanPulsaController::class, 'detail'])->name('pengajuan-pulsa.detail');
         Route::post('pengajuan-pulsa', [PengajuanPulsaController::class, 'store'])->name('pengajuan-pulsa.store');
         Route::post('pengajuan-pulsa/{pengajuanPulsa}/resubmit', [PengajuanPulsaController::class, 'resubmit'])->name('pengajuan-pulsa.resubmit');

@@ -168,7 +168,7 @@ export default function List({ spk_list, tahun, bulan_label }: ListProps) {
                                                             >
                                                                 <div className="font-medium text-neutral-900 dark:text-white">
                                                                     {
-                                                                        kegiatan.kode_kegiatan
+                                                                        kegiatan.nama_kegiatan
                                                                     }
                                                                 </div>
                                                                 <div className="text-xs text-neutral-600 dark:text-neutral-400">

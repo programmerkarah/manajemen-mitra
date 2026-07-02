@@ -24,6 +24,7 @@ interface PeriodeData {
     total_spk: number;
     spk_with_bast: number;
     spk_without_bast: number;
+    visible_petugas_count: number;
     has_spk: boolean;
     all_completed: boolean;
 }
@@ -483,8 +484,11 @@ export default function Index({
                                                         (item.tahun === 2026 &&
                                                             item.bulan >= 4);
                                                     const shouldShowDetail =
-                                                        isApril2026OrLater ||
-                                                        item.spk_with_bast > 0;
+                                                        item.visible_petugas_count >
+                                                            0 &&
+                                                        (isApril2026OrLater ||
+                                                            item.spk_with_bast >
+                                                                0);
                                                     const isSensusOffMonth =
                                                         mode ===
                                                             'sensus-ekonomi' &&

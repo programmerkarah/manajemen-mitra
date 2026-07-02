@@ -1389,11 +1389,11 @@ class BastController extends Controller
                 continue;
             }
 
-            if ($kegiatan->metode_pendataan_pencacahan === 'CAPI') {
+            if (Kegiatan::isFasihMetodePendataan($kegiatan->metode_pendataan_pencacahan)) {
                 return true;
             }
 
-            if ($kegiatan->has_listing_updating && $kegiatan->metode_pendataan_listing === 'CAPI') {
+            if ($kegiatan->has_listing_updating && Kegiatan::isFasihMetodePendataan($kegiatan->metode_pendataan_listing)) {
                 return true;
             }
         }
@@ -2239,6 +2239,7 @@ class BastController extends Controller
                 'total_spk' => $totalPetugas,
                 'spk_with_bast' => $petugasWithBast,
                 'spk_without_bast' => $petugasWithoutBast,
+                'visible_petugas_count' => $eligiblePetugasCount,
                 'has_spk' => $totalPetugas > 0,
                 'all_completed' => $totalPetugas > 0 && $petugasWithoutBast === 0,
             ];

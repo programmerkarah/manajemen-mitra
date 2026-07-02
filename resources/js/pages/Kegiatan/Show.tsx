@@ -189,6 +189,68 @@ export default function Show({ kegiatan, auth, can }: Props) {
         return months[bulan - 1] || '';
     };
 
+    const formatMetodePendataan = (metode: string | null) => {
+        if (!metode) {
+            return null;
+        }
+
+        if (metode === 'CAPI_FASIH' || metode === 'CAPI') {
+            return 'CAPI (FASIH)';
+        }
+
+        if (metode === 'CAPI_KSA_PRO') {
+            return 'CAPI (KSA Pro/Aplikasi Lainnya)';
+        }
+
+        if (metode === 'PAPI') {
+            return 'PAPI (Kertas)';
+        }
+
+        return metode;
+    };
+
+    const statusLabel =
+        kegiatan.status === 'draft'
+            ? 'Draft'
+            : kegiatan.status === 'diajukan'
+              ? 'Diajukan'
+              : kegiatan.status === 'divalidasi'
+                ? 'Divalidasi'
+                : kegiatan.status === 'aktif'
+                  ? 'Aktif'
+                  : kegiatan.status === 'selesai'
+                    ? 'Selesai'
+                    : kegiatan.status === 'dibatalkan'
+                      ? 'Dibatalkan'
+                      : kegiatan.status === 'ditolak'
+                        ? 'Ditolak'
+                        : kegiatan.status;
+
+    const pendataanPencacahanLabel =
+        formatMetodePendataan(kegiatan.metode_pendataan_pencacahan) ??
+        'Belum diisi';
+
+    const pendataanListingLabel = kegiatan.has_listing_updating
+        ? (formatMetodePendataan(kegiatan.metode_pendataan_listing) ??
+          'Belum diisi')
+        : 'Tidak ada tahapan listing';
+
+    const metodePelatihanLabel =
+        kegiatan.metode_pelatihan === 'daring'
+            ? 'Daring (Online)'
+            : kegiatan.metode_pelatihan === 'luring'
+              ? 'Luring (Tatap Muka)'
+              : kegiatan.metode_pelatihan === 'hybrid'
+                ? 'Hybrid (Campuran)'
+                : kegiatan.metode_pelatihan === 'tidak_ada_pelatihan'
+                  ? 'Tidak Ada Pelatihan'
+                  : 'Belum dipilih';
+
+    const sisaPagu =
+        (Number(kegiatan.pagu_pencacahan) || 0) +
+        (Number(kegiatan.pagu_listing) || 0) -
+        totalAlokasi;
+
     // Can edit only if draft
     const canEdit = kegiatan.status === 'draft' && can.update;
 
@@ -205,7 +267,7 @@ export default function Show({ kegiatan, auth, can }: Props) {
             <div className="space-y-6">
                 <PageHeader
                     title="Detail Kegiatan"
-                    description="Informasi lengkap kegiatan dan alokasi petugas"
+                    description="Ikhtisar kegiatan, pengaturan lapangan, dan alokasi petugas"
                 >
                     <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
                         <Button
@@ -282,377 +344,472 @@ export default function Show({ kegiatan, auth, can }: Props) {
                 </PageHeader>
 
                 <ContentCard>
-                    <div className="border-b border-neutral-200/70 pb-4 dark:border-neutral-800">
-                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                            Informasi Kegiatan
-                        </h2>
-                    </div>
-                    <div className="pt-6">
-                        <div className="grid gap-6 md:grid-cols-2">
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Nama Kegiatan
-                                </label>
-                                <p className="mt-1 text-gray-900 dark:text-white">
-                                    {kegiatan.nama_kegiatan}
-                                </p>
-                            </div>
-
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Frame Sampel Pencacahan
-                                </label>
-                                <p className="mt-1 text-gray-900 dark:text-white">
-                                    {kegiatan.frame_sampel_pencacahan
-                                        ? `${kegiatan.frame_sampel_pencacahan.nama} (${kegiatan.frame_sampel_pencacahan.kode})`
-                                        : '-'}
-                                </p>
-                            </div>
-
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Unit Sampel Pencacahan
-                                </label>
-                                <p className="mt-1 text-gray-900 dark:text-white">
-                                    {kegiatan.unit_sampel_pencacahan?.length
-                                        ? kegiatan.unit_sampel_pencacahan
-                                              .map(
-                                                  (u) =>
-                                                      `${u.nama} (${u.kode})`,
-                                              )
-                                              .join(', ')
-                                        : '-'}
-                                </p>
-                            </div>
-
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Frame Sampel Listing
-                                </label>
-                                <p className="mt-1 text-gray-900 dark:text-white">
-                                    {kegiatan.frame_sampel_listing
-                                        ? `${kegiatan.frame_sampel_listing.nama} (${kegiatan.frame_sampel_listing.kode})`
-                                        : '-'}
-                                </p>
-                            </div>
-
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Unit Sampel Listing
-                                </label>
-                                <p className="mt-1 text-gray-900 dark:text-white">
-                                    {kegiatan.unit_sampel_listing?.length
-                                        ? kegiatan.unit_sampel_listing
-                                              .map(
-                                                  (u) =>
-                                                      `${u.nama} (${u.kode})`,
-                                              )
-                                              .join(', ')
-                                        : '-'}
-                                </p>
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Status
-                                </label>
-                                <div className="mt-1">
-                                    <span
-                                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusColors[kegiatan.status as keyof typeof statusColors]}`}
-                                    >
-                                        {kegiatan.status === 'draft' && 'Draft'}
-                                        {kegiatan.status === 'diajukan' &&
-                                            'Diajukan'}
-                                        {kegiatan.status === 'divalidasi' &&
-                                            'Divalidasi'}
-                                        {kegiatan.status === 'aktif' && 'Aktif'}
-                                        {kegiatan.status === 'selesai' &&
-                                            'Selesai'}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="md:col-span-2">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Deskripsi
-                                </label>
-                                <p className="mt-1 text-gray-900 dark:text-white">
-                                    {kegiatan.deskripsi || '-'}
-                                </p>
-                            </div>
-
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Tahun Anggaran
-                                </label>
-                                <p className="mt-1 text-gray-900 dark:text-white">
-                                    {kegiatan.tahun_anggaran}
-                                </p>
-                            </div>
-
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Pagu Pencacahan
-                                </label>
-                                <p className="mt-1 text-gray-900 dark:text-white">
-                                    {formatCurrency(kegiatan.pagu_pencacahan)}
-                                </p>
-                            </div>
-
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Tahapan Listing/Updating
-                                </label>
-                                <p className="mt-1 text-gray-900 dark:text-white">
-                                    {kegiatan.has_listing_updating
-                                        ? 'Ya'
-                                        : 'Tidak'}
-                                </p>
-                            </div>
-
-                            {kegiatan.has_listing_updating && (
-                                <div>
-                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Pagu Listing/Updating
-                                    </label>
-                                    <p className="mt-1 text-gray-900 dark:text-white">
-                                        {formatCurrency(kegiatan.pagu_listing)}
-                                    </p>
-                                </div>
-                            )}
-
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Metode Pendataan Pencacahan
-                                </label>
-                                <p className="mt-1 text-gray-900 dark:text-white">
-                                    {kegiatan.metode_pendataan_pencacahan ? (
-                                        kegiatan.metode_pendataan_pencacahan ===
-                                        'CAPI' ? (
-                                            'CAPI (FASIH)'
-                                        ) : (
-                                            'PAPI (Kertas)'
-                                        )
-                                    ) : (
-                                        <span className="text-amber-600 dark:text-amber-400">
-                                            Belum diisi
+                    <div className="space-y-6 p-6">
+                        <section className="overflow-hidden rounded-3xl border border-neutral-200/70 bg-gradient-to-br from-neutral-50 via-white to-neutral-100 p-6 shadow-sm dark:border-neutral-800 dark:from-neutral-900 dark:via-neutral-900 dark:to-neutral-800/80">
+                            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                                <div className="space-y-4">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span
+                                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusColors[kegiatan.status as keyof typeof statusColors]}`}
+                                        >
+                                            {statusLabel}
                                         </span>
-                                    )}
-                                </p>
-                            </div>
-
-                            {kegiatan.has_listing_updating && (
-                                <div>
-                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Metode Pendataan Listing
-                                    </label>
-                                    <p className="mt-1 text-gray-900 dark:text-white">
-                                        {kegiatan.metode_pendataan_listing ? (
-                                            kegiatan.metode_pendataan_listing ===
-                                            'CAPI' ? (
-                                                'CAPI (FASIH)'
-                                            ) : (
-                                                'PAPI (Kertas)'
-                                            )
-                                        ) : (
-                                            <span className="text-amber-600 dark:text-amber-400">
-                                                Belum diisi
-                                            </span>
-                                        )}
-                                    </p>
-                                </div>
-                            )}
-
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Metode Pelatihan
-                                </label>
-                                <p className="mt-1 text-gray-900 dark:text-white">
-                                    {kegiatan.metode_pelatihan === 'daring' &&
-                                        'Daring (Online)'}
-                                    {kegiatan.metode_pelatihan === 'luring' &&
-                                        'Luring (Tatap Muka)'}
-                                    {kegiatan.metode_pelatihan === 'hybrid' &&
-                                        'Hybrid (Campuran)'}
-                                    {kegiatan.metode_pelatihan ===
-                                        'tidak_ada_pelatihan' &&
-                                        'Tidak Ada Pelatihan'}
-                                    {!kegiatan.metode_pelatihan && (
-                                        <span className="text-amber-600 dark:text-amber-400">
-                                            Belum dipilih
+                                        <span className="inline-flex rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-700 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                                            Tahun {kegiatan.tahun_anggaran}
                                         </span>
-                                    )}
-                                </p>
-                            </div>
-
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Ketua Tim
-                                </label>
-                                <p className="mt-1 text-gray-900 dark:text-white">
-                                    {kegiatan.ketua_tim?.name || '-'}
-                                </p>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    {kegiatan.ketua_tim?.email || ''}
-                                </p>
-                            </div>
-
-                            {kegiatan.pj_lainnya && (
-                                <div>
-                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Ketua Tim Lainnya (PJ)
-                                    </label>
-                                    <p className="mt-1 text-gray-900 dark:text-white">
-                                        {kegiatan.pj_lainnya.name}
-                                    </p>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                                        {kegiatan.pj_lainnya.email}
-                                    </p>
-                                </div>
-                            )}
-
-                            <div className="md:col-span-2">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Rate Honor
-                                </label>
-                                {Array.isArray(kegiatan.rate_honors) &&
-                                kegiatan.rate_honors.length > 0 ? (
-                                    <div className="mt-2 overflow-x-auto">
-                                        <table className="min-w-full text-sm">
-                                            <thead>
-                                                <tr className="border-b border-gray-200 dark:border-gray-700">
-                                                    <th className="py-1 pr-4 text-left font-medium text-gray-600 dark:text-gray-400">
-                                                        Status Kepegawaian
-                                                    </th>
-                                                    <th className="py-1 pr-4 text-left font-medium text-gray-600 dark:text-gray-400">
-                                                        Penugasan
-                                                    </th>
-                                                    <th className="py-1 pr-4 text-right font-medium text-gray-600 dark:text-gray-400">
-                                                        Rate Honor
-                                                    </th>
-                                                    {kegiatan.has_listing_updating && (
-                                                        <th className="py-1 text-right font-medium text-gray-600 dark:text-gray-400">
-                                                            Rate Listing
-                                                        </th>
-                                                    )}
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {kegiatan.rate_honors.map(
-                                                    (rh, idx) => (
-                                                        <tr
-                                                            key={idx}
-                                                            className="border-b border-gray-100 last:border-0 dark:border-gray-800"
-                                                        >
-                                                            <td className="py-1.5 pr-4 text-gray-700 dark:text-gray-300">
-                                                                {rh.status_kepegawaian ===
-                                                                'organik'
-                                                                    ? 'Organik'
-                                                                    : 'Non-Organik'}
-                                                            </td>
-                                                            <td className="py-1.5 pr-4 text-gray-700 dark:text-gray-300">
-                                                                {rh.jenis_penugasan ===
-                                                                    'pcl_ppl' &&
-                                                                    'PCL/PPL'}
-                                                                {rh.jenis_penugasan ===
-                                                                    'pml' &&
-                                                                    'PML'}
-                                                                {rh.jenis_penugasan ===
-                                                                    'koseka' &&
-                                                                    'Koseka (Koordinator Sensus Kecamatan)'}
-                                                                {rh.jenis_penugasan ===
-                                                                    'pengolahan' &&
-                                                                    'Pengolahan'}
-                                                                {rh.jenis_penugasan ===
-                                                                    'pengawas_pengolahan' &&
-                                                                    'Pengawas Pengolahan'}
-                                                            </td>
-                                                            <td className="py-1.5 pr-4 text-right text-gray-900 dark:text-white">
-                                                                {formatCurrency(
-                                                                    rh.rate,
-                                                                )}
-                                                                {rh.satuan
-                                                                    ?.nama && (
-                                                                    <span className="ml-1 text-xs text-gray-500">
-                                                                        /
-                                                                        {
-                                                                            rh
-                                                                                .satuan
-                                                                                .nama
-                                                                        }
-                                                                    </span>
-                                                                )}
-                                                            </td>
-                                                            {kegiatan.has_listing_updating && (
-                                                                <td className="py-1.5 text-right text-gray-900 dark:text-white">
-                                                                    {rh.rate_listing
-                                                                        ? formatCurrency(
-                                                                              rh.rate_listing,
-                                                                          )
-                                                                        : '-'}
-                                                                    {rh.rate_listing &&
-                                                                        rh
-                                                                            .satuan_listing
-                                                                            ?.nama && (
-                                                                            <span className="ml-1 text-xs text-gray-500">
-                                                                                /
-                                                                                {
-                                                                                    rh
-                                                                                        .satuan_listing
-                                                                                        .nama
-                                                                                }
-                                                                            </span>
-                                                                        )}
-                                                                </td>
-                                                            )}
-                                                        </tr>
-                                                    ),
-                                                )}
-                                            </tbody>
-                                        </table>
+                                        <span className="inline-flex rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-700 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                                            {kegiatan.has_listing_updating
+                                                ? 'Dengan listing/updating'
+                                                : 'Tanpa listing/updating'}
+                                        </span>
                                     </div>
-                                ) : (
-                                    <p className="mt-1 text-gray-500 dark:text-gray-400">
-                                        Belum ditentukan
-                                    </p>
-                                )}
-                            </div>
 
-                            <div className="md:col-span-2">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Total Alokasi
-                                </label>
-                                <p className="mt-1 text-gray-900 dark:text-white">
-                                    {formatCurrency(totalAlokasi)}
-                                </p>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    Sisa:{' '}
-                                    {formatCurrency(
-                                        (Number(kegiatan.pagu_pencacahan) ||
-                                            0) +
-                                            (Number(kegiatan.pagu_listing) ||
-                                                0) -
-                                            totalAlokasi,
+                                    <div className="space-y-2">
+                                        <h2 className="text-2xl font-semibold tracking-tight text-gray-900 lg:text-3xl dark:text-white">
+                                            {kegiatan.nama_kegiatan}
+                                        </h2>
+                                        <p className="max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">
+                                            {kegiatan.deskripsi ||
+                                                'Tidak ada deskripsi kegiatan.'}
+                                        </p>
+                                    </div>
+
+                                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                        <div className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/80">
+                                            <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                                Periode
+                                            </p>
+                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                                {formatDate(
+                                                    kegiatan.tanggal_mulai,
+                                                )}
+                                            </p>
+                                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                                                s.d.{' '}
+                                                {formatDate(
+                                                    kegiatan.tanggal_selesai,
+                                                )}
+                                            </p>
+                                        </div>
+                                        <div className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/80">
+                                            <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                                Total Alokasi
+                                            </p>
+                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                                {formatCurrency(totalAlokasi)}
+                                            </p>
+                                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                                                Sisa {formatCurrency(sisaPagu)}
+                                            </p>
+                                        </div>
+                                        <div className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/80">
+                                            <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                                Ketua Tim
+                                            </p>
+                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                                {kegiatan.ketua_tim?.name ||
+                                                    '-'}
+                                            </p>
+                                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                                                {kegiatan.ketua_tim?.email ||
+                                                    ''}
+                                            </p>
+                                        </div>
+                                        <div className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/80">
+                                            <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                                Pelatihan
+                                            </p>
+                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                                {metodePelatihanLabel}
+                                            </p>
+                                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                                                {kegiatan.metode_pendataan_pencacahan
+                                                    ? 'Pendataan siap dikonfigurasi'
+                                                    : 'Pendataan belum lengkap'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-2 lg:w-[340px] lg:grid-cols-1">
+                                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950/60">
+                                        <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                            Pendataan Pencacahan
+                                        </p>
+                                        <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                            {pendataanPencacahanLabel}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950/60">
+                                        <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                            Pendataan Listing
+                                        </p>
+                                        <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                            {pendataanListingLabel}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-2xl border border-neutral-200/70 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950/60">
+                                        <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                            Frame
+                                        </p>
+                                        <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                            {kegiatan.frame_sampel_pencacahan
+                                                ? `${kegiatan.frame_sampel_pencacahan.nama} (${kegiatan.frame_sampel_pencacahan.kode})`
+                                                : '-'}
+                                        </p>
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            Listing:{' '}
+                                            {kegiatan.frame_sampel_listing
+                                                ? `${kegiatan.frame_sampel_listing.nama} (${kegiatan.frame_sampel_listing.kode})`
+                                                : '-'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <div className="grid gap-6 xl:grid-cols-2">
+                            <section className="rounded-3xl border border-neutral-200/70 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-950/50">
+                                <div className="flex items-center justify-between gap-4 border-b border-neutral-200/70 pb-4 dark:border-neutral-800">
+                                    <div>
+                                        <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                                            Informasi Utama
+                                        </h3>
+                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                            Detail dasar yang paling sering
+                                            dibaca.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-6 grid gap-5 md:grid-cols-2">
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            Tahun Anggaran
+                                        </label>
+                                        <p className="mt-1 text-gray-900 dark:text-white">
+                                            {kegiatan.tahun_anggaran}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            Pagu Pencacahan
+                                        </label>
+                                        <p className="mt-1 text-gray-900 dark:text-white">
+                                            {formatCurrency(
+                                                kegiatan.pagu_pencacahan,
+                                            )}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            Pagu Listing/Updating
+                                        </label>
+                                        <p className="mt-1 text-gray-900 dark:text-white">
+                                            {kegiatan.has_listing_updating
+                                                ? formatCurrency(
+                                                      kegiatan.pagu_listing,
+                                                  )
+                                                : 'Tidak ada'}
+                                        </p>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            Deskripsi
+                                        </label>
+                                        <p className="mt-1 leading-6 text-gray-900 dark:text-white">
+                                            {kegiatan.deskripsi || '-'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section className="rounded-3xl border border-neutral-200/70 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-950/50">
+                                <div className="flex items-center justify-between gap-4 border-b border-neutral-200/70 pb-4 dark:border-neutral-800">
+                                    <div>
+                                        <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                                            Pengaturan Lapangan
+                                        </h3>
+                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                            Frame, unit sampel, dan metode
+                                            pendataan.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-6 space-y-4">
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            Frame Sampel Pencacahan
+                                        </label>
+                                        <p className="mt-1 text-gray-900 dark:text-white">
+                                            {kegiatan.frame_sampel_pencacahan
+                                                ? `${kegiatan.frame_sampel_pencacahan.nama} (${kegiatan.frame_sampel_pencacahan.kode})`
+                                                : '-'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            Unit Sampel Pencacahan
+                                        </label>
+                                        <p className="mt-1 text-gray-900 dark:text-white">
+                                            {kegiatan.unit_sampel_pencacahan
+                                                ?.length
+                                                ? kegiatan.unit_sampel_pencacahan
+                                                      .map(
+                                                          (u) =>
+                                                              `${u.nama} (${u.kode})`,
+                                                      )
+                                                      .join(', ')
+                                                : '-'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            Frame Sampel Listing
+                                        </label>
+                                        <p className="mt-1 text-gray-900 dark:text-white">
+                                            {kegiatan.frame_sampel_listing
+                                                ? `${kegiatan.frame_sampel_listing.nama} (${kegiatan.frame_sampel_listing.kode})`
+                                                : '-'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            Unit Sampel Listing
+                                        </label>
+                                        <p className="mt-1 text-gray-900 dark:text-white">
+                                            {kegiatan.unit_sampel_listing
+                                                ?.length
+                                                ? kegiatan.unit_sampel_listing
+                                                      .map(
+                                                          (u) =>
+                                                              `${u.nama} (${u.kode})`,
+                                                      )
+                                                      .join(', ')
+                                                : '-'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            Tahapan Listing/Updating
+                                        </label>
+                                        <p className="mt-1 text-gray-900 dark:text-white">
+                                            {kegiatan.has_listing_updating
+                                                ? 'Ya'
+                                                : 'Tidak'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            Status
+                                        </label>
+                                        <div className="mt-1">
+                                            <span
+                                                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusColors[kegiatan.status as keyof typeof statusColors]}`}
+                                            >
+                                                {statusLabel}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section className="rounded-3xl border border-neutral-200/70 bg-white p-6 shadow-sm xl:col-span-2 dark:border-neutral-800 dark:bg-neutral-950/50">
+                                <div className="flex items-center justify-between gap-4 border-b border-neutral-200/70 pb-4 dark:border-neutral-800">
+                                    <div>
+                                        <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                                            Penugasan dan Rate Honor
+                                        </h3>
+                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                            Ketua tim, metode pelatihan, dan
+                                            ringkasan honor.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            Metode Pendataan Pencacahan
+                                        </label>
+                                        <p className="mt-1 text-gray-900 dark:text-white">
+                                            {pendataanPencacahanLabel}
+                                        </p>
+                                    </div>
+                                    {kegiatan.has_listing_updating && (
+                                        <div>
+                                            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                                Metode Pendataan Listing
+                                            </label>
+                                            <p className="mt-1 text-gray-900 dark:text-white">
+                                                {pendataanListingLabel}
+                                            </p>
+                                        </div>
                                     )}
-                                </p>
-                            </div>
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            Metode Pelatihan
+                                        </label>
+                                        <p className="mt-1 text-gray-900 dark:text-white">
+                                            {metodePelatihanLabel}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            Ketua Tim
+                                        </label>
+                                        <p className="mt-1 text-gray-900 dark:text-white">
+                                            {kegiatan.ketua_tim?.name || '-'}
+                                        </p>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                                            {kegiatan.ketua_tim?.email || ''}
+                                        </p>
+                                    </div>
+                                    {kegiatan.pj_lainnya && (
+                                        <div>
+                                            <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                                Ketua Tim Lainnya (PJ)
+                                            </label>
+                                            <p className="mt-1 text-gray-900 dark:text-white">
+                                                {kegiatan.pj_lainnya.name}
+                                            </p>
+                                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                {kegiatan.pj_lainnya.email}
+                                            </p>
+                                        </div>
+                                    )}
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            Periode
+                                        </label>
+                                        <p className="mt-1 text-gray-900 dark:text-white">
+                                            {formatDate(kegiatan.tanggal_mulai)}{' '}
+                                            -{' '}
+                                            {formatDate(
+                                                kegiatan.tanggal_selesai,
+                                            )}
+                                        </p>
+                                    </div>
+                                </div>
 
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Tanggal Mulai
-                                </label>
-                                <p className="mt-1 text-gray-900 dark:text-white">
-                                    {formatDate(kegiatan.tanggal_mulai)}
-                                </p>
-                            </div>
+                                <div className="mt-8">
+                                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                        Rate Honor
+                                    </label>
+                                    {Array.isArray(kegiatan.rate_honors) &&
+                                    kegiatan.rate_honors.length > 0 ? (
+                                        <div className="mt-3 overflow-x-auto rounded-2xl border border-neutral-200/70 dark:border-neutral-800">
+                                            <table className="min-w-full text-sm">
+                                                <thead className="bg-neutral-50/80 dark:bg-neutral-900/60">
+                                                    <tr className="border-b border-gray-200 dark:border-gray-700">
+                                                        <th className="py-3 pr-4 pl-4 text-left font-medium text-gray-600 dark:text-gray-400">
+                                                            Status Kepegawaian
+                                                        </th>
+                                                        <th className="py-3 pr-4 text-left font-medium text-gray-600 dark:text-gray-400">
+                                                            Penugasan
+                                                        </th>
+                                                        <th className="py-3 pr-4 text-right font-medium text-gray-600 dark:text-gray-400">
+                                                            Rate Honor
+                                                        </th>
+                                                        {kegiatan.has_listing_updating && (
+                                                            <th className="py-3 pr-4 text-right font-medium text-gray-600 dark:text-gray-400">
+                                                                Rate Listing
+                                                            </th>
+                                                        )}
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                                                    {kegiatan.rate_honors.map(
+                                                        (rh, idx) => (
+                                                            <tr
+                                                                key={idx}
+                                                                className="bg-white/60 dark:bg-neutral-950/20"
+                                                            >
+                                                                <td className="py-3 pr-4 pl-4 text-gray-700 dark:text-gray-300">
+                                                                    {rh.status_kepegawaian ===
+                                                                    'organik'
+                                                                        ? 'Organik'
+                                                                        : 'Non-Organik'}
+                                                                </td>
+                                                                <td className="py-3 pr-4 text-gray-700 dark:text-gray-300">
+                                                                    {rh.jenis_penugasan ===
+                                                                        'pcl_ppl' &&
+                                                                        'PCL/PPL'}
+                                                                    {rh.jenis_penugasan ===
+                                                                        'pml' &&
+                                                                        'PML'}
+                                                                    {rh.jenis_penugasan ===
+                                                                        'koseka' &&
+                                                                        'Koseka (Koordinator Sensus Kecamatan)'}
+                                                                    {rh.jenis_penugasan ===
+                                                                        'pengolahan' &&
+                                                                        'Pengolahan'}
+                                                                    {rh.jenis_penugasan ===
+                                                                        'pengawas_pengolahan' &&
+                                                                        'Pengawas Pengolahan'}
+                                                                </td>
+                                                                <td className="py-3 pr-4 text-right text-gray-900 dark:text-white">
+                                                                    {formatCurrency(
+                                                                        rh.rate,
+                                                                    )}
+                                                                    {rh.satuan
+                                                                        ?.nama && (
+                                                                        <span className="ml-1 text-xs text-gray-500">
+                                                                            /
+                                                                            {
+                                                                                rh
+                                                                                    .satuan
+                                                                                    .nama
+                                                                            }
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                                {kegiatan.has_listing_updating && (
+                                                                    <td className="py-3 pr-4 text-right text-gray-900 dark:text-white">
+                                                                        {rh.rate_listing
+                                                                            ? formatCurrency(
+                                                                                  rh.rate_listing,
+                                                                              )
+                                                                            : '-'}
+                                                                        {rh.rate_listing &&
+                                                                            rh
+                                                                                .satuan_listing
+                                                                                ?.nama && (
+                                                                                <span className="ml-1 text-xs text-gray-500">
+                                                                                    /
+                                                                                    {
+                                                                                        rh
+                                                                                            .satuan_listing
+                                                                                            .nama
+                                                                                    }
+                                                                                </span>
+                                                                            )}
+                                                                    </td>
+                                                                )}
+                                                            </tr>
+                                                        ),
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    ) : (
+                                        <p className="mt-3 text-gray-500 dark:text-gray-400">
+                                            Belum ditentukan
+                                        </p>
+                                    )}
+                                </div>
 
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Tanggal Selesai
-                                </label>
-                                <p className="mt-1 text-gray-900 dark:text-white">
-                                    {formatDate(kegiatan.tanggal_selesai)}
-                                </p>
-                            </div>
+                                <div className="mt-6 rounded-2xl border border-dashed border-neutral-300 bg-neutral-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/40">
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                        Total Alokasi:{' '}
+                                        {formatCurrency(totalAlokasi)}
+                                    </p>
+                                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                                        Sisa pagu: {formatCurrency(sisaPagu)}
+                                    </p>
+                                </div>
+                            </section>
                         </div>
                     </div>
                 </ContentCard>

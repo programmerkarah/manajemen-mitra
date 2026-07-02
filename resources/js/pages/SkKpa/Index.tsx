@@ -480,7 +480,7 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                         setSearch(e.target.value);
                                         setCurrentPage(1);
                                     }}
-                                    placeholder="Nama atau kode kegiatan..."
+                                    placeholder="Nama kegiatan..."
                                     className="w-full"
                                 />
                             </div>
@@ -875,7 +875,7 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                                 {item.nama_kegiatan}
                                             </p>
                                             <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                {item.kode_kegiatan}
+                                                {item.sk_count} SK
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-2">

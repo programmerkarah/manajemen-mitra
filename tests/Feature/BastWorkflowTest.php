@@ -99,6 +99,40 @@ class BastWorkflowTest extends TestCase
         $this->assertTrue($bast->bastKegiatan->contains('kegiatan_id', $context['kegiatanOther']->id));
     }
 
+    public function test_bast_uses_fasih_clause_when_any_kegiatan_uses_fasih_metode(): void
+    {
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+
+        Kegiatan::query()->whereKey($context['kegiatanOwnCompleted']->id)->update([
+            'metode_pendataan_pencacahan' => 'CAPI_KSA_PRO',
+        ]);
+
+        Kegiatan::query()->whereKey($context['kegiatanOther']->id)->update([
+            'metode_pendataan_pencacahan' => 'CAPI_FASIH',
+        ]);
+
+        $bast = $this->generateMainBast($context)->fresh();
+
+        $this->assertTrue($bast->menggunakan_fasih);
+    }
+
+    public function test_bast_does_not_use_fasih_clause_when_only_ksa_pro_metode_is_used(): void
+    {
+        $context = $this->createBastGenerationContext(includeFutureOwnKegiatan: false);
+
+        Kegiatan::query()->whereKey($context['kegiatanOwnCompleted']->id)->update([
+            'metode_pendataan_pencacahan' => 'CAPI_KSA_PRO',
+        ]);
+
+        Kegiatan::query()->whereKey($context['kegiatanOther']->id)->update([
+            'metode_pendataan_pencacahan' => 'CAPI_KSA_PRO',
+        ]);
+
+        $bast = $this->generateMainBast($context)->fresh();
+
+        $this->assertFalse($bast->menggunakan_fasih);
+    }
+
     public function test_ketua_tim_can_only_generate_completed_lampiran_for_their_own_kegiatan(): void
     {
         $context = $this->createBastGenerationContext();

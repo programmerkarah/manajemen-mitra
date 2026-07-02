@@ -51,7 +51,7 @@ return new class extends Migration
 
         // Case 2: BAST attached to a non-latest SPK addendum within the same alokasi.
         // Update spk_id to the SPK with the highest addendum_number for that alokasi.
-        DB::statement("
+        DB::statement('
             UPDATE bast b
             JOIN spk s ON b.spk_id = s.id
             JOIN spk s_latest
@@ -68,7 +68,7 @@ return new class extends Migration
                 WHERE s2.alokasi_petugas_id = s.alokasi_petugas_id
             )
             AND b.deleted_at IS NULL
-        ");
+        ');
     }
 
     /**

@@ -1,12 +1,14 @@
 <?php
-require __DIR__ . '/../vendor/autoload.php';
+
+require __DIR__.'/../vendor/autoload.php';
 // Bootstrap Laravel application
-$app = require __DIR__ . '/../bootstrap/app.php';
-$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+$app = require __DIR__.'/../bootstrap/app.php';
+$kernel = $app->make(Kernel::class);
 $kernel->bootstrap();
 
 use App\Http\Controllers\SpkController;
 use App\Models\Spk;
+use Illuminate\Contracts\Console\Kernel;
 
 $tahun = (int) date('Y');
 $bulan = 6; // June
