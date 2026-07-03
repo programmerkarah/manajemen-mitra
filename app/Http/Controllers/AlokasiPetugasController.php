@@ -2454,7 +2454,8 @@ class AlokasiPetugasController extends Controller
             ->setPaper('a4', 'landscape');
 
         $filename = sprintf(
-            'monitoring_skgb_penggilingan_%s_%s_%s.pdf',
+            'monitoring_%s_%s_%s_%s.pdf',
+            $kegiatan->nama_kegiatan,
             $tahun,
             str_pad((string) $reportData['bulan'], 2, '0', STR_PAD_LEFT),
             now()->format('Ymd_His'),
@@ -2515,38 +2516,64 @@ class AlokasiPetugasController extends Controller
             return back()->withErrors(['kegiatan_frame_sampel_id' => 'Frame sampel tersebut sudah dipakai pada alokasi periode ini.']);
         }
 
-        $frameAllocation->update([
-            'kegiatan_frame_sampel_id' => $targetFrame->id,
-        ]);
+        $currentFrameAllocationIds = $periode->alokasiPetugas
+            ->flatMap(fn (AlokasiPetugas $alokasiItem) => $alokasiItem->frameSampelAllocations)
+            ->filter(function (AlokasiPetugasFrameSampel $allocationFrame) use ($currentFrame): bool {
+                return (int) $allocationFrame->kegiatan_frame_sampel_id === (int) $currentFrame->id;
+            })
+            ->pluck('id')
+            ->values();
 
-        $alokasi->refresh()->load(['petugas', 'periodeAlokasi.kegiatan.rateHonors', 'frameSampelAllocations.kegiatanFrameSampel']);
+        if ($currentFrameAllocationIds->isEmpty()) {
+            return back()->withErrors(['kegiatan_frame_sampel_id' => 'Frame sampel yang dipilih tidak ditemukan pada alokasi periode ini.']);
+        }
 
-        $selectedFrameTarget = $alokasi->frameSampelAllocations
-            ->sum(function (AlokasiPetugasFrameSampel $allocationFrame): float {
-                $targetUnitSampel = $allocationFrame->kegiatanFrameSampel?->target_unit_sampel;
-
-                return (float) array_sum((array) $targetUnitSampel);
-            });
-
-        $selectedFrameTarget = max(1, (int) round($selectedFrameTarget));
+        $selectedFrameTarget = max(1, (int) round(array_sum((array) $targetFrame->target_unit_sampel)));
         $kegiatan = $periode->kegiatan;
-        $petugasType = $alokasi->status_kepegawaian
-            ?? (($alokasi->petugas->jenis_petugas ?? 'non_organik') === 'organik' ? 'organik' : 'non_organik');
-        $rateHonor = $kegiatan->rateHonors
-            ->first(fn (RateHonor $rateHonor): bool => $rateHonor->status_kepegawaian === $petugasType && $rateHonor->jenis_penugasan === $alokasi->peran);
 
-        $totalHonorPencacahan = $this->resolvePencacahanWorkload($kegiatan, (float) $selectedFrameTarget) * (float) ($rateHonor?->rate ?? 0);
-        $totalHonorListing = $kegiatan->has_listing_updating
-            ? (float) ($rateHonor?->rate_listing ?? 0) * $selectedFrameTarget
-            : (float) ($alokasi->total_honor_listing ?? 0);
+        $currentFrameAllocationIds->each(function (int $frameAllocationId) use (
+            $kegiatan,
+            $targetFrame,
+            $selectedFrameTarget,
+            $periode,
+            $currentFrame
+        ): void {
+            $allocationFrame = AlokasiPetugasFrameSampel::query()
+                ->with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan.rateHonors'])
+                ->findOrFail($frameAllocationId);
 
-        $alokasi->update([
-            'jumlah_satuan' => $selectedFrameTarget,
-            'jumlah_unit_sampel' => $selectedFrameTarget,
-            'jumlah_satuan_listing' => $kegiatan->has_listing_updating ? $selectedFrameTarget : $alokasi->jumlah_satuan_listing,
-            'total_honor' => $totalHonorPencacahan,
-            'total_honor_listing' => $totalHonorListing,
-        ]);
+            $alokasi = $allocationFrame->alokasiPetugas;
+
+            if (! $alokasi || (int) $alokasi->periode_alokasi_id !== (int) $periode->id) {
+                return;
+            }
+
+            if ((int) $allocationFrame->kegiatan_frame_sampel_id !== (int) $currentFrame->id) {
+                return;
+            }
+
+            $petugasType = $alokasi->status_kepegawaian
+                ?? (($alokasi->petugas->jenis_petugas ?? 'non_organik') === 'organik' ? 'organik' : 'non_organik');
+            $rateHonor = $kegiatan->rateHonors
+                ->first(fn (RateHonor $rateHonor): bool => $rateHonor->status_kepegawaian === $petugasType && $rateHonor->jenis_penugasan === $alokasi->peran);
+
+            $totalHonorPencacahan = $this->resolvePencacahanWorkload($kegiatan, (float) $selectedFrameTarget) * (float) ($rateHonor?->rate ?? 0);
+            $totalHonorListing = $kegiatan->has_listing_updating
+                ? (float) ($rateHonor?->rate_listing ?? 0) * $selectedFrameTarget
+                : (float) ($alokasi->total_honor_listing ?? 0);
+
+            $allocationFrame->update([
+                'kegiatan_frame_sampel_id' => $targetFrame->id,
+            ]);
+
+            $alokasi->update([
+                'jumlah_satuan' => $selectedFrameTarget,
+                'jumlah_unit_sampel' => $selectedFrameTarget,
+                'jumlah_satuan_listing' => $kegiatan->has_listing_updating ? $selectedFrameTarget : $alokasi->jumlah_satuan_listing,
+                'total_honor' => $totalHonorPencacahan,
+                'total_honor_listing' => $totalHonorListing,
+            ]);
+        });
 
         return back()->with('success', 'Sampel berhasil diganti.');
     }

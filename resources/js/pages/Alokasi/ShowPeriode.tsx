@@ -134,6 +134,20 @@ interface FlattenedFrameRow {
     frame: FrameSampelDetail | null;
 }
 
+interface GroupedFrameRow {
+    key: string;
+    frame: FrameSampelDetail | null;
+    rows: FlattenedFrameRow[];
+}
+
+interface PetugasHonorSummaryRow {
+    key: string;
+    nama: string;
+    peran: string;
+    jenisPetugas: string;
+    totalHonor: number;
+}
+
 interface ReplacementFrameOption {
     frame: FrameSampelOption;
     alreadySelected: boolean;
@@ -285,6 +299,54 @@ function formatSampleRoleLabel(value: string | null | undefined): string {
     return value
         .replace(/_/g, ' ')
         .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function getPeranPriority(peran: string): number {
+    const normalizedPeran = peran.trim().toLowerCase();
+
+    if (normalizedPeran === 'pml') {
+        return 0;
+    }
+
+    if (normalizedPeran === 'pcl_ppl' || normalizedPeran === 'ppl') {
+        return 1;
+    }
+
+    return 2;
+}
+
+function getJenisPetugasLabel(jenisPetugas: string): string {
+    return jenisPetugas === 'organik' ? 'Organik' : 'Mitra';
+}
+
+function getFrameMetadataSortValues(frame: FrameSampelDetail | null): string[] {
+    if (!frame) {
+        return [];
+    }
+
+    const metadataItems = frame.metadata_items || [];
+
+    if (metadataItems.length > 0) {
+        return metadataItems
+            .map((item) => formatReplacementMetadataItem(item))
+            .filter((value) => value !== '-');
+    }
+
+    return [
+        resolveCodeLabelValue(
+            frame,
+            ['kdkec', 'kode_kecamatan'],
+            ['kdkec_label', 'kode_kecamatan_label'],
+        ),
+        resolveCodeLabelValue(
+            frame,
+            ['kddes', 'kode_desa'],
+            ['kddes_label', 'kode_desa_label'],
+        ),
+        resolveCodeLabelValue(frame, ['kode_sls'], ['kode_sls_label']),
+        resolveCodeLabelValue(frame, ['kode_sub_sls'], ['kode_sub_sls_label']),
+        resolveCodeLabelValue(frame, ['kode_segmen'], ['kode_segmen_label']),
+    ].filter((value) => value !== '-');
 }
 
 function resolveCodeLabelValue(
@@ -441,6 +503,22 @@ function formatReplacementMetadataItem(item: MetadataItem): string {
         default:
             return '-';
     }
+}
+
+function resolveFrameMetadataItemDisplay(
+    frame: FrameSampelDetail | null,
+    code: string,
+): string {
+    if (!frame || !Array.isArray(frame.metadata_items)) {
+        return '-';
+    }
+
+    const normalizedCode = code.trim().toLowerCase();
+    const matchedItem = frame.metadata_items.find(
+        (item) => item.code.trim().toLowerCase() === normalizedCode,
+    );
+
+    return matchedItem ? formatReplacementMetadataItem(matchedItem) : '-';
 }
 
 interface FrameDetailColumn {
@@ -620,6 +698,108 @@ export default function ShowPeriode({ periode, revisions }: Props) {
         );
     }, [flattenFrameRows, rateHonors]);
 
+    const summarizeGroupPetugas = (
+        group: GroupedFrameRow,
+    ): Array<{
+        key: string;
+        label: string;
+        peran: string;
+        jenisPetugas: string;
+    }> => {
+        return [...group.rows]
+            .sort((left, right) => {
+                const leftPriority = getPeranPriority(left.alokasi.peran);
+                const rightPriority = getPeranPriority(right.alokasi.peran);
+
+                if (leftPriority !== rightPriority) {
+                    return leftPriority - rightPriority;
+                }
+
+                return left.alokasi.petugas.nama.localeCompare(
+                    right.alokasi.petugas.nama,
+                    'id',
+                    { sensitivity: 'base' },
+                );
+            })
+            .map((row) => ({
+                key: `${row.alokasi.id}-${row.frame?.frame_allocation_id ?? 'summary'}`,
+                label: row.alokasi.petugas.nama,
+                peran: peranLabels[row.alokasi.peran] || row.alokasi.peran,
+                jenisPetugas: getJenisPetugasLabel(
+                    row.alokasi.petugas.jenis_petugas,
+                ),
+            }));
+    };
+
+    const hasNonResponseColumn = isKetuaTim && hasPendataanRole;
+
+    const petugasHonorSummaryRows = useMemo<PetugasHonorSummaryRow[]>(() => {
+        const resolveHonorForAlokasiFrame = (
+            alokasi: AlokasiPetugas,
+            frame: FrameSampelDetail | null,
+        ): { hargaSatuan: number; honor: number } => {
+            const rateHonor = resolveRateHonorForAlokasi(alokasi, rateHonors);
+            const hargaSatuan =
+                frame?.tahapan === 'listing'
+                    ? rateHonor?.rate_listing ||
+                      rateHonor?.rate ||
+                      alokasi.rate_listing ||
+                      alokasi.rate_pencacahan ||
+                      0
+                    : rateHonor?.rate ||
+                      rateHonor?.rate_listing ||
+                      alokasi.rate_pencacahan ||
+                      alokasi.rate_listing ||
+                      0;
+            const honor = frame
+                ? hargaSatuan * (formatFrameTarget(frame) || 1)
+                : rateHonor?.rate || Number(alokasi.total_honor || 0);
+
+            return {
+                hargaSatuan,
+                honor,
+            };
+        };
+
+        return periode.alokasi_petugas
+            .map((alokasi) => {
+                const frameDetails = alokasi.frame_sampel_details || [];
+                const totalHonor =
+                    frameDetails.length > 0
+                        ? frameDetails.reduce((sum, frame) => {
+                              const honor = resolveHonorForAlokasiFrame(
+                                  alokasi,
+                                  frame,
+                              );
+
+                              return sum + honor.honor;
+                          }, 0)
+                        : resolveHonorForAlokasiFrame(alokasi, null).honor;
+
+                return {
+                    key: `alokasi-${alokasi.id}`,
+                    nama: alokasi.petugas.nama,
+                    peran: peranLabels[alokasi.peran] || alokasi.peran,
+                    jenisPetugas: getJenisPetugasLabel(
+                        alokasi.petugas.jenis_petugas,
+                    ),
+                    totalHonor,
+                };
+            })
+            .sort((left, right) => {
+                const leftPriority = getPeranPriority(left.peran);
+                const rightPriority = getPeranPriority(right.peran);
+
+                if (leftPriority !== rightPriority) {
+                    return leftPriority - rightPriority;
+                }
+
+                return left.nama.localeCompare(right.nama, 'id', {
+                    sensitivity: 'base',
+                });
+            });
+    }, [periode.alokasi_petugas, rateHonors]);
+
     const displayTotalEstimasi = hasFrameSampleDetails
         ? frameRowTotals.total
         : periode.total_estimasi;
@@ -688,6 +868,9 @@ export default function ShowPeriode({ periode, revisions }: Props) {
             .filter((frame): frame is FrameSampelDetail => frame !== null);
         const columns: FrameDetailColumn[] = [];
         const seenKeys = new Set<string>();
+        const hasMetadataItems = framePool.some(
+            (frame) => (frame.metadata_items || []).length > 0,
+        );
 
         const addColumn = (
             key: string,
@@ -713,6 +896,74 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                 getValue,
             });
         };
+
+        const addDynamicMetadataColumns = (): void => {
+            framePool.forEach((frame) => {
+                (frame.metadata_items || []).forEach((item) => {
+                    const normalizedKey = item.code.trim().toLowerCase();
+
+                    if (
+                        normalizedKey === '' ||
+                        [
+                            'nama_target',
+                            'nama_frame',
+                            'nama_usaha_penggilingan',
+                        ].includes(normalizedKey) ||
+                        seenKeys.has(normalizedKey)
+                    ) {
+                        return;
+                    }
+
+                    const hasValue = framePool.some((candidateFrame) =>
+                        (candidateFrame.metadata_items || []).some(
+                            (candidateItem) => {
+                                const candidateKey = candidateItem.code
+                                    .trim()
+                                    .toLowerCase();
+
+                                return (
+                                    candidateKey === normalizedKey &&
+                                    formatReplacementMetadataItem(
+                                        candidateItem,
+                                    ) !== '-'
+                                );
+                            },
+                        ),
+                    );
+
+                    if (!hasValue) {
+                        return;
+                    }
+
+                    seenKeys.add(normalizedKey);
+                    columns.push({
+                        key: item.code,
+                        header: item.label,
+                        getValue: (candidateFrame: FrameSampelDetail | null) =>
+                            resolveFrameMetadataItemDisplay(
+                                candidateFrame,
+                                item.code,
+                            ),
+                    });
+                });
+            });
+        };
+
+        if (hasMetadataItems) {
+            addDynamicMetadataColumns();
+
+            if (isPurpossiveSampling) {
+                addColumn('nama_target', 'Nama target', (frame) =>
+                    formatFrameText(
+                        frame?.nama_target ||
+                            frame?.nama_frame ||
+                            frame?.nama_usaha_penggilingan,
+                    ),
+                );
+            }
+
+            return columns;
+        }
 
         if (isMineralActivity) {
             addColumn('kecamatan', 'Kecamatan', (frame) =>
@@ -770,16 +1021,109 @@ export default function ShowPeriode({ periode, revisions }: Props) {
             resolveCodeLabelValue(frame, ['kode_sls'], ['kode_sls_label']),
         );
 
-        addColumn('nama_target', 'Nama target', (frame) =>
-            formatFrameText(
-                frame?.nama_target ||
-                    frame?.nama_frame ||
-                    frame?.nama_usaha_penggilingan,
-            ),
-        );
+        if (isPurpossiveSampling) {
+            addColumn('nama_target', 'Nama target', (frame) =>
+                formatFrameText(
+                    frame?.nama_target ||
+                        frame?.nama_frame ||
+                        frame?.nama_usaha_penggilingan,
+                ),
+            );
+        }
 
         return columns;
     }, [flattenFrameRows, isMineralActivity, isPurpossiveSampling]);
+
+    const groupedFrameRows = useMemo<GroupedFrameRow[]>(() => {
+        const groups = new Map<string, GroupedFrameRow>();
+
+        flattenFrameRows.forEach((row) => {
+            const groupKey = row.frame
+                ? `${row.frame.kegiatan_frame_sampel_id}-${row.frame.tahapan}`
+                : `alokasi-${row.alokasi.id}`;
+
+            const existingGroup = groups.get(groupKey);
+
+            if (existingGroup) {
+                existingGroup.rows.push(row);
+
+                return;
+            }
+
+            groups.set(groupKey, {
+                key: groupKey,
+                frame: row.frame,
+                rows: [row],
+            });
+        });
+
+        return Array.from(groups.values())
+            .map((group) => ({
+                ...group,
+                rows: [...group.rows].sort((left, right) => {
+                    const leftPriority = getPeranPriority(left.alokasi.peran);
+                    const rightPriority = getPeranPriority(right.alokasi.peran);
+
+                    if (leftPriority !== rightPriority) {
+                        return leftPriority - rightPriority;
+                    }
+
+                    return left.alokasi.petugas.nama.localeCompare(
+                        right.alokasi.petugas.nama,
+                        'id',
+                        { sensitivity: 'base' },
+                    );
+                }),
+            }))
+            .sort((left, right) => {
+                if (!left.frame && !right.frame) {
+                    return left.rows[0].alokasi.petugas.nama.localeCompare(
+                        right.rows[0].alokasi.petugas.nama,
+                        'id',
+                        { sensitivity: 'base' },
+                    );
+                }
+
+                if (!left.frame) {
+                    return 1;
+                }
+
+                if (!right.frame) {
+                    return -1;
+                }
+
+                const leftSortValues = getFrameMetadataSortValues(left.frame);
+                const rightSortValues = getFrameMetadataSortValues(right.frame);
+
+                const maxLength = Math.max(
+                    leftSortValues.length,
+                    rightSortValues.length,
+                );
+
+                for (let index = 0; index < maxLength; index += 1) {
+                    const comparison = (
+                        leftSortValues[index] || ''
+                    ).localeCompare(rightSortValues[index] || '', 'id', {
+                        sensitivity: 'base',
+                    });
+
+                    if (comparison !== 0) {
+                        return comparison;
+                    }
+                }
+
+                const leftName = left.rows
+                    .map((row) => row.alokasi.petugas.nama)
+                    .join(' ');
+                const rightName = right.rows
+                    .map((row) => row.alokasi.petugas.nama)
+                    .join(' ');
+
+                return leftName.localeCompare(rightName, 'id', {
+                    sensitivity: 'base',
+                });
+            });
+    }, [flattenFrameRows]);
 
     const handleEditToggle = () => {
         if (!canEditNonResponse) {
@@ -917,12 +1261,14 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                 title={`Detail Periode ${bulanLabel} ${periode.tahun}`}
                 description={`Informasi alokasi petugas untuk ${periode.kegiatan.nama_kegiatan}`}
             >
-                <Button variant="outline" asChild>
-                    <a href={exportMonitoringUrl}>
-                        <FileText className="mr-2 h-4 w-4" />
-                        Export PDF
-                    </a>
-                </Button>
+                {hasFrameSampleDetails && (
+                    <Button variant="outline" asChild>
+                        <a href={exportMonitoringUrl}>
+                            <FileText className="mr-2 h-4 w-4" />
+                            Export PDF
+                        </a>
+                    </Button>
+                )}
                 <Button variant="outline" asChild>
                     <Link href="/alokasi">
                         <ArrowLeft className="mr-2 h-4 w-4" />
@@ -1422,11 +1768,16 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                         <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
                                 <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                    Detail Sampel Terpilih
+                                    Detail Alokasi
                                 </h3>
                                 <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                                    Menampilkan baris detail per sampel yang
-                                    dipilih untuk tiap alokasi.
+                                    Menampilkan baris gabungan per sampel yang
+                                    dipakai bersama oleh PPL dan PML.
+                                </p>
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                    Harga Satuan dan Estimasi Honor dihitung
+                                    sebagai total grup sampel yang dipakai
+                                    bersama.
                                 </p>
                             </div>
                             {isKetuaTim && hasPendataanRole && (
@@ -1474,12 +1825,6 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                         <th className="px-3 py-3 font-medium text-neutral-600 dark:text-neutral-400">
                                             Nama Petugas
                                         </th>
-                                        <th className="px-3 py-3 font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                            Jenis
-                                        </th>
-                                        <th className="px-3 py-3 font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                            Peran
-                                        </th>
                                         {frameDetailColumns.map((column) => (
                                             <th
                                                 key={column.key}
@@ -1494,193 +1839,285 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                         <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                             Realisasi
                                         </th>
-                                        {isKetuaTim && hasPendataanRole && (
+                                        {hasNonResponseColumn && (
                                             <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                 Non Response
                                             </th>
                                         )}
-                                        <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                            Harga Satuan
-                                        </th>
-                                        <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                            Estimasi Honor
-                                        </th>
                                         <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                             Aksi
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                    {flattenFrameRows.map(
-                                        ({ alokasi, frame }, index) => {
-                                            const target = frame
-                                                ? formatFrameTarget(frame) || 1
-                                                : Number(
-                                                      alokasi.jumlah_satuan ||
-                                                          0,
-                                                  );
-                                            const realisasi = frame
-                                                ? target
-                                                : (alokasi.jumlah_satuan_dibayarkan ??
-                                                  alokasi.jumlah_satuan ??
-                                                  0);
-                                            const rateHonor =
-                                                resolveRateHonorForAlokasi(
-                                                    alokasi,
-                                                    rateHonors,
-                                                );
-                                            const hargaSatuan =
-                                                frame?.tahapan === 'listing'
-                                                    ? rateHonor?.rate_listing ||
-                                                      rateHonor?.rate ||
-                                                      alokasi.rate_listing ||
-                                                      alokasi.rate_pencacahan ||
-                                                      0
-                                                    : rateHonor?.rate ||
-                                                      rateHonor?.rate_listing ||
-                                                      alokasi.rate_pencacahan ||
-                                                      alokasi.rate_listing ||
-                                                      0;
-                                            const estimasiHonor = frame
-                                                ? hargaSatuan * target
-                                                : rateHonor?.rate ||
-                                                  alokasi.total_honor;
-                                            const jenisLabel =
-                                                alokasi.petugas
-                                                    .jenis_petugas === 'organik'
-                                                    ? 'Organik'
-                                                    : 'Mitra';
+                                    {groupedFrameRows.map((group, index) => {
+                                        const primaryRow = group.rows[0];
+                                        const frame = group.frame;
+                                        const target = frame
+                                            ? formatFrameTarget(frame) || 1
+                                            : Number(
+                                                  primaryRow.alokasi
+                                                      .jumlah_satuan || 0,
+                                              );
+                                        const realisasi = frame
+                                            ? target
+                                            : group.rows.reduce(
+                                                  (sum, row) =>
+                                                      sum +
+                                                      Number(
+                                                          row.alokasi
+                                                              .jumlah_satuan_dibayarkan ??
+                                                              row.alokasi
+                                                                  .jumlah_satuan ??
+                                                              0,
+                                                      ),
+                                                  0,
+                                              );
+                                        const petugasList =
+                                            summarizeGroupPetugas(group);
+                                        const selectedNonResponseCount =
+                                            group.rows.reduce((sum, row) => {
+                                                if (!row.frame) {
+                                                    return sum;
+                                                }
 
-                                            return (
-                                                <tr
-                                                    key={`${alokasi.id}-${frame?.frame_allocation_id ?? 'summary'}`}
-                                                    className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
-                                                >
-                                                    <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
-                                                        {index + 1}
-                                                    </td>
-                                                    <td className="px-3 py-3">
-                                                        <div className="font-medium break-words text-neutral-900 dark:text-white">
-                                                            {
-                                                                alokasi.petugas
-                                                                    .nama
-                                                            }
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-3 py-3 whitespace-nowrap">
-                                                        <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300">
-                                                            {jenisLabel}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
-                                                        {peranLabels[
-                                                            alokasi.peran
-                                                        ] || alokasi.peran}
-                                                    </td>
-                                                    {frameDetailColumns.map(
-                                                        (column) => (
-                                                            <td
-                                                                key={`${alokasi.id}-${frame?.frame_allocation_id ?? 'summary'}-${column.key}`}
-                                                                className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white"
-                                                            >
-                                                                {column.getValue(
-                                                                    frame,
-                                                                )}
-                                                            </td>
-                                                        ),
-                                                    )}
-                                                    <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
-                                                        {target}
-                                                    </td>
-                                                    <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
-                                                        {realisasi}
-                                                    </td>
-                                                    {isKetuaTim &&
-                                                        hasPendataanRole && (
-                                                            <td className="px-3 py-3 text-right whitespace-nowrap">
-                                                                {isEditMode &&
-                                                                frame ? (
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={(
-                                                                            nonResponseSelections[
-                                                                                alokasi
-                                                                                    .id
-                                                                            ] ||
-                                                                            []
-                                                                        ).includes(
-                                                                            frame.frame_allocation_id,
-                                                                        )}
-                                                                        onChange={(
-                                                                            e,
-                                                                        ) =>
+                                                const isSelected = (
+                                                    nonResponseSelections[
+                                                        row.alokasi.id
+                                                    ] || []
+                                                ).includes(
+                                                    row.frame
+                                                        .frame_allocation_id,
+                                                );
+
+                                                return (
+                                                    sum + (isSelected ? 1 : 0)
+                                                );
+                                            }, 0);
+
+                                        return (
+                                            <tr
+                                                key={group.key}
+                                                className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
+                                            >
+                                                <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
+                                                    {index + 1}
+                                                </td>
+                                                <td className="px-3 py-3 align-top">
+                                                    <div className="flex flex-col gap-1.5">
+                                                        {petugasList.map(
+                                                            (petugas) => (
+                                                                <div
+                                                                    key={
+                                                                        petugas.key
+                                                                    }
+                                                                    className="rounded-md border border-neutral-200/60 bg-white/50 px-2.5 py-1.5 dark:border-neutral-800/60 dark:bg-neutral-950/35"
+                                                                >
+                                                                    <div className="flex flex-wrap items-center gap-1.5">
+                                                                        <span className="rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                                                                            {
+                                                                                petugas.peran
+                                                                            }
+                                                                        </span>
+                                                                        <span className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400">
+                                                                            {
+                                                                                petugas.jenisPetugas
+                                                                            }
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="mt-0.5 text-sm leading-tight font-medium break-words text-neutral-900 dark:text-white">
+                                                                        {
+                                                                            petugas.label
+                                                                        }
+                                                                    </div>
+                                                                </div>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                {frameDetailColumns.map(
+                                                    (column) => (
+                                                        <td
+                                                            key={`${group.key}-${column.key}`}
+                                                            className="px-3 py-3 align-top whitespace-nowrap text-neutral-900 dark:text-white"
+                                                        >
+                                                            {column.getValue(
+                                                                frame,
+                                                            )}
+                                                        </td>
+                                                    ),
+                                                )}
+                                                <td className="px-3 py-3 text-right align-top whitespace-nowrap text-neutral-900 dark:text-white">
+                                                    {target}
+                                                </td>
+                                                <td className="px-3 py-3 text-right align-top whitespace-nowrap text-neutral-900 dark:text-white">
+                                                    {realisasi}
+                                                </td>
+                                                {hasNonResponseColumn && (
+                                                    <td className="px-3 py-3 text-right align-top whitespace-nowrap">
+                                                        {isEditMode && frame ? (
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={
+                                                                    selectedNonResponseCount >
+                                                                        0 &&
+                                                                    selectedNonResponseCount ===
+                                                                        group.rows.filter(
+                                                                            (
+                                                                                row,
+                                                                            ) =>
+                                                                                row.frame,
+                                                                        ).length
+                                                                }
+                                                                onChange={(
+                                                                    e,
+                                                                ) => {
+                                                                    group.rows.forEach(
+                                                                        (
+                                                                            row,
+                                                                        ) => {
+                                                                            if (
+                                                                                !row.frame
+                                                                            ) {
+                                                                                return;
+                                                                            }
+
                                                                             toggleNonResponseSelection(
-                                                                                alokasi.id,
-                                                                                frame.frame_allocation_id,
+                                                                                row
+                                                                                    .alokasi
+                                                                                    .id,
+                                                                                row
+                                                                                    .frame
+                                                                                    .frame_allocation_id,
                                                                                 e
                                                                                     .target
                                                                                     .checked,
-                                                                            )
-                                                                        }
-                                                                        disabled={
-                                                                            alokasi.peran ===
-                                                                                'pengolahan' ||
-                                                                            alokasi.peran ===
-                                                                                'pengawas_pengolahan'
-                                                                        }
-                                                                        className="h-4 w-4 rounded border-neutral-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
-                                                                    />
-                                                                ) : (
-                                                                    <span className="text-neutral-900 dark:text-white">
-                                                                        {frame
-                                                                            ? frame.is_non_response
-                                                                                ? 1
-                                                                                : 0
-                                                                            : '-'}
-                                                                    </span>
+                                                                            );
+                                                                        },
+                                                                    );
+                                                                }}
+                                                                disabled={group.rows.every(
+                                                                    (row) =>
+                                                                        row
+                                                                            .alokasi
+                                                                            .peran ===
+                                                                            'pengolahan' ||
+                                                                        row
+                                                                            .alokasi
+                                                                            .peran ===
+                                                                            'pengawas_pengolahan',
                                                                 )}
-                                                            </td>
-                                                        )}
-                                                    <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
-                                                        {formatCurrency(
-                                                            hargaSatuan,
-                                                        )}
-                                                    </td>
-                                                    <td className="px-3 py-3 text-right font-semibold whitespace-nowrap text-green-600 dark:text-green-400">
-                                                        {formatCurrency(
-                                                            estimasiHonor || 0,
-                                                        )}
-                                                    </td>
-                                                    <td className="px-3 py-3 text-right whitespace-nowrap">
-                                                        {frame &&
-                                                        canReplaceSamples ? (
-                                                            <Button
-                                                                type="button"
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    openReplacementDialog(
-                                                                        alokasi.id,
-                                                                        alokasi.peran,
-                                                                        frame.frame_allocation_id,
-                                                                        frame,
-                                                                    )
-                                                                }
-                                                            >
-                                                                Ganti Sampel
-                                                            </Button>
+                                                                className="h-4 w-4 rounded border-neutral-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+                                                            />
                                                         ) : (
-                                                            <span className="text-xs text-neutral-400">
-                                                                -
+                                                            <span className="text-neutral-900 dark:text-white">
+                                                                {frame
+                                                                    ? selectedNonResponseCount
+                                                                    : '-'}
                                                             </span>
                                                         )}
                                                     </td>
-                                                </tr>
-                                            );
-                                        },
-                                    )}
+                                                )}
+                                                <td className="px-3 py-3 text-right align-top whitespace-nowrap">
+                                                    {frame &&
+                                                    canReplaceSamples ? (
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                openReplacementDialog(
+                                                                    primaryRow
+                                                                        .alokasi
+                                                                        .id,
+                                                                    primaryRow
+                                                                        .alokasi
+                                                                        .peran,
+                                                                    frame.frame_allocation_id,
+                                                                    frame,
+                                                                )
+                                                            }
+                                                        >
+                                                            Ganti Sampel
+                                                        </Button>
+                                                    ) : (
+                                                        <span className="text-xs text-neutral-400">
+                                                            -
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
+                        </div>
+
+                        <div className="border-t border-neutral-200 pt-4 dark:border-neutral-800">
+                            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <h4 className="text-sm font-semibold text-neutral-900 dark:text-white">
+                                        Perkiraan honor per petugas
+                                    </h4>
+                                    <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                                        Ringkasan honor ditampilkan terpisah
+                                        dari tabel sampel supaya detail alokasi
+                                        tetap ringkas.
+                                    </p>
+                                </div>
+                                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-right dark:border-emerald-900/40 dark:bg-emerald-950/30">
+                                    <div className="text-[11px] font-medium tracking-wide text-emerald-700 uppercase dark:text-emerald-300">
+                                        Total estimasi honor
+                                    </div>
+                                    <div className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
+                                        {formatCurrency(displayTotalEstimasi)}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
+                                <table className="min-w-full divide-y divide-neutral-200 text-sm dark:divide-neutral-800">
+                                    <thead className="bg-neutral-50 dark:bg-neutral-900/70">
+                                        <tr>
+                                            <th className="px-3 py-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                                Petugas
+                                            </th>
+                                            <th className="px-3 py-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                                Peran
+                                            </th>
+                                            <th className="px-3 py-3 text-left font-medium text-neutral-600 dark:text-neutral-400">
+                                                Jenis
+                                            </th>
+                                            <th className="px-3 py-3 text-right font-medium text-neutral-600 dark:text-neutral-400">
+                                                Total honor
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                                        {petugasHonorSummaryRows.map((row) => (
+                                            <tr
+                                                key={row.key}
+                                                className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
+                                            >
+                                                <td className="px-3 py-3 font-medium text-neutral-900 dark:text-white">
+                                                    {row.nama}
+                                                </td>
+                                                <td className="px-3 py-3 text-neutral-600 dark:text-neutral-300">
+                                                    {row.peran}
+                                                </td>
+                                                <td className="px-3 py-3 text-neutral-600 dark:text-neutral-300">
+                                                    {row.jenisPetugas}
+                                                </td>
+                                                <td className="px-3 py-3 text-right font-semibold text-green-600 dark:text-green-400">
+                                                    {formatCurrency(
+                                                        row.totalHonor,
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </ContentCard>
