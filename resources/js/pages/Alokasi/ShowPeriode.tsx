@@ -1,6 +1,15 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, Kegiatan, SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
@@ -10,6 +19,7 @@ import {
     FileText,
     History,
     Save,
+    Search,
     Users,
     X,
 } from 'lucide-react';
@@ -615,6 +625,13 @@ export default function ShowPeriode({ periode, revisions }: Props) {
         currentTahapan: 'listing' | 'pencacahan';
         currentPeran: string;
     } | null>(null);
+    const [detailSearch, setDetailSearch] = useState('');
+    const [detailPeranFilter, setDetailPeranFilter] = useState('all');
+    const [detailSampleFilter, setDetailSampleFilter] = useState('all');
+    const [detailRowsPerPage, setDetailRowsPerPage] = useState(10);
+    const [detailCurrentPage, setDetailCurrentPage] = useState(1);
+    const [alokasiRowsPerPage, setAlokasiRowsPerPage] = useState(10);
+    const [alokasiCurrentPage, setAlokasiCurrentPage] = useState(1);
 
     // Check if ada alokasi dengan peran pendataan
     const hasPendataanRole = periode.alokasi_petugas.some((alokasi) =>
@@ -1125,6 +1142,172 @@ export default function ShowPeriode({ periode, revisions }: Props) {
             });
     }, [flattenFrameRows]);
 
+    const detailPeranOptions = useMemo(() => {
+        const uniquePeran = new Map<string, string>();
+
+        periode.alokasi_petugas.forEach((alokasi) => {
+            const peran = (alokasi.peran || '').trim();
+
+            if (!peran) {
+                return;
+            }
+
+            uniquePeran.set(peran, peranLabels[peran] || peran);
+        });
+
+        return Array.from(uniquePeran.entries())
+            .map(([value, label]) => ({ value, label }))
+            .sort((left, right) =>
+                left.label.localeCompare(right.label, 'id', {
+                    sensitivity: 'base',
+                }),
+            );
+    }, [periode.alokasi_petugas]);
+
+    const filteredGroupedFrameRows = useMemo(() => {
+        const normalizedSearch = detailSearch.trim().toLowerCase();
+
+        return groupedFrameRows.filter((group) => {
+            const groupPeranValues = new Set(
+                group.rows.map((row) => (row.alokasi.peran || '').trim()),
+            );
+
+            if (
+                detailPeranFilter !== 'all' &&
+                !groupPeranValues.has(detailPeranFilter)
+            ) {
+                return false;
+            }
+
+            const hasFrame = group.rows.some((row) => row.frame !== null);
+            if (detailSampleFilter === 'with-sample' && !hasFrame) {
+                return false;
+            }
+
+            if (detailSampleFilter === 'without-sample' && hasFrame) {
+                return false;
+            }
+
+            if (!normalizedSearch) {
+                return true;
+            }
+
+            const searchableText = [
+                group.frame?.nama_target,
+                group.frame?.nama_frame,
+                group.frame?.nama_usaha_penggilingan,
+                ...group.rows.flatMap((row) => [
+                    row.alokasi.petugas.nama,
+                    peranLabels[row.alokasi.peran] || row.alokasi.peran,
+                    row.alokasi.petugas.jenis_petugas,
+                    row.frame?.nama_target,
+                    row.frame?.nama_frame,
+                    row.frame?.nama_usaha_penggilingan,
+                    ...frameDetailColumns.map((column) =>
+                        column.getValue(row.frame),
+                    ),
+                ]),
+            ]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
+
+            return searchableText.includes(normalizedSearch);
+        });
+    }, [
+        detailPeranFilter,
+        detailSampleFilter,
+        detailSearch,
+        frameDetailColumns,
+        groupedFrameRows,
+    ]);
+
+    const filteredDetailTotals = useMemo(() => {
+        return filteredGroupedFrameRows.reduce(
+            (totals, group) => {
+                const groupTotal = group.rows.reduce((rowSum, row) => {
+                    const rateHonor = resolveRateHonorForAlokasi(
+                        row.alokasi,
+                        rateHonors,
+                    );
+                    const target = group.frame
+                        ? formatFrameTarget(group.frame) || 1
+                        : Number(row.alokasi.jumlah_satuan || 0);
+                    const hargaSatuan =
+                        group.frame?.tahapan === 'listing'
+                            ? rateHonor?.rate_listing ||
+                              rateHonor?.rate ||
+                              row.alokasi.rate_listing ||
+                              row.alokasi.rate_pencacahan ||
+                              0
+                            : rateHonor?.rate ||
+                              rateHonor?.rate_listing ||
+                              row.alokasi.rate_pencacahan ||
+                              row.alokasi.rate_listing ||
+                              0;
+                    const honor = group.frame
+                        ? hargaSatuan * target
+                        : rateHonor?.rate ||
+                          Number(row.alokasi.total_honor || 0);
+
+                    return rowSum + honor;
+                }, 0);
+
+                if (group.frame?.tahapan === 'listing') {
+                    totals.listing += groupTotal;
+                } else {
+                    totals.pencacahan += groupTotal;
+                }
+
+                totals.total += groupTotal;
+
+                return totals;
+            },
+            { total: 0, pencacahan: 0, listing: 0 },
+        );
+    }, [filteredGroupedFrameRows, rateHonors]);
+
+    const totalDetailPages = Math.max(
+        1,
+        Math.ceil(filteredGroupedFrameRows.length / detailRowsPerPage),
+    );
+
+    const detailCurrentPageSafe = Math.min(detailCurrentPage, totalDetailPages);
+
+    const paginatedGroupedFrameRows = useMemo(() => {
+        const startIndex = (detailCurrentPageSafe - 1) * detailRowsPerPage;
+
+        return filteredGroupedFrameRows.slice(
+            startIndex,
+            startIndex + detailRowsPerPage,
+        );
+    }, [detailCurrentPageSafe, detailRowsPerPage, filteredGroupedFrameRows]);
+
+    const detailTableStartIndex =
+        (detailCurrentPageSafe - 1) * detailRowsPerPage;
+
+    const totalAlokasiPages = Math.max(
+        1,
+        Math.ceil(periode.alokasi_petugas.length / alokasiRowsPerPage),
+    );
+
+    const alokasiCurrentPageSafe = Math.min(
+        alokasiCurrentPage,
+        totalAlokasiPages,
+    );
+
+    const paginatedAlokasiPetugas = useMemo(() => {
+        const startIndex = (alokasiCurrentPageSafe - 1) * alokasiRowsPerPage;
+
+        return periode.alokasi_petugas.slice(
+            startIndex,
+            startIndex + alokasiRowsPerPage,
+        );
+    }, [alokasiCurrentPageSafe, alokasiRowsPerPage, periode.alokasi_petugas]);
+
+    const alokasiTableStartIndex =
+        (alokasiCurrentPageSafe - 1) * alokasiRowsPerPage;
+
     const handleEditToggle = () => {
         if (!canEditNonResponse) {
             return;
@@ -1455,6 +1638,101 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                             )}
                         </div>
 
+                        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-neutral-500 dark:text-neutral-400">
+                            <span>
+                                Menampilkan{' '}
+                                {periode.alokasi_petugas.length === 0
+                                    ? 0
+                                    : alokasiTableStartIndex + 1}{' '}
+                                -{' '}
+                                {Math.min(
+                                    alokasiTableStartIndex + alokasiRowsPerPage,
+                                    periode.alokasi_petugas.length,
+                                )}{' '}
+                                dari {periode.alokasi_petugas.length} petugas
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <Label className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
+                                    Baris per halaman
+                                </Label>
+                                <Select
+                                    value={String(alokasiRowsPerPage)}
+                                    onValueChange={(value) => {
+                                        setAlokasiRowsPerPage(Number(value));
+                                        setAlokasiCurrentPage(1);
+                                    }}
+                                >
+                                    <SelectTrigger className="h-9 w-[88px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="25">25</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setAlokasiCurrentPage(1)}
+                                    disabled={alokasiCurrentPageSafe === 1}
+                                >
+                                    Awal
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setAlokasiCurrentPage((page) =>
+                                            Math.max(1, page - 1),
+                                        )
+                                    }
+                                    disabled={alokasiCurrentPageSafe === 1}
+                                >
+                                    Sebelumnya
+                                </Button>
+                                <span className="rounded-full border border-neutral-200 px-3 py-1 text-xs font-medium text-neutral-700 dark:border-neutral-800 dark:text-neutral-300">
+                                    Halaman {alokasiCurrentPageSafe} dari{' '}
+                                    {totalAlokasiPages}
+                                </span>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setAlokasiCurrentPage((page) =>
+                                            Math.min(
+                                                totalAlokasiPages,
+                                                page + 1,
+                                            ),
+                                        )
+                                    }
+                                    disabled={
+                                        alokasiCurrentPageSafe ===
+                                        totalAlokasiPages
+                                    }
+                                >
+                                    Berikutnya
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setAlokasiCurrentPage(totalAlokasiPages)
+                                    }
+                                    disabled={
+                                        alokasiCurrentPageSafe ===
+                                        totalAlokasiPages
+                                    }
+                                >
+                                    Akhir
+                                </Button>
+                            </div>
+                        </div>
+
                         <div className="w-full overflow-x-auto">
                             <table className="w-full min-w-[980px] text-left text-sm">
                                 <thead className="bg-neutral-100 dark:bg-neutral-900">
@@ -1491,7 +1769,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                    {periode.alokasi_petugas.map(
+                                    {paginatedAlokasiPetugas.map(
                                         (alokasi, index) => (
                                             <>
                                                 {/* Listing Row - only if has_listing_updating and has listing data */}
@@ -1503,7 +1781,9 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                             className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                                         >
                                                             <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
-                                                                {index + 1}
+                                                                {alokasiTableStartIndex +
+                                                                    index +
+                                                                    1}
                                                             </td>
                                                             <td className="px-3 py-3">
                                                                 <div className="font-medium break-words text-neutral-900 dark:text-white">
@@ -1607,7 +1887,9 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                         className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                                     >
                                                         <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
-                                                            {index + 1}
+                                                            {alokasiTableStartIndex +
+                                                                index +
+                                                                1}
                                                         </td>
                                                         <td className="px-3 py-3">
                                                             <div className="font-medium break-words text-neutral-900 dark:text-white">
@@ -1815,6 +2097,198 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                             )}
                         </div>
 
+                        <div className="grid gap-4 rounded-2xl border border-neutral-200 bg-neutral-50/80 p-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.7fr)] dark:border-neutral-800 dark:bg-neutral-900/40">
+                            <div className="space-y-2">
+                                <Label
+                                    htmlFor="detail-search"
+                                    className="text-sm font-semibold text-neutral-700 dark:text-neutral-300"
+                                >
+                                    Cari detail
+                                </Label>
+                                <div className="relative">
+                                    <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+                                    <Input
+                                        id="detail-search"
+                                        value={detailSearch}
+                                        onChange={(e) => {
+                                            setDetailSearch(e.target.value);
+                                            setDetailCurrentPage(1);
+                                        }}
+                                        placeholder="Cari petugas, peran, atau metadata sampel..."
+                                        className="pl-9"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                                    Filter peran
+                                </Label>
+                                <Select
+                                    value={detailPeranFilter}
+                                    onValueChange={(value) => {
+                                        setDetailPeranFilter(value);
+                                        setDetailCurrentPage(1);
+                                    }}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Semua peran" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            Semua peran
+                                        </SelectItem>
+                                        {detailPeranOptions.map((option) => (
+                                            <SelectItem
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                                    Filter sampel
+                                </Label>
+                                <Select
+                                    value={detailSampleFilter}
+                                    onValueChange={(value) => {
+                                        setDetailSampleFilter(value);
+                                        setDetailCurrentPage(1);
+                                    }}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Semua data" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            Semua data
+                                        </SelectItem>
+                                        <SelectItem value="with-sample">
+                                            Dengan sampel
+                                        </SelectItem>
+                                        <SelectItem value="without-sample">
+                                            Tanpa sampel
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="flex flex-col justify-end gap-2">
+                                <Label className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                                    Baris per halaman
+                                </Label>
+                                <Select
+                                    value={String(detailRowsPerPage)}
+                                    onValueChange={(value) => {
+                                        setDetailRowsPerPage(Number(value));
+                                        setDetailCurrentPage(1);
+                                    }}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="10">10</SelectItem>
+                                        <SelectItem value="25">25</SelectItem>
+                                        <SelectItem value="50">50</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setDetailSearch('');
+                                        setDetailPeranFilter('all');
+                                        setDetailSampleFilter('all');
+                                        setDetailCurrentPage(1);
+                                    }}
+                                >
+                                    Reset Filter
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-neutral-500 dark:text-neutral-400">
+                            <span>
+                                Menampilkan{' '}
+                                {filteredGroupedFrameRows.length === 0
+                                    ? 0
+                                    : detailTableStartIndex + 1}{' '}
+                                -{' '}
+                                {Math.min(
+                                    detailTableStartIndex + detailRowsPerPage,
+                                    filteredGroupedFrameRows.length,
+                                )}{' '}
+                                dari {filteredGroupedFrameRows.length} grup
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setDetailCurrentPage(1)}
+                                    disabled={detailCurrentPageSafe === 1}
+                                >
+                                    Awal
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setDetailCurrentPage((page) =>
+                                            Math.max(1, page - 1),
+                                        )
+                                    }
+                                    disabled={detailCurrentPageSafe === 1}
+                                >
+                                    Sebelumnya
+                                </Button>
+                                <span className="rounded-full border border-neutral-200 px-3 py-1 text-xs font-medium text-neutral-700 dark:border-neutral-800 dark:text-neutral-300">
+                                    Halaman {detailCurrentPageSafe} dari{' '}
+                                    {totalDetailPages}
+                                </span>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setDetailCurrentPage((page) =>
+                                            Math.min(
+                                                totalDetailPages,
+                                                page + 1,
+                                            ),
+                                        )
+                                    }
+                                    disabled={
+                                        detailCurrentPageSafe ===
+                                        totalDetailPages
+                                    }
+                                >
+                                    Berikutnya
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setDetailCurrentPage(totalDetailPages)
+                                    }
+                                    disabled={
+                                        detailCurrentPageSafe ===
+                                        totalDetailPages
+                                    }
+                                >
+                                    Akhir
+                                </Button>
+                            </div>
+                        </div>
+
                         <div className="w-full overflow-x-auto">
                             <table className="w-full min-w-[1280px] text-left text-sm">
                                 <thead className="bg-neutral-100 dark:bg-neutral-900">
@@ -1850,206 +2324,265 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                    {groupedFrameRows.map((group, index) => {
-                                        const primaryRow = group.rows[0];
-                                        const frame = group.frame;
-                                        const target = frame
-                                            ? formatFrameTarget(frame) || 1
-                                            : Number(
-                                                  primaryRow.alokasi
-                                                      .jumlah_satuan || 0,
-                                              );
-                                        const realisasi = frame
-                                            ? target
-                                            : group.rows.reduce(
-                                                  (sum, row) =>
-                                                      sum +
-                                                      Number(
-                                                          row.alokasi
-                                                              .jumlah_satuan_dibayarkan ??
-                                                              row.alokasi
-                                                                  .jumlah_satuan ??
-                                                              0,
-                                                      ),
-                                                  0,
-                                              );
-                                        const petugasList =
-                                            summarizeGroupPetugas(group);
-                                        const selectedNonResponseCount =
-                                            group.rows.reduce((sum, row) => {
-                                                if (!row.frame) {
-                                                    return sum;
+                                    {paginatedGroupedFrameRows.length === 0 ? (
+                                        <tr>
+                                            <td
+                                                colSpan={
+                                                    frameDetailColumns.length +
+                                                    5 +
+                                                    (hasNonResponseColumn
+                                                        ? 1
+                                                        : 0)
                                                 }
+                                                className="px-3 py-10 text-center text-sm text-neutral-500 dark:text-neutral-400"
+                                            >
+                                                Tidak ada data yang cocok dengan
+                                                pencarian atau filter saat ini.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        paginatedGroupedFrameRows.map(
+                                            (group, index) => {
+                                                const primaryRow =
+                                                    group.rows[0];
+                                                const frame = group.frame;
+                                                const target = frame
+                                                    ? formatFrameTarget(
+                                                          frame,
+                                                      ) || 1
+                                                    : Number(
+                                                          primaryRow.alokasi
+                                                              .jumlah_satuan ||
+                                                              0,
+                                                      );
+                                                const realisasi = frame
+                                                    ? target
+                                                    : group.rows.reduce(
+                                                          (sum, row) =>
+                                                              sum +
+                                                              Number(
+                                                                  row.alokasi
+                                                                      .jumlah_satuan_dibayarkan ??
+                                                                      row
+                                                                          .alokasi
+                                                                          .jumlah_satuan ??
+                                                                      0,
+                                                              ),
+                                                          0,
+                                                      );
+                                                const petugasList =
+                                                    summarizeGroupPetugas(
+                                                        group,
+                                                    );
+                                                const selectedNonResponseCount =
+                                                    group.rows.reduce(
+                                                        (sum, row) => {
+                                                            if (!row.frame) {
+                                                                return sum;
+                                                            }
 
-                                                const isSelected = (
-                                                    nonResponseSelections[
-                                                        row.alokasi.id
-                                                    ] || []
-                                                ).includes(
-                                                    row.frame
-                                                        .frame_allocation_id,
-                                                );
+                                                            const isSelected = (
+                                                                nonResponseSelections[
+                                                                    row.alokasi
+                                                                        .id
+                                                                ] || []
+                                                            ).includes(
+                                                                row.frame
+                                                                    .frame_allocation_id,
+                                                            );
+
+                                                            return (
+                                                                sum +
+                                                                (isSelected
+                                                                    ? 1
+                                                                    : 0)
+                                                            );
+                                                        },
+                                                        0,
+                                                    );
 
                                                 return (
-                                                    sum + (isSelected ? 1 : 0)
-                                                );
-                                            }, 0);
-
-                                        return (
-                                            <tr
-                                                key={group.key}
-                                                className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
-                                            >
-                                                <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
-                                                    {index + 1}
-                                                </td>
-                                                <td className="px-3 py-3 align-top">
-                                                    <div className="flex flex-col gap-1.5">
-                                                        {petugasList.map(
-                                                            (petugas) => (
-                                                                <div
-                                                                    key={
-                                                                        petugas.key
-                                                                    }
-                                                                    className="rounded-md border border-neutral-200/60 bg-white/50 px-2.5 py-1.5 dark:border-neutral-800/60 dark:bg-neutral-950/35"
+                                                    <tr
+                                                        key={group.key}
+                                                        className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
+                                                    >
+                                                        <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
+                                                            {index + 1}
+                                                        </td>
+                                                        <td className="px-3 py-3 align-top">
+                                                            <div className="flex flex-col gap-1.5">
+                                                                {petugasList.map(
+                                                                    (
+                                                                        petugas,
+                                                                    ) => (
+                                                                        <div
+                                                                            key={
+                                                                                petugas.key
+                                                                            }
+                                                                            className="rounded-md border border-neutral-200/60 bg-white/50 px-2.5 py-1.5 dark:border-neutral-800/60 dark:bg-neutral-950/35"
+                                                                        >
+                                                                            <div className="flex flex-wrap items-center gap-1.5">
+                                                                                <span className="rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                                                                                    {
+                                                                                        petugas.peran
+                                                                                    }
+                                                                                </span>
+                                                                                <span className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400">
+                                                                                    {
+                                                                                        petugas.jenisPetugas
+                                                                                    }
+                                                                                </span>
+                                                                            </div>
+                                                                            <div className="mt-0.5 text-sm leading-tight font-medium break-words text-neutral-900 dark:text-white">
+                                                                                {
+                                                                                    petugas.label
+                                                                                }
+                                                                            </div>
+                                                                        </div>
+                                                                    ),
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        {frameDetailColumns.map(
+                                                            (column) => (
+                                                                <td
+                                                                    key={`${group.key}-${column.key}`}
+                                                                    className="px-3 py-3 align-top whitespace-nowrap text-neutral-900 dark:text-white"
                                                                 >
-                                                                    <div className="flex flex-wrap items-center gap-1.5">
-                                                                        <span className="rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-                                                                            {
-                                                                                petugas.peran
-                                                                            }
-                                                                        </span>
-                                                                        <span className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400">
-                                                                            {
-                                                                                petugas.jenisPetugas
-                                                                            }
-                                                                        </span>
-                                                                    </div>
-                                                                    <div className="mt-0.5 text-sm leading-tight font-medium break-words text-neutral-900 dark:text-white">
-                                                                        {
-                                                                            petugas.label
-                                                                        }
-                                                                    </div>
-                                                                </div>
+                                                                    {column.getValue(
+                                                                        frame,
+                                                                    )}
+                                                                </td>
                                                             ),
                                                         )}
-                                                    </div>
-                                                </td>
-                                                {frameDetailColumns.map(
-                                                    (column) => (
-                                                        <td
-                                                            key={`${group.key}-${column.key}`}
-                                                            className="px-3 py-3 align-top whitespace-nowrap text-neutral-900 dark:text-white"
-                                                        >
-                                                            {column.getValue(
-                                                                frame,
-                                                            )}
+                                                        <td className="px-3 py-3 text-right align-top whitespace-nowrap text-neutral-900 dark:text-white">
+                                                            {target}
                                                         </td>
-                                                    ),
-                                                )}
-                                                <td className="px-3 py-3 text-right align-top whitespace-nowrap text-neutral-900 dark:text-white">
-                                                    {target}
-                                                </td>
-                                                <td className="px-3 py-3 text-right align-top whitespace-nowrap text-neutral-900 dark:text-white">
-                                                    {realisasi}
-                                                </td>
-                                                {hasNonResponseColumn && (
-                                                    <td className="px-3 py-3 text-right align-top whitespace-nowrap">
-                                                        {isEditMode && frame ? (
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={
-                                                                    selectedNonResponseCount >
-                                                                        0 &&
-                                                                    selectedNonResponseCount ===
-                                                                        group.rows.filter(
+                                                        <td className="px-3 py-3 text-right align-top whitespace-nowrap text-neutral-900 dark:text-white">
+                                                            {realisasi}
+                                                        </td>
+                                                        {hasNonResponseColumn && (
+                                                            <td className="px-3 py-3 text-right align-top whitespace-nowrap">
+                                                                {isEditMode &&
+                                                                frame ? (
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={
+                                                                            selectedNonResponseCount >
+                                                                                0 &&
+                                                                            selectedNonResponseCount ===
+                                                                                group.rows.filter(
+                                                                                    (
+                                                                                        row,
+                                                                                    ) =>
+                                                                                        row.frame,
+                                                                                )
+                                                                                    .length
+                                                                        }
+                                                                        onChange={(
+                                                                            e,
+                                                                        ) => {
+                                                                            group.rows.forEach(
+                                                                                (
+                                                                                    row,
+                                                                                ) => {
+                                                                                    if (
+                                                                                        !row.frame
+                                                                                    ) {
+                                                                                        return;
+                                                                                    }
+
+                                                                                    toggleNonResponseSelection(
+                                                                                        row
+                                                                                            .alokasi
+                                                                                            .id,
+                                                                                        row
+                                                                                            .frame
+                                                                                            .frame_allocation_id,
+                                                                                        e
+                                                                                            .target
+                                                                                            .checked,
+                                                                                    );
+                                                                                },
+                                                                            );
+                                                                        }}
+                                                                        disabled={group.rows.every(
                                                                             (
                                                                                 row,
                                                                             ) =>
-                                                                                row.frame,
-                                                                        ).length
-                                                                }
-                                                                onChange={(
-                                                                    e,
-                                                                ) => {
-                                                                    group.rows.forEach(
-                                                                        (
-                                                                            row,
-                                                                        ) => {
-                                                                            if (
-                                                                                !row.frame
-                                                                            ) {
-                                                                                return;
-                                                                            }
-
-                                                                            toggleNonResponseSelection(
                                                                                 row
                                                                                     .alokasi
-                                                                                    .id,
+                                                                                    .peran ===
+                                                                                    'pengolahan' ||
                                                                                 row
-                                                                                    .frame
-                                                                                    .frame_allocation_id,
-                                                                                e
-                                                                                    .target
-                                                                                    .checked,
-                                                                            );
-                                                                        },
-                                                                    );
-                                                                }}
-                                                                disabled={group.rows.every(
-                                                                    (row) =>
-                                                                        row
-                                                                            .alokasi
-                                                                            .peran ===
-                                                                            'pengolahan' ||
-                                                                        row
-                                                                            .alokasi
-                                                                            .peran ===
-                                                                            'pengawas_pengolahan',
+                                                                                    .alokasi
+                                                                                    .peran ===
+                                                                                    'pengawas_pengolahan',
+                                                                        )}
+                                                                        className="h-4 w-4 rounded border-neutral-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
+                                                                    />
+                                                                ) : (
+                                                                    <span className="text-neutral-900 dark:text-white">
+                                                                        {frame
+                                                                            ? selectedNonResponseCount
+                                                                            : '-'}
+                                                                    </span>
                                                                 )}
-                                                                className="h-4 w-4 rounded border-neutral-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
-                                                            />
-                                                        ) : (
-                                                            <span className="text-neutral-900 dark:text-white">
-                                                                {frame
-                                                                    ? selectedNonResponseCount
-                                                                    : '-'}
-                                                            </span>
+                                                            </td>
                                                         )}
-                                                    </td>
-                                                )}
-                                                <td className="px-3 py-3 text-right align-top whitespace-nowrap">
-                                                    {frame &&
-                                                    canReplaceSamples ? (
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={() =>
-                                                                openReplacementDialog(
-                                                                    primaryRow
-                                                                        .alokasi
-                                                                        .id,
-                                                                    primaryRow
-                                                                        .alokasi
-                                                                        .peran,
-                                                                    frame.frame_allocation_id,
-                                                                    frame,
-                                                                )
-                                                            }
-                                                        >
-                                                            Ganti Sampel
-                                                        </Button>
-                                                    ) : (
-                                                        <span className="text-xs text-neutral-400">
-                                                            -
-                                                        </span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
+                                                        <td className="px-3 py-3 text-right align-top whitespace-nowrap">
+                                                            {frame &&
+                                                            canReplaceSamples ? (
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() =>
+                                                                        openReplacementDialog(
+                                                                            primaryRow
+                                                                                .alokasi
+                                                                                .id,
+                                                                            primaryRow
+                                                                                .alokasi
+                                                                                .peran,
+                                                                            frame.frame_allocation_id,
+                                                                            frame,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Ganti Sampel
+                                                                </Button>
+                                                            ) : (
+                                                                <span className="text-xs text-neutral-400">
+                                                                    -
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            },
+                                        )
+                                    )}
                                 </tbody>
+                                <tfoot className="bg-neutral-100 dark:bg-neutral-900">
+                                    <tr>
+                                        <td
+                                            colSpan={
+                                                frameDetailColumns.length +
+                                                4 +
+                                                (hasNonResponseColumn ? 1 : 0)
+                                            }
+                                            className="px-3 py-3 text-right text-sm font-semibold whitespace-nowrap text-neutral-600 dark:text-neutral-400"
+                                        >
+                                            Total estimasi honor (hasil filter):
+                                        </td>
+                                        <td className="px-3 py-3 text-right text-lg font-bold whitespace-nowrap text-green-600 dark:text-green-400">
+                                            {formatCurrency(
+                                                filteredDetailTotals.total,
+                                            )}
+                                        </td>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
 

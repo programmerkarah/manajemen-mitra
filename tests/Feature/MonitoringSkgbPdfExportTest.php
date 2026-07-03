@@ -132,6 +132,8 @@ class MonitoringSkgbPdfExportTest extends TestCase
         $this->assertSame('Kepala BPS Kota Sawahlunto', $reportData['kepala_nama']);
         $this->assertSame('08 Juni 2026', $reportData['tanggal_pengesahan']);
         $metadataLabels = array_column($reportData['frame_metadata_columns'], 'label');
+        $metadataCodes = array_column($reportData['frame_metadata_columns'], 'code');
+        $this->assertSame(['kode_kecamatan', 'kode_desa'], array_slice($metadataCodes, 0, 2));
         $this->assertSame(1, array_count_values($metadataLabels)['Kecamatan'] ?? 0);
         $this->assertSame(1, array_count_values($metadataLabels)['Desa/Kelurahan'] ?? 0);
         $this->assertFalse(in_array('Nama Usaha', $metadataLabels, true));

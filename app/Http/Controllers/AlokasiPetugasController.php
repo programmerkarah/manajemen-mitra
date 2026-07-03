@@ -5292,7 +5292,6 @@ class AlokasiPetugasController extends Controller
      */
     private function extractFrameSampelMetadataColumns(Collection $frameRows): array
     {
-        $preferredOrder = ['kdkec', 'kddes', 'kdsls', 'kdsubsls', 'idsegmen', 'kdsegmen'];
         $directColumns = [
             'kode_kecamatan' => 'Kecamatan',
             'kode_desa' => 'Desa/Kelurahan',
@@ -5357,12 +5356,21 @@ class AlokasiPetugasController extends Controller
             }
         }
 
-        usort($columns, static function (array $left, array $right) use ($preferredOrder): int {
-            $leftIndex = array_search(Str::lower((string) $left['code']), $preferredOrder, true);
-            $rightIndex = array_search(Str::lower((string) $right['code']), $preferredOrder, true);
+        $getOrderWeight = static function (string $code): int {
+            return match (Str::lower(trim($code))) {
+                'kdkec', 'kode_kecamatan' => 0,
+                'kddes', 'kode_desa' => 1,
+                'kdsls', 'kode_sls' => 2,
+                'kdsubsls', 'kode_sub_sls' => 3,
+                'idsegmen', 'kdsegmen', 'kode_segmen' => 4,
+                'nama_target', 'nama_frame', 'nama_usaha_penggilingan' => 5,
+                default => 100,
+            };
+        };
 
-            $leftOrder = $leftIndex === false ? 999 : $leftIndex;
-            $rightOrder = $rightIndex === false ? 999 : $rightIndex;
+        usort($columns, static function (array $left, array $right) use ($getOrderWeight): int {
+            $leftOrder = $getOrderWeight((string) $left['code']);
+            $rightOrder = $getOrderWeight((string) $right['code']);
 
             if ($leftOrder === $rightOrder) {
                 return strcmp((string) $left['code'], (string) $right['code']);
