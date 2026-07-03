@@ -294,6 +294,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::get('system-settings', [SystemSettingsController::class, 'index'])->name('admin.system-settings');
         Route::post('system-settings/maintenance', [SystemSettingsController::class, 'updateMaintenance'])->name('admin.system-settings.maintenance');
         Route::post('system-settings/sso-sync', [SystemSettingsController::class, 'updateSsoSync'])->name('admin.system-settings.sso-sync');
+        Route::post('system-settings/feature-toggle', [SystemSettingsController::class, 'updateFeatureToggle'])->name('admin.system-settings.feature-toggle');
         Route::match(['get', 'post'], 'activity-log', [SystemSettingsController::class, 'activityLog'])->name('admin.activity-log');
         Route::get('activity-log/export', [SystemSettingsController::class, 'exportActivityLog'])->name('admin.activity-log.export');
         Route::get('database-status', [SystemSettingsController::class, 'databaseStatus'])->name('admin.database-status');
@@ -405,6 +406,13 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
                 'tahun' => '[0-9]{4}',
                 'bulan' => '[0-9]{1,2}',
             ]);
+        Route::get('alokasi/periode/{kegiatan}/{tahun}/{bulan}/export-monitoring-skgb', [AlokasiPetugasController::class, 'exportMonitoringSkgbPdf'])
+            ->name('alokasi.periode.export-monitoring-skgb')
+            ->where([
+                'kegiatan' => '[A-Za-z0-9]+',
+                'tahun' => '[0-9]{4}',
+                'bulan' => '[0-9]{1,2}',
+            ]);
     });
 
     // Alokasi modification routes (Admin, Operator, Ketua Tim only)
@@ -468,6 +476,9 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('alokasi/periode/{periodeAlokasiId}/import', [AlokasiPetugasController::class, 'import'])
             ->name('alokasi.import')
             ->where('periodeAlokasiId', '[0-9]+');
+        Route::patch('alokasi/frame-sampel/{frameAllocation}/replace', [AlokasiPetugasController::class, 'replaceFrameSampel'])
+            ->name('alokasi.frame-sampel.replace')
+            ->where('frameAllocation', '[0-9]+');
         Route::post('alokasi/periode/{kegiatan}/{tahun}/{bulan}/kembalikan-draft', [AlokasiPetugasController::class, 'kembalikanKeDraft'])
             ->name('alokasi.periode.kembalikan-draft')
             ->where([

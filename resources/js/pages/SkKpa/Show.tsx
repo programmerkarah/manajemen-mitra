@@ -16,14 +16,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { openFastDownload } from '@/utils/downloadUtils';
 import { Head, Link, useForm } from '@inertiajs/react';
-import {
-    ArrowLeft,
-    Check,
-    Download,
-    FileText,
-    Upload,
-    User,
-} from 'lucide-react';
+import { ArrowLeft, Check, Download, FileText, Upload } from 'lucide-react';
 import { useState } from 'react';
 
 interface SkKpa {
@@ -129,11 +122,12 @@ export default function Show({ skKpa, kegiatan, sk_history }: ShowProps) {
             onSuccess: () => {
                 setData('signed_file', null);
                 setIsUploading(false);
-                // Reset file input
                 const fileInput = document.getElementById(
                     'signed_file',
                 ) as HTMLInputElement;
-                if (fileInput) fileInput.value = '';
+                if (fileInput) {
+                    fileInput.value = '';
+                }
             },
             onError: () => {
                 setIsUploading(false);
@@ -173,8 +167,15 @@ export default function Show({ skKpa, kegiatan, sk_history }: ShowProps) {
             'November',
             'Desember',
         ];
+
         return months[bulan - 1] || bulan;
     };
+
+    const documentStatusBadge = skKpa.is_signed ? (
+        <Badge variant="default">Sudah Bertanda Tangan</Badge>
+    ) : (
+        getStatusBadge(skKpa.status)
+    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -223,325 +224,269 @@ export default function Show({ skKpa, kegiatan, sk_history }: ShowProps) {
                 </div>
             </PageHeader>
 
-            <div className="w-full" style={{ maxWidth: '84vw' }}>
-                <div className="max-w-full overflow-hidden">
-                    <div className="grid gap-6 md:grid-cols-3">
-                        {/* Main Content - SK Details */}
-                        <div className="min-w-0 space-y-6 md:col-span-2">
-                            <ContentCard>
-                                <div className="space-y-6">
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                                Informasi SK
-                                            </h3>
-                                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                                Detail surat keputusan petugas
-                                                kegiatan
-                                            </p>
-                                        </div>
-                                        {getStatusBadge(skKpa.status)}
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        <div>
-                                            <Label className="text-neutral-600 dark:text-neutral-400">
-                                                Nomor SK
-                                            </Label>
-                                            <p className="font-medium text-neutral-900 dark:text-white">
-                                                {skKpa.nomor_sk}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <Label className="text-neutral-600 dark:text-neutral-400">
-                                                Tanggal SK
-                                            </Label>
-                                            <p className="font-medium text-neutral-900 dark:text-white">
-                                                {skKpa.tanggal_sk}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <Label className="text-neutral-600 dark:text-neutral-400">
-                                                Periode
-                                            </Label>
-                                            <p className="font-medium text-neutral-900 dark:text-white">
-                                                {getBulanName(skKpa.bulan)}{' '}
-                                                {skKpa.tahun}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <Label className="text-neutral-600 dark:text-neutral-400">
-                                                Nama KPA
-                                            </Label>
-                                            <p className="font-medium text-neutral-900 dark:text-white">
-                                                {skKpa.nama_kpa}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <Label className="text-neutral-600 dark:text-neutral-400">
-                                                Perihal
-                                            </Label>
-                                            <p className="font-medium break-words text-neutral-900 dark:text-white">
-                                                {skKpa.perihal}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <Label className="text-neutral-600 dark:text-neutral-400">
-                                                Kegiatan
-                                            </Label>
-                                            <p className="font-medium break-words text-neutral-900 dark:text-white">
-                                                {kegiatan.nama_kegiatan}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label className="text-neutral-600 dark:text-neutral-400">
-                                            Dasar Hukum
-                                        </Label>
-                                        <ul className="mt-2 space-y-2">
-                                            {skKpa.dasar_hukum.map(
-                                                (dh, index) => (
-                                                    <li
-                                                        key={index}
-                                                        className="grid gap-2 text-sm text-neutral-900 dark:text-white"
-                                                        style={{
-                                                            gridTemplateColumns:
-                                                                'auto 1fr',
-                                                        }}
-                                                    >
-                                                        <span className="text-neutral-600 dark:text-neutral-400">
-                                                            {index + 1}.
-                                                        </span>
-                                                        <span
-                                                            style={{
-                                                                wordBreak:
-                                                                    'break-word',
-                                                                overflowWrap:
-                                                                    'break-word',
-                                                            }}
-                                                        >
-                                                            {dh}
-                                                        </span>
-                                                    </li>
-                                                ),
-                                            )}
-                                        </ul>
-                                    </div>
-
-                                    <div className="border-t border-neutral-200 pt-4 dark:border-neutral-800">
-                                        <div className="flex flex-wrap items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
-                                            <User className="h-4 w-4 flex-shrink-0" />
-                                            <span className="break-words">
-                                                Dibuat oleh {skKpa.created_by}{' '}
-                                                pada {skKpa.created_at}
-                                            </span>
-                                        </div>
-                                        {skKpa.is_signed && (
-                                            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-green-600 dark:text-green-400">
-                                                <Check className="h-4 w-4 flex-shrink-0" />
-                                                <span className="break-words">
-                                                    Ditandatangani oleh{' '}
-                                                    {skKpa.signed_by} pada{' '}
-                                                    {skKpa.signed_at}
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </ContentCard>
-
-                            {/* Download SK */}
-                            <ContentCard>
-                                <div className="space-y-4">
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                            Download SK
-                                        </h3>
-                                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                            Unduh dokumen SK dalam format PDF
-                                        </p>
-                                    </div>
-
-                                    <div className="space-y-3">
-                                        {/* SK yang sudah ditandatangani (prioritas) */}
-                                        {skKpa.is_signed &&
-                                            skKpa.signed_file_path && (
-                                                <Button
-                                                    onClick={() =>
-                                                        handleDownload(
-                                                            skKpa.signed_file_path!,
-                                                        )
-                                                    }
-                                                    className="w-full justify-start"
-                                                    variant="complete"
-                                                >
-                                                    <Check className="mr-2 h-4 w-4" />
-                                                    Unduh SK Bertanda Tangan
-                                                </Button>
-                                            )}
-
-                                        {/* SK asli (tanpa tanda tangan) */}
-                                        <Button
-                                            onClick={() =>
-                                                handleDownload(skKpa.file_path)
-                                            }
-                                            className="w-full justify-start"
-                                            variant={
-                                                skKpa.is_signed
-                                                    ? 'outline'
-                                                    : 'default'
-                                            }
-                                        >
-                                            <Download className="mr-2 h-4 w-4" />
-                                            Unduh SK Hasil <em>Generate</em>{' '}
-                                            (Belum Bertanda Tangan)
-                                        </Button>
-                                    </div>
-                                </div>
-                            </ContentCard>
-
-                            {/* Upload SK Bertanda Tangan */}
-                            <ContentCard>
-                                <form
-                                    onSubmit={handleUpload}
-                                    className="space-y-4"
-                                >
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                            Upload SK Bertanda Tangan
-                                        </h3>
-                                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                            Upload SK yang sudah ditandatangani
-                                            (format PDF, max 10MB)
-                                        </p>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label htmlFor="signed_file">
-                                            File SK Bertanda Tangan
-                                        </Label>
-                                        <Input
-                                            id="signed_file"
-                                            type="file"
-                                            accept=".pdf"
-                                            onChange={handleFileChange}
-                                            disabled={isUploading}
-                                        />
-                                        {errors.signed_file && (
-                                            <p className="text-sm text-red-500">
-                                                {errors.signed_file}
-                                            </p>
-                                        )}
-                                        {data.signed_file && (
-                                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                                File: {data.signed_file.name} (
-                                                {Math.round(
-                                                    data.signed_file.size /
-                                                        1024,
-                                                )}{' '}
-                                                KB)
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    <Button
-                                        type="submit"
-                                        disabled={
-                                            !data.signed_file || isUploading
-                                        }
-                                        className="w-full"
-                                    >
-                                        <Upload className="mr-2 h-4 w-4" />
-                                        {isUploading
-                                            ? 'Uploading...'
-                                            : 'Upload SK'}
-                                    </Button>
-                                </form>
-                            </ContentCard>
+            <div className="w-full space-y-4">
+                <ContentCard>
+                    <div className="space-y-6">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                    Informasi SK
+                                </h3>
+                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    Detail surat keputusan petugas kegiatan
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                {documentStatusBadge}
+                                <Badge variant="outline">
+                                    {getBulanName(skKpa.bulan)} {skKpa.tahun}
+                                </Badge>
+                            </div>
                         </div>
 
-                        {/* Sidebar - History */}
-                        <div className="min-w-0 space-y-6">
-                            <ContentCard>
-                                <div className="space-y-4">
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                            Riwayat SK
-                                        </h3>
-                                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                            {sk_history.length} SK untuk
-                                            kegiatan ini
-                                        </p>
-                                    </div>
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                            <div>
+                                <Label className="text-neutral-600 dark:text-neutral-400">
+                                    Nomor SK
+                                </Label>
+                                <p className="mt-1 font-medium text-neutral-900 dark:text-white">
+                                    {skKpa.nomor_sk}
+                                </p>
+                            </div>
+                            <div>
+                                <Label className="text-neutral-600 dark:text-neutral-400">
+                                    Tanggal SK
+                                </Label>
+                                <p className="mt-1 font-medium text-neutral-900 dark:text-white">
+                                    {skKpa.tanggal_sk}
+                                </p>
+                            </div>
+                            <div>
+                                <Label className="text-neutral-600 dark:text-neutral-400">
+                                    Nama KPA
+                                </Label>
+                                <p className="mt-1 font-medium text-neutral-900 dark:text-white">
+                                    {skKpa.nama_kpa}
+                                </p>
+                            </div>
+                            <div>
+                                <Label className="text-neutral-600 dark:text-neutral-400">
+                                    Kegiatan
+                                </Label>
+                                <p className="mt-1 font-medium text-neutral-900 dark:text-white">
+                                    {kegiatan.nama_kegiatan}
+                                </p>
+                            </div>
+                        </div>
 
-                                    <div className="space-y-3">
-                                        {sk_history.map((sk, index) => (
-                                            <div
-                                                key={sk.id}
-                                                className={`rounded-lg border p-3 ${
-                                                    sk.is_current
-                                                        ? 'border-primary bg-primary/5'
-                                                        : 'border-neutral-200 dark:border-neutral-800'
-                                                }`}
-                                            >
-                                                <div className="flex items-start justify-between gap-2">
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="flex items-center gap-2">
-                                                            {sk.is_current && (
+                        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(260px,0.8fr)]">
+                            <div>
+                                <Label className="text-neutral-600 dark:text-neutral-400">
+                                    Perihal
+                                </Label>
+                                <p className="mt-1 leading-6 break-words text-neutral-900 dark:text-white">
+                                    {skKpa.perihal}
+                                </p>
+                            </div>
+
+                            <div>
+                                <Label className="text-neutral-600 dark:text-neutral-400">
+                                    Status Dokumen
+                                </Label>
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                    {documentStatusBadge}
+                                    <Badge variant="outline">
+                                        {sk_history.length} riwayat
+                                    </Badge>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 border-t border-neutral-200 pt-4 dark:border-neutral-800">
+                            {skKpa.is_signed && skKpa.signed_file_path && (
+                                <Button
+                                    onClick={() =>
+                                        handleDownload(skKpa.signed_file_path!)
+                                    }
+                                    className="justify-start gap-2"
+                                    variant="complete"
+                                >
+                                    <Check className="h-4 w-4" />
+                                    Unduh SK Bertanda Tangan
+                                </Button>
+                            )}
+                            <Button
+                                onClick={() => handleDownload(skKpa.file_path)}
+                                className="justify-start gap-2"
+                                variant={
+                                    skKpa.is_signed ? 'outline' : 'default'
+                                }
+                            >
+                                <Download className="h-4 w-4" />
+                                Unduh SK Hasil Generate
+                            </Button>
+                        </div>
+                    </div>
+                </ContentCard>
+
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,1fr)]">
+                    <ContentCard>
+                        <div className="space-y-3">
+                            <div>
+                                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                    Dasar Hukum
+                                </h3>
+                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    Daftar dasar hukum disajikan tanpa banyak
+                                    kotak tambahan agar lebih mudah dibaca.
+                                </p>
+                            </div>
+
+                            <ul className="space-y-2">
+                                {skKpa.dasar_hukum.map((dh, index) => (
+                                    <li
+                                        key={index}
+                                        className="flex gap-3 rounded-2xl border border-neutral-200 bg-neutral-50/60 px-4 py-3 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900/30 dark:text-white"
+                                    >
+                                        <span className="shrink-0 text-neutral-500 dark:text-neutral-400">
+                                            {index + 1}.
+                                        </span>
+                                        <span className="min-w-0 flex-1 leading-6 break-words">
+                                            {dh}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </ContentCard>
+
+                    <div className="space-y-4">
+                        <ContentCard>
+                            <form onSubmit={handleUpload} className="space-y-4">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                        Upload SK Bertanda Tangan
+                                    </h3>
+                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        Upload PDF yang sudah ditandatangani.
+                                    </p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="signed_file">
+                                        File SK Bertanda Tangan
+                                    </Label>
+                                    <Input
+                                        id="signed_file"
+                                        type="file"
+                                        accept=".pdf"
+                                        onChange={handleFileChange}
+                                        disabled={isUploading}
+                                    />
+                                    {errors.signed_file && (
+                                        <p className="text-sm text-red-500">
+                                            {errors.signed_file}
+                                        </p>
+                                    )}
+                                    {data.signed_file && (
+                                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                            {data.signed_file.name} ·{' '}
+                                            {Math.round(
+                                                data.signed_file.size / 1024,
+                                            )}{' '}
+                                            KB
+                                        </p>
+                                    )}
+                                </div>
+
+                                <Button
+                                    type="submit"
+                                    disabled={!data.signed_file || isUploading}
+                                    className="w-full gap-2"
+                                >
+                                    <Upload className="h-4 w-4" />
+                                    {isUploading ? 'Uploading...' : 'Upload'}
+                                </Button>
+                            </form>
+                        </ContentCard>
+
+                        <ContentCard>
+                            <div className="space-y-4">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                        Riwayat SK
+                                    </h3>
+                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        {sk_history.length} SK untuk kegiatan
+                                        ini
+                                    </p>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {sk_history.map((sk, index) => (
+                                        <div
+                                            key={sk.id}
+                                            className={`rounded-lg border p-3 ${
+                                                sk.is_current
+                                                    ? 'border-primary bg-primary/5'
+                                                    : 'border-neutral-200 dark:border-neutral-800'
+                                            }`}
+                                        >
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        {sk.is_current && (
+                                                            <Badge
+                                                                variant="default"
+                                                                className="text-xs"
+                                                            >
+                                                                Saat ini
+                                                            </Badge>
+                                                        )}
+                                                        {index === 0 &&
+                                                            !sk.is_current && (
                                                                 <Badge
-                                                                    variant="default"
+                                                                    variant="secondary"
                                                                     className="text-xs"
                                                                 >
-                                                                    Saat ini
+                                                                    Terbaru
                                                                 </Badge>
                                                             )}
-                                                            {index === 0 &&
-                                                                !sk.is_current && (
-                                                                    <Badge
-                                                                        variant="secondary"
-                                                                        className="text-xs"
-                                                                    >
-                                                                        Terbaru
-                                                                    </Badge>
-                                                                )}
-                                                        </div>
-                                                        <p className="mt-1 truncate text-sm font-medium text-neutral-900 dark:text-white">
-                                                            {sk.nomor_sk}
-                                                        </p>
-                                                        <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                                                            {sk.tanggal_sk}
-                                                        </p>
-                                                        {sk.is_signed && (
-                                                            <div className="mt-1 flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                                                                <Check className="h-3 w-3" />
-                                                                <span>
-                                                                    Bertanda
-                                                                    tangan
-                                                                </span>
-                                                            </div>
-                                                        )}
                                                     </div>
-                                                    {!sk.is_current && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            asChild
-                                                        >
-                                                            <Link
-                                                                href={`/sk-kpa/${sk.hashed_id}`}
-                                                            >
-                                                                <FileText className="h-4 w-4" />
-                                                            </Link>
-                                                        </Button>
+                                                    <p className="mt-1 truncate text-sm font-medium text-neutral-900 dark:text-white">
+                                                        {sk.nomor_sk}
+                                                    </p>
+                                                    <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                        {sk.tanggal_sk}
+                                                    </p>
+                                                    {sk.is_signed && (
+                                                        <div className="mt-1 flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                                                            <Check className="h-3 w-3" />
+                                                            <span>
+                                                                Bertanda tangan
+                                                            </span>
+                                                        </div>
                                                     )}
                                                 </div>
+                                                {!sk.is_current && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        asChild
+                                                    >
+                                                        <Link
+                                                            href={`/sk-kpa/${sk.hashed_id}`}
+                                                        >
+                                                            <FileText className="h-4 w-4" />
+                                                        </Link>
+                                                    </Button>
+                                                )}
                                             </div>
-                                        ))}
-                                    </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            </ContentCard>
-                        </div>
+                            </div>
+                        </ContentCard>
                     </div>
                 </div>
             </div>

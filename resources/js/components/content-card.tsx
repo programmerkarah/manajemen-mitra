@@ -21,7 +21,7 @@ export function ContentCard({
     return (
         <div
             className={cn(
-                'rounded-2xl border border-white/20 bg-white/40 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/40',
+                'rounded-3xl border border-white/30 bg-white/55 shadow-[0_20px_60px_-30px_rgba(15,23,42,0.4)] backdrop-blur-2xl transition-all duration-200 hover:border-white/40 hover:shadow-[0_24px_70px_-28px_rgba(15,23,42,0.5)] dark:border-neutral-700/40 dark:bg-neutral-900/45 dark:hover:border-neutral-600/60',
                 paddingClasses[padding],
                 className,
             )}

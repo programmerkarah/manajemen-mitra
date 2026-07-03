@@ -108,6 +108,9 @@ class AlokasiCreatePreselectedKegiatanTest extends TestCase
         $frameSampel = $kegiatan->kegiatanFrameSampel()->create([
             'frame_sampel_id' => $masterFrameSampel->id,
             'tahapan' => 'listing',
+            'nama_target' => 'Nama Sampel Uji',
+            'sample_role' => 'utama',
+            'is_active' => true,
             'nama_frame' => 'Frame Blok Listing',
             'target_unit_sampel' => 12,
             'identitas_tambahan' => [
@@ -126,6 +129,9 @@ class AlokasiCreatePreselectedKegiatanTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->component('Alokasi/Create')
             ->where('selectedKegiatan.kegiatan_frame_sampel.0.id', $frameSampel->id)
+            ->where('selectedKegiatan.kegiatan_frame_sampel.0.nama_target', 'Nama Sampel Uji')
+            ->where('selectedKegiatan.kegiatan_frame_sampel.0.sample_role', 'utama')
+            ->where('selectedKegiatan.kegiatan_frame_sampel.0.is_active', true)
             ->where('selectedKegiatan.kegiatan_frame_sampel.0.identitas_tambahan.kdkec', '010')
             ->where('selectedKegiatan.kegiatan_frame_sampel.0.identitas_tambahan.kdkec_label', 'Kecamatan Utara')
             ->where('selectedKegiatan.kegiatan_frame_sampel.0.identitas_tambahan.kddes', '020')

@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
+use App\Models\KegiatanFrameSampel;
+use App\Models\MasterFrameSampel;
 use App\Models\MasterUnitSampel;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
@@ -436,6 +438,167 @@ class AlokasiPartialValidationTest extends TestCase
         );
     }
 
+    public function test_edit_periode_budget_info_excludes_the_open_period_from_other_period_totals(): void
+    {
+        [$admin, $adminRole] = $this->makeAdminUser();
+        $tahun = ActiveYearService::get();
+        [$kegiatan] = $this->setupKegiatanWithRateHonor($tahun);
+
+        $petugasA = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $petugasB = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $periodeCurrent = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '03',
+            'tahun' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'draft',
+            'tahapan' => 'both',
+        ]);
+
+        $periodeOther = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '04',
+            'tahun' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'draft',
+            'tahapan' => 'both',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeCurrent->id,
+            'petugas_id' => $petugasA->id,
+            'jumlah_satuan' => 2,
+            'total_honor' => 2166000,
+            'is_partial_payment' => false,
+            'estimasi_honor_partial' => null,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeOther->id,
+            'petugas_id' => $petugasB->id,
+            'jumlah_satuan' => 1,
+            'total_honor' => 1083000,
+            'is_partial_payment' => false,
+            'estimasi_honor_partial' => null,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get("/alokasi/periode/{$kegiatan->hashed_id}/{$tahun}/03/edit");
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Alokasi/Create')
+            ->where('isEditMode', true)
+            ->where('budget_info.'.$kegiatan->id.'.current_total_spent_other_periods', fn ($value) => (float) $value === 1083000.0)
+            ->where('budget_info.'.$kegiatan->id.'.current_total_spent_listing_other_periods', fn ($value) => (float) $value === 1083000.0)
+        );
+    }
+
+    public function test_edit_periode_budget_info_uses_only_perubahan_when_previous_month_has_direvisi_chain(): void
+    {
+        [$admin, $adminRole] = $this->makeAdminUser();
+        $tahun = ActiveYearService::get();
+        [$kegiatan] = $this->setupKegiatanWithRateHonor($tahun);
+
+        $petugasDirevisi = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $petugasPerubahan = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $periodeDirevisi = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '06',
+            'tahun' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'direvisi',
+            'tahapan' => 'both',
+            'revision_number' => 0,
+        ]);
+
+        $periodePerubahan = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '06',
+            'tahun' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'perubahan',
+            'parent_periode_id' => $periodeDirevisi->id,
+            'revision_number' => 1,
+            'tahapan' => 'both',
+        ]);
+
+        $periodeJuli = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '07',
+            'tahun' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'draft',
+            'tahapan' => 'both',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeDirevisi->id,
+            'petugas_id' => $petugasDirevisi->id,
+            'jumlah_satuan' => 1,
+            'total_honor' => 480000,
+            'is_partial_payment' => false,
+            'estimasi_honor_partial' => null,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodePerubahan->id,
+            'petugas_id' => $petugasPerubahan->id,
+            'jumlah_satuan' => 1,
+            'total_honor' => 576000,
+            'is_partial_payment' => false,
+            'estimasi_honor_partial' => null,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periodeJuli->id,
+            'petugas_id' => $petugasDirevisi->id,
+            'jumlah_satuan' => 1,
+            'total_honor' => 100000,
+            'is_partial_payment' => false,
+            'estimasi_honor_partial' => null,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get("/alokasi/periode/{$kegiatan->hashed_id}/{$tahun}/07/edit");
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Alokasi/Create')
+            ->where('isEditMode', true)
+            ->where('budget_info.'.$kegiatan->id.'.current_total_spent_other_periods', fn ($value) => (float) $value === 576000.0)
+            ->where('budget_info.'.$kegiatan->id.'.current_total_spent_listing_other_periods', fn ($value) => (float) $value === 0.0)
+        );
+    }
+
     public function test_edit_periode_includes_dynamic_unit_sampel_items_for_sensus_ekonomi(): void
     {
         [$admin, $adminRole] = $this->makeAdminUser();
@@ -844,6 +1007,155 @@ class AlokasiPartialValidationTest extends TestCase
             ->where('periode.alokasi_petugas.0.jumlah_satuan_dibayarkan', 2)
             ->where('periode.alokasi_petugas.0.rate_pencacahan', fn ($value) => (float) $value === (float) $rateHonor->rate)
             ->where('periode.alokasi_petugas.0.total_honor', fn ($value) => (float) $value === 2166000.0)
+        );
+    }
+
+    public function test_show_periode_exposes_frame_metadata_columns_from_sample_rows(): void
+    {
+        [$admin, $adminRole] = $this->makeAdminUser();
+        $tahun = ActiveYearService::get();
+        [$kegiatan] = $this->setupKegiatanWithRateHonor($tahun);
+
+        $masterFrameSampel = MasterFrameSampel::query()->create([
+            'nama' => 'Frame Sampel Uji',
+            'kode' => 'FS-'.$tahun,
+            'deskripsi' => 'Frame sampel untuk uji metadata kolom',
+            'is_active' => true,
+        ]);
+
+        $kegiatanFrameSampel = KegiatanFrameSampel::query()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => $masterFrameSampel->id,
+            'tahapan' => 'pencacahan',
+            'nama_target' => 'Toko Uji',
+            'sample_role' => 'utama',
+            'is_active' => true,
+            'nama_frame' => 'Frame Toko Uji',
+            'kode_kecamatan' => '010',
+            'kode_desa' => '020',
+            'kode_sls' => '030',
+            'kode_sub_sls' => '040',
+            'kode_segmen' => '050',
+            'identitas_tambahan' => [
+                'kdkec' => '010',
+                'kdkec_label' => 'Kecamatan Utara',
+                'kddes' => '020',
+                'kddes_label' => 'Desa Mekar',
+            ],
+            'target_unit_sampel' => 1,
+        ]);
+
+        $periode = PeriodeAlokasi::query()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '03',
+            'tahun' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'dikirim',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        AlokasiPetugas::query()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'jumlah_satuan' => 1,
+            'total_honor' => 1083000,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get(route('alokasi.periode.show', [
+                'kegiatan' => $kegiatan->hashed_id,
+                'tahun' => $tahun,
+                'bulan' => '03',
+            ]));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Alokasi/ShowPeriode')
+            ->where('periode.frame_metadata_columns.0.code', 'kode_kecamatan')
+            ->where('periode.frame_metadata_columns.0.label', 'Kecamatan')
+            ->where('periode.frame_metadata_columns.1.code', 'kode_desa')
+            ->has('periode.kegiatan.kegiatan_frame_sampel')
+        );
+    }
+
+    public function test_show_periode_exposes_metode_sampling_for_purpossive_kegiatan(): void
+    {
+        [$admin, $adminRole] = $this->makeAdminUser();
+        $tahun = ActiveYearService::get();
+        [$kegiatan] = $this->setupKegiatanWithRateHonor($tahun);
+        $kegiatan->update([
+            'metode_sampling' => Kegiatan::METODE_SAMPLING_PURPOSSIVE,
+            'nama_kegiatan' => 'Survei Purpossive Sample',
+        ]);
+
+        $periode = PeriodeAlokasi::query()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '03',
+            'tahun' => $tahun,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'dikirim',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $frame = KegiatanFrameSampel::query()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'frame_sampel_id' => null,
+            'tahapan' => 'pencacahan',
+            'nama_target' => 'Target Uji',
+            'sample_role' => 'utama',
+            'is_active' => true,
+            'nama_frame' => 'Frame Uji',
+            'kode_kecamatan' => '010',
+            'kode_desa' => '020',
+            'kode_sls' => '030',
+            'kode_sub_sls' => '040',
+            'kode_segmen' => '050',
+            'identitas_tambahan' => [
+                'kdkec' => '010',
+                'kdkec_label' => 'Kecamatan Utara',
+                'kddes' => '020',
+                'kddes_label' => 'Desa Mekar',
+                'nama_usaha_penggilingan' => 'Target Uji',
+            ],
+            'target_unit_sampel' => 1,
+        ]);
+
+        $alokasi = AlokasiPetugas::query()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'jumlah_satuan' => 1,
+            'total_honor' => 1083000,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        $alokasi->frameSampelAllocations()->create([
+            'kegiatan_frame_sampel_id' => $frame->id,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get(route('alokasi.periode.show', [
+                'kegiatan' => $kegiatan->hashed_id,
+                'tahun' => $tahun,
+                'bulan' => '03',
+            ]));
+
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Alokasi/ShowPeriode')
+            ->where('periode.kegiatan.metode_sampling', Kegiatan::METODE_SAMPLING_PURPOSSIVE)
         );
     }
 }

@@ -15,6 +15,7 @@ class AlokasiPetugasFrameSampel extends Model
     protected $fillable = [
         'alokasi_petugas_id',
         'kegiatan_frame_sampel_id',
+        'is_non_response',
     ];
 
     public function alokasiPetugas(): BelongsTo

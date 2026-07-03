@@ -260,50 +260,57 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
             />
 
             <div className="space-y-6">
-                {/* Info Card */}
                 <ContentCard>
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-3">
-                            <FileEdit className="h-6 w-6 text-primary" />
-                            <h2 className="text-xl font-semibold">
-                                Generate Addendum Perjanjian Kerja
-                            </h2>
-                        </div>
-                        <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-1">
-                            <div>
-                                <span className="font-medium">Kegiatan:</span>{' '}
-                                {periode.kegiatan.nama_kegiatan}
+                    <div className="space-y-5">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-3">
+                                    <FileEdit className="h-6 w-6 text-primary" />
+                                    <h2 className="text-xl font-semibold">
+                                        Generate Addendum Perjanjian Kerja
+                                    </h2>
+                                </div>
+                                <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+                                    Buat addendum dari Perjanjian Kerja yang
+                                    sudah aktif.
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-600 dark:text-neutral-400">
+                                <span className="rounded-full border border-neutral-200 px-3 py-1 dark:border-neutral-700">
+                                    {periode.bulan_label} {periode.tahun}
+                                </span>
+                                <span className="rounded-full border border-neutral-200 px-3 py-1 dark:border-neutral-700">
+                                    {petugas_list.length} petugas
+                                </span>
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
-                            <div>
-                                <span className="font-medium">Periode:</span>{' '}
-                                {periode.bulan_label} {periode.tahun}
+
+                        <div className="grid gap-3 md:grid-cols-2">
+                            <div className="rounded-2xl border border-neutral-200 bg-neutral-50/70 p-4 dark:border-neutral-800 dark:bg-neutral-900/40">
+                                <span className="text-xs font-medium tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+                                    Kegiatan
+                                </span>
+                                <p className="mt-1 text-sm font-semibold text-neutral-900 dark:text-white">
+                                    {periode.kegiatan.nama_kegiatan}
+                                </p>
                             </div>
-                            <div>
-                                <span className="font-medium">
-                                    Total Petugas:
-                                </span>{' '}
-                                {petugas_list.length} petugas
+                            <div className="rounded-2xl border border-blue-200/60 bg-blue-50/70 p-4 dark:border-blue-900/40 dark:bg-blue-950/20">
+                                <span className="text-xs font-medium tracking-wide text-blue-700 uppercase dark:text-blue-300">
+                                    Catatan
+                                </span>
+                                <p className="mt-1 text-sm text-blue-900 dark:text-blue-100">
+                                    Addendum mereferensikan Perjanjian Kerja
+                                    asli dan menyimpan perubahan sebagai dokumen
+                                    baru.
+                                </p>
                             </div>
-                        </div>
-                        <div className="rounded-md border border-blue-400/30 bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-blue-300/10 p-4 shadow-lg backdrop-blur-xl dark:border-blue-400/20 dark:from-blue-500/10 dark:via-neutral-800/20 dark:to-neutral-800/10">
-                            <p className="text-sm text-blue-800 dark:text-blue-200">
-                                <strong>Catatan:</strong> Anda akan membuat
-                                addendum Perjanjian Kerja untuk petugas yang
-                                sudah memiliki Perjanjian Kerja di bulan ini.
-                                Addendum akan mereferensikan Perjanjian Kerja
-                                asli dan menyimpan perubahan sebagai dokumen
-                                baru.
-                            </p>
                         </div>
                     </div>
                 </ContentCard>
 
-                {/* Form Card */}
                 <ContentCard>
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">
+                        <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
                             Form Addendum Perjanjian Kerja
                         </h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -341,11 +348,10 @@ export default function Addendum({ periode, petugas_list }: AddendumProps) {
                     </div>
                 </ContentCard>
 
-                {/* Petugas List Card */}
                 <ContentCard>
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold">
+                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
                                 Daftar Petugas dengan Perjanjian Kerja Aktif (
                                 {petugas_list.length})
                             </h3>

@@ -2,13 +2,17 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Kegiatan;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreKegiatanRequest extends FormRequest
 {
     protected function prepareForValidation(): void
     {
+        $this->normalizeFrameSampelPayload();
+
         if ($this->input('jenis_kegiatan') === 'sensus') {
             $this->merge([
                 'has_listing_updating' => false,
@@ -48,12 +52,16 @@ class StoreKegiatanRequest extends FormRequest
             'has_listing_updating' => ['nullable', 'boolean'],
             'frame_sampel_listing_id' => ['required_if:has_listing_updating,true', 'nullable', 'exists:master_frame_sampel,id'],
             'frame_sampel_pencacahan_id' => ['required', 'exists:master_frame_sampel,id'],
-            'unit_sampel_listing_ids' => ['nullable', 'array'],
+            'unit_sampel_listing_ids' => ['required_if:has_listing_updating,true', 'nullable', 'array', 'min:1'],
             'unit_sampel_listing_ids.*' => ['integer', 'exists:master_unit_sampel,id'],
-            'unit_sampel_pencacahan_ids' => ['required', 'array', 'min:1'],
+            'unit_sampel_pencacahan_ids' => ['required', 'nullable', 'array', 'min:1'],
             'unit_sampel_pencacahan_ids.*' => ['integer', 'exists:master_unit_sampel,id'],
             'kegiatan_frame_sampel' => ['nullable', 'array'],
+            'kegiatan_frame_sampel.*.id' => ['nullable', 'integer', 'exists:kegiatan_frame_sampel,id'],
             'kegiatan_frame_sampel.*.tahapan' => ['required_with:kegiatan_frame_sampel', 'in:listing,pencacahan'],
+            'kegiatan_frame_sampel.*.nama_target' => ['required_if:metode_sampling,purpossive', 'nullable', 'string', 'max:255'],
+            'kegiatan_frame_sampel.*.sample_role' => ['required_if:metode_sampling,purpossive', 'nullable', 'string', Rule::in(Kegiatan::purpossiveSampleRoleValues())],
+            'kegiatan_frame_sampel.*.is_active' => ['nullable', 'boolean'],
             'kegiatan_frame_sampel.*.target_unit_sampel' => ['required_with:kegiatan_frame_sampel', 'array', 'min:1'],
             'kegiatan_frame_sampel.*.target_unit_sampel.*' => ['integer', 'min:0'],
             'kegiatan_frame_sampel.*.identitas_tambahan' => ['nullable', 'array'],
@@ -64,9 +72,44 @@ class StoreKegiatanRequest extends FormRequest
             'status' => ['nullable', 'in:draft,aktif,divalidasi,selesai'],
             'metode_pendataan_pencacahan' => ['required', 'in:PAPI,CAPI_FASIH,CAPI_KSA_PRO,CAPI'],
             'metode_pendataan_listing' => ['required_if:has_listing_updating,true', 'nullable', 'in:PAPI,CAPI_FASIH,CAPI_KSA_PRO,CAPI'],
+            'metode_sampling' => ['nullable', 'in:targeted,purpossive'],
             'metode_pelatihan' => ['required', 'in:daring,luring,hybrid,tidak_ada_pelatihan'],
             'bulan_pelatihan' => ['required_unless:metode_pelatihan,tidak_ada_pelatihan', 'nullable', 'integer', 'between:1,12'],
         ];
+    }
+
+    private function normalizeFrameSampelPayload(): void
+    {
+        $kegiatanFrameSampel = $this->input('kegiatan_frame_sampel');
+
+        if (! is_array($kegiatanFrameSampel)) {
+            return;
+        }
+
+        $normalizedRows = collect($kegiatanFrameSampel)
+            ->map(function ($row): array {
+                if (! is_array($row)) {
+                    return [];
+                }
+
+                if (array_key_exists('sample_name', $row)) {
+                    $sampleName = trim((string) ($row['sample_name'] ?? ''));
+                    $namaTarget = trim((string) ($row['nama_target'] ?? ''));
+
+                    if ($sampleName !== '' && $namaTarget === '') {
+                        $row['nama_target'] = $sampleName;
+                    }
+                }
+
+                return $row;
+            })
+            ->filter(fn (array $row): bool => $row !== [])
+            ->values()
+            ->all();
+
+        $this->merge([
+            'kegiatan_frame_sampel' => $normalizedRows,
+        ]);
     }
 
     /**
@@ -92,17 +135,26 @@ class StoreKegiatanRequest extends FormRequest
             'frame_sampel_pencacahan_id.required' => 'Frame sampel pencacahan wajib dipilih.',
             'frame_sampel_listing_id.exists' => 'Frame sampel listing tidak valid.',
             'frame_sampel_pencacahan_id.exists' => 'Frame sampel pencacahan tidak valid.',
+            'unit_sampel_listing_ids.required_if' => 'Unit sampel listing wajib dipilih jika kegiatan memiliki tahap listing.',
             'unit_sampel_listing_ids.array' => 'Unit sampel listing harus berupa daftar.',
             'unit_sampel_listing_ids.*.integer' => 'Unit sampel listing harus berupa angka.',
             'unit_sampel_listing_ids.*.exists' => 'Salah satu unit sampel listing tidak valid.',
-            'unit_sampel_pencacahan_ids.required' => 'Unit sampel pencacahan wajib dipilih minimal 1.',
+            'unit_sampel_pencacahan_ids.required' => 'Unit sampel pencacahan wajib dipilih.',
             'unit_sampel_pencacahan_ids.array' => 'Unit sampel pencacahan harus berupa daftar.',
-            'unit_sampel_pencacahan_ids.min' => 'Unit sampel pencacahan wajib dipilih minimal 1.',
             'unit_sampel_pencacahan_ids.*.integer' => 'Unit sampel pencacahan harus berupa angka.',
             'unit_sampel_pencacahan_ids.*.exists' => 'Salah satu unit sampel pencacahan tidak valid.',
             'kegiatan_frame_sampel.array' => 'Daftar frame sampel harus berupa daftar data.',
+            'kegiatan_frame_sampel.*.id.integer' => 'ID frame sampel harus berupa angka.',
+            'kegiatan_frame_sampel.*.id.exists' => 'ID frame sampel tidak valid.',
             'kegiatan_frame_sampel.*.tahapan.required_with' => 'Tahapan frame sampel wajib diisi.',
             'kegiatan_frame_sampel.*.tahapan.in' => 'Tahapan frame sampel harus listing atau pencacahan.',
+            'kegiatan_frame_sampel.*.nama_target.required_if' => 'Nama target wajib diisi untuk metode sampling purpossive.',
+            'kegiatan_frame_sampel.*.nama_target.string' => 'Nama target harus berupa teks.',
+            'kegiatan_frame_sampel.*.nama_target.max' => 'Nama target maksimal 255 karakter.',
+            'kegiatan_frame_sampel.*.sample_role.required_if' => 'Peran sampel wajib dipilih untuk metode sampling purpossive.',
+            'kegiatan_frame_sampel.*.sample_role.string' => 'Peran sampel harus berupa teks.',
+            'kegiatan_frame_sampel.*.sample_role.in' => 'Peran sampel tidak valid.',
+            'kegiatan_frame_sampel.*.is_active.boolean' => 'Status sampel aktif harus berupa true/false.',
             'kegiatan_frame_sampel.*.target_unit_sampel.required_with' => 'Jumlah unit sampel wajib diisi.',
             'kegiatan_frame_sampel.*.target_unit_sampel.array' => 'Jumlah unit sampel harus berupa daftar.',
             'kegiatan_frame_sampel.*.target_unit_sampel.min' => 'Pilih minimal 1 unit sampel.',
@@ -117,6 +169,7 @@ class StoreKegiatanRequest extends FormRequest
             'metode_pendataan_pencacahan.in' => 'Metode pendataan pencacahan harus PAPI, CAPI (FASIH), atau CAPI (KSA Pro/Aplikasi Lainnya).',
             'metode_pendataan_listing.required_if' => 'Metode pendataan listing wajib dipilih jika kegiatan memiliki tahap listing.',
             'metode_pendataan_listing.in' => 'Metode pendataan listing harus PAPI, CAPI (FASIH), atau CAPI (KSA Pro/Aplikasi Lainnya).',
+            'metode_sampling.in' => 'Metode sampling harus targeted atau purpossive.',
             'metode_pelatihan.required' => 'Metode pelatihan wajib dipilih.',
             'metode_pelatihan.in' => 'Metode pelatihan harus daring, luring, hybrid, atau tidak ada.',
             'bulan_pelatihan.required_unless' => 'Bulan pelatihan wajib dipilih jika metode pelatihan bukan tidak ada.',

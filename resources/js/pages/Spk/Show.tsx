@@ -623,7 +623,7 @@ export default function Show({
                     <ContentCard>
                         <div className="space-y-4">
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                Dokumen Perjanjian Kerja
+                                Dokumen Utama
                             </h3>
 
                             <div className="space-y-3">
@@ -632,8 +632,8 @@ export default function Show({
                                     <div className="space-y-2">
                                         <Label className="text-xs text-neutral-600 dark:text-neutral-400">
                                             {spk.signed_file_path
-                                                ? 'Perjanjian Kerja Bertandatangan'
-                                                : 'Perjanjian Kerja Terbaru'}
+                                                ? 'Versi bertanda tangan'
+                                                : 'Versi terbaru'}
                                         </Label>
                                         <Button
                                             variant="default"
@@ -646,7 +646,7 @@ export default function Show({
                                             className="w-full"
                                         >
                                             <Download className="mr-2 h-4 w-4" />
-                                            Download Perjanjian Kerja
+                                            Unduh Perjanjian Kerja
                                         </Button>
                                     </div>
                                 )}
@@ -655,8 +655,7 @@ export default function Show({
                                 {spk.signed_file_path && spk.file_path && (
                                     <div className="space-y-2">
                                         <Label className="text-xs text-neutral-600 dark:text-neutral-400">
-                                            Perjanjian Kerja Terbaru (Belum
-                                            Ditandatangani)
+                                            Versi terbaru (belum ditandatangani)
                                         </Label>
                                         <Button
                                             variant="outline"
@@ -666,8 +665,7 @@ export default function Show({
                                             className="w-full"
                                         >
                                             <Download className="mr-2 h-4 w-4" />
-                                            Download Perjanjian Kerja Belum
-                                            Bertanda Tangan
+                                            Unduh Versi Terbaru
                                         </Button>
                                     </div>
                                 )}
@@ -676,8 +674,7 @@ export default function Show({
                                 {spk.previous_file_path && (
                                     <div className="space-y-2">
                                         <Label className="text-xs text-neutral-600 dark:text-neutral-400">
-                                            Perjanjian Kerja Bertanda Tangan
-                                            Sebelumnya
+                                            Versi bertanda tangan sebelumnya
                                         </Label>
                                         <Button
                                             variant="outline"
@@ -689,7 +686,7 @@ export default function Show({
                                             className="w-full"
                                         >
                                             <Download className="mr-2 h-4 w-4" />
-                                            Download Perjanjian Kerja Lama
+                                            Unduh Versi Sebelumnya
                                         </Button>
                                     </div>
                                 )}
@@ -704,8 +701,7 @@ export default function Show({
                                 {canEdit && spk.file_path && (
                                     <div className="border-t border-neutral-200 pt-3 dark:border-neutral-700">
                                         <Label className="mb-2 block text-xs text-neutral-600 dark:text-neutral-400">
-                                            Upload Perjanjian Kerja yang Sudah
-                                            Ditandatangani
+                                            Upload PDF yang Sudah Ditandatangani
                                         </Label>
                                         <label
                                             htmlFor="upload-signed"
@@ -722,8 +718,8 @@ export default function Show({
                                                     {isUploading
                                                         ? 'Mengupload...'
                                                         : spk.signed_file_path
-                                                          ? 'Upload Ulang Perjanjian Kerja Bertanda Tangan'
-                                                          : 'Upload Perjanjian Kerja Bertanda Tangan'}
+                                                          ? 'Upload Ulang PDF Bertanda Tangan'
+                                                          : 'Upload PDF Bertanda Tangan'}
                                                 </span>
                                             </Button>
                                         </label>
@@ -743,7 +739,7 @@ export default function Show({
                     <ContentCard>
                         <div className="space-y-4">
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                Informasi Tambahan
+                                Ringkasan Dokumen
                             </h3>
 
                             <div className="space-y-3 text-sm">

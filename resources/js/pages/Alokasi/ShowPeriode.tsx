@@ -13,12 +13,59 @@ import {
     Users,
     X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 interface Petugas {
     id: number;
     nama: string;
     jenis_petugas: string;
+}
+
+interface FrameSampelOption {
+    id: number;
+    kegiatan_frame_sampel_id?: number;
+    tahapan: 'listing' | 'pencacahan';
+    nama_target: string | null;
+    sample_role: string | null;
+    is_active: boolean;
+    nama_frame: string | null;
+    kode_kecamatan: string | null;
+    kode_desa: string | null;
+    kode_sls: string | null;
+    kode_sub_sls: string | null;
+    kode_segmen: string | null;
+    nks?: string | null;
+    nama_usaha_penggilingan?: string | null;
+    target_unit_total?: number;
+    target_unit_sampel?: Record<string, number | string> | null;
+    identitas_tambahan?: Record<string, string | number | null> | null;
+    metadata_items?: MetadataItem[];
+}
+
+interface RateHonorEntry {
+    status_kepegawaian: string;
+    jenis_penugasan: string;
+    rate: number;
+    rate_listing: number;
+}
+
+interface FrameMetadataColumn {
+    code: string;
+    label: string;
+}
+
+interface MetadataItem {
+    code: string;
+    label: string;
+    codeValue: string;
+    labelValue: string;
+    displayMode: 'code_name' | 'code_only' | 'name_only';
+}
+
+interface FrameSampelDetail extends FrameSampelOption {
+    frame_allocation_id: number;
+    kegiatan_frame_sampel_id: number;
+    is_non_response?: boolean;
 }
 
 interface AlokasiPetugas {
@@ -36,6 +83,7 @@ interface AlokasiPetugas {
     catatan: string | null;
     non_response?: number | null;
     non_response_listing?: number | null;
+    frame_sampel_details?: FrameSampelDetail[];
 }
 
 interface PeriodeAlokasi {
@@ -54,7 +102,13 @@ interface PeriodeAlokasi {
     parent_periode_id: number | null;
     submitted_at: string | null;
     submitted_by_name: string | null;
-    kegiatan: Kegiatan & { has_listing_updating?: boolean };
+    kegiatan: Kegiatan & {
+        has_listing_updating?: boolean;
+        metode_sampling?: string | null;
+        kegiatan_frame_sampel?: FrameSampelOption[];
+        frame_metadata_columns?: FrameMetadataColumn[];
+        rate_honors?: RateHonorEntry[];
+    };
     alokasi_petugas: AlokasiPetugas[];
     total_estimasi: number;
     total_estimasi_pencacahan?: number;
@@ -73,6 +127,16 @@ interface PeriodeRevision {
     total_estimasi_pencacahan?: number;
     total_estimasi_listing?: number;
     jumlah_petugas: number;
+}
+
+interface FlattenedFrameRow {
+    alokasi: AlokasiPetugas;
+    frame: FrameSampelDetail | null;
+}
+
+interface ReplacementFrameOption {
+    frame: FrameSampelOption;
+    alreadySelected: boolean;
 }
 
 interface Props {
@@ -166,8 +230,228 @@ function getDisplayedHonor(alokasi: AlokasiPetugas): number {
     return (alokasi.total_honor ?? 0) + (alokasi.total_honor_listing ?? 0);
 }
 
+function resolveRateHonorForAlokasi(
+    alokasi: AlokasiPetugas,
+    rateHonors: RateHonorEntry[] | undefined,
+): RateHonorEntry | null {
+    const petugasType =
+        alokasi.petugas.jenis_petugas === 'organik' ? 'organik' : 'non_organik';
+    const normalizedPeran = alokasi.peran.trim().toLowerCase();
+
+    const matchedRate = rateHonors?.find(
+        (rateHonor) =>
+            rateHonor.status_kepegawaian === petugasType &&
+            rateHonor.jenis_penugasan.trim().toLowerCase() === normalizedPeran,
+    );
+
+    if (matchedRate) {
+        return matchedRate;
+    }
+
+    return (
+        rateHonors?.find((rateHonor) => {
+            const ratePetugasType = rateHonor.status_kepegawaian
+                .trim()
+                .toLowerCase();
+            const ratePeran = rateHonor.jenis_penugasan.trim().toLowerCase();
+
+            return (
+                ratePetugasType === petugasType &&
+                (ratePeran === normalizedPeran ||
+                    ratePeran.replace(/[_\s]+/g, '') ===
+                        normalizedPeran.replace(/[_\s]+/g, ''))
+            );
+        }) || null
+    );
+}
+
+function formatFrameText(value: string | number | null | undefined): string {
+    if (value === null || value === undefined || String(value).trim() === '') {
+        return '-';
+    }
+
+    return String(value).trim();
+}
+
+function formatFrameTarget(frame: FrameSampelDetail): number {
+    return Math.max(0, Number(frame.target_unit_total || 0));
+}
+
+function formatSampleRoleLabel(value: string | null | undefined): string {
+    if (!value) {
+        return '-';
+    }
+
+    return value
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function resolveCodeLabelValue(
+    frame: FrameSampelDetail | null,
+    codeKeys: string[],
+    labelKeys: string[],
+): string {
+    if (!frame) {
+        return '-';
+    }
+
+    const metadata = frame.identitas_tambahan || {};
+
+    const directFrame = frame as unknown as Record<string, unknown>;
+
+    const codeValue = codeKeys
+        .map((key) => {
+            const directEntry = Object.entries(directFrame).find(
+                ([actualKey, value]) =>
+                    actualKey.trim().toLowerCase() ===
+                        key.trim().toLowerCase() &&
+                    value !== null &&
+                    value !== undefined &&
+                    String(value).trim() !== '',
+            );
+
+            if (directEntry) {
+                return String(directEntry[1]).trim();
+            }
+
+            const matchedEntry = Object.entries(metadata).find(
+                ([actualKey, value]) =>
+                    actualKey.trim().toLowerCase() ===
+                        key.trim().toLowerCase() &&
+                    value !== null &&
+                    value !== undefined &&
+                    String(value).trim() !== '',
+            );
+
+            return matchedEntry ? String(matchedEntry[1]).trim() : '';
+        })
+        .find((value) => value !== '');
+
+    const labelValue = labelKeys
+        .map((key) => {
+            const directEntry = Object.entries(directFrame).find(
+                ([actualKey, value]) =>
+                    actualKey.trim().toLowerCase() ===
+                        key.trim().toLowerCase() &&
+                    value !== null &&
+                    value !== undefined &&
+                    String(value).trim() !== '',
+            );
+
+            if (directEntry) {
+                return String(directEntry[1]).trim();
+            }
+
+            const matchedEntry = Object.entries(metadata).find(
+                ([actualKey, value]) =>
+                    actualKey.trim().toLowerCase() ===
+                        key.trim().toLowerCase() &&
+                    value !== null &&
+                    value !== undefined &&
+                    String(value).trim() !== '',
+            );
+
+            return matchedEntry ? String(matchedEntry[1]).trim() : '';
+        })
+        .find((value) => value !== '');
+
+    const fallbackValue = resolveFrameTextFromKnownFields(frame, codeKeys);
+
+    if (codeValue && labelValue) {
+        return `[${codeValue}] ${labelValue}`;
+    }
+
+    if (codeValue) {
+        return `{${codeValue}}`;
+    }
+
+    if (labelValue) {
+        return labelValue;
+    }
+
+    return fallbackValue;
+}
+
+function resolveFrameTextFromKnownFields(
+    frame: FrameSampelDetail,
+    keys: string[],
+): string {
+    for (const key of keys) {
+        const normalized = key.toLowerCase();
+
+        if (normalized.includes('kdkec') || normalized.includes('kecamatan')) {
+            return formatFrameText(frame.kode_kecamatan);
+        }
+
+        if (normalized.includes('kddes') || normalized.includes('desa')) {
+            return formatFrameText(frame.kode_desa);
+        }
+
+        if (normalized.includes('nks')) {
+            return formatFrameText(frame.nks);
+        }
+
+        if (normalized.includes('kode_sls') || normalized === 'sls') {
+            return formatFrameText(frame.kode_sls);
+        }
+
+        if (normalized.includes('kode_segmen')) {
+            return formatFrameText(frame.kode_segmen);
+        }
+
+        if (
+            normalized.includes('nama_target') ||
+            normalized.includes('nama_frame')
+        ) {
+            return formatFrameText(
+                frame.nama_usaha_penggilingan ||
+                    frame.nama_target ||
+                    frame.nama_frame,
+            );
+        }
+    }
+
+    return '-';
+}
+
+function formatReplacementMetadataItem(item: MetadataItem): string {
+    const codeValue = formatFrameText(item.codeValue);
+    const labelValue = formatFrameText(item.labelValue);
+
+    switch (item.displayMode) {
+        case 'code_name':
+            if (codeValue === '-' && labelValue === '-') {
+                return '-';
+            }
+
+            if (codeValue === '-') {
+                return labelValue;
+            }
+
+            if (labelValue === '-') {
+                return codeValue;
+            }
+
+            return `[${codeValue}] ${labelValue}`;
+        case 'code_only':
+            return codeValue;
+        case 'name_only':
+            return labelValue;
+        default:
+            return '-';
+    }
+}
+
+interface FrameDetailColumn {
+    key: string;
+    header: string;
+    getValue: (frame: FrameSampelDetail | null) => string;
+}
+
 export default function ShowPeriode({ periode, revisions }: Props) {
     const bulanLabel = months[parseInt(periode.bulan) - 1];
+    const exportMonitoringUrl = `/alokasi/periode/${periode.kegiatan.hashed_id}/${periode.tahun}/${String(periode.bulan).padStart(2, '0')}/export-monitoring-skgb`;
     const effectiveRevisionNumber = useMemo(() => {
         if (periode.revision_number > 0) {
             return periode.revision_number;
@@ -225,23 +509,277 @@ export default function ShowPeriode({ periode, revisions }: Props) {
         auth.activeRole?.name === 'ketua_tim' ||
         auth.activeRole?.name === 'admin' ||
         auth.activeRole?.name === 'operator';
+    const normalizedActivityName = (periode.kegiatan.nama_kegiatan || '')
+        .trim()
+        .toLowerCase();
+    const isMineralActivity = normalizedActivityName.includes('mineral');
+    const isPurpossiveSampling = ['purpossive', 'purposive'].includes(
+        (periode.kegiatan.metode_sampling || '').trim().toLowerCase(),
+    );
+    const canEditNonResponse = ['dikirim', 'perubahan'].includes(
+        periode.status,
+    );
+    const canReplaceSamples = isPurpossiveSampling;
 
     // State untuk edit mode
     const [isEditMode, setIsEditMode] = useState(false);
     const [editedData, setEditedData] = useState<
         Record<number, { non_response?: number; non_response_listing?: number }>
     >({});
+    const [nonResponseSelections, setNonResponseSelections] = useState<
+        Record<number, number[]>
+    >({});
+    const [replacementState, setReplacementState] = useState<{
+        frameAllocationId: number;
+        alokasiId: number;
+        currentFrameId: number;
+        currentFrameLabel: string;
+        currentTahapan: 'listing' | 'pencacahan';
+        currentPeran: string;
+    } | null>(null);
 
     // Check if ada alokasi dengan peran pendataan
     const hasPendataanRole = periode.alokasi_petugas.some((alokasi) =>
         ['pcl_ppl', 'pml', 'pcl', 'ppl', 'lapangan'].includes(alokasi.peran),
     );
-    const canEditNonResponse = ['dikirim', 'perubahan'].includes(
-        periode.status,
-    );
     const summaryColSpan = isKetuaTim && hasPendataanRole ? 8 : 7;
     const totalListing = periode.total_estimasi_listing ?? 0;
     const totalPencacahan = periode.total_estimasi_pencacahan ?? 0;
+    const hasFrameSampleDetails = periode.alokasi_petugas.some(
+        (alokasi) => (alokasi.frame_sampel_details || []).length > 0,
+    );
+    const rateHonors = useMemo(
+        () => periode.kegiatan.rate_honors || [],
+        [periode.kegiatan.rate_honors],
+    );
+
+    const flattenFrameRows = useMemo<FlattenedFrameRow[]>(() => {
+        return periode.alokasi_petugas.reduce<FlattenedFrameRow[]>(
+            (rows, alokasi) => {
+                const selectedFrames = alokasi.frame_sampel_details || [];
+
+                if (selectedFrames.length === 0) {
+                    rows.push({
+                        alokasi,
+                        frame: null,
+                    });
+
+                    return rows;
+                }
+
+                selectedFrames.forEach((frame) => {
+                    rows.push({
+                        alokasi,
+                        frame,
+                    });
+                });
+
+                return rows;
+            },
+            [],
+        );
+    }, [periode.alokasi_petugas]);
+
+    const frameRowTotals = useMemo(() => {
+        return flattenFrameRows.reduce(
+            (totals, row) => {
+                const rateHonor = resolveRateHonorForAlokasi(
+                    row.alokasi,
+                    rateHonors,
+                );
+                const target = row.frame
+                    ? formatFrameTarget(row.frame) || 1
+                    : Number(row.alokasi.jumlah_satuan || 0);
+                const hargaSatuan =
+                    row.frame?.tahapan === 'listing'
+                        ? rateHonor?.rate_listing ||
+                          rateHonor?.rate ||
+                          row.alokasi.rate_listing ||
+                          row.alokasi.rate_pencacahan ||
+                          0
+                        : rateHonor?.rate ||
+                          rateHonor?.rate_listing ||
+                          row.alokasi.rate_pencacahan ||
+                          row.alokasi.rate_listing ||
+                          0;
+                const honor = row.frame
+                    ? hargaSatuan * target
+                    : rateHonor?.rate || row.alokasi.total_honor || 0;
+
+                if (row.frame?.tahapan === 'listing') {
+                    totals.listing += honor;
+                } else {
+                    totals.pencacahan += honor;
+                }
+
+                totals.total += honor;
+
+                return totals;
+            },
+            { total: 0, pencacahan: 0, listing: 0 },
+        );
+    }, [flattenFrameRows, rateHonors]);
+
+    const displayTotalEstimasi = hasFrameSampleDetails
+        ? frameRowTotals.total
+        : periode.total_estimasi;
+    const displayTotalEstimasiPencacahan = hasFrameSampleDetails
+        ? frameRowTotals.pencacahan
+        : totalPencacahan;
+    const displayTotalEstimasiListing = hasFrameSampleDetails
+        ? frameRowTotals.listing
+        : totalListing;
+
+    const availableReplacementFrames = useMemo<ReplacementFrameOption[]>(() => {
+        if (!replacementState) {
+            return [];
+        }
+
+        const currentPeran = (replacementState.currentPeran || '')
+            .trim()
+            .toLowerCase();
+
+        const usedFrameIdsInRole = new Set<number>();
+
+        periode.alokasi_petugas.forEach((alokasi) => {
+            const alokasiPeran = (alokasi.peran || '').trim().toLowerCase();
+
+            if (currentPeran && alokasiPeran !== currentPeran) {
+                return;
+            }
+
+            (alokasi.frame_sampel_details || []).forEach((selectedFrame) => {
+                usedFrameIdsInRole.add(selectedFrame.kegiatan_frame_sampel_id);
+            });
+        });
+
+        const allFrames = periode.kegiatan.kegiatan_frame_sampel || [];
+
+        return allFrames
+            .filter(
+                (frame) => frame.tahapan === replacementState.currentTahapan,
+            )
+            .filter((frame) => frame.is_active)
+            .filter((frame) => frame.id !== replacementState.currentFrameId)
+            .filter((frame) => !usedFrameIdsInRole.has(frame.id))
+            .sort((left, right) => {
+                const leftName = formatFrameText(
+                    left.nama_target || left.nama_frame,
+                );
+                const rightName = formatFrameText(
+                    right.nama_target || right.nama_frame,
+                );
+
+                return leftName.localeCompare(rightName);
+            })
+            .map((frame) => ({
+                frame,
+                alreadySelected: false,
+            }));
+    }, [
+        periode.alokasi_petugas,
+        periode.kegiatan.kegiatan_frame_sampel,
+        replacementState,
+    ]);
+
+    const frameDetailColumns = useMemo<FrameDetailColumn[]>(() => {
+        const framePool = flattenFrameRows
+            .map((row) => row.frame)
+            .filter((frame): frame is FrameSampelDetail => frame !== null);
+        const columns: FrameDetailColumn[] = [];
+        const seenKeys = new Set<string>();
+
+        const addColumn = (
+            key: string,
+            header: string,
+            getValue: (frame: FrameSampelDetail | null) => string,
+        ) => {
+            const normalizedKey = key.trim().toLowerCase();
+
+            if (normalizedKey === '' || seenKeys.has(normalizedKey)) {
+                return;
+            }
+
+            const hasValue = framePool.some((frame) => getValue(frame) !== '-');
+
+            if (!hasValue) {
+                return;
+            }
+
+            seenKeys.add(normalizedKey);
+            columns.push({
+                key,
+                header,
+                getValue,
+            });
+        };
+
+        if (isMineralActivity) {
+            addColumn('kecamatan', 'Kecamatan', (frame) =>
+                resolveCodeLabelValue(
+                    frame,
+                    ['kdkec', 'kode_kecamatan'],
+                    ['kdkec_label', 'kode_kecamatan_label'],
+                ),
+            );
+
+            addColumn('desa_kelurahan', 'Desa/Kelurahan', (frame) =>
+                resolveCodeLabelValue(
+                    frame,
+                    ['kddes', 'kode_desa'],
+                    ['kddes_label', 'kode_desa_label'],
+                ),
+            );
+
+            return columns;
+        }
+
+        if (isPurpossiveSampling) {
+            addColumn('nama_target', 'Nama target', (frame) =>
+                formatFrameText(
+                    frame?.nama_target ||
+                        frame?.nama_frame ||
+                        frame?.nama_usaha_penggilingan,
+                ),
+            );
+
+            return columns;
+        }
+
+        addColumn('kecamatan', 'Kecamatan', (frame) =>
+            resolveCodeLabelValue(
+                frame,
+                ['kdkec', 'kode_kecamatan'],
+                ['kdkec_label', 'kode_kecamatan_label'],
+            ),
+        );
+
+        addColumn('desa_kelurahan', 'Desa/Kelurahan', (frame) =>
+            resolveCodeLabelValue(
+                frame,
+                ['kddes', 'kode_desa'],
+                ['kddes_label', 'kode_desa_label'],
+            ),
+        );
+
+        addColumn('nks', 'NKS', (frame) =>
+            resolveCodeLabelValue(frame, ['nks'], ['nks_label']),
+        );
+
+        addColumn('sls', 'SLS', (frame) =>
+            resolveCodeLabelValue(frame, ['kode_sls'], ['kode_sls_label']),
+        );
+
+        addColumn('nama_target', 'Nama target', (frame) =>
+            formatFrameText(
+                frame?.nama_target ||
+                    frame?.nama_frame ||
+                    frame?.nama_usaha_penggilingan,
+            ),
+        );
+
+        return columns;
+    }, [flattenFrameRows, isMineralActivity, isPurpossiveSampling]);
 
     const handleEditToggle = () => {
         if (!canEditNonResponse) {
@@ -254,23 +792,34 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                 number,
                 { non_response?: number; non_response_listing?: number }
             > = {};
+            const initialSelections: Record<number, number[]> = {};
+
             periode.alokasi_petugas.forEach((alokasi) => {
+                const frameAllocationIds = (alokasi.frame_sampel_details || [])
+                    .filter((frame) => frame.is_non_response)
+                    .map((frame) => frame.frame_allocation_id);
+
                 initialData[alokasi.id] = {
                     non_response: alokasi.non_response || 0,
                     non_response_listing: alokasi.non_response_listing || 0,
                 };
+                initialSelections[alokasi.id] = frameAllocationIds;
             });
             setEditedData(initialData);
+            setNonResponseSelections(initialSelections);
         }
         setIsEditMode(!isEditMode);
     };
 
     const handleSave = () => {
-        const payload = Object.keys(editedData).map((id) => ({
-            id: Number(id),
-            non_response: editedData[Number(id)].non_response || 0,
+        const payload = periode.alokasi_petugas.map((alokasi) => ({
+            id: alokasi.id,
+            non_response: hasFrameSampleDetails
+                ? nonResponseSelections[alokasi.id]?.length || 0
+                : editedData[alokasi.id]?.non_response || 0,
             non_response_listing:
-                editedData[Number(id)].non_response_listing || 0,
+                editedData[alokasi.id]?.non_response_listing || 0,
+            frame_allocation_ids: nonResponseSelections[alokasi.id] || [],
         }));
 
         router.post(
@@ -301,6 +850,65 @@ export default function ShowPeriode({ periode, revisions }: Props) {
         }));
     };
 
+    const toggleNonResponseSelection = (
+        alokasiId: number,
+        frameAllocationId: number,
+        checked: boolean,
+    ) => {
+        setNonResponseSelections((prev) => {
+            const currentSelections = prev[alokasiId] || [];
+            const nextSelections = checked
+                ? [...currentSelections, frameAllocationId]
+                : currentSelections.filter((id) => id !== frameAllocationId);
+
+            return {
+                ...prev,
+                [alokasiId]: nextSelections,
+            };
+        });
+    };
+
+    const openReplacementDialog = (
+        alokasiId: number,
+        alokasiPeran: string,
+        frameAllocationId: number,
+        currentFrame: FrameSampelDetail,
+    ) => {
+        setReplacementState({
+            frameAllocationId,
+            alokasiId,
+            currentFrameId: currentFrame.kegiatan_frame_sampel_id,
+            currentFrameLabel: formatFrameText(
+                currentFrame.nama_target || currentFrame.nama_frame,
+            ),
+            currentTahapan: currentFrame.tahapan,
+            currentPeran: alokasiPeran,
+        });
+    };
+
+    const handleReplaceFrameSample = (newFrameId: number) => {
+        if (!replacementState) {
+            return;
+        }
+
+        if (!newFrameId) {
+            return;
+        }
+
+        router.patch(
+            `/alokasi/frame-sampel/${replacementState.frameAllocationId}/replace`,
+            {
+                kegiatan_frame_sampel_id: newFrameId,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setReplacementState(null);
+                },
+            },
+        );
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Detail Periode ${bulanLabel} ${periode.tahun}`} />
@@ -309,6 +917,12 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                 title={`Detail Periode ${bulanLabel} ${periode.tahun}`}
                 description={`Informasi alokasi petugas untuk ${periode.kegiatan.nama_kegiatan}`}
             >
+                <Button variant="outline" asChild>
+                    <a href={exportMonitoringUrl}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Export PDF
+                    </a>
+                </Button>
                 <Button variant="outline" asChild>
                     <Link href="/alokasi">
                         <ArrowLeft className="mr-2 h-4 w-4" />
@@ -352,7 +966,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                     Total estimasi
                                 </p>
                                 <p className="mt-2 text-lg font-semibold text-green-700 dark:text-green-400">
-                                    {formatCurrency(periode.total_estimasi)}
+                                    {formatCurrency(displayTotalEstimasi)}
                                 </p>
                             </div>
                             <div className="rounded-2xl border border-neutral-200 bg-white/90 p-4 dark:border-neutral-800 dark:bg-neutral-950/70">
@@ -360,7 +974,9 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                     Listing
                                 </p>
                                 <p className="mt-2 text-lg font-semibold text-blue-700 dark:text-blue-400">
-                                    {formatCurrency(totalListing)}
+                                    {formatCurrency(
+                                        displayTotalEstimasiListing,
+                                    )}
                                 </p>
                             </div>
                             <div className="rounded-2xl border border-neutral-200 bg-white/90 p-4 dark:border-neutral-800 dark:bg-neutral-950/70">
@@ -368,7 +984,9 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                     Pencacahan
                                 </p>
                                 <p className="mt-2 text-lg font-semibold text-amber-700 dark:text-amber-400">
-                                    {formatCurrency(totalPencacahan)}
+                                    {formatCurrency(
+                                        displayTotalEstimasiPencacahan,
+                                    )}
                                 </p>
                             </div>
                             <div className="rounded-2xl border border-neutral-200 bg-white/90 p-4 dark:border-neutral-800 dark:bg-neutral-950/70">
@@ -449,89 +1067,197 @@ export default function ShowPeriode({ periode, revisions }: Props) {
             </ContentCard>
 
             {/* Tabel Alokasi Petugas */}
-            <ContentCard>
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                            Daftar Alokasi Petugas
-                        </h3>
-                        {isKetuaTim && hasPendataanRole && (
-                            <div className="flex flex-wrap justify-end gap-2">
-                                {isEditMode ? (
-                                    <>
+            {!hasFrameSampleDetails && (
+                <ContentCard>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                Daftar Alokasi Petugas
+                            </h3>
+                            {isKetuaTim && hasPendataanRole && (
+                                <div className="flex flex-wrap justify-end gap-2">
+                                    {isEditMode ? (
+                                        <>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={handleEditToggle}
+                                            >
+                                                <X className="mr-2 h-4 w-4" />
+                                                Batal
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                onClick={handleSave}
+                                            >
+                                                <Save className="mr-2 h-4 w-4" />
+                                                Simpan Non Response
+                                            </Button>
+                                        </>
+                                    ) : (
                                         <Button
                                             size="sm"
                                             variant="outline"
                                             onClick={handleEditToggle}
+                                            disabled={!canEditNonResponse}
                                         >
-                                            <X className="mr-2 h-4 w-4" />
-                                            Batal
+                                            <Edit className="mr-2 h-4 w-4" />
+                                            Edit Non Response
                                         </Button>
-                                        <Button size="sm" onClick={handleSave}>
-                                            <Save className="mr-2 h-4 w-4" />
-                                            Simpan Non Response
-                                        </Button>
-                                    </>
-                                ) : (
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={handleEditToggle}
-                                        disabled={!canEditNonResponse}
-                                    >
-                                        <Edit className="mr-2 h-4 w-4" />
-                                        Edit Non Response
-                                    </Button>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="w-full overflow-x-auto">
-                        <table className="w-full min-w-[980px] text-left text-sm">
-                            <thead className="bg-neutral-100 dark:bg-neutral-900">
-                                <tr>
-                                    <th className="px-3 py-3 font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                        No
-                                    </th>
-                                    <th className="px-3 py-3 font-medium text-neutral-600 dark:text-neutral-400">
-                                        Nama Petugas
-                                    </th>
-                                    <th className="px-3 py-3 font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                        Jenis
-                                    </th>
-                                    <th className="px-3 py-3 font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                        Peran
-                                    </th>
-                                    <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                        Beban Tugas
-                                    </th>
-                                    <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                        Beban Tugas dibayarkan
-                                    </th>
-                                    {isKetuaTim && hasPendataanRole && (
-                                        <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                            Non Response
-                                        </th>
                                     )}
-                                    <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                        Harga Satuan
-                                    </th>
-                                    <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                        Estimasi Honor
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                {periode.alokasi_petugas.map(
-                                    (alokasi, index) => (
-                                        <>
-                                            {/* Listing Row - only if has_listing_updating and has listing data */}
-                                            {showListingSection &&
-                                                (alokasi.jumlah_satuan_listing ??
-                                                    0) > 0 && (
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="w-full overflow-x-auto">
+                            <table className="w-full min-w-[980px] text-left text-sm">
+                                <thead className="bg-neutral-100 dark:bg-neutral-900">
+                                    <tr>
+                                        <th className="px-3 py-3 font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            No
+                                        </th>
+                                        <th className="px-3 py-3 font-medium text-neutral-600 dark:text-neutral-400">
+                                            Nama Petugas
+                                        </th>
+                                        <th className="px-3 py-3 font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            Jenis
+                                        </th>
+                                        <th className="px-3 py-3 font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            Peran
+                                        </th>
+                                        <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            Target
+                                        </th>
+                                        <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            Realisasi
+                                        </th>
+                                        {isKetuaTim && hasPendataanRole && (
+                                            <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                                Non Response
+                                            </th>
+                                        )}
+                                        <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            Harga Satuan
+                                        </th>
+                                        <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            Estimasi Honor
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                                    {periode.alokasi_petugas.map(
+                                        (alokasi, index) => (
+                                            <>
+                                                {/* Listing Row - only if has_listing_updating and has listing data */}
+                                                {showListingSection &&
+                                                    (alokasi.jumlah_satuan_listing ??
+                                                        0) > 0 && (
+                                                        <tr
+                                                            key={`${alokasi.id}-listing`}
+                                                            className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
+                                                        >
+                                                            <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
+                                                                {index + 1}
+                                                            </td>
+                                                            <td className="px-3 py-3">
+                                                                <div className="font-medium break-words text-neutral-900 dark:text-white">
+                                                                    {
+                                                                        alokasi
+                                                                            .petugas
+                                                                            .nama
+                                                                    }
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-3 py-3 whitespace-nowrap">
+                                                                <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300">
+                                                                    {alokasi
+                                                                        .petugas
+                                                                        .jenis_petugas ===
+                                                                    'organik'
+                                                                        ? 'Organik'
+                                                                        : 'Mitra'}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
+                                                                {peranLabels[
+                                                                    alokasi
+                                                                        .peran
+                                                                ] ||
+                                                                    alokasi.peran}{' '}
+                                                                <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                                    (Listing)
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
+                                                                {
+                                                                    alokasi.jumlah_satuan_listing
+                                                                }
+                                                            </td>
+                                                            <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
+                                                                {alokasi.jumlah_satuan_listing_dibayarkan ??
+                                                                    alokasi.jumlah_satuan_listing ??
+                                                                    0}
+                                                            </td>
+                                                            {isKetuaTim &&
+                                                                hasPendataanRole && (
+                                                                    <td className="px-3 py-3 text-right whitespace-nowrap">
+                                                                        {isEditMode ? (
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                value={
+                                                                                    editedData[
+                                                                                        alokasi
+                                                                                            .id
+                                                                                    ]
+                                                                                        ?.non_response_listing ||
+                                                                                    0
+                                                                                }
+                                                                                onChange={(
+                                                                                    e,
+                                                                                ) =>
+                                                                                    handleInputChange(
+                                                                                        alokasi.id,
+                                                                                        'non_response_listing',
+                                                                                        e
+                                                                                            .target
+                                                                                            .value,
+                                                                                    )
+                                                                                }
+                                                                                disabled={
+                                                                                    alokasi.peran ===
+                                                                                        'pengolahan' ||
+                                                                                    alokasi.peran ===
+                                                                                        'pengawas_pengolahan'
+                                                                                }
+                                                                                className="w-20 rounded border border-neutral-300 px-2 py-1 text-right text-neutral-900 disabled:cursor-not-allowed disabled:bg-neutral-100 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:disabled:bg-neutral-700"
+                                                                            />
+                                                                        ) : (
+                                                                            <span className="text-neutral-900 dark:text-white">
+                                                                                {alokasi.non_response_listing ||
+                                                                                    0}
+                                                                            </span>
+                                                                        )}
+                                                                    </td>
+                                                                )}
+                                                            <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
+                                                                {formatCurrency(
+                                                                    alokasi.rate_listing ||
+                                                                        0,
+                                                                )}
+                                                            </td>
+                                                            <td className="px-3 py-3 text-right font-semibold whitespace-nowrap text-green-600 dark:text-green-400">
+                                                                {formatCurrency(
+                                                                    alokasi.total_honor_listing ||
+                                                                        0,
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                {/* Pencacahan Row */}
+                                                {showPencacahanSection && (
                                                     <tr
-                                                        key={`${alokasi.id}-listing`}
+                                                        key={`${alokasi.id}-pencacahan`}
                                                         className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                                     >
                                                         <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
@@ -560,18 +1286,20 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                                 alokasi.peran
                                                             ] ||
                                                                 alokasi.peran}{' '}
-                                                            <span className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                                (Listing)
-                                                            </span>
+                                                            {showListingSection && (
+                                                                <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                                                                    (Pencacahan)
+                                                                </span>
+                                                            )}
                                                         </td>
                                                         <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
                                                             {
-                                                                alokasi.jumlah_satuan_listing
+                                                                alokasi.jumlah_satuan
                                                             }
                                                         </td>
                                                         <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
-                                                            {alokasi.jumlah_satuan_listing_dibayarkan ??
-                                                                alokasi.jumlah_satuan_listing ??
+                                                            {alokasi.jumlah_satuan_dibayarkan ??
+                                                                alokasi.jumlah_satuan ??
                                                                 0}
                                                         </td>
                                                         {isKetuaTim &&
@@ -586,7 +1314,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                                                     alokasi
                                                                                         .id
                                                                                 ]
-                                                                                    ?.non_response_listing ||
+                                                                                    ?.non_response ||
                                                                                 0
                                                                             }
                                                                             onChange={(
@@ -594,7 +1322,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                                             ) =>
                                                                                 handleInputChange(
                                                                                     alokasi.id,
-                                                                                    'non_response_listing',
+                                                                                    'non_response',
                                                                                     e
                                                                                         .target
                                                                                         .value,
@@ -610,7 +1338,7 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                                         />
                                                                     ) : (
                                                                         <span className="text-neutral-900 dark:text-white">
-                                                                            {alokasi.non_response_listing ||
+                                                                            {alokasi.non_response ||
                                                                                 0}
                                                                         </span>
                                                                     )}
@@ -618,22 +1346,214 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                             )}
                                                         <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
                                                             {formatCurrency(
-                                                                alokasi.rate_listing ||
+                                                                alokasi.rate_pencacahan ||
                                                                     0,
                                                             )}
                                                         </td>
                                                         <td className="px-3 py-3 text-right font-semibold whitespace-nowrap text-green-600 dark:text-green-400">
                                                             {formatCurrency(
-                                                                alokasi.total_honor_listing ||
-                                                                    0,
+                                                                alokasi.total_honor,
                                                             )}
                                                         </td>
                                                     </tr>
                                                 )}
-                                            {/* Pencacahan Row */}
+                                            </>
+                                        ),
+                                    )}
+                                </tbody>
+                                <tfoot className="bg-neutral-100 dark:bg-neutral-900">
+                                    {showListingSection && (
+                                        <>
+                                            <tr className="border-b border-neutral-200 dark:border-neutral-800">
+                                                <td
+                                                    colSpan={summaryColSpan}
+                                                    className="px-3 py-2 text-right text-sm font-semibold whitespace-nowrap text-neutral-600 dark:text-neutral-400"
+                                                >
+                                                    Total Listing:
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-lg font-bold whitespace-nowrap text-blue-600 dark:text-blue-400">
+                                                    {formatCurrency(
+                                                        displayTotalEstimasiListing ||
+                                                            0,
+                                                    )}
+                                                </td>
+                                            </tr>
                                             {showPencacahanSection && (
+                                                <tr className="border-b border-neutral-200 dark:border-neutral-800">
+                                                    <td
+                                                        colSpan={summaryColSpan}
+                                                        className="px-3 py-2 text-right text-sm font-semibold whitespace-nowrap text-neutral-600 dark:text-neutral-400"
+                                                    >
+                                                        Total Pencacahan:
+                                                    </td>
+                                                    <td className="px-3 py-2 text-right text-lg font-bold whitespace-nowrap text-blue-600 dark:text-blue-400">
+                                                        {formatCurrency(
+                                                            displayTotalEstimasiPencacahan ||
+                                                                0,
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </>
+                                    )}
+                                    <tr>
+                                        <td
+                                            colSpan={summaryColSpan}
+                                            className="px-3 py-3 text-right font-semibold whitespace-nowrap text-neutral-900 dark:text-white"
+                                        >
+                                            Total Keseluruhan:
+                                        </td>
+                                        <td className="px-3 py-3 text-right text-xl font-bold whitespace-nowrap text-green-600 dark:text-green-400">
+                                            {formatCurrency(
+                                                displayTotalEstimasi,
+                                            )}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </ContentCard>
+            )}
+
+            {hasFrameSampleDetails && (
+                <ContentCard>
+                    <div className="space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                    Detail Sampel Terpilih
+                                </h3>
+                                <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                                    Menampilkan baris detail per sampel yang
+                                    dipilih untuk tiap alokasi.
+                                </p>
+                            </div>
+                            {isKetuaTim && hasPendataanRole && (
+                                <div className="flex flex-wrap justify-end gap-2">
+                                    {isEditMode ? (
+                                        <>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={handleEditToggle}
+                                            >
+                                                <X className="mr-2 h-4 w-4" />
+                                                Batal
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                onClick={handleSave}
+                                            >
+                                                <Save className="mr-2 h-4 w-4" />
+                                                Simpan Non Response
+                                            </Button>
+                                        </>
+                                    ) : (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={handleEditToggle}
+                                            disabled={!canEditNonResponse}
+                                        >
+                                            <Edit className="mr-2 h-4 w-4" />
+                                            Edit Non Response
+                                        </Button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="w-full overflow-x-auto">
+                            <table className="w-full min-w-[1280px] text-left text-sm">
+                                <thead className="bg-neutral-100 dark:bg-neutral-900">
+                                    <tr>
+                                        <th className="px-3 py-3 font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            No
+                                        </th>
+                                        <th className="px-3 py-3 font-medium text-neutral-600 dark:text-neutral-400">
+                                            Nama Petugas
+                                        </th>
+                                        <th className="px-3 py-3 font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            Jenis
+                                        </th>
+                                        <th className="px-3 py-3 font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            Peran
+                                        </th>
+                                        {frameDetailColumns.map((column) => (
+                                            <th
+                                                key={column.key}
+                                                className="px-3 py-3 font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400"
+                                            >
+                                                {column.header}
+                                            </th>
+                                        ))}
+                                        <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            Target
+                                        </th>
+                                        <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            Realisasi
+                                        </th>
+                                        {isKetuaTim && hasPendataanRole && (
+                                            <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                                Non Response
+                                            </th>
+                                        )}
+                                        <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            Harga Satuan
+                                        </th>
+                                        <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            Estimasi Honor
+                                        </th>
+                                        <th className="px-3 py-3 text-right font-medium whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            Aksi
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                                    {flattenFrameRows.map(
+                                        ({ alokasi, frame }, index) => {
+                                            const target = frame
+                                                ? formatFrameTarget(frame) || 1
+                                                : Number(
+                                                      alokasi.jumlah_satuan ||
+                                                          0,
+                                                  );
+                                            const realisasi = frame
+                                                ? target
+                                                : (alokasi.jumlah_satuan_dibayarkan ??
+                                                  alokasi.jumlah_satuan ??
+                                                  0);
+                                            const rateHonor =
+                                                resolveRateHonorForAlokasi(
+                                                    alokasi,
+                                                    rateHonors,
+                                                );
+                                            const hargaSatuan =
+                                                frame?.tahapan === 'listing'
+                                                    ? rateHonor?.rate_listing ||
+                                                      rateHonor?.rate ||
+                                                      alokasi.rate_listing ||
+                                                      alokasi.rate_pencacahan ||
+                                                      0
+                                                    : rateHonor?.rate ||
+                                                      rateHonor?.rate_listing ||
+                                                      alokasi.rate_pencacahan ||
+                                                      alokasi.rate_listing ||
+                                                      0;
+                                            const estimasiHonor = frame
+                                                ? hargaSatuan * target
+                                                : rateHonor?.rate ||
+                                                  alokasi.total_honor;
+                                            const jenisLabel =
+                                                alokasi.petugas
+                                                    .jenis_petugas === 'organik'
+                                                    ? 'Organik'
+                                                    : 'Mitra';
+
+                                            return (
                                                 <tr
-                                                    key={`${alokasi.id}-pencacahan`}
+                                                    key={`${alokasi.id}-${frame?.frame_allocation_id ?? 'summary'}`}
                                                     className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
                                                 >
                                                     <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
@@ -649,55 +1569,57 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                     </td>
                                                     <td className="px-3 py-3 whitespace-nowrap">
                                                         <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-neutral-700/60 dark:text-blue-300">
-                                                            {alokasi.petugas
-                                                                .jenis_petugas ===
-                                                            'organik'
-                                                                ? 'Organik'
-                                                                : 'Mitra'}
+                                                            {jenisLabel}
                                                         </span>
                                                     </td>
                                                     <td className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white">
                                                         {peranLabels[
                                                             alokasi.peran
-                                                        ] || alokasi.peran}{' '}
-                                                        {showListingSection && (
-                                                            <span className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                                (Pencacahan)
-                                                            </span>
-                                                        )}
+                                                        ] || alokasi.peran}
+                                                    </td>
+                                                    {frameDetailColumns.map(
+                                                        (column) => (
+                                                            <td
+                                                                key={`${alokasi.id}-${frame?.frame_allocation_id ?? 'summary'}-${column.key}`}
+                                                                className="px-3 py-3 whitespace-nowrap text-neutral-900 dark:text-white"
+                                                            >
+                                                                {column.getValue(
+                                                                    frame,
+                                                                )}
+                                                            </td>
+                                                        ),
+                                                    )}
+                                                    <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
+                                                        {target}
                                                     </td>
                                                     <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
-                                                        {alokasi.jumlah_satuan}
-                                                    </td>
-                                                    <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
-                                                        {alokasi.jumlah_satuan_dibayarkan ??
-                                                            alokasi.jumlah_satuan ??
-                                                            0}
+                                                        {realisasi}
                                                     </td>
                                                     {isKetuaTim &&
                                                         hasPendataanRole && (
                                                             <td className="px-3 py-3 text-right whitespace-nowrap">
-                                                                {isEditMode ? (
+                                                                {isEditMode &&
+                                                                frame ? (
                                                                     <input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        value={
-                                                                            editedData[
+                                                                        type="checkbox"
+                                                                        checked={(
+                                                                            nonResponseSelections[
                                                                                 alokasi
                                                                                     .id
-                                                                            ]
-                                                                                ?.non_response ||
-                                                                            0
-                                                                        }
+                                                                            ] ||
+                                                                            []
+                                                                        ).includes(
+                                                                            frame.frame_allocation_id,
+                                                                        )}
                                                                         onChange={(
                                                                             e,
                                                                         ) =>
-                                                                            handleInputChange(
+                                                                            toggleNonResponseSelection(
                                                                                 alokasi.id,
-                                                                                'non_response',
+                                                                                frame.frame_allocation_id,
                                                                                 e
                                                                                     .target
-                                                                                    .value,
+                                                                                    .checked,
                                                                             )
                                                                         }
                                                                         disabled={
@@ -706,84 +1628,63 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                                             alokasi.peran ===
                                                                                 'pengawas_pengolahan'
                                                                         }
-                                                                        className="w-20 rounded border border-neutral-300 px-2 py-1 text-right text-neutral-900 disabled:cursor-not-allowed disabled:bg-neutral-100 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:disabled:bg-neutral-700"
+                                                                        className="h-4 w-4 rounded border-neutral-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
                                                                     />
                                                                 ) : (
                                                                     <span className="text-neutral-900 dark:text-white">
-                                                                        {alokasi.non_response ||
-                                                                            0}
+                                                                        {frame
+                                                                            ? frame.is_non_response
+                                                                                ? 1
+                                                                                : 0
+                                                                            : '-'}
                                                                     </span>
                                                                 )}
                                                             </td>
                                                         )}
                                                     <td className="px-3 py-3 text-right whitespace-nowrap text-neutral-900 dark:text-white">
                                                         {formatCurrency(
-                                                            alokasi.rate_pencacahan ||
-                                                                0,
+                                                            hargaSatuan,
                                                         )}
                                                     </td>
                                                     <td className="px-3 py-3 text-right font-semibold whitespace-nowrap text-green-600 dark:text-green-400">
                                                         {formatCurrency(
-                                                            alokasi.total_honor,
+                                                            estimasiHonor || 0,
+                                                        )}
+                                                    </td>
+                                                    <td className="px-3 py-3 text-right whitespace-nowrap">
+                                                        {frame &&
+                                                        canReplaceSamples ? (
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() =>
+                                                                    openReplacementDialog(
+                                                                        alokasi.id,
+                                                                        alokasi.peran,
+                                                                        frame.frame_allocation_id,
+                                                                        frame,
+                                                                    )
+                                                                }
+                                                            >
+                                                                Ganti Sampel
+                                                            </Button>
+                                                        ) : (
+                                                            <span className="text-xs text-neutral-400">
+                                                                -
+                                                            </span>
                                                         )}
                                                     </td>
                                                 </tr>
-                                            )}
-                                        </>
-                                    ),
-                                )}
-                            </tbody>
-                            <tfoot className="bg-neutral-100 dark:bg-neutral-900">
-                                {showListingSection && (
-                                    <>
-                                        <tr className="border-b border-neutral-200 dark:border-neutral-800">
-                                            <td
-                                                colSpan={summaryColSpan}
-                                                className="px-3 py-2 text-right text-sm font-semibold whitespace-nowrap text-neutral-600 dark:text-neutral-400"
-                                            >
-                                                Total Listing:
-                                            </td>
-                                            <td className="px-3 py-2 text-right text-lg font-bold whitespace-nowrap text-blue-600 dark:text-blue-400">
-                                                {formatCurrency(
-                                                    periode.total_estimasi_listing ||
-                                                        0,
-                                                )}
-                                            </td>
-                                        </tr>
-                                        {showPencacahanSection && (
-                                            <tr className="border-b border-neutral-200 dark:border-neutral-800">
-                                                <td
-                                                    colSpan={summaryColSpan}
-                                                    className="px-3 py-2 text-right text-sm font-semibold whitespace-nowrap text-neutral-600 dark:text-neutral-400"
-                                                >
-                                                    Total Pencacahan:
-                                                </td>
-                                                <td className="px-3 py-2 text-right text-lg font-bold whitespace-nowrap text-blue-600 dark:text-blue-400">
-                                                    {formatCurrency(
-                                                        periode.total_estimasi_pencacahan ||
-                                                            0,
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </>
-                                )}
-                                <tr>
-                                    <td
-                                        colSpan={summaryColSpan}
-                                        className="px-3 py-3 text-right font-semibold whitespace-nowrap text-neutral-900 dark:text-white"
-                                    >
-                                        Total Keseluruhan:
-                                    </td>
-                                    <td className="px-3 py-3 text-right text-xl font-bold whitespace-nowrap text-green-600 dark:text-green-400">
-                                        {formatCurrency(periode.total_estimasi)}
-                                    </td>
-                                </tr>
-                            </tfoot>
-                        </table>
+                                            );
+                                        },
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
-            </ContentCard>
+                </ContentCard>
+            )}
 
             {/* Histori Revisi */}
             {revisions && revisions.length > 0 && (
@@ -1011,6 +1912,117 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                         </div>
                     </div>
                 </ContentCard>
+            )}
+
+            {replacementState && (
+                <div className="bg-opacity-60 fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">
+                    <div className="w-full max-w-4xl rounded-2xl bg-white p-6 shadow-xl dark:bg-neutral-900">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                    Ganti Sampel
+                                </h3>
+                                <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                                    Sampel saat ini:{' '}
+                                    {replacementState.currentFrameLabel}
+                                </p>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setReplacementState(null)}
+                            >
+                                <X className="mr-2 h-4 w-4" />
+                                Tutup
+                            </Button>
+                        </div>
+
+                        <div className="mt-5 max-h-[60vh] overflow-y-auto rounded-2xl border border-neutral-200 dark:border-neutral-800">
+                            {availableReplacementFrames.length === 0 ? (
+                                <div className="p-6 text-sm text-neutral-500 dark:text-neutral-400">
+                                    Tidak ada sampel pengganti yang tersedia
+                                    untuk tahapan ini.
+                                </div>
+                            ) : (
+                                <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
+                                    {availableReplacementFrames.map(
+                                        ({ frame, alreadySelected }) =>
+                                            (() => {
+                                                const replacementFrameId =
+                                                    frame.id ??
+                                                    frame.kegiatan_frame_sampel_id ??
+                                                    0;
+
+                                                return (
+                                                    <button
+                                                        key={frame.id}
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleReplaceFrameSample(
+                                                                replacementFrameId,
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            alreadySelected
+                                                        }
+                                                        className={`rounded-2xl border p-4 text-left transition ${
+                                                            alreadySelected
+                                                                ? 'cursor-not-allowed border-neutral-200 bg-neutral-100 opacity-60 dark:border-neutral-800 dark:bg-neutral-900/40'
+                                                                : 'border-neutral-200 bg-neutral-50 hover:border-indigo-300 hover:bg-indigo-50 dark:border-neutral-800 dark:bg-neutral-950/70 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/30'
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <div className="font-semibold text-neutral-900 dark:text-white">
+                                                                {formatFrameText(
+                                                                    frame.nama_target ||
+                                                                        frame.nama_frame ||
+                                                                        frame.nama_usaha_penggilingan,
+                                                                )}
+                                                            </div>
+                                                            {frame.sample_role && (
+                                                                <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+                                                                    {formatSampleRoleLabel(
+                                                                        frame.sample_role,
+                                                                    )}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="mt-2 grid gap-1 text-sm text-neutral-600 dark:text-neutral-300">
+                                                            {(
+                                                                frame.metadata_items ||
+                                                                []
+                                                            ).map((item) => (
+                                                                <p
+                                                                    key={`${frame.id}-${item.code}`}
+                                                                >
+                                                                    {item.label}
+                                                                    :{' '}
+                                                                    {formatReplacementMetadataItem(
+                                                                        item,
+                                                                    )}
+                                                                </p>
+                                                            ))}
+                                                        </div>
+                                                        {alreadySelected && (
+                                                            <div className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-400">
+                                                                Sudah dipakai
+                                                                pada alokasi ini
+                                                            </div>
+                                                        )}
+                                                        <div className="mt-3 text-xs font-medium text-indigo-700 dark:text-indigo-300">
+                                                            {alreadySelected
+                                                                ? 'Tidak bisa dipilih'
+                                                                : 'Klik untuk mengganti sampel ini.'}
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })(),
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
             )}
         </AppLayout>
     );

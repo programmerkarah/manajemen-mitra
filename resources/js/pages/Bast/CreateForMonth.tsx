@@ -381,18 +381,18 @@ export default function CreateForMonth({
 
             {!isDetailMode && !isAdminOrOperator && (
                 <ContentCard>
-                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50/80 p-4 text-sm text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-400">
                         Halaman ini dipakai admin atau operator untuk membuat
-                        BAST main. Lampiran per kegiatan dilanjutkan dari
+                        BAST utama. Lampiran per kegiatan dilanjutkan dari
                         halaman detail BAST oleh ketua tim terkait.
-                    </p>
+                    </div>
                 </ContentCard>
             )}
 
             <ContentCard>
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div>
+                <div className="space-y-5">
+                    <div className="flex flex-wrap items-end justify-between gap-3">
+                        <div className="min-w-0">
                             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
                                 Daftar Perjanjian Kerja
                             </h3>

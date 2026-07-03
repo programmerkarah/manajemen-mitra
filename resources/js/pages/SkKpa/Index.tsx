@@ -368,13 +368,13 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                 </DialogContent>
             </Dialog>
 
-            <div className="space-y-6">
+            <div className="space-y-5">
                 <PageHeader
                     title="SK KPA"
                     description="Kelola Surat Keputusan Kuasa Pengguna Anggaran untuk setiap kegiatan"
                 />
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <button
                         type="button"
                         onClick={() => openSummaryModal('active')}
@@ -463,8 +463,8 @@ export default function Index({ kegiatan, summary }: IndexProps) {
 
                 {/* Filter & Search */}
                 <ContentCard>
-                    <div className="space-y-4">
-                        <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-3">
+                        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,0.95fr)_minmax(0,0.8fr)]">
                             <div>
                                 <label
                                     htmlFor="search"
@@ -527,6 +527,37 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                 </Button>
                             </div>
                         </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-neutral-200/80 bg-neutral-50/70 px-4 py-2.5 text-sm text-neutral-600 dark:border-neutral-700/70 dark:bg-neutral-900/40 dark:text-neutral-300">
+                            <p>
+                                Menampilkan{' '}
+                                {filteredAndSortedKegiatan.length === 0
+                                    ? 0
+                                    : (effectiveCurrentPage - 1) * perPage + 1}
+                                -
+                                {Math.min(
+                                    effectiveCurrentPage * perPage,
+                                    filteredAndSortedKegiatan.length,
+                                )}{' '}
+                                dari {filteredAndSortedKegiatan.length} data
+                                {filteredAndSortedKegiatan.length !==
+                                    allKegiatan.length &&
+                                    ` (difilter dari ${allKegiatan.length} total)`}
+                            </p>
+
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={handleRefresh}
+                                disabled={isRefreshing}
+                            >
+                                <RefreshCw
+                                    className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                                />
+                                Refresh
+                            </Button>
+                        </div>
                     </div>
                 </ContentCard>
 
@@ -551,41 +582,12 @@ export default function Index({ kegiatan, summary }: IndexProps) {
 
                 {/* Table */}
                 <ContentCard padding="none">
-                    <div className="flex items-center justify-between px-6 pt-4 pb-2">
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Menampilkan{' '}
-                            {filteredAndSortedKegiatan.length === 0
-                                ? 0
-                                : (effectiveCurrentPage - 1) * perPage + 1}
-                            -
-                            {Math.min(
-                                effectiveCurrentPage * perPage,
-                                filteredAndSortedKegiatan.length,
-                            )}{' '}
-                            dari {filteredAndSortedKegiatan.length} data
-                            {filteredAndSortedKegiatan.length !==
-                                allKegiatan.length &&
-                                ` (difilter dari ${allKegiatan.length} total)`}
-                        </p>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={handleRefresh}
-                            disabled={isRefreshing}
-                        >
-                            <RefreshCw
-                                className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
-                            />
-                            Refresh
-                        </Button>
-                    </div>
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
                                     <th
-                                        className="cursor-pointer px-3 py-3.5 text-left text-sm font-semibold text-neutral-900 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800"
+                                        className="cursor-pointer px-3 py-3 text-left text-sm font-semibold text-neutral-900 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800"
                                         onClick={() =>
                                             handleSort('nama_kegiatan')
                                         }
@@ -596,7 +598,7 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                         </div>
                                     </th>
                                     <th
-                                        className="cursor-pointer px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800"
+                                        className="cursor-pointer px-3 py-3 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800"
                                         onClick={() =>
                                             handleSort('jenis_kegiatan')
                                         }
@@ -607,7 +609,7 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                         </div>
                                     </th>
                                     <th
-                                        className="cursor-pointer px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800"
+                                        className="cursor-pointer px-3 py-3 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800"
                                         onClick={() =>
                                             handleSort('tahun_anggaran')
                                         }
@@ -617,16 +619,16 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                             {renderSortIcon('tahun_anggaran')}
                                         </div>
                                     </th>
-                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Ketua Tim
                                     </th>
-                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Status SK
                                     </th>
-                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         File
                                     </th>
-                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                    <th className="px-3 py-3 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
                                         Aksi
                                     </th>
                                 </tr>
@@ -648,9 +650,9 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                     paginatedKegiatan.map((keg) => (
                                         <tr
                                             key={keg.id}
-                                            className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
+                                            className="transition-colors hover:bg-neutral-50/80 dark:hover:bg-neutral-900/50"
                                         >
-                                            <td className="px-3 py-3">
+                                            <td className="px-3 py-2.5">
                                                 <div>
                                                     <div className="font-medium text-neutral-900 dark:text-white">
                                                         {keg.nama_kegiatan}
@@ -662,23 +664,23 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-3 text-center text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            <td className="px-3 py-2.5 text-center text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                 <span className="capitalize">
                                                     {keg.jenis_kegiatan}
                                                 </span>
                                             </td>
-                                            <td className="px-3 py-3 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-white">
+                                            <td className="px-3 py-2.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-white">
                                                 {keg.tahun_anggaran}
                                             </td>
-                                            <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
+                                            <td className="px-3 py-2.5 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                 {keg.ketua_tim}
                                             </td>
-                                            <td className="px-3 py-3 text-center">
+                                            <td className="px-3 py-2.5 text-center">
                                                 <StatusBadge
                                                     status={keg.sk_status_type}
                                                 />
                                             </td>
-                                            <td className="px-3 py-3 text-center">
+                                            <td className="px-3 py-2.5 text-center">
                                                 {keg.latest_sk ? (
                                                     keg.latest_sk
                                                         .signed_file_path ? (
@@ -698,7 +700,7 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="px-3 py-3">
+                                            <td className="px-3 py-2.5">
                                                 <div className="flex items-center justify-center gap-1.5">
                                                     {/* Buat SK / Buat SK Perubahan - Admin, PJ, and Operator */}
                                                     {canCreateSk && (

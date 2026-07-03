@@ -6,7 +6,13 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type Kegiatan } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import {
+    ArrowLeft,
+    ChevronLeft,
+    ChevronRight,
+    Search,
+    Trash2,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 interface KegiatanFrameSampel {
@@ -52,6 +58,9 @@ export default function FrameSampel({
     const [activeTab, setActiveTab] = useState<'listing' | 'pencacahan'>(
         isListingEnabled ? 'listing' : 'pencacahan',
     );
+    const [search, setSearch] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage] = useState(10);
 
     const [form, setForm] = useState({
         tahapan: (isListingEnabled ? 'listing' : 'pencacahan') as
@@ -76,9 +85,42 @@ export default function FrameSampel({
         [activeTab, frames],
     );
 
+    const filteredFrames = useMemo(() => {
+        if (!search.trim()) {
+            return visibleFrames;
+        }
+
+        const query = search.toLowerCase();
+
+        return visibleFrames.filter((frame) => {
+            const targetText = Object.values(frame.target_unit_sampel || {})
+                .map((value) => String(value))
+                .join(' ');
+
+            return (
+                frame.nama_frame?.toLowerCase().includes(query) ||
+                frame.kode_kecamatan?.toLowerCase().includes(query) ||
+                frame.kode_desa?.toLowerCase().includes(query) ||
+                frame.kode_sls?.toLowerCase().includes(query) ||
+                frame.kode_sub_sls?.toLowerCase().includes(query) ||
+                frame.kode_segmen?.toLowerCase().includes(query) ||
+                targetText.includes(query)
+            );
+        });
+    }, [search, visibleFrames]);
+
+    const totalPages = Math.ceil(filteredFrames.length / perPage);
+    const effectiveCurrentPage =
+        totalPages > 0 ? Math.min(currentPage, totalPages) : 1;
+
+    const paginatedFrames = useMemo(() => {
+        const start = (effectiveCurrentPage - 1) * perPage;
+        return filteredFrames.slice(start, start + perPage);
+    }, [effectiveCurrentPage, filteredFrames, perPage]);
+
     const totalTarget = useMemo(
         () =>
-            visibleFrames.reduce(
+            filteredFrames.reduce(
                 (sum, frame) =>
                     sum +
                     Object.values(frame.target_unit_sampel || {}).reduce(
@@ -87,7 +129,7 @@ export default function FrameSampel({
                     ),
                 0,
             ),
-        [visibleFrames],
+        [filteredFrames],
     );
 
     return (
@@ -108,8 +150,16 @@ export default function FrameSampel({
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 <ContentCard>
-                    <div className="space-y-3">
-                        <h3 className="text-lg font-semibold">Tambah Frame</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                Tambah Frame
+                            </h3>
+                            <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+                                Tambahkan frame baru untuk tahapan yang sedang
+                                aktif.
+                            </p>
+                        </div>
                         <div className="space-y-2">
                             <Label>Mode Tahapan</Label>
                             <div className="grid grid-cols-2 gap-2">
@@ -323,6 +373,25 @@ export default function FrameSampel({
                                         tahapan: activeTab,
                                         target_unit_sampel: filtered,
                                     },
+                                    {
+                                        preserveState: true,
+                                        onSuccess: () => {
+                                            setActiveTab(activeTab);
+                                            setCurrentPage(1);
+                                            setSearch('');
+                                            setForm((prev) => ({
+                                                ...prev,
+                                                tahapan: activeTab,
+                                                nama_frame: '',
+                                                kode_kecamatan: '',
+                                                kode_desa: '',
+                                                kode_sls: '',
+                                                kode_sub_sls: '',
+                                                kode_segmen: '',
+                                                target_unit_sampel: {},
+                                            }));
+                                        },
+                                    },
                                 );
                             }}
                             className="w-full"
@@ -333,77 +402,187 @@ export default function FrameSampel({
                 </ContentCard>
 
                 <ContentCard className="lg:col-span-2">
-                    <div className="space-y-3">
-                        <h3 className="text-lg font-semibold">
-                            Daftar Frame Sampel{' '}
-                            {activeTab === 'listing' ? 'Listing' : 'Pencacahan'}
-                        </h3>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Total target unit sampel: {totalTarget}
-                        </p>
+                    <div className="space-y-4">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                            <div>
+                                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                                    Daftar Frame Sampel{' '}
+                                    {activeTab === 'listing'
+                                        ? 'Listing'
+                                        : 'Pencacahan'}
+                                </h3>
+                                <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+                                    {filteredFrames.length} frame tampil · total
+                                    target unit sampel {totalTarget}
+                                </p>
+                            </div>
 
-                        <div className="space-y-2">
-                            {visibleFrames.map((frame) => (
-                                <div
-                                    key={frame.id}
-                                    className="flex items-center justify-between rounded border p-3"
-                                >
-                                    <div>
-                                        <p className="font-medium">
-                                            {frame.nama_frame || '-'} (
-                                            {frame.tahapan})
-                                        </p>
-                                        <p className="text-xs text-neutral-500">
-                                            Kec: {frame.kode_kecamatan || '-'} |
-                                            Desa: {frame.kode_desa || '-'} |
-                                            SLS: {frame.kode_sls || '-'} | Sub
-                                            SLS: {frame.kode_sub_sls || '-'} |
-                                            Segmen: {frame.kode_segmen || '-'}
-                                        </p>
-                                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-neutral-500">
-                                            {(frame.tahapan === 'listing'
-                                                ? unitSampelListingItems
-                                                : unitSampelPencacahanItems
-                                            ).length > 0 ? (
-                                                (frame.tahapan === 'listing'
+                            <div className="grid gap-2 sm:grid-cols-2 lg:w-[28rem]">
+                                <div className="relative sm:col-span-2 lg:col-span-1">
+                                    <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+                                    <Input
+                                        value={search}
+                                        onChange={(event) => {
+                                            setSearch(event.target.value);
+                                            setCurrentPage(1);
+                                        }}
+                                        placeholder="Cari nama, kode, atau target..."
+                                        className="pl-9"
+                                    />
+                                </div>
+                                <div className="rounded-2xl border border-neutral-200 bg-neutral-50/80 px-4 py-2.5 text-sm text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-300">
+                                    Halaman {effectiveCurrentPage}
+                                    {totalPages > 0
+                                        ? ` dari ${totalPages}`
+                                        : ''}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-neutral-200/80 bg-neutral-50/70 px-4 py-3 text-sm text-neutral-600 dark:border-neutral-700/70 dark:bg-neutral-900/40 dark:text-neutral-300">
+                            Menampilkan{' '}
+                            {filteredFrames.length === 0
+                                ? 0
+                                : (effectiveCurrentPage - 1) * perPage + 1}
+                            -
+                            {Math.min(
+                                effectiveCurrentPage * perPage,
+                                filteredFrames.length,
+                            )}{' '}
+                            dari {filteredFrames.length} frame
+                            {search.trim() &&
+                            filteredFrames.length !== visibleFrames.length
+                                ? ` (difilter dari ${visibleFrames.length} total tahapan ini)`
+                                : ''}
+                        </div>
+
+                        <div className="space-y-3">
+                            {paginatedFrames.length === 0 ? (
+                                <div className="rounded-2xl border border-dashed border-neutral-300 px-4 py-10 text-center text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
+                                    {search.trim()
+                                        ? 'Tidak ada frame yang cocok dengan pencarian.'
+                                        : 'Belum ada frame pada tahapan ini.'}
+                                </div>
+                            ) : (
+                                paginatedFrames.map((frame) => (
+                                    <div
+                                        key={frame.id}
+                                        className="flex flex-col gap-4 rounded-2xl border border-neutral-200 bg-white/70 p-4 transition-colors hover:border-neutral-300 hover:bg-white lg:flex-row lg:items-start lg:justify-between dark:border-neutral-700 dark:bg-neutral-900/50 dark:hover:border-neutral-600"
+                                    >
+                                        <div className="min-w-0 flex-1 space-y-2">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <p className="font-semibold text-neutral-900 dark:text-white">
+                                                    {frame.nama_frame || '-'}
+                                                </p>
+                                                <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
+                                                    {frame.tahapan}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs leading-5 text-neutral-500 dark:text-neutral-400">
+                                                Kec:{' '}
+                                                {frame.kode_kecamatan || '-'}
+                                                {' · '}Desa:{' '}
+                                                {frame.kode_desa || '-'}
+                                                {' · '}SLS:{' '}
+                                                {frame.kode_sls || '-'}
+                                                {' · '}Sub SLS:{' '}
+                                                {frame.kode_sub_sls || '-'}
+                                                {' · '}Segmen:{' '}
+                                                {frame.kode_segmen || '-'}
+                                            </p>
+                                            <div className="flex flex-wrap gap-2 text-xs text-neutral-600 dark:text-neutral-300">
+                                                {(frame.tahapan === 'listing'
                                                     ? unitSampelListingItems
                                                     : unitSampelPencacahanItems
-                                                ).map((u) => (
-                                                    <span key={u.id}>
-                                                        {u.nama}:{' '}
-                                                        {(frame.target_unit_sampel ||
-                                                            {})[String(u.id)] ??
-                                                            0}
+                                                ).length > 0 ? (
+                                                    (frame.tahapan === 'listing'
+                                                        ? unitSampelListingItems
+                                                        : unitSampelPencacahanItems
+                                                    ).map((u) => (
+                                                        <span
+                                                            key={u.id}
+                                                            className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 dark:border-neutral-700 dark:bg-neutral-800"
+                                                        >
+                                                            {u.nama}:{' '}
+                                                            {(frame.target_unit_sampel ||
+                                                                {})[
+                                                                String(u.id)
+                                                            ] ?? 0}
+                                                        </span>
+                                                    ))
+                                                ) : (
+                                                    <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 dark:border-neutral-700 dark:bg-neutral-800">
+                                                        Total target:{' '}
+                                                        {Object.values(
+                                                            frame.target_unit_sampel ||
+                                                                {},
+                                                        ).reduce(
+                                                            (s, v) =>
+                                                                s + Number(v),
+                                                            0,
+                                                        )}
                                                     </span>
-                                                ))
-                                            ) : (
-                                                <span>
-                                                    Target:{' '}
-                                                    {Object.values(
-                                                        frame.target_unit_sampel ||
-                                                            {},
-                                                    ).reduce(
-                                                        (s, v) => s + Number(v),
-                                                        0,
-                                                    )}
-                                                </span>
-                                            )}
+                                                )}
+                                            </div>
                                         </div>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() =>
+                                                router.delete(
+                                                    `/kegiatan/${kegiatan.hashed_id}/frame-sampel/${frame.id}`,
+                                                )
+                                            }
+                                            className="w-full shrink-0 gap-2 lg:w-auto"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                            Hapus
+                                        </Button>
                                     </div>
+                                ))
+                            )}
+                        </div>
+
+                        {totalPages > 1 && (
+                            <div className="flex flex-col gap-3 border-t border-neutral-200 pt-4 sm:flex-row sm:items-center sm:justify-between dark:border-neutral-700">
+                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    Halaman {effectiveCurrentPage} dari{' '}
+                                    {totalPages}
+                                </p>
+                                <div className="flex items-center gap-2">
                                     <Button
-                                        size="sm"
+                                        type="button"
                                         variant="outline"
+                                        size="sm"
                                         onClick={() =>
-                                            router.delete(
-                                                `/kegiatan/${kegiatan.hashed_id}/frame-sampel/${frame.id}`,
+                                            setCurrentPage((prev) =>
+                                                Math.max(prev - 1, 1),
                                             )
                                         }
+                                        disabled={effectiveCurrentPage <= 1}
                                     >
-                                        <Trash2 className="h-4 w-4" />
+                                        <ChevronLeft className="h-4 w-4" />
+                                        Sebelumnya
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                            setCurrentPage((prev) =>
+                                                Math.min(prev + 1, totalPages),
+                                            )
+                                        }
+                                        disabled={
+                                            effectiveCurrentPage >= totalPages
+                                        }
+                                    >
+                                        Berikutnya
+                                        <ChevronRight className="h-4 w-4" />
                                     </Button>
                                 </div>
-                            ))}
-                        </div>
+                            </div>
+                        )}
                     </div>
                 </ContentCard>
             </div>

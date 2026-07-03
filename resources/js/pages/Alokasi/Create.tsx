@@ -140,6 +140,7 @@ interface Kegiatan {
     nama_kegiatan: string;
     deskripsi?: string | null;
     jenis_kegiatan: 'sensus' | 'survei';
+    metode_sampling?: 'targeted' | 'purpossive' | null;
     pagu_pencacahan?: number | null;
     ketua_tim_user_id: number;
     rate_honors: RateHonor[];
@@ -152,7 +153,10 @@ interface Kegiatan {
     kegiatan_frame_sampel?: Array<{
         id: number;
         tahapan: 'listing' | 'pencacahan';
+        nama_target?: string | null;
         nama_frame?: string | null;
+        sample_role?: string | null;
+        is_active?: boolean | null;
         identitas_tambahan?: Record<string, string | number | null> | null;
         target_unit_sampel: Record<string, number>;
     }>;
@@ -170,6 +174,20 @@ type FrameSampelOption = NonNullable<Kegiatan['kegiatan_frame_sampel']>[number];
 
 const formatMetadataLabel = (key: string): string => {
     return key
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (match) => match.toUpperCase());
+};
+
+const formatPurpossiveSampleRoleLabel = (
+    value: string | null | undefined,
+): string => {
+    const normalized = String(value || '').trim();
+
+    if (normalized === '') {
+        return '-';
+    }
+
+    return normalized
         .replace(/_/g, ' ')
         .replace(/\b\w/g, (match) => match.toUpperCase());
 };
@@ -259,6 +277,16 @@ const hasMeaningfulValue = (value: string): boolean => {
 
 const getFramePrimaryIdentity = (frameSampel: FrameSampelOption) => {
     const metadata = frameSampel.identitas_tambahan;
+    const sampleName = formatMetadataValue(frameSampel.nama_target);
+
+    if (hasMeaningfulValue(sampleName)) {
+        return {
+            title: sampleName,
+            label: 'Nama Sampel',
+            value: sampleName,
+        };
+    }
+
     const segmentCode = resolveMetadataValue(metadata, [
         'idsegmen',
         'id_segmen',
@@ -413,6 +441,91 @@ interface BackendAlokasiItem {
     jumlah_unit_sampel?: number | string;
 }
 
+const createEmptyAlokasiItem = (
+    jenisKegiatan: 'sensus' | 'survei',
+): AlokasiItem => ({
+    petugas_id: '',
+    peran: '',
+    jumlah_satuan: jenisKegiatan === 'sensus' ? '1' : '',
+    estimasi_honor: 0,
+    catatan: '',
+    is_partial_payment: false,
+    partial_jumlah_satuan: '',
+    estimasi_honor_partial: 0,
+    is_partial_payment_listing: false,
+    partial_jumlah_satuan_listing: '',
+    estimasi_honor_partial_listing: 0,
+    frame_sampel_ids: [],
+    jumlah_unit_sampel: '',
+});
+
+const mapBackendAlokasiToAlokasiItem = (
+    alokasi: BackendAlokasiItem,
+): AlokasiItem => {
+    let peranDisplay = '';
+    const peranLower = (alokasi.peran || '').toLowerCase();
+
+    if (peranLower === 'pcl_ppl' || peranLower === 'pcl') {
+        peranDisplay = 'PCL';
+    } else if (peranLower === 'pml') {
+        peranDisplay = 'PML';
+    } else if (
+        peranLower === 'pengolahan' ||
+        peranLower === 'petugas pengolahan'
+    ) {
+        peranDisplay = 'Petugas Pengolahan';
+    } else if (
+        peranLower === 'pengawas_pengolahan' ||
+        peranLower === 'pengawas pengolahan'
+    ) {
+        peranDisplay = 'Pengawas Pengolahan';
+    } else if (peranLower === 'koseka') {
+        peranDisplay = 'Koseka';
+    } else if (alokasi.peran) {
+        peranDisplay = alokasi.peran;
+    }
+
+    const estimasiHonor = parseFloat(String(alokasi.total_honor)) || 0;
+    const estimasiHonorListing =
+        parseFloat(String(alokasi.total_honor_listing ?? 0)) || 0;
+    const estimasiHonorPartial =
+        parseFloat(String(alokasi.estimasi_honor_partial ?? 0)) || 0;
+    const estimasiHonorPartialListing =
+        parseFloat(String(alokasi.estimasi_honor_partial_listing ?? 0)) || 0;
+    const partialJumlahSatuan = String(alokasi.partial_jumlah_satuan ?? '');
+    const partialJumlahSatuanListing = String(
+        alokasi.partial_jumlah_satuan_listing ?? '',
+    );
+    const hasPartialPayment = Boolean(alokasi.is_partial_payment);
+    const hasPartialPaymentListing = Boolean(
+        alokasi.is_partial_payment_listing,
+    );
+
+    return {
+        petugas_id: String(alokasi.petugas_id || ''),
+        peran: peranDisplay,
+        jumlah_satuan: String(alokasi.jumlah_satuan || 0),
+        jumlah_satuan_listing: String(alokasi.jumlah_satuan_listing || 0),
+        estimasi_honor: estimasiHonor,
+        estimasi_honor_listing: estimasiHonorListing,
+        catatan: alokasi.catatan || '',
+        is_partial_payment: hasPartialPayment,
+        partial_jumlah_satuan: hasPartialPayment ? partialJumlahSatuan : '',
+        estimasi_honor_partial: hasPartialPayment ? estimasiHonorPartial : 0,
+        is_partial_payment_listing: hasPartialPaymentListing,
+        partial_jumlah_satuan_listing: hasPartialPaymentListing
+            ? partialJumlahSatuanListing
+            : '',
+        estimasi_honor_partial_listing: hasPartialPaymentListing
+            ? estimasiHonorPartialListing
+            : 0,
+        frame_sampel_ids: (alokasi.frame_sampel_ids || []).map((frameId) =>
+            String(frameId),
+        ),
+        jumlah_unit_sampel: String(alokasi.jumlah_unit_sampel || ''),
+    };
+};
+
 interface AlokasiCreateProps {
     kegiatans: Kegiatan[];
     petugas: Petugas[];
@@ -436,7 +549,14 @@ interface AlokasiCreateProps {
     } | null;
     budget_info: Record<
         number,
-        { pagu_pencacahan: number; current_total_spent: number }
+        {
+            pagu_pencacahan: number;
+            current_total_spent: number;
+            current_total_spent_other_periods?: number;
+            pagu_listing: number;
+            current_total_spent_listing: number;
+            current_total_spent_listing_other_periods?: number;
+        }
     >;
     used_months_info: Record<
         number,
@@ -519,6 +639,13 @@ export default function Create({
         preSelectedKegiatan?.id || '',
     );
     const isCopyMode = Boolean(sourcePeriode || copiedAlokasi?.length);
+    const initialCopiedAlokasiItems = useMemo(
+        () =>
+            copiedAlokasi?.length
+                ? copiedAlokasi.map(mapBackendAlokasiToAlokasiItem)
+                : [],
+        [copiedAlokasi],
+    );
 
     // Helper function to find first available month
     const getFirstAvailableMonth = (
@@ -599,24 +726,18 @@ export default function Create({
     >([]);
     // Tidak perlu showPengolahan, dropdown peran akan dinamis dari rate_honors
     const [jumlahPetugas, setJumlahPetugas] = useState<number | string>(
-        isEditMode && copiedAlokasi ? copiedAlokasi.length : 1,
+        initialCopiedAlokasiItems.length > 0
+            ? initialCopiedAlokasiItems.length
+            : 1,
     );
     const [alokasiItems, setAlokasiItems] = useState<AlokasiItem[]>([
-        {
-            petugas_id: '',
-            peran: '',
-            jumlah_satuan: '',
-            estimasi_honor: 0,
-            catatan: '',
-            is_partial_payment: false,
-            partial_jumlah_satuan: '',
-            estimasi_honor_partial: 0,
-            is_partial_payment_listing: false,
-            partial_jumlah_satuan_listing: '',
-            estimasi_honor_partial_listing: 0,
-            frame_sampel_ids: [],
-            jumlah_unit_sampel: '',
-        },
+        ...(initialCopiedAlokasiItems.length > 0
+            ? initialCopiedAlokasiItems
+            : [
+                  createEmptyAlokasiItem(
+                      preSelectedKegiatan?.jenis_kegiatan || 'survei',
+                  ),
+              ]),
     ]);
     const [restorableItemsByCount, setRestorableItemsByCount] = useState<
         AlokasiItem[]
@@ -666,6 +787,7 @@ export default function Create({
     const [jenisPerubahanRevisi, setJenisPerubahanRevisi] = useState<
         JenisPerubahanRevisi | ''
     >('');
+    const importFileInputRef = useRef<HTMLInputElement | null>(null);
     const wizardSectionRefs = useRef<Array<HTMLDivElement | null>>([]);
     const [frameSampelDialogIndex, setFrameSampelDialogIndex] = useState<
         number | null
@@ -904,6 +1026,8 @@ export default function Create({
     const selectedKegiatan = kegiatanOptions.find(
         (k) => String(k.id) === String(selectedKegiatanId),
     );
+    const isPurposiveSampling =
+        selectedKegiatan?.metode_sampling === 'purpossive';
     const isSensusEkonomi2026 = useMemo(() => {
         if (!selectedKegiatan) {
             return false;
@@ -960,6 +1084,27 @@ export default function Create({
             return frameSampel.tahapan === 'pencacahan';
         });
     }, [selectedKegiatan, tahapan]);
+
+    const getDialogFrameSampelOptions = (
+        frameIds?: string[],
+    ): FrameSampelOption[] => {
+        const selectedFrameIdSet = new Set((frameIds || []).map(String));
+        const selectedFrameOptions = allFrameSampelOptions.filter(
+            (frameSampel) => selectedFrameIdSet.has(String(frameSampel.id)),
+        );
+
+        return [
+            ...filteredFrameSampelOptions,
+            ...selectedFrameOptions.filter(
+                (frameSampel) =>
+                    !filteredFrameSampelOptions.some(
+                        (filteredFrame) =>
+                            String(filteredFrame.id) === String(frameSampel.id),
+                    ),
+            ),
+        ];
+    };
+
     const isSensusKegiatan = selectedKegiatan?.jenis_kegiatan === 'sensus';
     const sensusFixedMonth = selectedKegiatan?.tanggal_mulai
         ? new Date(selectedKegiatan.tanggal_mulai).getMonth() + 1
@@ -1270,8 +1415,21 @@ export default function Create({
             })
             .filter((value): value is string => value !== null);
 
+        const sampleNames = selectedFrames
+            .map((frameSampel) => formatMetadataValue(frameSampel.nama_target))
+            .filter(hasMeaningfulValue);
+
+        const sampleLabel =
+            sampleNames.length > 0
+                ? sampleNames.slice(0, 3).join(', ')
+                : `${selectedFrames.length} frame sampel`;
+
         if (targetBreakdown.length > 0) {
-            return `${selectedFrames.length} SLS/sub-SLS, ${formatTargetBreakdownText(targetBreakdown)}`;
+            return `${sampleLabel}, ${formatTargetBreakdownText(targetBreakdown)}`;
+        }
+
+        if (isPurposiveSampling) {
+            return `${sampleLabel}, ${selectedFrames.length} frame sampel`;
         }
 
         const totalTarget = selectedFrames.reduce((sum, frameSampel) => {
@@ -1284,7 +1442,7 @@ export default function Create({
             );
         }, 0);
 
-        return `${selectedFrames.length} SLS/sub-SLS, ${formatTargetNumber(totalTarget)} target`;
+        return `${sampleLabel}, ${formatTargetNumber(totalTarget)} target`;
     };
 
     const getPreviewFrameForRow = useCallback(
@@ -1352,11 +1510,22 @@ export default function Create({
 
     const calculateTargetFromFrameSelections = useCallback(
         (frameIds?: string[]): number => {
-            return (frameIds || []).reduce((sum, frameId) => {
+            const selectedFrameIds = frameIds || [];
+            const targetFromFrames = selectedFrameIds.reduce((sum, frameId) => {
                 return sum + (frameTargetById.get(String(frameId)) || 0);
             }, 0);
+
+            if (targetFromFrames > 0) {
+                return targetFromFrames;
+            }
+
+            if (isPurposiveSampling) {
+                return selectedFrameIds.length;
+            }
+
+            return targetFromFrames;
         },
-        [frameTargetById],
+        [frameTargetById, isPurposiveSampling],
     );
 
     // Get budget info for selected kegiatan
@@ -1365,14 +1534,18 @@ export default function Create({
             ? budget_info[Number(selectedKegiatan.id)] || {
                   pagu_pencacahan: 0,
                   current_total_spent: 0,
+                  current_total_spent_other_periods: 0,
                   pagu_listing: 0,
                   current_total_spent_listing: 0,
+                  current_total_spent_listing_other_periods: 0,
               }
             : {
                   pagu_pencacahan: 0,
                   current_total_spent: 0,
+                  current_total_spent_other_periods: 0,
                   pagu_listing: 0,
                   current_total_spent_listing: 0,
+                  current_total_spent_listing_other_periods: 0,
               };
 
     // For backward compatibility, fallback to selectedKegiatan.pagu_listing if not in budget_info
@@ -1380,16 +1553,27 @@ export default function Create({
         'pagu_pencacahan' in currentBudget
             ? (currentBudget as { pagu_pencacahan: number }).pagu_pencacahan
             : selectedKegiatan?.pagu_pencacahan || 0;
-    const current_total_spent = currentBudget.current_total_spent;
     const pagu_listing =
         'pagu_listing' in currentBudget
             ? (currentBudget as { pagu_listing: number }).pagu_listing
             : selectedKegiatan?.pagu_listing || 0;
-    const current_total_spent_listing =
-        'current_total_spent_listing' in currentBudget
-            ? (currentBudget as { current_total_spent_listing: number })
-                  .current_total_spent_listing
-            : 0;
+    const current_total_spent_listing_base =
+        currentBudget.current_total_spent_listing_other_periods ??
+        currentBudget.current_total_spent_listing;
+
+    const current_total_spent =
+        currentBudget.current_total_spent_other_periods ??
+        currentBudget.current_total_spent;
+
+    const current_total_spent_listing = current_total_spent_listing_base;
+
+    const tahapanSummaryLabel = selectedKegiatan?.has_listing_updating
+        ? tahapan === 'both'
+            ? 'Listing + Pencacahan'
+            : tahapan === 'listing_only'
+              ? 'Listing saja'
+              : 'Pencacahan saja'
+        : 'Pencacahan';
 
     // Get used months for selected kegiatan
     const usedMonths = useMemo(() => {
@@ -1563,7 +1747,6 @@ export default function Create({
     // Initialize with copied data if available
     useEffect(() => {
         if (copiedAlokasi && copiedAlokasi.length > 0) {
-            // Store original values first for restoration
             const originalValues = copiedAlokasi.map((alokasi) => ({
                 jumlah_satuan: String(alokasi.jumlah_satuan || 0),
                 jumlah_satuan_listing: String(
@@ -1577,94 +1760,14 @@ export default function Create({
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setOriginalAlokasiValues(originalValues);
 
-            const initialItems = copiedAlokasi.map((alokasi) => {
-                // Map backend peran format to frontend display format
-                let peranDisplay = '';
-                const peranLower = (alokasi.peran || '').toLowerCase();
-
-                if (peranLower === 'pcl_ppl' || peranLower === 'pcl') {
-                    peranDisplay = 'PCL';
-                } else if (peranLower === 'pml') {
-                    peranDisplay = 'PML';
-                } else if (
-                    peranLower === 'pengolahan' ||
-                    peranLower === 'petugas pengolahan'
-                ) {
-                    peranDisplay = 'Petugas Pengolahan';
-                } else if (
-                    peranLower === 'pengawas_pengolahan' ||
-                    peranLower === 'pengawas pengolahan'
-                ) {
-                    peranDisplay = 'Pengawas Pengolahan';
-                } else if (peranLower === 'koseka') {
-                    peranDisplay = 'Koseka';
-                } else if (alokasi.peran) {
-                    // If peran exists but doesn't match any known format, keep it as is
-                    peranDisplay = alokasi.peran;
-                }
-
-                // Ensure numeric values are properly parsed
-                const estimasiHonor =
-                    parseFloat(String(alokasi.total_honor)) || 0;
-                const estimasiHonorListing =
-                    parseFloat(String(alokasi.total_honor_listing ?? 0)) || 0;
-                const estimasiHonorPartial =
-                    parseFloat(String(alokasi.estimasi_honor_partial ?? 0)) ||
-                    0;
-                const estimasiHonorPartialListing =
-                    parseFloat(
-                        String(alokasi.estimasi_honor_partial_listing ?? 0),
-                    ) || 0;
-                const partialJumlahSatuan = String(
-                    alokasi.partial_jumlah_satuan ?? '',
-                );
-                const partialJumlahSatuanListing = String(
-                    alokasi.partial_jumlah_satuan_listing ?? '',
-                );
-                const hasPartialPayment = Boolean(alokasi.is_partial_payment);
-                const hasPartialPaymentListing = Boolean(
-                    alokasi.is_partial_payment_listing,
-                );
-                const frameSampelIds = (alokasi.frame_sampel_ids || []).map(
-                    (frameId) => String(frameId),
-                );
-
-                return {
-                    petugas_id: String(alokasi.petugas_id || ''),
-                    peran: peranDisplay,
-                    jumlah_satuan: String(alokasi.jumlah_satuan || 0),
-                    jumlah_satuan_listing: String(
-                        alokasi.jumlah_satuan_listing || 0,
-                    ),
-                    estimasi_honor: estimasiHonor,
-                    estimasi_honor_listing: estimasiHonorListing,
-                    catatan: alokasi.catatan || '',
-                    is_partial_payment: hasPartialPayment,
-                    partial_jumlah_satuan: hasPartialPayment
-                        ? partialJumlahSatuan
-                        : '',
-                    estimasi_honor_partial: hasPartialPayment
-                        ? estimasiHonorPartial
-                        : 0,
-                    is_partial_payment_listing: hasPartialPaymentListing,
-                    partial_jumlah_satuan_listing: hasPartialPaymentListing
-                        ? partialJumlahSatuanListing
-                        : '',
-                    estimasi_honor_partial_listing: hasPartialPaymentListing
-                        ? estimasiHonorPartialListing
-                        : 0,
-                    frame_sampel_ids: frameSampelIds,
-                    jumlah_unit_sampel: String(
-                        alokasi.jumlah_unit_sampel || '',
-                    ),
-                };
-            });
+            const initialItems = copiedAlokasi.map(
+                mapBackendAlokasiToAlokasiItem,
+            );
 
             setAlokasiItems(initialItems);
             setJumlahPetugas(initialItems.length);
             setRestorableItemsByCount([]);
 
-            // Auto-scroll to budget info if any estimasi honor exists
             const hasEstimasi = initialItems.some(
                 (item) =>
                     item.estimasi_honor > 0 ||
@@ -1672,7 +1775,6 @@ export default function Create({
                         item.estimasi_honor_listing > 0),
             );
             if (hasEstimasi) {
-                // Delay scroll to ensure DOM is rendered
                 setTimeout(() => {
                     const budgetSection =
                         document.querySelector('[data-budget-info]');
@@ -3289,6 +3391,9 @@ export default function Create({
         setImportPreviewErrors([]);
         setIsImportPreviewDialogOpen(false);
         setImportFile(null);
+        if (importFileInputRef.current) {
+            importFileInputRef.current.value = '';
+        }
     };
 
     const exportTemplateUrl =
@@ -3560,11 +3665,7 @@ export default function Create({
                                     ?.label ?? bulan}
                             </span>
                             <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs font-medium text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
-                                {tahapan === 'both'
-                                    ? 'Listing + Pencacahan'
-                                    : tahapan === 'listing_only'
-                                      ? 'Listing saja'
-                                      : 'Pencacahan saja'}
+                                {tahapanSummaryLabel}
                             </span>
                             <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs font-medium text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                                 {alokasiItems.length} baris alokasi
@@ -4329,6 +4430,7 @@ export default function Create({
                             <Input
                                 id="alokasi_import_file"
                                 type="file"
+                                ref={importFileInputRef}
                                 accept=".xlsx,.xls,.csv"
                                 onChange={(e) =>
                                     setImportFile(e.target.files?.[0] ?? null)
@@ -5241,7 +5343,7 @@ export default function Create({
 
                                                 {isFrameSampelSelectionEnabled && (
                                                     <>
-                                                        <div className="space-y-2 md:col-span-2">
+                                                        <div className="space-y-3 rounded-xl border border-dashed border-neutral-300/80 bg-neutral-50/70 p-4 md:col-span-4 dark:border-neutral-700 dark:bg-neutral-900/35">
                                                             <Label>
                                                                 Pilih Sampel{' '}
                                                                 <span className="text-red-500">
@@ -5258,12 +5360,11 @@ export default function Create({
                                                                 }
                                                                 disabled={
                                                                     isJenisPerubahanRevisiPending ||
-                                                                    isPerubahanAlokasiMode ||
                                                                     isViewMode ||
                                                                     filteredFrameSampelOptions.length ===
                                                                         0
                                                                 }
-                                                                className="w-full justify-between"
+                                                                className="h-11 w-full justify-between rounded-lg border-neutral-300 bg-white/90 px-4 shadow-sm dark:bg-neutral-950/70"
                                                             >
                                                                 <span>
                                                                     Pilih Sampel
@@ -6248,14 +6349,18 @@ export default function Create({
                         </DialogDescription>
                     </DialogHeader>
 
-                    {filteredFrameSampelOptions.length === 0 ? (
+                    {getDialogFrameSampelOptions(
+                        activeFrameDialogItem?.frame_sampel_ids,
+                    ).length === 0 ? (
                         <div className="rounded-lg border border-dashed border-neutral-300 px-4 py-6 text-sm text-neutral-600 dark:border-neutral-700 dark:text-neutral-300">
                             Belum ada frame sampel yang tersedia untuk tahapan
                             ini.
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {filteredFrameSampelOptions.map((frameSampel) => {
+                            {getDialogFrameSampelOptions(
+                                activeFrameDialogItem?.frame_sampel_ids,
+                            ).map((frameSampel) => {
                                 const isChecked = Boolean(
                                     activeFrameDialogItem?.frame_sampel_ids?.includes(
                                         String(frameSampel.id),
@@ -6269,10 +6374,6 @@ export default function Create({
                                 const primaryIdentity =
                                     getFramePrimaryIdentity(frameSampel);
                                 const primaryTitle = primaryIdentity.title;
-                                const primaryDetailLabel =
-                                    primaryIdentity.label;
-                                const primaryDetailValue =
-                                    primaryIdentity.value;
 
                                 return (
                                     <label
@@ -6302,7 +6403,6 @@ export default function Create({
                                             }}
                                             disabled={
                                                 isJenisPerubahanRevisiPending ||
-                                                isPerubahanAlokasiMode ||
                                                 isViewMode ||
                                                 isBlockedForOtherPetugas
                                             }
@@ -6316,6 +6416,19 @@ export default function Create({
                                                 <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
                                                     {frameSampel.tahapan}
                                                 </span>
+                                                {frameSampel.sample_role && (
+                                                    <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+                                                        {formatPurpossiveSampleRoleLabel(
+                                                            frameSampel.sample_role,
+                                                        )}
+                                                    </span>
+                                                )}
+                                                {frameSampel.is_active ===
+                                                    false && (
+                                                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                                                        Nonaktif
+                                                    </span>
+                                                )}
                                                 {isBlockedForOtherPetugas && (
                                                     <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/40 dark:text-red-300">
                                                         Sudah dialokasikan ke
@@ -6326,9 +6439,11 @@ export default function Create({
                                             <div className="grid gap-2 text-sm text-neutral-600 sm:grid-cols-2 dark:text-neutral-300">
                                                 <div>
                                                     <span className="font-medium text-neutral-800 dark:text-neutral-100">
-                                                        {primaryDetailLabel}:
+                                                        Nama Sampel:
                                                     </span>{' '}
-                                                    {primaryDetailValue}
+                                                    {formatMetadataValue(
+                                                        frameSampel.nama_target,
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <span className="font-medium text-neutral-800 dark:text-neutral-100">

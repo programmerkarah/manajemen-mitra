@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Exports\ActivityLogExport;
+use App\Http\Requests\Settings\UpdateFeatureToggleRequest;
 use App\Http\Requests\Settings\UpdateMaintenanceRequest;
 use App\Models\ActivityLog;
+use App\Models\FeatureToggle;
 use App\Models\User;
 use App\Services\DatabaseBackupService;
 use Illuminate\Foundation\Http\MaintenanceModeBypassCookie;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
@@ -38,6 +41,13 @@ class SystemSettingsController
             ? Storage::get('framework/maintenance-message.txt')
             : Config::get('app.maintenance_message');
         $ssoSyncEnabled = Cache::get(self::SSO_SYNC_CACHE_KEY);
+        $featureToggles = FeatureToggle::ordered()->map(fn (FeatureToggle $toggle) => [
+            'key' => $toggle->key,
+            'label' => $toggle->label,
+            'description' => $toggle->description,
+            'enabled' => $toggle->enabled,
+            'sort_order' => $toggle->sort_order,
+        ]);
 
         if (! is_bool($ssoSyncEnabled)) {
             $ssoSyncEnabled = (bool) config('services.sso.sync_enabled', true);
@@ -48,6 +58,39 @@ class SystemSettingsController
             'message' => $message,
             'sso_sync_enabled' => $ssoSyncEnabled,
             'session_lifetime' => (int) config('session.lifetime', 120),
+            'feature_toggles' => $featureToggles,
+        ]);
+    }
+
+    public function updateFeatureToggle(UpdateFeatureToggleRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+
+        $toggle = FeatureToggle::updateState(
+            (string) $validated['key'],
+            (bool) $validated['enabled']
+        );
+
+        ActivityLog::logSystem(
+            'Pengaturan Fitur Diperbarui',
+            'Fitur '.$toggle->label.' '.($toggle->enabled ? 'diaktifkan' : 'dinonaktifkan').'.',
+            'info',
+            [
+                'feature_key' => $toggle->key,
+                'enabled' => $toggle->enabled,
+                'user_id' => Auth::id(),
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'feature_toggle' => [
+                'key' => $toggle->key,
+                'label' => $toggle->label,
+                'description' => $toggle->description,
+                'enabled' => $toggle->enabled,
+                'sort_order' => $toggle->sort_order,
+            ],
         ]);
     }
 

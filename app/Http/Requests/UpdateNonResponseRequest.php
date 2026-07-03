@@ -32,6 +32,8 @@ class UpdateNonResponseRequest extends FormRequest
             'alokasi_petugas.*.id' => ['required', 'integer', 'exists:alokasi_petugas,id'],
             'alokasi_petugas.*.non_response' => ['nullable', 'integer', 'min:0'],
             'alokasi_petugas.*.non_response_listing' => ['nullable', 'integer', 'min:0'],
+            'alokasi_petugas.*.frame_allocation_ids' => ['nullable', 'array'],
+            'alokasi_petugas.*.frame_allocation_ids.*' => ['integer', 'exists:alokasi_petugas_frame_sampel,id'],
         ];
     }
 
@@ -45,6 +47,7 @@ class UpdateNonResponseRequest extends FormRequest
             'alokasi_petugas.*.non_response.min' => 'Non response tidak boleh negatif.',
             'alokasi_petugas.*.non_response_listing.integer' => 'Non response listing harus berupa angka.',
             'alokasi_petugas.*.non_response_listing.min' => 'Non response listing tidak boleh negatif.',
+            'alokasi_petugas.*.frame_allocation_ids.array' => 'Daftar sampel non response harus berupa array.',
         ];
     }
 }

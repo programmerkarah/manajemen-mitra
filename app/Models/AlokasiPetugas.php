@@ -33,7 +33,6 @@ class AlokasiPetugas extends Model
             'estimasi_honor_partial_listing' => 'decimal:2',
             'non_response' => 'integer',
             'non_response_listing' => 'integer',
-            'jumlah_frame_sampel' => 'integer',
             'jumlah_unit_sampel' => 'integer',
         ];
     }

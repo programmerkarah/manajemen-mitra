@@ -20,6 +20,9 @@ class KegiatanFrameSampel extends Model
         'kegiatan_id',
         'frame_sampel_id',
         'tahapan',
+        'nama_target',
+        'sample_role',
+        'is_active',
         'nama_frame',
         'kode_kecamatan',
         'kode_desa',
@@ -35,6 +38,7 @@ class KegiatanFrameSampel extends Model
         return [
             'identitas_tambahan' => 'array',
             'target_unit_sampel' => 'array',
+            'is_active' => 'boolean',
         ];
     }
 

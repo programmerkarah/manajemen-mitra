@@ -9,6 +9,7 @@ use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogRequests;
 use App\Http\Middleware\PreserveSessionLastActivityForSsoSync;
+use App\Http\Middleware\PreventDisabledFeatureRequests;
 use App\Http\Middleware\PreventMaintenanceModeRequests;
 use App\Http\Middleware\ViewAsUserMiddleware;
 use App\Models\ActivityLog;
@@ -66,6 +67,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             LogRequests::class,
             PreventMaintenanceModeRequests::class,
+            PreventDisabledFeatureRequests::class,
             EnsureSingleActiveSession::class,
             PreserveSessionLastActivityForSsoSync::class,
             HandleAppearance::class,

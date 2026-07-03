@@ -16,6 +16,7 @@ use App\Models\Satuan;
 use App\Models\User;
 use App\Services\ActiveYearService;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -144,6 +145,7 @@ class KegiatanController extends Controller
             'pjLainnyaUsers' => $pjLainnyaUsers,
             'rateHonors' => $rateHonors,
             'tahunOptions' => $tahunOptions,
+            'purpossiveSampleRoles' => Kegiatan::purpossiveSampleRoles(),
             'masterFrameSampel' => $masterFrameSampel,
             'masterUnitSampel' => $masterUnitSampel,
             'kegiatanFrameSampel' => [],
@@ -215,12 +217,13 @@ class KegiatanController extends Controller
             'has_listing_updating' => $kegiatan->has_listing_updating,
             'metode_pendataan_pencacahan' => Kegiatan::normalizeMetodePendataan($kegiatan->metode_pendataan_pencacahan),
             'metode_pendataan_listing' => Kegiatan::normalizeMetodePendataan($kegiatan->metode_pendataan_listing),
+            'metode_sampling' => Kegiatan::normalizeMetodeSampling($kegiatan->metode_sampling) ?? Kegiatan::METODE_SAMPLING_TARGETED,
             'ketua_tim_user_id' => $kegiatan->ketua_tim_user_id,
             'pj_lainnya_id' => $kegiatan->pj_lainnya_id,
         ];
 
         $kegiatanFrameSampel = $kegiatan->kegiatanFrameSampel()
-            ->select('id', 'tahapan', 'target_unit_sampel', 'identitas_tambahan')
+            ->select('id', 'tahapan', 'nama_target', 'sample_role', 'is_active', 'target_unit_sampel', 'identitas_tambahan')
             ->orderBy('id')
             ->get();
 
@@ -230,6 +233,7 @@ class KegiatanController extends Controller
             'tahunOptions' => $tahunOptions,
             'copyData' => $copyData,
             'isCopyMode' => true,
+            'purpossiveSampleRoles' => Kegiatan::purpossiveSampleRoles(),
             'masterFrameSampel' => $masterFrameSampel,
             'masterUnitSampel' => $masterUnitSampel,
             'kegiatanFrameSampel' => $kegiatanFrameSampel,
@@ -261,6 +265,76 @@ class KegiatanController extends Controller
     }
 
     /**
+     * @param  array<string, mixed>  $data
+     * @param  array<int, array{tahapan:string,target_unit_sampel:array<string,int>,nama_target?:string,identitas_tambahan?:array<string,mixed>}>  $kegiatanFrameSampel
+     */
+    private function storeKegiatanWithRetry(array $data, array $kegiatanFrameSampel): Kegiatan
+    {
+        $lastException = null;
+
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            try {
+                return DB::transaction(function () use ($data, $kegiatanFrameSampel): Kegiatan {
+                    $payload = $data;
+                    $payload['kode_kegiatan'] = $this->generateKodeKegiatan((int) $payload['tahun_anggaran']);
+
+                    $kegiatan = Kegiatan::create($payload);
+
+                    $this->syncKegiatanFrameSampelRows(
+                        $kegiatan,
+                        $kegiatanFrameSampel,
+                        [
+                            'listing' => $payload['frame_sampel_listing_id'] ?? null,
+                            'pencacahan' => $payload['frame_sampel_pencacahan_id'] ?? null,
+                        ]
+                    );
+
+                    if (isset($payload['pj_lainnya_id'])) {
+                        $kegiatan->update(['pj_lainnya_id' => $payload['pj_lainnya_id']]);
+                    }
+
+                    return $kegiatan;
+                });
+            } catch (QueryException $exception) {
+                $lastException = $exception;
+
+                if (! $this->isDuplicateKegiatanCodeException($exception) || $attempt === 2) {
+                    throw $exception;
+                }
+            }
+        }
+
+        throw $lastException ?? new \RuntimeException('Gagal menyimpan kegiatan.');
+    }
+
+    private function isDuplicateKegiatanCodeException(QueryException $exception): bool
+    {
+        return (int) ($exception->errorInfo[1] ?? 0) === 1062
+            || str_contains($exception->getMessage(), 'kode_kegiatan')
+            || str_contains($exception->getMessage(), 'Duplicate entry');
+    }
+
+    private function normalizeMetodePendataanForStorage(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return $value === Kegiatan::METODE_PENDATAAN_PAPI
+            ? Kegiatan::METODE_PENDATAAN_PAPI
+            : Kegiatan::METODE_PENDATAAN_CAPI_LEGACY;
+    }
+
+    private function normalizeMetodeSamplingForStorage(?string $value, string $jenisKegiatan): ?string
+    {
+        if ($jenisKegiatan !== 'survei') {
+            return null;
+        }
+
+        return Kegiatan::normalizeMetodeSampling($value) ?? Kegiatan::METODE_SAMPLING_TARGETED;
+    }
+
+    /**
      * Store a newly created resource in storage.
      */
     public function store(StoreKegiatanRequest $request): RedirectResponse
@@ -275,9 +349,6 @@ class KegiatanController extends Controller
             $data['ketua_tim_user_id'] = $effectiveUser->id;
         }
 
-        // Generate kode kegiatan otomatis
-        $data['kode_kegiatan'] = $this->generateKodeKegiatan($data['tahun_anggaran']);
-
         // Pastikan field baru ikut tersimpan
         if (isset($data['has_listing_updating'])) {
             $data['has_listing_updating'] = (bool) $data['has_listing_updating'];
@@ -285,29 +356,26 @@ class KegiatanController extends Controller
         if (isset($data['pagu_listing'])) {
             $data['pagu_listing'] = $data['pagu_listing'];
         }
+        if (array_key_exists('metode_pendataan_pencacahan', $data)) {
+            $data['metode_pendataan_pencacahan'] = $this->normalizeMetodePendataanForStorage(
+                $data['metode_pendataan_pencacahan']
+            );
+        }
+        if (array_key_exists('metode_pendataan_listing', $data)) {
+            $data['metode_pendataan_listing'] = $this->normalizeMetodePendataanForStorage(
+                $data['metode_pendataan_listing']
+            );
+        }
+        $data['metode_sampling'] = $this->normalizeMetodeSamplingForStorage(
+            $data['metode_sampling'] ?? null,
+            (string) ($data['jenis_kegiatan'] ?? '')
+        );
 
         if (! isset($data['status'])) {
             $data['status'] = 'draft';
         }
 
-        $kegiatan = DB::transaction(function () use ($data, $kegiatanFrameSampel): Kegiatan {
-            $kegiatan = Kegiatan::create($data);
-
-            $this->syncKegiatanFrameSampelRows(
-                $kegiatan,
-                $kegiatanFrameSampel,
-                [
-                    'listing' => $data['frame_sampel_listing_id'] ?? null,
-                    'pencacahan' => $data['frame_sampel_pencacahan_id'] ?? null,
-                ]
-            );
-
-            if (isset($data['pj_lainnya_id'])) {
-                $kegiatan->update(['pj_lainnya_id' => $data['pj_lainnya_id']]);
-            }
-
-            return $kegiatan;
-        });
+        $kegiatan = $this->storeKegiatanWithRetry($data, $kegiatanFrameSampel);
 
         ActivityLog::log(
             'Tambah Kegiatan',
@@ -419,10 +487,11 @@ class KegiatanController extends Controller
             'ketuaTimUsers' => $ketuaTimUsers,
             'pjLainnyaUsers' => $pjLainnyaUsers,
             'tahunOptions' => $tahunOptions,
+            'purpossiveSampleRoles' => Kegiatan::purpossiveSampleRoles(),
             'masterFrameSampel' => $masterFrameSampel,
             'masterUnitSampel' => $masterUnitSampel,
             'kegiatanFrameSampel' => $kegiatan->kegiatanFrameSampel()
-                ->select('id', 'tahapan', 'target_unit_sampel', 'identitas_tambahan')
+                ->select('id', 'tahapan', 'nama_target', 'sample_role', 'is_active', 'target_unit_sampel', 'identitas_tambahan')
                 ->orderBy('id')
                 ->get(),
         ]);
@@ -453,6 +522,20 @@ class KegiatanController extends Controller
         if (isset($data['pagu_listing'])) {
             $data['pagu_listing'] = $data['pagu_listing'];
         }
+        if (array_key_exists('metode_pendataan_pencacahan', $data)) {
+            $data['metode_pendataan_pencacahan'] = $this->normalizeMetodePendataanForStorage(
+                $data['metode_pendataan_pencacahan']
+            );
+        }
+        if (array_key_exists('metode_pendataan_listing', $data)) {
+            $data['metode_pendataan_listing'] = $this->normalizeMetodePendataanForStorage(
+                $data['metode_pendataan_listing']
+            );
+        }
+        $data['metode_sampling'] = $this->normalizeMetodeSamplingForStorage(
+            $data['metode_sampling'] ?? null,
+            (string) ($data['jenis_kegiatan'] ?? $kegiatan->jenis_kegiatan)
+        );
 
         // Ketua Tim can validate kegiatan (check before updating)
         $effectiveUser = effectiveUser($request);
@@ -616,9 +699,15 @@ class KegiatanController extends Controller
     {
         $metadata = $this->extractFrameSampelMetadata($request);
         $unitSampelList = $this->extractFrameSampelUnitSampel($request);
+        $metodeSampling = $this->extractFrameSampelSamplingMode($request);
+        $templateRows = $this->extractFrameSampelTemplateRows($request);
+
+        if ($metodeSampling === Kegiatan::METODE_SAMPLING_PURPOSSIVE) {
+            $unitSampelList = [];
+        }
 
         return Excel::download(
-            new FrameSampelDetailTemplateExport($metadata, $unitSampelList),
+            new FrameSampelDetailTemplateExport($metadata, $unitSampelList, $metodeSampling, $templateRows),
             'detail-frame-sampel-template.xlsx'
         );
     }
@@ -627,6 +716,11 @@ class KegiatanController extends Controller
     {
         $metadata = $this->extractFrameSampelMetadata($request);
         $unitSampelList = $this->extractFrameSampelUnitSampel($request);
+        $metodeSampling = $this->extractFrameSampelSamplingMode($request);
+
+        if ($metodeSampling === Kegiatan::METODE_SAMPLING_PURPOSSIVE) {
+            $unitSampelList = [];
+        }
 
         $validated = $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
@@ -637,10 +731,16 @@ class KegiatanController extends Controller
 
         $spreadsheet = IOFactory::load($validated['file']->getRealPath());
         $rows = $spreadsheet->getSheet(0)->toArray(null, true, true, false);
+        $headerRow = $rows[0] ?? [];
+        $headerMap = $this->buildFrameSampelHeaderMap($headerRow);
 
         $metadataCount = count($metadata);
-        $unitSampelCount = max(count($unitSampelList), 1);
-        $expectedColumnCount = ($metadataCount * 2) + $unitSampelCount;
+        $prefixColumnCount = 0;
+        $metadataColumnCount = $this->countFrameSampelMetadataColumns($metadata);
+        $trailingColumnCount = $metodeSampling === Kegiatan::METODE_SAMPLING_PURPOSSIVE
+            ? 2
+            : max(count($unitSampelList), 1);
+        $expectedColumnCount = $prefixColumnCount + $metadataColumnCount + $trailingColumnCount;
         $importedRows = [];
         $errors = [];
 
@@ -649,12 +749,100 @@ class KegiatanController extends Controller
             $normalizedRow = array_slice(array_pad($row, $expectedColumnCount, null), 0, $expectedColumnCount);
 
             $identitasTambahan = [];
+            $namaTarget = null;
+            $sampleRole = null;
             $hasMetadataValue = false;
+            $targetUnits = [];
+            $hasAnyTarget = false;
 
+            if ($metodeSampling === Kegiatan::METODE_SAMPLING_PURPOSSIVE) {
+                $namaTarget = $this->readFrameSampelHeaderValue($row, $headerMap, 'Nama Sampel');
+                $sampleRole = $this->readFrameSampelHeaderValue($row, $headerMap, 'Jenis Sampel');
+
+                if ($namaTarget !== '') {
+                    $hasMetadataValue = true;
+                    $hasAnyTarget = true;
+                    $targetUnits['target'] = '1';
+                }
+
+                if ($sampleRole !== '') {
+                    $hasMetadataValue = true;
+                }
+                if (! $hasAnyTarget) {
+                    $errors[] = "Baris {$rowNumber}: Nama Sampel harus diisi.";
+
+                    continue;
+                }
+            } else {
+                // Parse per-unit-sampel counts
+                if (! empty($unitSampelList)) {
+                    foreach ($unitSampelList as $usIndex => $unitSampel) {
+                        $colIndex = $prefixColumnCount + $metadataColumnCount + $usIndex;
+                        $countStr = trim((string) ($normalizedRow[$colIndex] ?? ''));
+
+                        if ($countStr !== '' && ctype_digit($countStr) && (int) $countStr >= 0) {
+                            $targetUnits[(string) $unitSampel['id']] = $countStr;
+
+                            if ((int) $countStr > 0) {
+                                $hasAnyTarget = true;
+                            }
+                        }
+                    }
+                } else {
+                    // Fallback: single generic count column
+                    $countStr = trim((string) ($normalizedRow[$expectedColumnCount - 1] ?? ''));
+
+                    if ($countStr !== '' && ctype_digit($countStr) && (int) $countStr > 0) {
+                        $targetUnits['0'] = $countStr;
+                        $hasAnyTarget = true;
+                    }
+                }
+
+                if (! $hasMetadataValue && ! $hasAnyTarget) {
+                    continue;
+                }
+
+                if (! $hasAnyTarget) {
+                    $errors[] = "Baris {$rowNumber}: Jumlah Sampel Dalam Frame harus berupa angka bulat minimal 1.";
+
+                    continue;
+                }
+            }
+
+            $metadataOffset = $prefixColumnCount;
             foreach ($metadata as $metadataIndex => $column) {
                 $codeKey = trim((string) $column['code']);
-                $codeValue = trim((string) ($normalizedRow[$metadataIndex * 2] ?? ''));
-                $labelValue = trim((string) ($normalizedRow[($metadataIndex * 2) + 1] ?? ''));
+                $columnMode = (string) ($column['mode'] ?? 'code_name');
+                $codeValue = '';
+                $labelValue = '';
+                $columnLabel = trim((string) ($column['label'] ?? ''));
+
+                if ($columnMode === 'code_only') {
+                    $codeValue = $this->readFrameSampelHeaderValue($row, $headerMap, 'Kode '.$columnLabel);
+                    if ($codeValue === '' && isset($normalizedRow[$metadataOffset])) {
+                        $codeValue = trim((string) ($normalizedRow[$metadataOffset] ?? ''));
+                    }
+                    $metadataOffset += 1;
+                } elseif ($columnMode === 'name_only') {
+                    $labelValue = $this->readFrameSampelHeaderValue($row, $headerMap, $columnLabel);
+                    if ($labelValue === '' && isset($normalizedRow[$metadataOffset])) {
+                        $labelValue = trim((string) ($normalizedRow[$metadataOffset] ?? ''));
+                    }
+                    $metadataOffset += 1;
+                } else {
+                    $codeValue = $this->readFrameSampelHeaderValue($row, $headerMap, 'Kode '.$columnLabel);
+                    $labelValue = $this->readFrameSampelHeaderValue($row, $headerMap, $columnLabel);
+
+                    if ($codeValue === '' && isset($normalizedRow[$metadataOffset])) {
+                        $codeValue = trim((string) ($normalizedRow[$metadataOffset] ?? ''));
+                    }
+
+                    if ($labelValue === '' && isset($normalizedRow[$metadataOffset + 1])) {
+                        $labelValue = trim((string) ($normalizedRow[$metadataOffset + 1] ?? ''));
+                    }
+
+                    $metadataOffset += 2;
+                }
 
                 if ($codeValue !== '') {
                     $identitasTambahan[$codeKey] = $codeValue;
@@ -667,45 +855,9 @@ class KegiatanController extends Controller
                 }
             }
 
-            // Parse per-unit-sampel counts
-            $targetUnits = [];
-            $hasAnyTarget = false;
-
-            if (! empty($unitSampelList)) {
-                foreach ($unitSampelList as $usIndex => $unitSampel) {
-                    $colIndex = ($metadataCount * 2) + $usIndex;
-                    $countStr = trim((string) ($normalizedRow[$colIndex] ?? ''));
-
-                    if ($countStr !== '' && ctype_digit($countStr) && (int) $countStr >= 0) {
-                        $targetUnits[(string) $unitSampel['id']] = $countStr;
-
-                        if ((int) $countStr > 0) {
-                            $hasAnyTarget = true;
-                        }
-                    }
-                }
-            } else {
-                // Fallback: single generic count column
-                $countStr = trim((string) ($normalizedRow[$expectedColumnCount - 1] ?? ''));
-
-                if ($countStr !== '' && ctype_digit($countStr) && (int) $countStr > 0) {
-                    $targetUnits['0'] = $countStr;
-                    $hasAnyTarget = true;
-                }
-            }
-
-            if (! $hasMetadataValue && ! $hasAnyTarget) {
-                continue;
-            }
-
-            if (! $hasAnyTarget) {
-                $nama = ! empty($unitSampelList) ? $unitSampelList[0]['nama'] : 'Sampel';
-                $errors[] = "Baris {$rowNumber}: Jumlah {$nama} Dalam Frame harus berupa angka bulat minimal 1.";
-
-                continue;
-            }
-
             $importedRows[] = [
+                'nama_target' => $metodeSampling === Kegiatan::METODE_SAMPLING_PURPOSSIVE ? $namaTarget : null,
+                'sample_role' => $metodeSampling === Kegiatan::METODE_SAMPLING_PURPOSSIVE ? $sampleRole : null,
                 'target_unit_sampel' => $targetUnits,
                 'identitas_tambahan' => $identitasTambahan,
             ];
@@ -723,7 +875,7 @@ class KegiatanController extends Controller
     }
 
     /**
-     * @param  array<int, array{tahapan:string,target_unit_sampel:array<string,int>,identitas_tambahan?:array<string,mixed>}>  $rows
+     * @param  array<int, array{tahapan:string,target_unit_sampel:array<string,int>,nama_target?:string,identitas_tambahan?:array<string,mixed>}>  $rows
      */
     private function syncKegiatanFrameSampelRows(
         Kegiatan $kegiatan,
@@ -731,7 +883,10 @@ class KegiatanController extends Controller
         ?array $frameSampelByTahapanOverride = null
     ): void {
         $normalizedRows = collect($rows)
-            ->map(function (array $row): ?array {
+            ->map(function (array $row) use ($kegiatan): ?array {
+                $frameSampelRowId = isset($row['id']) && is_numeric($row['id'])
+                    ? (int) $row['id']
+                    : null;
                 $tahapan = $row['tahapan'] ?? null;
                 $targetUnits = isset($row['target_unit_sampel']) && is_array($row['target_unit_sampel'])
                     ? $row['target_unit_sampel']
@@ -749,7 +904,13 @@ class KegiatanController extends Controller
                 $normalizedTargets = array_map('intval', $targetUnits);
 
                 return [
+                    'id' => $frameSampelRowId,
                     'tahapan' => $tahapan,
+                    'nama_target' => $row['nama_target'] ?? ($row['sample_name'] ?? null),
+                    'sample_role' => $kegiatan->metode_sampling === Kegiatan::METODE_SAMPLING_PURPOSSIVE
+                        ? Kegiatan::normalizePurpossiveSampleRole($row['sample_role'] ?? null)
+                        : null,
+                    'is_active' => (bool) ($row['is_active'] ?? true),
                     'target_unit_sampel' => $normalizedTargets,
                     'identitas_tambahan' => $identitasTambahan,
                 ];
@@ -791,6 +952,9 @@ class KegiatanController extends Controller
             throw ValidationException::withMessages($messages);
         }
 
+        $existingFrames = $kegiatan->kegiatanFrameSampel()->get()->keyBy('id');
+        $keptFrameIds = [];
+
         $payload = $normalizedRows
             ->map(function (array $row) use ($frameSampelByTahapan): array {
                 $frameSampelId = $frameSampelByTahapan[$row['tahapan']] ?? null;
@@ -804,6 +968,9 @@ class KegiatanController extends Controller
                 return [
                     'frame_sampel_id' => $frameSampelId,
                     'tahapan' => $row['tahapan'],
+                    'nama_target' => $row['nama_target'] ?? null,
+                    'sample_role' => $row['sample_role'] ?? null,
+                    'is_active' => $row['is_active'] ?? true,
                     'nama_frame' => $namaFrame,
                     'target_unit_sampel' => $row['target_unit_sampel'],
                     'kode_kecamatan' => $this->resolveIdentitasString(
@@ -829,15 +996,47 @@ class KegiatanController extends Controller
                     'identitas_tambahan' => ! empty($identitasTambahan)
                         ? $identitasTambahan
                         : null,
+                    'id' => $row['id'] ?? null,
                 ];
             })
             ->values()
             ->all();
 
-        $kegiatan->kegiatanFrameSampel()->delete();
+        foreach ($payload as $attributes) {
+            $frameId = isset($attributes['id']) && is_numeric($attributes['id'])
+                ? (int) $attributes['id']
+                : null;
 
-        if (! empty($payload)) {
-            $kegiatan->kegiatanFrameSampel()->createMany($payload);
+            unset($attributes['id']);
+
+            if ($frameId !== null) {
+                $existingFrame = $existingFrames->get($frameId);
+
+                if (! $existingFrame) {
+                    throw ValidationException::withMessages([
+                        'kegiatan_frame_sampel' => 'Salah satu frame sampel yang dikirim tidak valid untuk kegiatan ini.',
+                    ]);
+                }
+
+                $existingFrame->update($attributes);
+                $keptFrameIds[] = $existingFrame->id;
+
+                continue;
+            }
+
+            $createdFrame = $kegiatan->kegiatanFrameSampel()->create($attributes);
+            $keptFrameIds[] = $createdFrame->id;
+        }
+
+        $frameIdsToDelete = $existingFrames
+            ->keys()
+            ->diff($keptFrameIds)
+            ->values();
+
+        if ($frameIdsToDelete->isNotEmpty()) {
+            $kegiatan->kegiatanFrameSampel()
+                ->whereIn('id', $frameIdsToDelete)
+                ->delete();
         }
     }
 
@@ -887,6 +1086,8 @@ class KegiatanController extends Controller
             'metadata.*.code' => ['required', 'string', 'max:100'],
             'metadata.*.label' => ['required', 'string', 'max:255'],
             'metadata.*.description' => ['required', 'string', 'max:255'],
+            'metadata.*.mode' => ['nullable', 'in:code_name,code_only,name_only'],
+            'metode_sampling' => ['nullable', 'in:targeted,purpossive'],
         ], [
             'metadata.required' => 'Metadata frame sampel wajib disimpan terlebih dahulu.',
             'metadata.array' => 'Metadata frame sampel harus berupa daftar.',
@@ -903,6 +1104,7 @@ class KegiatanController extends Controller
                 'code' => trim((string) $item['code']),
                 'label' => trim((string) $item['label']),
                 'description' => trim((string) $item['description']),
+                'mode' => $this->normalizeFrameSampelMetadataMode($item['mode'] ?? null),
             ])
             ->values()
             ->all();
@@ -923,6 +1125,99 @@ class KegiatanController extends Controller
         }
 
         return $metadata;
+    }
+
+    private function extractFrameSampelSamplingMode(Request $request): string
+    {
+        $mode = $request->input('metode_sampling', Kegiatan::METODE_SAMPLING_TARGETED);
+
+        return $mode === Kegiatan::METODE_SAMPLING_PURPOSSIVE
+            ? Kegiatan::METODE_SAMPLING_PURPOSSIVE
+            : Kegiatan::METODE_SAMPLING_TARGETED;
+    }
+
+    private function normalizeFrameSampelMetadataMode(?string $mode): string
+    {
+        return in_array($mode, ['code_only', 'name_only'], true)
+            ? $mode
+            : 'code_name';
+    }
+
+    /**
+     * @param  array<int, array{code:string,label:string,description:string,mode?:string}>  $metadata
+     */
+    private function countFrameSampelMetadataColumns(array $metadata): int
+    {
+        return collect($metadata)->sum(function (array $column): int {
+            return ($column['mode'] ?? 'code_name') === 'code_name' ? 2 : 1;
+        });
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function extractFrameSampelTemplateRows(Request $request): array
+    {
+        $rawRows = $request->input('template_rows', []);
+
+        if (is_string($rawRows)) {
+            $decodedRows = json_decode($rawRows, true);
+            $rawRows = is_array($decodedRows) ? $decodedRows : [];
+        }
+
+        if (! is_array($rawRows)) {
+            return [];
+        }
+
+        return collect($rawRows)
+            ->filter(fn ($row) => is_array($row))
+            ->map(fn (array $row) => $row)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, string|null>  $headerRow
+     * @return array<string, int>
+     */
+    private function buildFrameSampelHeaderMap(array $headerRow): array
+    {
+        $normalized = [];
+
+        foreach ($headerRow as $index => $header) {
+            $key = $this->normalizeFrameSampelHeader((string) $header);
+
+            if ($key !== '') {
+                $normalized[$key] = (int) $index;
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param  array<string, int>  $headerMap
+     */
+    private function readFrameSampelHeaderValue(array $row, array $headerMap, string $headerName): string
+    {
+        $normalizedHeader = $this->normalizeFrameSampelHeader($headerName);
+
+        if ($normalizedHeader === '') {
+            return '';
+        }
+
+        if (! array_key_exists($normalizedHeader, $headerMap)) {
+            return '';
+        }
+
+        $columnIndex = $headerMap[$normalizedHeader];
+
+        return trim((string) ($row[$columnIndex] ?? ''));
+    }
+
+    private function normalizeFrameSampelHeader(string $header): string
+    {
+        return strtolower(trim(preg_replace('/\s+/', ' ', $header) ?? ''));
     }
 
     /**

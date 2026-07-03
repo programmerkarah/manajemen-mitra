@@ -605,9 +605,9 @@ class PengajuanPulsaController extends Controller
      *     petugas_options: array<int, array{id:int, nama:string, key:string}>,
      *     petugas_lookup: array<string, array{id:int, nama:string, key:string}>,
      *     kegiatan_options_by_petugas_key: array<string, array<int, array{id:int, nama:string}>>,
-    *     kegiatan_lookup: array<string, array<string, array{id:int, nama:string}>>,
-    *     jenis_options_by_petugas_key: array<string, array<int, string>>,
-    *     jenis_lookup: array<string, array<int, string>>
+     *     kegiatan_lookup: array<string, array<string, array{id:int, nama:string}>>,
+     *     jenis_options_by_petugas_key: array<string, array<int, string>>,
+     *     jenis_lookup: array<string, array<int, string>>
      * }
      */
     private function buildTemplateDropdownData(Request $request, string $bulan, int $tahun): array

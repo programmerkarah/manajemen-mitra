@@ -36,12 +36,22 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const API_URL = '/admin/system-settings/maintenance';
 const SSO_SYNC_API_URL = '/admin/system-settings/sso-sync';
+const FEATURE_TOGGLE_API_URL = '/admin/system-settings/feature-toggle';
+
+interface FeatureToggleItem {
+    key: string;
+    label: string;
+    description: string | null;
+    enabled: boolean;
+    sort_order: number;
+}
 
 interface SystemSettingsProps {
     maintenance: boolean;
     message: string;
     sso_sync_enabled: boolean;
     session_lifetime: number;
+    feature_toggles: FeatureToggleItem[];
     [key: string]: unknown;
 }
 
@@ -51,6 +61,7 @@ export default function SystemSettings() {
         message: initialMessage,
         sso_sync_enabled: initialSsoSyncEnabled,
         session_lifetime: sessionLifetime,
+        feature_toggles: initialFeatureToggles,
     } = usePage<SystemSettingsProps>().props;
     const [maintenance, setMaintenance] = React.useState(initialMaintenance);
     const [loading, setLoading] = React.useState(false);
@@ -61,6 +72,18 @@ export default function SystemSettings() {
         initialSsoSyncEnabled,
     );
     const [ssoSyncSaving, setSsoSyncSaving] = React.useState(false);
+    const [featureToggles, setFeatureToggles] = React.useState(
+        [...initialFeatureToggles].sort((left, right) => {
+            if (left.sort_order !== right.sort_order) {
+                return left.sort_order - right.sort_order;
+            }
+
+            return left.label.localeCompare(right.label);
+        }),
+    );
+    const [featureToggleSavingKey, setFeatureToggleSavingKey] = React.useState<
+        string | null
+    >(null);
     const [showSaved, setShowSaved] = React.useState(false);
     const [modalAlert, setModalAlert] = React.useState<{
         open: boolean;
@@ -190,6 +213,60 @@ export default function SystemSettings() {
             );
         } finally {
             setSsoSyncSaving(false);
+        }
+    };
+
+    const handleToggleFeature = async (feature: FeatureToggleItem) => {
+        setFeatureToggleSavingKey(feature.key);
+
+        try {
+            const res = await fetch(FEATURE_TOGGLE_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': getCsrfToken(),
+                    Accept: 'application/json',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    key: feature.key,
+                    enabled: !feature.enabled,
+                }),
+            });
+
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+
+            const data = await res.json();
+            const updatedFeature = data.feature_toggle as FeatureToggleItem;
+
+            setFeatureToggles((current) =>
+                current
+                    .map((item) =>
+                        item.key === updatedFeature.key ? updatedFeature : item,
+                    )
+                    .sort((left, right) => {
+                        if (left.sort_order !== right.sort_order) {
+                            return left.sort_order - right.sort_order;
+                        }
+
+                        return left.label.localeCompare(right.label);
+                    }),
+            );
+
+            showModalAlert(
+                'Pengaturan Disimpan',
+                `Fitur ${updatedFeature.label} berhasil ${updatedFeature.enabled ? 'diaktifkan' : 'dinonaktifkan'}.`,
+            );
+        } catch (error) {
+            console.error('Failed to toggle feature:', error);
+            showModalAlert(
+                'Aksi Gagal',
+                'Gagal mengubah status fitur. Silakan coba lagi.',
+            );
+        } finally {
+            setFeatureToggleSavingKey(null);
         }
     };
 
@@ -366,6 +443,102 @@ export default function SystemSettings() {
                                 </>
                             )}
                         </Button>
+                    </div>
+                </ContentCard>
+
+                <ContentCard>
+                    <div className="mb-6 flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
+                                <Settings className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                            <div>
+                                <h2 className="flex items-center gap-2 text-xl font-bold">
+                                    Toggle Fitur
+                                </h2>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Aktifkan atau nonaktifkan fitur tanpa
+                                    mematikan seluruh aplikasi.
+                                </p>
+                            </div>
+                        </div>
+                        <Badge
+                            variant="secondary"
+                            className="px-4 py-2 text-base"
+                        >
+                            {
+                                featureToggles.filter((item) => item.enabled)
+                                    .length
+                            }
+                            /{featureToggles.length} aktif
+                        </Badge>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {featureToggles.map((feature) => (
+                            <div
+                                key={feature.key}
+                                className={`rounded-xl border p-4 transition-colors ${
+                                    feature.enabled
+                                        ? 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-950/20'
+                                        : 'border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900/40'
+                                }`}
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p className="text-base font-semibold">
+                                            {feature.label}
+                                        </p>
+                                        <p className="mt-1 text-sm text-muted-foreground">
+                                            {feature.description ||
+                                                'Tidak ada deskripsi.'}
+                                        </p>
+                                    </div>
+                                    <Badge
+                                        variant={
+                                            feature.enabled
+                                                ? 'default'
+                                                : 'secondary'
+                                        }
+                                    >
+                                        {feature.enabled ? 'Aktif' : 'Nonaktif'}
+                                    </Badge>
+                                </div>
+
+                                <div className="mt-4 flex items-center justify-between gap-3">
+                                    <span className="text-xs text-muted-foreground">
+                                        Key: {feature.key}
+                                    </span>
+                                    <Button
+                                        size="sm"
+                                        variant={
+                                            feature.enabled
+                                                ? 'outline'
+                                                : 'default'
+                                        }
+                                        onClick={() =>
+                                            handleToggleFeature(feature)
+                                        }
+                                        disabled={
+                                            featureToggleSavingKey ===
+                                            feature.key
+                                        }
+                                    >
+                                        {featureToggleSavingKey ===
+                                        feature.key ? (
+                                            <>
+                                                <Clock className="mr-2 h-4 w-4 animate-spin" />
+                                                Menyimpan...
+                                            </>
+                                        ) : feature.enabled ? (
+                                            'Nonaktifkan'
+                                        ) : (
+                                            'Aktifkan'
+                                        )}
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </ContentCard>
 

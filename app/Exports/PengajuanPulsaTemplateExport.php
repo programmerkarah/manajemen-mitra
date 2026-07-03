@@ -19,8 +19,8 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 class PengajuanPulsaTemplateExport implements FromArray, WithEvents, WithHeadings, WithStyles, WithTitle
 {
     /**
-     * @param array<int, array{id: int, nama: string, key: string}> $petugasOptions
-     * @param array<string, array<int, array{id: int, nama: string}>> $kegiatanOptionsByPetugasKey
+     * @param  array<int, array{id: int, nama: string, key: string}>  $petugasOptions
+     * @param  array<string, array<int, array{id: int, nama: string}>>  $kegiatanOptionsByPetugasKey
      */
     public function __construct(
         private readonly string $bulan,
@@ -28,8 +28,7 @@ class PengajuanPulsaTemplateExport implements FromArray, WithEvents, WithHeading
         private readonly array $petugasOptions,
         private readonly array $kegiatanOptionsByPetugasKey,
         private readonly array $jenisOptionsByPetugasKey,
-    ) {
-    }
+    ) {}
 
     public function array(): array
     {

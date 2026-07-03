@@ -10,7 +10,10 @@ export interface FrameSampelMetadataColumnPayload {
     code: string;
     label: string;
     description: string;
+    mode?: 'code_name' | 'code_only' | 'name_only';
 }
+
+export type FrameSampelSamplingMode = 'targeted' | 'purpossive';
 
 export interface FrameSampelUnitSampelOption {
     id: number;
@@ -18,6 +21,8 @@ export interface FrameSampelUnitSampelOption {
 }
 
 export interface FrameSampelImportPreviewRow {
+    nama_target?: string;
+    sample_role?: string;
     target_unit_sampel: Record<string, string>;
     identitas_tambahan: Record<string, string>;
 }
@@ -35,10 +40,14 @@ interface FrameSampelImportPreviewResponse {
 export const downloadFrameSampelTemplate = async (
     metadata: FrameSampelMetadataColumnPayload[],
     unitSampelList: FrameSampelUnitSampelOption[] = [],
+    metodeSampling: FrameSampelSamplingMode = 'targeted',
+    templateRows: Array<Record<string, unknown>> = [],
 ): Promise<void> => {
     const formData = new FormData();
     formData.append('metadata', JSON.stringify(metadata));
     formData.append('unit_sampel', JSON.stringify(unitSampelList));
+    formData.append('metode_sampling', metodeSampling);
+    formData.append('template_rows', JSON.stringify(templateRows));
 
     const response = await fetch('/kegiatan/frame-sampel/template', {
         method: 'POST',
@@ -70,11 +79,13 @@ export const importFrameSampelPreview = async (
     file: File,
     metadata: FrameSampelMetadataColumnPayload[],
     unitSampelList: FrameSampelUnitSampelOption[] = [],
+    metodeSampling: FrameSampelSamplingMode = 'targeted',
 ): Promise<FrameSampelImportPreviewResponse> => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('metadata', JSON.stringify(metadata));
     formData.append('unit_sampel', JSON.stringify(unitSampelList));
+    formData.append('metode_sampling', metodeSampling);
 
     const response = await fetch('/kegiatan/frame-sampel/import-preview', {
         method: 'POST',

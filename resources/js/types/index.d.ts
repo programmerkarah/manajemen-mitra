@@ -96,6 +96,7 @@ export interface Kegiatan {
     kode_coa: string | null;
     has_listing_updating: boolean;
     pagu_listing: number | null;
+    metode_sampling: 'targeted' | 'purpossive';
     frame_sampel_listing_id?: number | null;
     frame_sampel_pencacahan_id?: number | null;
     unit_sampel_listing_ids?: number[] | null;

@@ -11,8 +11,10 @@ use App\Imports\AlokasiPetugasImport;
 use App\Imports\AlokasiPetugasPreviewImport;
 use App\Models\ActivityLog;
 use App\Models\AlokasiPetugas;
+use App\Models\AlokasiPetugasFrameSampel;
 use App\Models\Kegiatan;
 use App\Models\KegiatanFrameSampel;
+use App\Models\Penandatangan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\RateHonor;
@@ -20,6 +22,7 @@ use App\Models\ReviewPetugas;
 use App\Models\Sbml;
 use App\Models\Spk;
 use App\Services\ActiveYearService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -34,6 +37,7 @@ use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Validators\ValidationException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Vinkla\Hashids\Facades\Hashids;
 
 class AlokasiPetugasController extends Controller
@@ -387,6 +391,36 @@ class AlokasiPetugasController extends Controller
     }
 
     /**
+     * @param  Collection<int, PeriodeAlokasi>  $periodesByMonth
+     */
+    private function resolveEffectiveBudgetPeriode(Collection $periodesByMonth): ?PeriodeAlokasi
+    {
+        $activePeriodes = $periodesByMonth
+            ->filter(function (PeriodeAlokasi $periode): bool {
+                return in_array($periode->status, ['draft', 'dikirim', 'perubahan', 'disetujui'], true);
+            })
+            ->sort(function (PeriodeAlokasi $left, PeriodeAlokasi $right): int {
+                $leftRevision = (int) ($left->revision_number ?? 0);
+                $rightRevision = (int) ($right->revision_number ?? 0);
+
+                if ($leftRevision !== $rightRevision) {
+                    return $rightRevision <=> $leftRevision;
+                }
+
+                $leftCreatedAt = $left->created_at?->getTimestamp() ?? 0;
+                $rightCreatedAt = $right->created_at?->getTimestamp() ?? 0;
+
+                if ($leftCreatedAt !== $rightCreatedAt) {
+                    return $rightCreatedAt <=> $leftCreatedAt;
+                }
+
+                return $right->id <=> $left->id;
+            });
+
+        return $activePeriodes->first();
+    }
+
+    /**
      * @return array<int, string>
      */
     private function resolvePeriodeFilterBulans(PeriodeAlokasi $periode): array
@@ -463,6 +497,8 @@ class AlokasiPetugasController extends Controller
             return [];
         }
 
+        $isPurposiveSampling = $kegiatan->metode_sampling === Kegiatan::METODE_SAMPLING_PURPOSSIVE;
+
         $frameById = KegiatanFrameSampel::query()
             ->where('kegiatan_id', $kegiatan->id)
             ->get(['id', 'tahapan', 'target_unit_sampel'])
@@ -516,6 +552,10 @@ class AlokasiPetugasController extends Controller
                 }
             }
 
+            if ($jumlahUnitSampel <= 0 && $isPurposiveSampling) {
+                $jumlahUnitSampel = $frameIds->count();
+            }
+
             if ($jumlahUnitSampel <= 0) {
                 $errors[] = "Baris #{$rowNumber}: jumlah unit sampel wajib lebih dari 0.";
 
@@ -523,6 +563,11 @@ class AlokasiPetugasController extends Controller
             }
 
             $maxUnitSampel = (int) $frameIds->sum(fn ($frameId) => array_sum((array) ($frameById->get($frameId)?->target_unit_sampel ?? [])));
+
+            if ($maxUnitSampel <= 0 && $isPurposiveSampling) {
+                $maxUnitSampel = $frameIds->count();
+            }
+
             if ($jumlahUnitSampel > $maxUnitSampel) {
                 $errors[] = "Baris #{$rowNumber}: jumlah unit sampel ({$jumlahUnitSampel}) melebihi kumulatif target frame terpilih ({$maxUnitSampel}).";
             }
@@ -1279,7 +1324,7 @@ class AlokasiPetugasController extends Controller
                             ]);
                     },
                     'kegiatanFrameSampel' => function ($query) {
-                        $query->select('id', 'kegiatan_id', 'tahapan', 'nama_frame', 'target_unit_sampel', 'identitas_tambahan')
+                        $query->select('id', 'kegiatan_id', 'tahapan', 'nama_target', 'sample_role', 'is_active', 'nama_frame', 'target_unit_sampel', 'identitas_tambahan')
                             ->orderBy('tahapan')
                             ->orderBy('id');
                     },
@@ -1305,7 +1350,7 @@ class AlokasiPetugasController extends Controller
                             ]);
                     },
                     'kegiatanFrameSampel' => function ($query) {
-                        $query->select('id', 'kegiatan_id', 'tahapan', 'nama_frame', 'target_unit_sampel', 'identitas_tambahan')
+                        $query->select('id', 'kegiatan_id', 'tahapan', 'nama_target', 'sample_role', 'is_active', 'nama_frame', 'target_unit_sampel', 'identitas_tambahan')
                             ->orderBy('tahapan')
                             ->orderBy('id');
                     },
@@ -1389,8 +1434,10 @@ class AlokasiPetugasController extends Controller
             $budgetInfo[$kegiatan->id] = [
                 'pagu_pencacahan' => $kegiatan->pagu_pencacahan ?? 0,
                 'current_total_spent' => $totalSpent,
+                'current_total_spent_other_periods' => $totalSpent,
                 'pagu_listing' => $kegiatan->pagu_listing ?? 0,
                 'current_total_spent_listing' => $totalSpentListing,
+                'current_total_spent_listing_other_periods' => $totalSpentListing,
             ];
 
             // Calculate used months/periods for this kegiatan
@@ -1496,12 +1543,12 @@ class AlokasiPetugasController extends Controller
                                     ]);
                             },
                             'kegiatanFrameSampel' => function ($query) {
-                                $query->select('id', 'kegiatan_id', 'tahapan', 'nama_frame', 'target_unit_sampel', 'identitas_tambahan')
+                                $query->select('id', 'kegiatan_id', 'tahapan', 'nama_target', 'sample_role', 'is_active', 'nama_frame', 'target_unit_sampel', 'identitas_tambahan')
                                     ->orderBy('tahapan')
                                     ->orderBy('id');
                             },
                         ])
-                        ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai', 'unit_sampel_pencacahan_ids', 'unit_sampel_listing_ids')
+                        ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'metode_sampling', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai', 'unit_sampel_pencacahan_ids', 'unit_sampel_listing_ids')
                         ->first();
 
                     // Add SBML limits to selected kegiatan's rate honors
@@ -1638,8 +1685,10 @@ class AlokasiPetugasController extends Controller
             $budgetInfo[$selectedKegiatan->id] = [
                 'pagu_pencacahan' => $selectedKegiatan->pagu_pencacahan ?? 0,
                 'current_total_spent' => $selectedTotalSpent,
+                'current_total_spent_other_periods' => $selectedTotalSpent,
                 'pagu_listing' => $selectedKegiatan->pagu_listing ?? 0,
                 'current_total_spent_listing' => $selectedTotalSpentListing,
+                'current_total_spent_listing_other_periods' => $selectedTotalSpentListing,
             ];
 
             $selectedPeriodeList = PeriodeAlokasi::where('kegiatan_id', $selectedKegiatan->id)
@@ -1769,7 +1818,7 @@ class AlokasiPetugasController extends Controller
         $data['total_honor'] = $totalHonor;
         $data['total_honor_listing'] = $totalHonorListing;
         $data['jumlah_satuan_listing'] = $jumlahSatuanListing;
-        $data['peran'] = $rateHonor->posisi;
+        $data['peran'] = $this->resolvePeranCodeFromRateHonor($rateHonor);
         $data['status_kepegawaian'] = $rateHonor->status_kepegawaian;
         $data['submitted_by'] = effectiveUser($request)->id;
 
@@ -1885,7 +1934,7 @@ class AlokasiPetugasController extends Controller
         $data['total_honor'] = $totalHonor;
         $data['total_honor_listing'] = $totalHonorListing;
         $data['jumlah_satuan_listing'] = $jumlahSatuanListing;
-        $data['peran'] = $rateHonor->posisi;
+        $data['peran'] = $this->resolvePeranCodeFromRateHonor($rateHonor);
         $data['status_kepegawaian'] = $rateHonor->status_kepegawaian;
 
         $alokasi->update($data);
@@ -2075,6 +2124,7 @@ class AlokasiPetugasController extends Controller
             ->orderByDesc('revision_number')
             ->with([
                 'alokasiPetugas.petugas',
+                'alokasiPetugas.frameSampelAllocations.kegiatanFrameSampel',
                 'submittedBy:id,name',
             ])
             ->firstOrFail();
@@ -2083,6 +2133,11 @@ class AlokasiPetugasController extends Controller
             'rateHonors' => function ($query) use ($tahun) {
                 $query->where('tahun_berlaku', $tahun)
                     ->where('status', 'aktif');
+            },
+            'kegiatanFrameSampel' => function ($query) {
+                $query->select('id', 'kegiatan_id', 'tahapan', 'nama_target', 'sample_role', 'is_active', 'nama_frame', 'kode_kecamatan', 'kode_desa', 'kode_sls', 'kode_sub_sls', 'kode_segmen', 'target_unit_sampel', 'identitas_tambahan')
+                    ->orderBy('tahapan')
+                    ->orderBy('id');
             },
         ]);
 
@@ -2108,6 +2163,82 @@ class AlokasiPetugasController extends Controller
                 ? (float) $alokasi->estimasi_honor_partial_listing
                 : (float) ($alokasi->total_honor_listing ?? 0);
         };
+
+        $frameMetadataColumns = $this->extractFrameSampelMetadataColumns($kegiatan->kegiatanFrameSampel);
+
+        $mapFrameSampleDetail = function (KegiatanFrameSampel $frameSample) use ($frameMetadataColumns): array {
+            $targetUnitSampel = is_array($frameSample->target_unit_sampel)
+                ? $frameSample->target_unit_sampel
+                : [];
+
+            $totalTargetUnit = array_sum(array_map('floatval', $targetUnitSampel));
+
+            $metadataItems = collect($frameMetadataColumns)
+                ->map(function (array $column) use ($frameSample): array {
+                    $code = trim((string) ($column['code'] ?? ''));
+                    $label = trim((string) ($column['label'] ?? ''));
+
+                    if ($code === '') {
+                        return [];
+                    }
+
+                    $normalizedCode = Str::lower($code);
+                    $codeValue = $this->resolveFrameMetadataRawValue($frameSample, $normalizedCode);
+                    $labelValue = $this->resolveFrameMetadataLabelValue($frameSample, $normalizedCode);
+
+                    if ($codeValue === '-' && $labelValue === '-') {
+                        return [];
+                    }
+
+                    $hasCodeValue = $codeValue !== '-' && trim($codeValue) !== '';
+                    $hasLabelValue = $labelValue !== '-' && trim($labelValue) !== '';
+
+                    return [
+                        'code' => $code,
+                        'label' => $label !== '' ? $label : $this->formatMetadataLabel($code),
+                        'codeValue' => $hasCodeValue ? $codeValue : '',
+                        'labelValue' => $hasLabelValue ? $labelValue : '',
+                        'displayMode' => $hasCodeValue && $hasLabelValue
+                            ? 'code_name'
+                            : ($hasCodeValue ? 'code_only' : 'name_only'),
+                    ];
+                })
+                ->filter(static fn (array $item): bool => ! empty($item))
+                ->values()
+                ->all();
+
+            return [
+                'id' => $frameSample->id,
+                'kegiatan_frame_sampel_id' => $frameSample->id,
+                'tahapan' => $frameSample->tahapan,
+                'nama_target' => $frameSample->nama_target,
+                'sample_role' => $frameSample->sample_role,
+                'is_active' => (bool) $frameSample->is_active,
+                'nama_frame' => $frameSample->nama_frame,
+                'kode_kecamatan' => $frameSample->kode_kecamatan,
+                'kode_desa' => $frameSample->kode_desa,
+                'kode_sls' => $frameSample->kode_sls,
+                'kode_sub_sls' => $frameSample->kode_sub_sls,
+                'kode_segmen' => $frameSample->kode_segmen,
+                'nks' => $frameSample->kode_sls
+                    ?: data_get($frameSample->identitas_tambahan, 'kdsls')
+                    ?: data_get($frameSample->identitas_tambahan, 'kode_sls')
+                    ?: data_get($frameSample->identitas_tambahan, 'sls')
+                    ?: data_get($frameSample->identitas_tambahan, 'nks')
+                    ?: data_get($frameSample->identitas_tambahan, 'kode_nks')
+                    ?: $frameSample->kode_segmen,
+                'nama_usaha_penggilingan' => $frameSample->nama_target ?: $frameSample->nama_frame,
+                'target_unit_sampel' => $targetUnitSampel,
+                'target_unit_total' => $totalTargetUnit > 0 ? $totalTargetUnit : 0,
+                'identitas_tambahan' => $frameSample->identitas_tambahan,
+                'metadata_items' => $metadataItems,
+            ];
+        };
+
+        $frameSamplePool = $kegiatan->kegiatanFrameSampel
+            ->map($mapFrameSampleDetail)
+            ->values()
+            ->all();
 
         // Calculate totals
         $totalEstimasiPencacahan = $periode->alokasiPetugas->sum(fn ($alokasi) => $resolveEffectivePencacahanHonor($alokasi));
@@ -2136,10 +2267,21 @@ class AlokasiPetugasController extends Controller
                 'id' => $kegiatan->id,
                 'kode_kegiatan' => $kegiatan->kode_kegiatan,
                 'nama_kegiatan' => $kegiatan->nama_kegiatan,
+                'metode_sampling' => $kegiatan->metode_sampling,
                 'hashed_id' => $kegiatan->hashed_id,
                 'has_listing_updating' => $kegiatan->has_listing_updating ?? false,
+                'frame_metadata_columns' => $this->extractFrameSampelMetadataColumns($kegiatan->kegiatanFrameSampel),
+                'kegiatan_frame_sampel' => $frameSamplePool,
+                'rate_honors' => $kegiatan->rateHonors->map(static function (RateHonor $rateHonor): array {
+                    return [
+                        'status_kepegawaian' => $rateHonor->status_kepegawaian,
+                        'jenis_penugasan' => $rateHonor->jenis_penugasan,
+                        'rate' => (float) ($rateHonor->rate ?? 0),
+                        'rate_listing' => (float) ($rateHonor->rate_listing ?? 0),
+                    ];
+                })->values()->all(),
             ],
-            'alokasi_petugas' => $periode->alokasiPetugas->map(function ($alokasi) use ($resolveRateHonor) {
+            'alokasi_petugas' => $periode->alokasiPetugas->map(function ($alokasi) use ($resolveRateHonor, $mapFrameSampleDetail) {
                 $effectivePencacahanHonor = $alokasi->is_partial_payment && $alokasi->estimasi_honor_partial !== null
                     ? (float) $alokasi->estimasi_honor_partial
                     : (float) ($alokasi->total_honor ?? 0);
@@ -2153,6 +2295,23 @@ class AlokasiPetugasController extends Controller
                     ? (int) $alokasi->partial_jumlah_satuan_listing
                     : (int) ($alokasi->jumlah_satuan_listing ?? 0);
                 $rateHonor = $resolveRateHonor($alokasi);
+                $frameSampleDetails = $alokasi->frameSampelAllocations
+                    ->map(function (AlokasiPetugasFrameSampel $frameAllocation) use ($mapFrameSampleDetail) {
+                        if (! $frameAllocation->kegiatanFrameSampel) {
+                            return null;
+                        }
+
+                        return array_merge(
+                            $mapFrameSampleDetail($frameAllocation->kegiatanFrameSampel),
+                            [
+                                'frame_allocation_id' => $frameAllocation->id,
+                                'is_non_response' => (bool) ($frameAllocation->is_non_response ?? false),
+                            ],
+                        );
+                    })
+                    ->filter()
+                    ->values()
+                    ->all();
 
                 return [
                     'id' => $alokasi->id,
@@ -2173,12 +2332,14 @@ class AlokasiPetugasController extends Controller
                     'catatan' => $alokasi->catatan,
                     'non_response' => $alokasi->non_response,
                     'non_response_listing' => $alokasi->non_response_listing,
+                    'frame_sampel_details' => $frameSampleDetails,
                 ];
             }),
             'total_estimasi' => $totalEstimasi,
             'total_estimasi_pencacahan' => $totalEstimasiPencacahan,
             'total_estimasi_listing' => $totalEstimasiListing,
             'jumlah_petugas' => $jumlahPetugas,
+            'kegiatan_frame_sampel' => $frameSamplePool,
         ];
 
         // Get revision history - include all previous versions (status 'direvisi' and older active versions)
@@ -2259,6 +2420,494 @@ class AlokasiPetugasController extends Controller
             'periode' => $periodeData,
             'revisions' => $revisions,
         ]);
+    }
+
+    public function exportMonitoringPdf(string $kegiatanRouteKey, int $tahun, string $bulan): HttpResponse
+    {
+        $kegiatan = $this->resolveKegiatanFromPeriodeRoute($kegiatanRouteKey, $tahun, $bulan);
+
+        $periode = PeriodeAlokasi::query()
+            ->where('kegiatan_id', $kegiatan->id)
+            ->where('tahun', $tahun)
+            ->whereIn('bulan', $this->resolveBulanCandidates($bulan))
+            ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
+            ->orderByDesc('revision_number')
+            ->with([
+                'alokasiPetugas.petugas',
+                'alokasiPetugas.frameSampelAllocations.kegiatanFrameSampel',
+                'submittedBy:id,name',
+            ])
+            ->firstOrFail();
+
+        $kegiatan->loadMissing([
+            'ketuaTim:id,name',
+            'kegiatanFrameSampel' => function ($query) {
+                $query->select('id', 'kegiatan_id', 'tahapan', 'nama_target', 'sample_role', 'is_active', 'nama_frame', 'kode_kecamatan', 'kode_desa', 'kode_sls', 'kode_sub_sls', 'kode_segmen', 'target_unit_sampel', 'identitas_tambahan')
+                    ->orderBy('tahapan')
+                    ->orderBy('id');
+            },
+        ]);
+
+        $kepala = Penandatangan::active()->kepala()->first();
+        $reportData = $this->buildMonitoringReportData($kegiatan, $periode, $kepala);
+        $pdf = Pdf::loadView('monitoring-pdf', $reportData)
+            ->setPaper('a4', 'landscape');
+
+        $filename = sprintf(
+            'monitoring_skgb_penggilingan_%s_%s_%s.pdf',
+            $tahun,
+            str_pad((string) $reportData['bulan'], 2, '0', STR_PAD_LEFT),
+            now()->format('Ymd_His'),
+        );
+
+        return $pdf->download($filename);
+    }
+
+    public function exportMonitoringSkgbPdf(string $kegiatanRouteKey, int $tahun, string $bulan): HttpResponse
+    {
+        return $this->exportMonitoringPdf($kegiatanRouteKey, $tahun, $bulan);
+    }
+
+    public function replaceFrameSampel(Request $request, AlokasiPetugasFrameSampel $frameAllocation): RedirectResponse
+    {
+        $validated = $request->validate([
+            'kegiatan_frame_sampel_id' => ['required', 'integer', 'exists:kegiatan_frame_sampel,id'],
+        ]);
+
+        $frameAllocation->load([
+            'alokasiPetugas.periodeAlokasi.kegiatan.rateHonors',
+            'kegiatanFrameSampel',
+        ]);
+
+        $alokasi = $frameAllocation->alokasiPetugas;
+        $periode = $alokasi->periodeAlokasi;
+        $currentFrame = $frameAllocation->kegiatanFrameSampel;
+        $currentPeran = strtolower(trim((string) $alokasi->peran));
+
+        if (! $periode) {
+            return back()->withErrors(['error' => 'Periode alokasi tidak ditemukan.']);
+        }
+
+        $targetFrame = KegiatanFrameSampel::query()->findOrFail((int) $validated['kegiatan_frame_sampel_id']);
+
+        if ((int) $targetFrame->kegiatan_id !== (int) $periode->kegiatan_id) {
+            return back()->withErrors(['kegiatan_frame_sampel_id' => 'Frame sampel pengganti harus berasal dari kegiatan yang sama.']);
+        }
+
+        if ($currentFrame && $targetFrame->tahapan !== $currentFrame->tahapan) {
+            return back()->withErrors(['kegiatan_frame_sampel_id' => 'Frame sampel pengganti harus berada pada tahapan yang sama.']);
+        }
+
+        $periode->loadMissing(['alokasiPetugas.frameSampelAllocations']);
+
+        $usedFrameIdsInPeriode = $periode->alokasiPetugas
+            ->filter(fn (AlokasiPetugas $alokasiItem): bool => strtolower(trim((string) $alokasiItem->peran)) === $currentPeran)
+            ->flatMap(fn (AlokasiPetugas $alokasiItem) => $alokasiItem->frameSampelAllocations->pluck('kegiatan_frame_sampel_id'))
+            ->map(fn ($frameId) => (int) $frameId)
+            ->filter(fn (int $frameId) => $frameId > 0)
+            ->unique();
+
+        $duplicateInPeriode = $usedFrameIdsInPeriode
+            ->reject(fn (int $frameId) => $frameId === (int) $frameAllocation->kegiatan_frame_sampel_id)
+            ->contains((int) $targetFrame->id);
+
+        if ($duplicateInPeriode) {
+            return back()->withErrors(['kegiatan_frame_sampel_id' => 'Frame sampel tersebut sudah dipakai pada alokasi periode ini.']);
+        }
+
+        $frameAllocation->update([
+            'kegiatan_frame_sampel_id' => $targetFrame->id,
+        ]);
+
+        $alokasi->refresh()->load(['petugas', 'periodeAlokasi.kegiatan.rateHonors', 'frameSampelAllocations.kegiatanFrameSampel']);
+
+        $selectedFrameTarget = $alokasi->frameSampelAllocations
+            ->sum(function (AlokasiPetugasFrameSampel $allocationFrame): float {
+                $targetUnitSampel = $allocationFrame->kegiatanFrameSampel?->target_unit_sampel;
+
+                return (float) array_sum((array) $targetUnitSampel);
+            });
+
+        $selectedFrameTarget = max(1, (int) round($selectedFrameTarget));
+        $kegiatan = $periode->kegiatan;
+        $petugasType = $alokasi->status_kepegawaian
+            ?? (($alokasi->petugas->jenis_petugas ?? 'non_organik') === 'organik' ? 'organik' : 'non_organik');
+        $rateHonor = $kegiatan->rateHonors
+            ->first(fn (RateHonor $rateHonor): bool => $rateHonor->status_kepegawaian === $petugasType && $rateHonor->jenis_penugasan === $alokasi->peran);
+
+        $totalHonorPencacahan = $this->resolvePencacahanWorkload($kegiatan, (float) $selectedFrameTarget) * (float) ($rateHonor?->rate ?? 0);
+        $totalHonorListing = $kegiatan->has_listing_updating
+            ? (float) ($rateHonor?->rate_listing ?? 0) * $selectedFrameTarget
+            : (float) ($alokasi->total_honor_listing ?? 0);
+
+        $alokasi->update([
+            'jumlah_satuan' => $selectedFrameTarget,
+            'jumlah_unit_sampel' => $selectedFrameTarget,
+            'jumlah_satuan_listing' => $kegiatan->has_listing_updating ? $selectedFrameTarget : $alokasi->jumlah_satuan_listing,
+            'total_honor' => $totalHonorPencacahan,
+            'total_honor_listing' => $totalHonorListing,
+        ]);
+
+        return back()->with('success', 'Sampel berhasil diganti.');
+    }
+
+    /**
+     * @return array{
+     *     judul: string,
+     *     lokasi: string,
+     *     kegiatan_nama: string,
+     *     tahun: int,
+     *     bulan: string,
+     *     periode_label: string,
+     *     generated_at: string,
+     *     tanggal_pengesahan: string,
+     *     ketua_tim_nama: string,
+     *     kepala_nama: string,
+     *     frame_metadata_columns: array<int, array{code:string,label:string}>,
+     *     rows: array<int, array<string, mixed>>,
+     *     summary: array{total_frame:int, total_alokasi:int, total_belum_alokasi:int, total_unit:int}
+     * }
+     */
+    protected function buildMonitoringReportData(Kegiatan $kegiatan, PeriodeAlokasi $periode, ?Penandatangan $kepala = null): array
+    {
+        $isPurposiveSampling = $kegiatan->metode_sampling === Kegiatan::METODE_SAMPLING_PURPOSSIVE;
+        $frameMetadataColumns = $this->extractFrameSampelMetadataColumns($kegiatan->kegiatanFrameSampel);
+        $displayFrameMetadataColumns = array_values(array_filter(
+            $frameMetadataColumns,
+            static fn (array $column): bool => ! in_array(
+                Str::lower((string) ($column['code'] ?? '')),
+                ['nama_target', 'nama_frame', 'nama_usaha_penggilingan'],
+                true,
+            ),
+        ));
+
+        $allocatedFrames = [];
+        foreach ($periode->alokasiPetugas as $alokasi) {
+            foreach ($alokasi->frameSampelAllocations as $frameAllocation) {
+                $frameSampleId = (int) ($frameAllocation->kegiatan_frame_sampel_id ?? 0);
+                if ($frameSampleId <= 0) {
+                    continue;
+                }
+
+                if (! isset($allocatedFrames[$frameSampleId])) {
+                    $allocatedFrames[$frameSampleId] = [
+                        'frame_allocation_ids' => [],
+                        'alokasi_petugas_ids' => [],
+                        'pengawas_nama' => '-',
+                        'pencacah_nama' => '-',
+                        'status_non_response' => false,
+                        'frame_sample' => $frameAllocation->kegiatanFrameSampel,
+                    ];
+                }
+
+                $roleKey = $this->resolveMonitoringRoleKey($alokasi->peran);
+                $allocatedFrames[$frameSampleId][$roleKey.'_nama'] = $alokasi->petugas?->nama ?? '-';
+                $allocatedFrames[$frameSampleId]['frame_allocation_ids'][] = $frameAllocation->id;
+                $allocatedFrames[$frameSampleId]['alokasi_petugas_ids'][] = $alokasi->id;
+                $allocatedFrames[$frameSampleId]['status_non_response'] = $allocatedFrames[$frameSampleId]['status_non_response']
+                    || (bool) ($frameAllocation->is_non_response ?? false);
+            }
+        }
+
+        $rows = collect($allocatedFrames)
+            ->sortKeys()
+            ->map(function (array $allocatedFrame, int $frameSampleId) use ($frameMetadataColumns): array {
+                /** @var KegiatanFrameSampel|null $frameSample */
+                $frameSample = $allocatedFrame['frame_sample'] ?? null;
+
+                $targetUnitSampel = is_array($frameSample?->target_unit_sampel)
+                    ? $frameSample->target_unit_sampel
+                    : [];
+
+                $totalTargetUnit = array_sum(array_map('floatval', $targetUnitSampel));
+                $metadataValues = [];
+
+                foreach ($frameMetadataColumns as $column) {
+                    $metadataValues[$column['code']] = $frameSample
+                        ? $this->resolveFrameMetadataValuePair($frameSample, $column['code'])
+                        : ['code' => '-', 'label' => '-'];
+                }
+
+                return [
+                    'kegiatan_frame_sampel_id' => $frameSampleId,
+                    'nama_usaha' => $this->resolveMonitoringNamaUsaha($frameSample),
+                    'pengawas_nama' => $allocatedFrame['pengawas_nama'] ?? '-',
+                    'pencacah_nama' => $allocatedFrame['pencacah_nama'] ?? '-',
+                    'target_unit_total' => $totalTargetUnit > 0 ? $totalTargetUnit : 0,
+                    'realisasi_unit_total' => (int) round($totalTargetUnit > 0 ? $totalTargetUnit : 0),
+                    'persentase' => $totalTargetUnit > 0 ? 100 : 0,
+                    'status_non_response' => $allocatedFrame['status_non_response'] ?? false,
+                    'metadata_values' => $metadataValues,
+                ];
+            })
+            ->values()
+            ->all();
+
+        $kepala ??= Penandatangan::active()->kepala()->first();
+        $signatureDate = $this->resolveMonitoringSignatureDate($periode);
+
+        return [
+            'judul' => 'Monitoring '.$kegiatan->nama_kegiatan,
+            'lokasi' => 'Badan Pusat Statistik Kota Sawahlunto',
+            'kegiatan_nama' => $kegiatan->nama_kegiatan,
+            'tahun' => (int) $periode->tahun,
+            'bulan' => $periode->bulan,
+            'periode_label' => $this->formatMonitoringMonthLabel($periode->bulan).' '.$periode->tahun,
+            'periode_tanggal_mulai' => $periode->tanggal_mulai?->format('j F Y'),
+            'periode_tanggal_selesai' => $periode->tanggal_selesai?->format('j F Y'),
+            'generated_at' => now()->timezone(config('app.timezone', 'Asia/Jakarta'))->locale('id')->translatedFormat('d F Y H:i'),
+            'tanggal_pengesahan' => $signatureDate->locale('id')->translatedFormat('d F Y'),
+            'ketua_tim_nama' => $kegiatan->ketuaTim?->name ?? '-',
+            'kepala_nama' => $kepala?->nama ?? '-',
+            'show_nama_usaha_column' => $isPurposiveSampling,
+            'frame_metadata_columns' => $displayFrameMetadataColumns,
+            'rows' => $rows,
+            'summary' => [
+                'total_frame' => count($rows),
+                'total_alokasi' => count($rows),
+                'total_belum_alokasi' => 0,
+                'total_unit' => (int) collect($rows)->sum('target_unit_total'),
+            ],
+        ];
+    }
+
+    protected function buildMonitoringSkgbReportData(Kegiatan $kegiatan, PeriodeAlokasi $periode, ?Penandatangan $kepala = null): array
+    {
+        return $this->buildMonitoringReportData($kegiatan, $periode, $kepala);
+    }
+
+    private function resolveMonitoringSignatureDate(PeriodeAlokasi $periode): Carbon
+    {
+        $sourceDate = $periode->tanggal_selesai
+            ?? $periode->tanggal_selesai_listing
+            ?? $periode->submitted_at
+            ?? now();
+
+        return $this->resolveNextWorkingDay($sourceDate);
+    }
+
+    private function resolveNextWorkingDay(Carbon|string $date): Carbon
+    {
+        $carbon = Carbon::parse($date)->startOfDay();
+
+        while (isHariLibur($carbon)) {
+            $carbon->addDay();
+        }
+
+        return $carbon;
+    }
+
+    private function resolveMonitoringSkgbSignatureDate(PeriodeAlokasi $periode): Carbon
+    {
+        return $this->resolveMonitoringSignatureDate($periode);
+    }
+
+    /**
+     * @return array{code:string,label:string}
+     */
+    private function resolveFrameMetadataValuePair(KegiatanFrameSampel $frameSample, string $code): array
+    {
+        $normalizedCode = Str::lower(trim($code));
+        $rawValue = $this->resolveFrameMetadataRawValue($frameSample, $normalizedCode);
+        $labelValue = $this->resolveFrameMetadataLabelValue($frameSample, $normalizedCode);
+
+        if ($rawValue === '-') {
+            return [
+                'code' => '-',
+                'label' => $labelValue,
+            ];
+        }
+
+        return [
+            'code' => $rawValue,
+            'label' => $labelValue,
+        ];
+    }
+
+    private function resolveMonitoringNamaUsaha(?KegiatanFrameSampel $frameSample): string
+    {
+        if (! $frameSample) {
+            return '-';
+        }
+
+        $namaUsaha = $frameSample->nama_target
+            ?: $frameSample->nama_frame
+            ?: data_get($frameSample->identitas_tambahan, 'nama_usaha_penggilingan')
+            ?: data_get($frameSample->identitas_tambahan, 'nama_usaha')
+            ?: '-';
+
+        return trim((string) $namaUsaha) !== '' ? trim((string) $namaUsaha) : '-';
+    }
+
+    private function resolveFrameMetadataRawValue(KegiatanFrameSampel $frameSample, string $normalizedCode): string
+    {
+        $attributes = $frameSample->getAttributes();
+        $identitasValues = $this->normalizeFrameMetadataSource($frameSample->identitas_tambahan);
+
+        $aliasMap = [
+            'kdkec' => ['kode_kecamatan'],
+            'kode_kecamatan' => ['kdkec'],
+            'kddes' => ['kode_desa'],
+            'kode_desa' => ['kddes'],
+            'kdsls' => ['kode_sls'],
+            'kode_sls' => ['kdsls'],
+            'kdsubsls' => ['kode_sub_sls'],
+            'kode_sub_sls' => ['kdsubsls'],
+            'idsegmen' => ['kode_segmen'],
+            'kode_segmen' => ['idsegmen', 'kdsegmen'],
+            'kdsegmen' => ['kode_segmen'],
+        ];
+
+        $directFields = [
+            'kode_kecamatan' => $frameSample->kode_kecamatan,
+            'kode_desa' => $frameSample->kode_desa,
+            'kode_sls' => $frameSample->kode_sls,
+            'kode_sub_sls' => $frameSample->kode_sub_sls,
+            'kode_segmen' => $frameSample->kode_segmen,
+            'nama_target' => $frameSample->nama_target,
+            'nama_frame' => $frameSample->nama_frame,
+        ];
+
+        foreach ($directFields as $field => $value) {
+            if (Str::lower($field) === $normalizedCode && is_scalar($value) && trim((string) $value) !== '') {
+                return trim((string) $value);
+            }
+        }
+
+        $candidateKeys = array_values(array_unique([
+            $normalizedCode,
+            Str::snake($normalizedCode),
+            Str::slug($normalizedCode, '_'),
+            ...($aliasMap[$normalizedCode] ?? []),
+        ]));
+
+        foreach ($candidateKeys as $candidateKey) {
+            foreach ([$identitasValues, $attributes] as $source) {
+                $value = data_get($source, $candidateKey);
+
+                if (is_scalar($value) && trim((string) $value) !== '') {
+                    return trim((string) $value);
+                }
+            }
+        }
+
+        return '-';
+    }
+
+    private function resolveFrameMetadataLabelValue(KegiatanFrameSampel $frameSample, string $normalizedCode): string
+    {
+        $identitasValues = $this->normalizeFrameMetadataSource($frameSample->identitas_tambahan);
+        $aliasMap = [
+            'kdkec' => ['kode_kecamatan'],
+            'kode_kecamatan' => ['kdkec', 'kdkec_label', 'kode_kecamatan_label'],
+            'kddes' => ['kode_desa'],
+            'kode_desa' => ['kddes', 'kddes_label', 'kode_desa_label'],
+            'kdsls' => ['kode_sls'],
+            'kode_sls' => ['kdsls', 'kdsls_label', 'kode_sls_label'],
+            'kdsubsls' => ['kode_sub_sls'],
+            'kode_sub_sls' => ['kdsubsls', 'kdsubsls_label', 'kode_sub_sls_label'],
+            'idsegmen' => ['kode_segmen'],
+            'kode_segmen' => ['idsegmen', 'idsegmen_label', 'kdsegmen', 'kdsegmen_label', 'kode_segmen_label'],
+            'kdsegmen' => ['kode_segmen'],
+        ];
+        $candidateKeys = array_values(array_unique([
+            $normalizedCode.'_label',
+            Str::snake($normalizedCode.'_label'),
+            Str::slug($normalizedCode.'_label', '_'),
+            ...(array_map(static fn (string $alias): string => $alias.'_label', $aliasMap[$normalizedCode] ?? [])),
+        ]));
+
+        foreach ($candidateKeys as $candidateKey) {
+            $value = data_get($identitasValues, $candidateKey);
+
+            if (is_scalar($value) && trim((string) $value) !== '') {
+                return trim((string) $value);
+            }
+        }
+
+        return '-';
+    }
+
+    private function normalizeFrameMetadataSource(mixed $source): array
+    {
+        if (is_array($source)) {
+            return $source;
+        }
+
+        if (is_object($source)) {
+            if (method_exists($source, 'toArray')) {
+                $arrayValue = $source->toArray();
+
+                if (is_array($arrayValue)) {
+                    return $arrayValue;
+                }
+            }
+
+            $decoded = json_decode(json_encode($source), true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        if (is_string($source)) {
+            $decoded = json_decode($source, true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
+    }
+
+    private function resolveMonitoringRoleKey(?string $peran): string
+    {
+        $normalizedPeran = Str::lower(trim((string) $peran));
+
+        if (Str::contains($normalizedPeran, ['pml', 'pengawas'])) {
+            return 'pengawas';
+        }
+
+        return 'pencacah';
+    }
+
+    private function formatMonitoringTahapanLabel(?string $tahapan): string
+    {
+        return match ($tahapan) {
+            'listing' => 'Listing',
+            'pencacahan' => 'Pencacahan',
+            default => '-'
+        };
+    }
+
+    private function formatMonitoringPeranLabel(?string $peran): string
+    {
+        if (! is_string($peran) || trim($peran) === '') {
+            return '-';
+        }
+
+        return Str::of($peran)
+            ->replace('_', ' ')
+            ->title()
+            ->toString();
+    }
+
+    private function formatMonitoringMonthLabel(string $bulan): string
+    {
+        $normalized = str_pad((string) ((int) $bulan), 2, '0', STR_PAD_LEFT);
+
+        return match ($normalized) {
+            '01' => 'Januari',
+            '02' => 'Februari',
+            '03' => 'Maret',
+            '04' => 'April',
+            '05' => 'Mei',
+            '06' => 'Juni',
+            '07' => 'Juli',
+            '08' => 'Agustus',
+            '09' => 'September',
+            '10' => 'Oktober',
+            '11' => 'November',
+            '12' => 'Desember',
+            default => $normalized,
+        };
     }
 
     /**
@@ -2382,26 +3031,7 @@ class AlokasiPetugasController extends Controller
                 ->with('error', 'Tidak ada alokasi untuk periode ini.');
         }
 
-        $revisionRootPeriodeId = (int) ($periode->parent_periode_id ?: $periode->id);
-        $revisionChainPeriodeIds = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
-            ->where(function ($query) use ($revisionRootPeriodeId, $periode) {
-                $query->where('id', $revisionRootPeriodeId);
-
-                if ($periode->id !== $revisionRootPeriodeId) {
-                    $query->orWhere('id', $periode->id);
-                }
-
-                $query->orWhere('parent_periode_id', $revisionRootPeriodeId);
-            })
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->unique()
-            ->values()
-            ->all();
-
-        if ($revisionChainPeriodeIds === []) {
-            $revisionChainPeriodeIds = [$periode->id];
-        }
+        $excludedBudgetPeriodeIds = [$periode->id];
 
         // Load kegiatan with active-year rate honors and enrich each rate with SBML limit,
         // matching the structure used by create mode.
@@ -2419,12 +3049,12 @@ class AlokasiPetugasController extends Controller
                         ]);
                 },
                 'kegiatanFrameSampel' => function ($query) {
-                    $query->select('id', 'kegiatan_id', 'tahapan', 'nama_frame', 'target_unit_sampel', 'identitas_tambahan')
+                    $query->select('id', 'kegiatan_id', 'tahapan', 'nama_target', 'sample_role', 'is_active', 'nama_frame', 'target_unit_sampel', 'identitas_tambahan')
                         ->orderBy('tahapan')
                         ->orderBy('id');
                 },
             ])
-            ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai', 'unit_sampel_pencacahan_ids', 'unit_sampel_listing_ids')
+            ->select('id', 'kode_kegiatan', 'nama_kegiatan', 'deskripsi', 'jenis_kegiatan', 'metode_sampling', 'pagu_pencacahan', 'ketua_tim_user_id', 'pj_lainnya_id', 'has_listing_updating', 'pagu_listing', 'tanggal_mulai', 'tanggal_selesai', 'unit_sampel_pencacahan_ids', 'unit_sampel_listing_ids')
             ->firstOrFail();
 
         foreach ($kegiatanWithRates->rateHonors as $rateHonor) {
@@ -2534,16 +3164,15 @@ class AlokasiPetugasController extends Controller
             ->where('tahun', $tahun)
             ->whereNotIn('bulan', $bulanCandidates)
             ->whereIn('status', ['draft', 'dikirim', 'perubahan', 'direvisi', 'disetujui'])
-            ->whereNotIn('id', $revisionChainPeriodeIds)
+            ->whereNotIn('id', $excludedBudgetPeriodeIds)
             ->pluck('bulan')
             ->map(fn ($b) => (int) $b)
             ->toArray();
 
-        // Calculate budget info - exclude current periode being edited
+        // Calculate budget info from all periods except the active edit/revision chain.
         $totalSpent = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
-            ->whereNotIn('bulan', $bulanCandidates)
-            ->whereNotIn('id', $revisionChainPeriodeIds)
-            ->whereIn('status', ['draft', 'dikirim', 'perubahan', 'direvisi', 'disetujui'])
+            ->whereNotIn('id', $excludedBudgetPeriodeIds)
+            ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
             ->with('alokasiPetugas')
             ->get()
             ->sum(function ($p) {
@@ -2551,9 +3180,8 @@ class AlokasiPetugasController extends Controller
             });
 
         $totalSpentListing = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
-            ->whereNotIn('bulan', $bulanCandidates)
-            ->whereNotIn('id', $revisionChainPeriodeIds)
-            ->whereIn('status', ['draft', 'dikirim', 'perubahan', 'direvisi', 'disetujui'])
+            ->whereNotIn('id', $excludedBudgetPeriodeIds)
+            ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
             ->with('alokasiPetugas')
             ->get()
             ->sum(function ($p) {
@@ -2564,8 +3192,10 @@ class AlokasiPetugasController extends Controller
             $kegiatan->id => [
                 'pagu_pencacahan' => $kegiatan->pagu_pencacahan ?? 0,
                 'current_total_spent' => $totalSpent,
+                'current_total_spent_other_periods' => $totalSpent,
                 'pagu_listing' => $kegiatan->pagu_listing ?? 0,
                 'current_total_spent_listing' => $totalSpentListing,
+                'current_total_spent_listing_other_periods' => $totalSpentListing,
             ],
         ];
 
@@ -2574,49 +3204,28 @@ class AlokasiPetugasController extends Controller
             $kegiatan->id => $usedMonths,
         ];
 
-        if ($isRevisiMode) {
-            $currentMonth = (int) $bulan;
+        $effectiveBudgetPeriodes = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
+            ->where('tahun', $tahun)
+            ->whereNotIn('bulan', $bulanCandidates)
+            ->whereIn('status', ['draft', 'dikirim', 'perubahan'])
+            ->whereNotIn('id', $excludedBudgetPeriodeIds)
+            ->get()
+            ->groupBy(fn (PeriodeAlokasi $periodeItem) => str_pad((string) ((int) $periodeItem->bulan), 2, '0', STR_PAD_LEFT))
+            ->map(fn (Collection $periodesByMonth) => $this->resolveEffectiveBudgetPeriode($periodesByMonth))
+            ->filter()
+            ->values();
 
-            $priorPeriods = PeriodeAlokasi::where('kegiatan_id', $kegiatan->id)
-                ->where('tahun', $tahun)
-                ->whereRaw('CAST(bulan AS UNSIGNED) < ?', [$currentMonth])
-                ->whereIn('status', ['draft', 'dikirim', 'perubahan', 'direvisi', 'disetujui'])
-                ->with('alokasiPetugas')
-                ->get()
-                ->groupBy(fn (PeriodeAlokasi $periode) => (int) $periode->bulan)
-                ->map(function (Collection $periodesByMonth) {
-                    $effectivePeriode = $periodesByMonth->firstWhere('status', 'perubahan')
-                        ?? $periodesByMonth->firstWhere('status', 'dikirim')
-                        ?? $periodesByMonth->firstWhere('status', 'draft')
-                        ?? $periodesByMonth->sortByDesc('revision_number')->first();
-
-                    return $effectivePeriode;
-                })
-                ->filter();
-
-            $totalSpent = $priorPeriods->sum(function (PeriodeAlokasi $periodeItem) {
-                return $periodeItem->alokasiPetugas->sum(function (AlokasiPetugas $alokasi) {
-                    return $alokasi->is_partial_payment && $alokasi->estimasi_honor_partial !== null
-                        ? (float) $alokasi->estimasi_honor_partial
-                        : (float) ($alokasi->total_honor ?? 0);
-                });
+        $totalSpent = $effectiveBudgetPeriodes->sum(function (PeriodeAlokasi $periodeItem) {
+            return $periodeItem->alokasiPetugas->sum(function (AlokasiPetugas $alokasi) {
+                return $alokasi->getEffectiveTotalHonor();
             });
+        });
 
-            $totalSpentListing = $priorPeriods->sum(function (PeriodeAlokasi $periodeItem) {
-                return $periodeItem->alokasiPetugas->sum(function (AlokasiPetugas $alokasi) {
-                    return $alokasi->is_partial_payment_listing && $alokasi->estimasi_honor_partial_listing !== null
-                        ? (float) $alokasi->estimasi_honor_partial_listing
-                        : (float) ($alokasi->total_honor_listing ?? 0);
-                });
+        $totalSpentListing = $effectiveBudgetPeriodes->sum(function (PeriodeAlokasi $periodeItem) {
+            return $periodeItem->alokasiPetugas->sum(function (AlokasiPetugas $alokasi) {
+                return $alokasi->getEffectiveTotalHonorListing();
             });
-
-            $budgetInfo[$kegiatan->id] = [
-                'pagu_pencacahan' => $kegiatan->pagu_pencacahan ?? 0,
-                'current_total_spent' => $totalSpent,
-                'pagu_listing' => $kegiatan->pagu_listing ?? 0,
-                'current_total_spent_listing' => $totalSpentListing,
-            ];
-        }
+        });
 
         // Keep revisi mode in session for updatePeriode
         // Don't forget it here, will be handled in updatePeriode
@@ -3242,6 +3851,7 @@ class AlokasiPetugasController extends Controller
                 $alokasiPayload = [
                     'periode_alokasi_id' => $periode->id,
                     'petugas_id' => $alokasiData['petugas_id'],
+                    'peran' => $jenisPenugasan,
                     'jumlah_satuan' => $alokasiData['jumlah_satuan'],
                     'jumlah_satuan_listing' => $jumlahSatuanListing,
                     'jumlah_frame_sampel' => count(array_unique(array_map('intval', $alokasiData['frame_sampel_ids'] ?? []))),
@@ -3251,54 +3861,11 @@ class AlokasiPetugasController extends Controller
                     'is_partial_payment' => $isPartialPayment,
                     'partial_jumlah_satuan' => $isPartialPayment ? $partialJumlahSatuan : null,
                     'estimasi_honor_partial' => $isPartialPayment ? $estimasiHonorPartial : null,
-                    'is_partial_payment_listing' => $isPartialPaymentListing,
-                    'partial_jumlah_satuan_listing' => $isPartialPaymentListing ? $partialJumlahSatuanListing : null,
-                    'estimasi_honor_partial_listing' => $isPartialPaymentListing ? $estimasiHonorPartialListing : null,
-                    'peran' => $jenisPenugasan,
-                    'status_kepegawaian' => $petugasType,
-                    'catatan' => $alokasiData['catatan'] ?? null,
+                    'error' => 'Terdapat kesalahan pada alokasi petugas: '.implode(' | ', $errors),
                 ];
-
-                if ($hasKegiatanIdColumn) {
-                    $alokasiPayload['kegiatan_id'] = $kegiatan->id;
-                }
-
-                if ($hasBulanColumn) {
-                    $alokasiPayload['bulan'] = (int) $bulan;
-                }
-
-                if ($hasTahunColumn) {
-                    $alokasiPayload['tahun'] = (int) $tahun;
-                }
 
                 $alokasiPetugas = AlokasiPetugas::create($alokasiPayload);
                 $this->syncAlokasiFrameSampel($alokasiPetugas, $alokasiData['frame_sampel_ids'] ?? []);
-
-                $created++;
-            }
-
-            // Check if there were any errors during validation
-            if (! empty($errors)) {
-                DB::rollBack();
-
-                $bulanNameErr = Carbon::create()->month((int) $bulan)->translatedFormat('F');
-                ActivityLog::logError(
-                    $isRevision ? 'Gagal Revisi Alokasi Periode' : 'Gagal Update Alokasi Periode',
-                    'alokasi',
-                    'Validasi alokasi gagal untuk '.$kegiatan->nama_kegiatan.' ('.$bulanNameErr.' '.$tahun.'): '.implode(' | ', $errors),
-                    [
-                        'kegiatan_id' => $kegiatan->id,
-                        'kegiatan_nama' => $kegiatan->nama_kegiatan,
-                        'bulan' => $bulan,
-                        'tahun' => $tahun,
-                        'errors' => $errors,
-                        'is_revision' => $isRevision,
-                    ]
-                );
-
-                return redirect()->back()->withErrors([
-                    'error' => 'Terdapat kesalahan pada alokasi petugas: '.implode(' | ', $errors),
-                ]);
             }
 
             // Recalculate periode total and sisa_pagu
@@ -4061,11 +4628,24 @@ class AlokasiPetugasController extends Controller
                     throw new \Exception('Anda tidak memiliki akses untuk mengupdate non response kegiatan ini.');
                 }
 
+                $selectedFrameAllocationIds = array_map(
+                    'intval',
+                    $alokasiData['frame_allocation_ids'] ?? [],
+                );
+
                 // Update non response
                 $alokasi->update([
                     'non_response' => $alokasiData['non_response'] ?? null,
                     'non_response_listing' => $alokasiData['non_response_listing'] ?? null,
                 ]);
+
+                $alokasi->frameSampelAllocations()->update(['is_non_response' => false]);
+
+                if ($selectedFrameAllocationIds !== []) {
+                    $alokasi->frameSampelAllocations()
+                        ->whereIn('id', $selectedFrameAllocationIds)
+                        ->update(['is_non_response' => true]);
+                }
             }
 
             DB::commit();
@@ -4628,11 +5208,40 @@ class AlokasiPetugasController extends Controller
     private function extractFrameSampelMetadataColumns(Collection $frameRows): array
     {
         $preferredOrder = ['kdkec', 'kddes', 'kdsls', 'kdsubsls', 'idsegmen', 'kdsegmen'];
+        $directColumns = [
+            'kode_kecamatan' => 'Kecamatan',
+            'kode_desa' => 'Desa/Kelurahan',
+            'kode_sls' => 'SLS',
+            'kode_sub_sls' => 'Sub SLS',
+            'kode_segmen' => 'Segmen',
+            'nama_target' => 'Nama Usaha',
+            'nama_frame' => 'Nama Usaha',
+        ];
         $columns = [];
+        $seenLabels = [];
 
         foreach ($frameRows as $frameRow) {
             if (! $frameRow instanceof KegiatanFrameSampel) {
                 continue;
+            }
+
+            foreach ($directColumns as $code => $label) {
+                $value = $frameRow->{$code} ?? null;
+
+                if (! is_scalar($value) || trim((string) $value) === '') {
+                    continue;
+                }
+
+                $normalizedLabel = Str::lower($label);
+                if (isset($seenLabels[$normalizedLabel])) {
+                    continue;
+                }
+
+                $columns[] = [
+                    'code' => $code,
+                    'label' => $label,
+                ];
+                $seenLabels[$normalizedLabel] = true;
             }
 
             $identitas = is_array($frameRow->identitas_tambahan)
@@ -4649,15 +5258,17 @@ class AlokasiPetugasController extends Controller
                     continue;
                 }
 
-                $normalizedCode = Str::lower($code);
-                if (collect($columns)->contains(fn (array $column): bool => Str::lower($column['code']) === $normalizedCode)) {
+                $label = $this->formatMetadataLabel($code);
+                $normalizedLabel = Str::lower($label);
+                if (isset($seenLabels[$normalizedLabel])) {
                     continue;
                 }
 
                 $columns[] = [
                     'code' => $code,
-                    'label' => $this->formatMetadataLabel($code),
+                    'label' => $label,
                 ];
+                $seenLabels[$normalizedLabel] = true;
             }
         }
 
@@ -4939,5 +5550,19 @@ class AlokasiPetugasController extends Controller
             'koseka' => 'Koseka',
             default => 'PCL',
         };
+    }
+
+    private function resolvePeranCodeFromRateHonor(RateHonor $rateHonor): string
+    {
+        $peranCode = strtolower(trim((string) $rateHonor->jenis_penugasan));
+
+        return in_array($peranCode, ['pcl_ppl', 'pml', 'koseka', 'pengolahan', 'pengawas_pengolahan'], true)
+            ? $peranCode
+            : 'pcl_ppl';
+    }
+
+    private function resolveFrameSampleTarget(KegiatanFrameSampel $frameSample): int
+    {
+        return max(0, (int) array_sum((array) $frameSample->target_unit_sampel));
     }
 }

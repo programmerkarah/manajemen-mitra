@@ -21,6 +21,10 @@ class Kegiatan extends Model
 
     public const METODE_PENDATAAN_CAPI_LEGACY = 'CAPI';
 
+    public const METODE_SAMPLING_TARGETED = 'targeted';
+
+    public const METODE_SAMPLING_PURPOSSIVE = 'purpossive';
+
     /** @use HasFactory<KegiatanFactory> */
     use HasFactory, HasHashedRouteKey, SoftDeletes;
 
@@ -42,6 +46,7 @@ class Kegiatan extends Model
             'metode_pendataan_pencacahan' => 'string',
             'metode_pendataan_listing' => 'string',
             'metode_pelatihan' => 'string',
+            'metode_sampling' => 'string',
             'bulan_pelatihan' => 'integer',
             'unit_sampel_pencacahan_ids' => 'array',
             'unit_sampel_listing_ids' => 'array',
@@ -71,9 +76,57 @@ class Kegiatan extends Model
         'unit_sampel_pencacahan_ids',
         'metode_pendataan_pencacahan',
         'metode_pendataan_listing',
+        'metode_sampling',
         'metode_pelatihan',
         'bulan_pelatihan',
     ];
+
+    public static function normalizeMetodeSampling(?string $value): ?string
+    {
+        return match ($value) {
+            self::METODE_SAMPLING_TARGETED,
+            self::METODE_SAMPLING_PURPOSSIVE => $value,
+            default => null,
+        };
+    }
+
+    /**
+     * @return array<int, array{value:string,label:string,description?:string}>
+     */
+    public static function purpossiveSampleRoles(): array
+    {
+        $roles = config('kegiatan.purpossive_sample_roles', []);
+
+        return is_array($roles) ? array_values($roles) : [];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function purpossiveSampleRoleValues(): array
+    {
+        return collect(self::purpossiveSampleRoles())
+            ->pluck('value')
+            ->filter(fn ($value) => is_string($value) && $value !== '')
+            ->values()
+            ->all();
+    }
+
+    public static function defaultPurpossiveSampleRole(): string
+    {
+        return self::purpossiveSampleRoleValues()[0] ?? 'utama';
+    }
+
+    public static function normalizePurpossiveSampleRole(?string $value): string
+    {
+        if ($value === null || $value === '') {
+            return self::defaultPurpossiveSampleRole();
+        }
+
+        return in_array($value, self::purpossiveSampleRoleValues(), true)
+            ? $value
+            : self::defaultPurpossiveSampleRole();
+    }
 
     public function pjLainnya(): BelongsTo
     {

@@ -720,7 +720,7 @@ export default function Show({
                                 }
                             >
                                 <FolderDown className="mr-2 h-4 w-4" />
-                                Download Semua
+                                Unduh Semua
                             </Button>
                         )}
                         <Button variant="outline" asChild>
@@ -736,7 +736,7 @@ export default function Show({
                     <ContentCard className="border border-blue-200/70 bg-gradient-to-br from-blue-50 to-white dark:border-blue-900/40 dark:from-blue-950/30 dark:to-neutral-900">
                         <div className="flex items-center justify-between">
                             <p className="text-xs font-medium tracking-wide text-blue-700 uppercase dark:text-blue-300">
-                                BAST [generate]
+                                BAST Dibuat
                             </p>
                             <FileText className="h-4 w-4 text-blue-600 dark:text-blue-300" />
                         </div>
@@ -745,14 +745,14 @@ export default function Show({
                         </p>
                         <p className="mt-2 text-xs text-blue-700 dark:text-blue-300">
                             Jumlah petugas yang dokumen utama BAST-nya sudah
-                            digenerate.
+                            dibuat.
                         </p>
                     </ContentCard>
 
                     <ContentCard className="border border-emerald-200/70 bg-gradient-to-br from-emerald-50 to-white dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
                         <div className="flex items-center justify-between">
                             <p className="text-xs font-medium tracking-wide text-emerald-700 uppercase dark:text-emerald-300">
-                                BAST [bertanda tangan]
+                                BAST Bertanda Tangan
                             </p>
                             <PenLine className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
                         </div>
@@ -760,8 +760,8 @@ export default function Show({
                             {bastSudahTtdCount}/{totalPetugasPeriod}
                         </p>
                         <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
-                            Jumlah petugas yang file utama BAST bertanda
-                            tangannya sudah diunggah.
+                            Jumlah petugas yang file utama BAST final sudah
+                            diunggah.
                         </p>
                     </ContentCard>
 
@@ -980,7 +980,7 @@ export default function Show({
                                         <div className="rounded-xl border border-neutral-200 p-3 dark:border-neutral-700">
                                             <div className="flex items-center justify-between gap-2">
                                                 <p className="text-xs font-medium text-neutral-600 dark:text-neutral-300">
-                                                    BAST [Generate]
+                                                    BAST Dibuat
                                                 </p>
                                                 <FileText className="h-4 w-4 text-neutral-500" />
                                             </div>

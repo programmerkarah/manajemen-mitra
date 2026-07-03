@@ -13,6 +13,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -54,11 +61,28 @@ interface MasterSampelOption {
 interface KegiatanFrameSampelRow {
     id?: number;
     tahapan: 'listing' | 'pencacahan';
+    sample_role?: string;
+    is_active?: boolean;
     target_unit_sampel: string | number | Record<string, string | number>;
+    nama_target?: string;
     identitas_tambahan?: Record<string, string> | null;
 }
 
 type MetodePendataan = 'PAPI' | 'CAPI_FASIH' | 'CAPI_KSA_PRO';
+type SamplingMethod = 'targeted' | 'purpossive';
+type MetadataFieldMode = 'code_name' | 'code_only' | 'name_only';
+
+interface PurpossiveSampleRoleOption {
+    value: string;
+    label: string;
+    description?: string;
+}
+
+interface MetadataModeOption {
+    value: MetadataFieldMode;
+    label: string;
+    description: string;
+}
 
 const metodePendataanOptions: Array<{
     value: MetodePendataan;
@@ -100,9 +124,50 @@ const normalizeMetodePendataan = (
     return '';
 };
 
+const samplingMethodOptions: Array<{
+    value: SamplingMethod;
+    label: string;
+    description: string;
+}> = [
+    {
+        value: 'targeted',
+        label: 'Targeted',
+        description: 'Input jumlah sampel per unit.',
+    },
+    {
+        value: 'purpossive',
+        label: 'Purpossive',
+        description: 'Input nama target per baris.',
+    },
+];
+
+const normalizeSamplingMethod = (
+    value: string | null | undefined,
+): SamplingMethod => (value === 'purpossive' ? 'purpossive' : 'targeted');
+
+const resolveDefaultPurpossiveSampleRole = (
+    roles: PurpossiveSampleRoleOption[],
+): string => roles[0]?.value ?? 'utama';
+
+const normalizePurpossiveSampleRole = (
+    value: string | null | undefined,
+    roles: PurpossiveSampleRoleOption[],
+): string => {
+    const defaultRole = resolveDefaultPurpossiveSampleRole(roles);
+
+    if (!value) {
+        return defaultRole;
+    }
+
+    return roles.some((role) => role.value === value) ? value : defaultRole;
+};
+
 interface FormFrameSampelRow {
     tahapan: 'listing' | 'pencacahan';
+    sample_role: string;
+    is_active: boolean;
     target_unit_sampel: Record<string, string>;
+    sample_name: string;
     metadata_items: MetadataItem[];
 }
 
@@ -116,6 +181,7 @@ interface MetadataColumn {
     code: string;
     label: string;
     description: string;
+    mode: MetadataFieldMode;
 }
 
 const DEFAULT_METADATA_COLUMNS: MetadataColumn[] = [
@@ -123,30 +189,68 @@ const DEFAULT_METADATA_COLUMNS: MetadataColumn[] = [
         code: 'kdkec',
         label: 'Kecamatan',
         description: 'Kode wilayah kecamatan.',
+        mode: 'code_name',
     },
     {
         code: 'kddes',
         label: 'Desa/Kelurahan',
         description: 'Kode wilayah desa atau kelurahan.',
+        mode: 'code_name',
     },
     {
         code: 'kdsls',
         label: 'SLS',
         description: 'Kode satuan lingkungan setempat.',
+        mode: 'code_name',
     },
     {
         code: 'kdsubsls',
         label: 'Sub SLS',
         description: 'Kode sub satuan lingkungan setempat.',
+        mode: 'code_name',
     },
     {
         code: 'kdsegmen',
         label: 'Segmen',
         description: 'Kode segmen wilayah kerja atau sampel.',
+        mode: 'code_name',
     },
 ];
 
 const metadataLabelKey = (code: string): string => `${code}_label`;
+
+const metadataModeOptions: MetadataModeOption[] = [
+    {
+        value: 'code_name',
+        label: 'Kode + nama',
+        description: 'Menampilkan dan menyimpan kode serta nama.',
+    },
+    {
+        value: 'code_only',
+        label: 'Kode saja',
+        description: 'Hanya menampilkan dan menyimpan kode.',
+    },
+    {
+        value: 'name_only',
+        label: 'Nama saja',
+        description: 'Hanya menampilkan dan menyimpan nama.',
+    },
+];
+
+const inferMetadataFieldMode = (item: MetadataItem): MetadataFieldMode => {
+    const hasCodeValue = item.codeValue.trim() !== '';
+    const hasLabelValue = item.labelValue.trim() !== '';
+
+    if (hasCodeValue && !hasLabelValue) {
+        return 'code_only';
+    }
+
+    if (hasLabelValue && !hasCodeValue) {
+        return 'name_only';
+    }
+
+    return 'code_name';
+};
 
 const resolveIdentitasValue = (
     identitas: Record<string, string> | null | undefined,
@@ -227,12 +331,18 @@ const buildMetadataColumnsFromRows = (
                             (column) =>
                                 column.code.toLowerCase() === normalizedCode,
                         )?.description || item.code,
+                    mode: inferMetadataFieldMode(item),
                 });
             }
         });
     });
 
-    return columns.length > 0 ? columns : DEFAULT_METADATA_COLUMNS.slice(0, 4);
+    return columns.length > 0
+        ? columns
+        : DEFAULT_METADATA_COLUMNS.slice(0, 4).map((column) => ({
+              ...column,
+              mode: 'code_name' as MetadataFieldMode,
+          }));
 };
 
 const normalizeTargetUnitSampel = (
@@ -252,10 +362,27 @@ const normalizeTargetUnitSampel = (
     return {};
 };
 
+const resolveSampleName = (row: {
+    nama_target?: string;
+    identitas_tambahan?: Record<string, string> | null;
+}): string => {
+    if (row.nama_target && row.nama_target.trim() !== '') {
+        return row.nama_target;
+    }
+
+    return resolveIdentitasValue(row.identitas_tambahan, [
+        'nama_target',
+        'nama_usaha',
+        'nama_subsegmen',
+        'nama_sampel',
+    ]);
+};
+
 interface KegiatanCreateProps {
     ketuaTimUsers: User[];
     tahunOptions: number[];
     pjLainnyaUsers: User[];
+    purpossiveSampleRoles: PurpossiveSampleRoleOption[];
     masterFrameSampel: MasterSampelOption[];
     masterUnitSampel: MasterSampelOption[];
     kegiatanFrameSampel?: KegiatanFrameSampelRow[];
@@ -277,6 +404,7 @@ export default function Create({
     ketuaTimUsers,
     tahunOptions,
     pjLainnyaUsers,
+    purpossiveSampleRoles,
     masterFrameSampel,
     masterUnitSampel,
     kegiatanFrameSampel = [],
@@ -309,6 +437,12 @@ export default function Create({
             ? 'listing'
             : 'pencacahan';
     const initialMetadataSaved = kegiatanFrameSampel.length > 0;
+    const initialSamplingMethod = normalizeSamplingMethod(
+        (copyData as { metode_sampling?: string } | undefined)?.metode_sampling,
+    );
+    const defaultPurpossiveSampleRole = resolveDefaultPurpossiveSampleRole(
+        purpossiveSampleRoles,
+    );
 
     // Format currency untuk display
     const formatCurrency = (value: string | number | null): string => {
@@ -333,6 +467,7 @@ export default function Create({
         has_listing_updating: boolean;
         metode_pendataan_pencacahan: '' | MetodePendataan;
         metode_pendataan_listing: '' | MetodePendataan;
+        metode_sampling: SamplingMethod;
         metode_pelatihan:
             | ''
             | 'daring'
@@ -366,6 +501,7 @@ export default function Create({
         metode_pendataan_listing: normalizeMetodePendataan(
             copyData?.metode_pendataan_listing,
         ),
+        metode_sampling: initialSamplingMethod,
         metode_pelatihan: '' as
             | ''
             | 'daring'
@@ -387,6 +523,12 @@ export default function Create({
             kegiatanFrameSampel.length > 0
                 ? kegiatanFrameSampel.map((row) => ({
                       tahapan: row.tahapan,
+                      sample_name: resolveSampleName(row),
+                      sample_role: normalizePurpossiveSampleRole(
+                          row.sample_role,
+                          purpossiveSampleRoles,
+                      ),
+                      is_active: row.is_active ?? true,
                       target_unit_sampel: normalizeTargetUnitSampel(
                           row.target_unit_sampel,
                       ),
@@ -397,6 +539,9 @@ export default function Create({
                 : [
                       {
                           tahapan: 'pencacahan' as const,
+                          sample_name: '',
+                          sample_role: defaultPurpossiveSampleRole,
+                          is_active: true,
                           target_unit_sampel: {},
                           metadata_items: initialMetadataColumns.map(
                               (column) => ({
@@ -519,6 +664,10 @@ export default function Create({
     );
     const canOpenFrameDetail =
         activeFrameSelectionId !== '' && activeUnitSampelList.length > 0;
+    const isPurpossiveSampling = data.metode_sampling === 'purpossive';
+    const frameTemplateUnitSampelList = isPurpossiveSampling
+        ? []
+        : activeUnitSampelList;
     const isStepMetadataComplete =
         data.nama_kegiatan.trim() !== '' &&
         data.jenis_kegiatan.trim() !== '' &&
@@ -609,9 +758,8 @@ export default function Create({
                     data.kegiatan_frame_sampel
                         .filter((row) => row.tahapan !== 'listing')
                         .map((row) => ({
+                            ...row,
                             tahapan: row.tahapan,
-                            target_unit_sampel: row.target_unit_sampel,
-                            metadata_items: row.metadata_items,
                         })),
                 );
             }
@@ -653,6 +801,9 @@ export default function Create({
             ...data.kegiatan_frame_sampel,
             {
                 tahapan: data.frame_tahapan,
+                sample_name: '',
+                sample_role: defaultPurpossiveSampleRole,
+                is_active: true,
                 target_unit_sampel: {},
                 metadata_items: data.frame_metadata_columns.map((column) => ({
                     code: column.code,
@@ -698,13 +849,13 @@ export default function Create({
         setMetadataActionError('');
         setData('frame_metadata_columns', [
             ...data.frame_metadata_columns,
-            { code: '', label: '', description: '' },
+            { code: '', label: '', description: '', mode: 'code_name' },
         ]);
     };
 
     const updateMetadataColumn = (
         columnIndex: number,
-        key: 'code' | 'label' | 'description',
+        key: 'code' | 'label' | 'description' | 'mode',
         value: string,
     ) => {
         const previousCode =
@@ -870,7 +1021,12 @@ export default function Create({
 
             await downloadFrameSampelTemplate(
                 data.frame_metadata_columns,
-                activeUnitSampelList,
+                frameTemplateUnitSampelList,
+                data.metode_sampling,
+                data.kegiatan_frame_sampel as unknown as Record<
+                    string,
+                    unknown
+                >[],
             );
         } catch (error) {
             setFrameImportError(
@@ -896,7 +1052,8 @@ export default function Create({
             const payload = await importFrameSampelPreview(
                 frameImportFile,
                 data.frame_metadata_columns,
-                activeUnitSampelList,
+                frameTemplateUnitSampelList,
+                data.metode_sampling,
             );
 
             setData('kegiatan_frame_sampel', [
@@ -905,6 +1062,9 @@ export default function Create({
                 ),
                 ...payload.rows.map((row) => ({
                     tahapan: data.frame_tahapan,
+                    sample_name: row.nama_target || '',
+                    sample_role: row.sample_role || defaultPurpossiveSampleRole,
+                    is_active: true,
                     target_unit_sampel: row.target_unit_sampel,
                     metadata_items: buildMetadataItems(row.identitas_tambahan),
                 })),
@@ -937,6 +1097,7 @@ export default function Create({
             jenis_kegiatan: data.jenis_kegiatan,
             deskripsi: data.deskripsi,
             tahun_anggaran: data.tahun_anggaran,
+            metode_sampling: data.metode_sampling,
             pagu_pencacahan: data.pagu_pencacahan
                 ? Number(data.pagu_pencacahan)
                 : null,
@@ -968,9 +1129,12 @@ export default function Create({
             unit_sampel_pencacahan_ids: data.unit_sampel_pencacahan_ids,
             kegiatan_frame_sampel: data.kegiatan_frame_sampel
                 .filter((row) => {
-                    const hasAnyTarget = Object.values(
-                        row.target_unit_sampel,
-                    ).some((v) => v !== '' && Number(v) >= 1);
+                    const hasAnyTarget =
+                        data.metode_sampling === 'purpossive'
+                            ? row.sample_name.trim() !== ''
+                            : Object.values(row.target_unit_sampel).some(
+                                  (v) => v !== '' && Number(v) >= 1,
+                              );
 
                     if (!hasAnyTarget) {
                         return false;
@@ -984,27 +1148,50 @@ export default function Create({
                 })
                 .map((row) => ({
                     tahapan: row.tahapan,
-                    target_unit_sampel: Object.fromEntries(
-                        Object.entries(row.target_unit_sampel)
-                            .filter(([, v]) => v !== '' && Number(v) >= 0)
-                            .map(([k, v]) => [k, Number(v)]),
-                    ),
+                    nama_target: row.sample_name.trim() || null,
+                    sample_role:
+                        data.metode_sampling === 'purpossive'
+                            ? normalizePurpossiveSampleRole(
+                                  row.sample_role,
+                                  purpossiveSampleRoles,
+                              )
+                            : null,
+                    is_active:
+                        data.metode_sampling === 'purpossive'
+                            ? (row.is_active ?? true)
+                            : false,
+                    target_unit_sampel:
+                        data.metode_sampling === 'purpossive'
+                            ? { target: 1 }
+                            : Object.fromEntries(
+                                  Object.entries(row.target_unit_sampel)
+                                      .filter(
+                                          ([, v]) => v !== '' && Number(v) >= 0,
+                                      )
+                                      .map(([k, v]) => [k, Number(v)]),
+                              ),
                     identitas_tambahan: (row.metadata_items || []).reduce<
                         Record<string, string>
                     >((accumulator, item: MetadataItem) => {
                         const code = item.code?.trim();
                         const codeValue = item.codeValue?.trim();
                         const labelValue = item.labelValue?.trim();
+                        const columnMode =
+                            data.frame_metadata_columns.find(
+                                (column) =>
+                                    column.code.trim().toLowerCase() ===
+                                    code?.toLowerCase(),
+                            )?.mode ?? 'code_name';
 
                         if (!code) {
                             return accumulator;
                         }
 
-                        if (codeValue) {
+                        if (columnMode !== 'name_only' && codeValue) {
                             accumulator[code] = codeValue;
                         }
 
-                        if (labelValue) {
+                        if (columnMode !== 'code_only' && labelValue) {
                             accumulator[metadataLabelKey(code)] = labelValue;
                         }
 
@@ -1524,6 +1711,73 @@ export default function Create({
                                         </div>
                                     )}
 
+                                    {data.jenis_kegiatan === 'survei' && (
+                                        <div>
+                                            <label className="block text-base font-semibold text-gray-900 dark:text-gray-100">
+                                                Metode Sampling{' '}
+                                                <span className="text-red-500">
+                                                    *
+                                                </span>
+                                            </label>
+                                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                                Targeted untuk jumlah sampel per
+                                                unit. Purpossive untuk daftar
+                                                sampel spesifik seperti nama
+                                                usaha atau subsegmen.
+                                            </p>
+                                            <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                                {samplingMethodOptions.map(
+                                                    (method) => (
+                                                        <label
+                                                            key={method.value}
+                                                            className={`flex cursor-pointer items-start gap-3 rounded-lg border-2 px-4 py-3 transition-colors ${
+                                                                data.metode_sampling ===
+                                                                method.value
+                                                                    ? 'border-neutral-900 bg-neutral-50 dark:border-neutral-300 dark:bg-neutral-800'
+                                                                    : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600'
+                                                            }`}
+                                                        >
+                                                            <input
+                                                                type="radio"
+                                                                name="metode_sampling"
+                                                                value={
+                                                                    method.value
+                                                                }
+                                                                checked={
+                                                                    data.metode_sampling ===
+                                                                    method.value
+                                                                }
+                                                                onChange={() =>
+                                                                    setData(
+                                                                        'metode_sampling',
+                                                                        method.value,
+                                                                    )
+                                                                }
+                                                                className="mt-1 h-4 w-4 text-neutral-900"
+                                                            />
+                                                            <div>
+                                                                <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                                                    {
+                                                                        method.label
+                                                                    }
+                                                                </span>
+                                                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                                    {
+                                                                        method.description
+                                                                    }
+                                                                </p>
+                                                            </div>
+                                                        </label>
+                                                    ),
+                                                )}
+                                            </div>
+                                            <InputError
+                                                message={errors.metode_sampling}
+                                                className="mt-2"
+                                            />
+                                        </div>
+                                    )}
+
                                     <div
                                         id="wizard-step-lapangan"
                                         className="rounded-2xl border border-neutral-200/70 bg-gradient-to-br from-neutral-50 via-white to-neutral-100 p-5 shadow-sm dark:border-neutral-800 dark:from-neutral-900 dark:via-neutral-900 dark:to-neutral-800/80"
@@ -1716,17 +1970,10 @@ export default function Create({
                                                         </p>
                                                     </div>
                                                     <div className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-[11px] font-medium text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-                                                        {data.frame_tahapan ===
-                                                            'listing' &&
-                                                        !isSensus &&
-                                                        data.has_listing_updating
-                                                            ? data
-                                                                  .unit_sampel_listing_ids
-                                                                  .length
-                                                            : data
-                                                                  .unit_sampel_pencacahan_ids
-                                                                  .length}{' '}
-                                                        opsi
+                                                        {data.metode_sampling ===
+                                                        'purpossive'
+                                                            ? 'Nama target'
+                                                            : `${data.frame_tahapan === 'listing' && !isSensus && data.has_listing_updating ? data.unit_sampel_listing_ids.length : data.unit_sampel_pencacahan_ids.length} opsi`}
                                                     </div>
                                                 </div>
                                                 <MultiSelectCheckbox
@@ -1770,12 +2017,15 @@ export default function Create({
                                                 />
                                                 <InputError
                                                     message={
-                                                        data.frame_tahapan ===
-                                                            'listing' &&
-                                                        !isSensus &&
-                                                        data.has_listing_updating
-                                                            ? errors.unit_sampel_listing_ids
-                                                            : errors.unit_sampel_pencacahan_ids
+                                                        data.metode_sampling ===
+                                                        'purpossive'
+                                                            ? undefined
+                                                            : data.frame_tahapan ===
+                                                                    'listing' &&
+                                                                !isSensus &&
+                                                                data.has_listing_updating
+                                                              ? errors.unit_sampel_listing_ids
+                                                              : errors.unit_sampel_pencacahan_ids
                                                     }
                                                     className="mt-2"
                                                 />
@@ -1802,10 +2052,7 @@ export default function Create({
                                                     setFrameDetailPage(1);
                                                     setIsFrameDetailOpen(true);
                                                 }}
-                                                disabled={
-                                                    !canOpenFrameDetail ||
-                                                    !isMetadataSaved
-                                                }
+                                                disabled={!canOpenFrameDetail}
                                             >
                                                 Buka Detail Frame
                                             </Button>
@@ -1814,8 +2061,8 @@ export default function Create({
                                         {!isMetadataSaved && (
                                             <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
                                                 Simpan metadata terlebih dahulu
-                                                sebelum membuka detail frame
-                                                sampel.
+                                                agar pengelolaan detail frame
+                                                sampel tetap lengkap.
                                             </p>
                                         )}
                                     </div>
@@ -1889,7 +2136,7 @@ export default function Create({
                                                                 ) => (
                                                                     <div
                                                                         key={`column-${columnIndex}`}
-                                                                        className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1.5fr_2fr_auto]"
+                                                                        className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1.5fr_1fr_2fr_auto]"
                                                                     >
                                                                         <input
                                                                             type="text"
@@ -1935,6 +2182,47 @@ export default function Create({
                                                                             className="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
                                                                             placeholder="Label UI (contoh: Kecamatan)"
                                                                         />
+                                                                        <Select
+                                                                            value={
+                                                                                column.mode
+                                                                            }
+                                                                            onValueChange={(
+                                                                                value,
+                                                                            ) =>
+                                                                                updateMetadataColumn(
+                                                                                    columnIndex,
+                                                                                    'mode',
+                                                                                    value,
+                                                                                )
+                                                                            }
+                                                                            disabled={
+                                                                                canManageDetailFrame
+                                                                            }
+                                                                        >
+                                                                            <SelectTrigger className="h-10 w-full rounded-lg bg-white dark:bg-neutral-800">
+                                                                                <SelectValue placeholder="Mode metadata" />
+                                                                            </SelectTrigger>
+                                                                            <SelectContent>
+                                                                                {metadataModeOptions.map(
+                                                                                    (
+                                                                                        option,
+                                                                                    ) => (
+                                                                                        <SelectItem
+                                                                                            key={
+                                                                                                option.value
+                                                                                            }
+                                                                                            value={
+                                                                                                option.value
+                                                                                            }
+                                                                                        >
+                                                                                            {
+                                                                                                option.label
+                                                                                            }
+                                                                                        </SelectItem>
+                                                                                    ),
+                                                                                )}
+                                                                            </SelectContent>
+                                                                        </Select>
                                                                         <input
                                                                             type="text"
                                                                             value={
@@ -2033,52 +2321,55 @@ export default function Create({
                                                             </p>
                                                         </div>
                                                         <div className="flex flex-wrap items-center gap-3">
-                                                            <label className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                                            <div className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
                                                                 Baris per
                                                                 halaman
-                                                                <select
-                                                                    value={
-                                                                        frameDetailPerPage
-                                                                    }
-                                                                    onChange={(
-                                                                        event,
+                                                                <Select
+                                                                    value={String(
+                                                                        frameDetailPerPage,
+                                                                    )}
+                                                                    onValueChange={(
+                                                                        value,
                                                                     ) => {
                                                                         setFrameDetailPerPage(
                                                                             Number(
-                                                                                event
-                                                                                    .target
-                                                                                    .value,
+                                                                                value,
                                                                             ),
                                                                         );
                                                                         setFrameDetailPage(
                                                                             1,
                                                                         );
                                                                     }}
-                                                                    className="h-9 rounded-lg border border-neutral-200 bg-white px-2 text-sm text-gray-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-gray-100"
                                                                 >
-                                                                    {[
-                                                                        5, 10,
-                                                                        20,
-                                                                    ].map(
-                                                                        (
-                                                                            option,
-                                                                        ) => (
-                                                                            <option
-                                                                                key={
-                                                                                    option
-                                                                                }
-                                                                                value={
-                                                                                    option
-                                                                                }
-                                                                            >
-                                                                                {
-                                                                                    option
-                                                                                }
-                                                                            </option>
-                                                                        ),
-                                                                    )}
-                                                                </select>
-                                                            </label>
+                                                                    <SelectTrigger className="h-9 w-[96px] rounded-lg bg-white px-2 text-sm text-gray-900 dark:bg-neutral-900 dark:text-gray-100">
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {[
+                                                                            5,
+                                                                            10,
+                                                                            20,
+                                                                        ].map(
+                                                                            (
+                                                                                option,
+                                                                            ) => (
+                                                                                <SelectItem
+                                                                                    key={
+                                                                                        option
+                                                                                    }
+                                                                                    value={String(
+                                                                                        option,
+                                                                                    )}
+                                                                                >
+                                                                                    {
+                                                                                        option
+                                                                                    }
+                                                                                </SelectItem>
+                                                                            ),
+                                                                        )}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
                                                             <div className="flex items-center gap-2">
                                                                 <Button
                                                                     type="button"
@@ -2271,53 +2562,59 @@ export default function Create({
                                                                                                 `Kolom ${columnIndex + 1}`}
                                                                                         </label>
                                                                                         <div className="mt-1 grid grid-cols-1 gap-2 md:grid-cols-2">
-                                                                                            <input
-                                                                                                type="text"
-                                                                                                value={getFrameMetadataValue(
-                                                                                                    row,
-                                                                                                    column.code,
-                                                                                                    'codeValue',
-                                                                                                )}
-                                                                                                onChange={(
-                                                                                                    e,
-                                                                                                ) =>
-                                                                                                    updateFrameMetadataValue(
-                                                                                                        index,
+                                                                                            {column.mode !==
+                                                                                                'name_only' && (
+                                                                                                <input
+                                                                                                    type="text"
+                                                                                                    value={getFrameMetadataValue(
+                                                                                                        row,
                                                                                                         column.code,
                                                                                                         'codeValue',
-                                                                                                        e
-                                                                                                            .target
-                                                                                                            .value,
-                                                                                                    )
-                                                                                                }
-                                                                                                className="block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                                                                                                placeholder={`Kode ${column.label || 'metadata'}`}
-                                                                                            />
-                                                                                            <input
-                                                                                                type="text"
-                                                                                                value={getFrameMetadataValue(
-                                                                                                    row,
-                                                                                                    column.code,
-                                                                                                    'labelValue',
-                                                                                                )}
-                                                                                                onChange={(
-                                                                                                    e,
-                                                                                                ) =>
-                                                                                                    updateFrameMetadataValue(
-                                                                                                        index,
+                                                                                                    )}
+                                                                                                    onChange={(
+                                                                                                        e,
+                                                                                                    ) =>
+                                                                                                        updateFrameMetadataValue(
+                                                                                                            index,
+                                                                                                            column.code,
+                                                                                                            'codeValue',
+                                                                                                            e
+                                                                                                                .target
+                                                                                                                .value,
+                                                                                                        )
+                                                                                                    }
+                                                                                                    className="block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                                                    placeholder={`Kode ${column.label || 'metadata'}`}
+                                                                                                />
+                                                                                            )}
+                                                                                            {column.mode !==
+                                                                                                'code_only' && (
+                                                                                                <input
+                                                                                                    type="text"
+                                                                                                    value={getFrameMetadataValue(
+                                                                                                        row,
                                                                                                         column.code,
                                                                                                         'labelValue',
-                                                                                                        e
-                                                                                                            .target
-                                                                                                            .value,
-                                                                                                    )
-                                                                                                }
-                                                                                                className="block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                                                                                                placeholder={
-                                                                                                    column.label ||
-                                                                                                    'metadata'
-                                                                                                }
-                                                                                            />
+                                                                                                    )}
+                                                                                                    onChange={(
+                                                                                                        e,
+                                                                                                    ) =>
+                                                                                                        updateFrameMetadataValue(
+                                                                                                            index,
+                                                                                                            column.code,
+                                                                                                            'labelValue',
+                                                                                                            e
+                                                                                                                .target
+                                                                                                                .value,
+                                                                                                        )
+                                                                                                    }
+                                                                                                    className="block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                                                    placeholder={
+                                                                                                        column.label ||
+                                                                                                        'metadata'
+                                                                                                    }
+                                                                                                />
+                                                                                            )}
                                                                                         </div>
                                                                                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                                                                             {
@@ -2332,82 +2629,206 @@ export default function Create({
                                                                             )}
                                                                         </div>
 
-                                                                        <div className="flex items-end justify-between gap-3">
-                                                                            <div className="flex flex-wrap gap-3">
-                                                                                {activeUnitSampelList.length ===
-                                                                                0 ? (
-                                                                                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                                                                                        Pilih
-                                                                                        unit
-                                                                                        sampel
-                                                                                        terlebih
-                                                                                        dahulu
-                                                                                        untuk
-                                                                                        mengisi
-                                                                                        jumlah.
-                                                                                    </p>
-                                                                                ) : (
-                                                                                    activeUnitSampelList.map(
-                                                                                        (
-                                                                                            unitSampel,
-                                                                                        ) => (
-                                                                                            <div
-                                                                                                key={
-                                                                                                    unitSampel.id
-                                                                                                }
-                                                                                                className="w-full max-w-xs"
-                                                                                            >
-                                                                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                                                                    Jumlah{' '}
-                                                                                                    {
-                                                                                                        unitSampel.nama
-                                                                                                    }{' '}
-                                                                                                    dalam
-                                                                                                    frame
-                                                                                                </label>
-                                                                                                <input
-                                                                                                    type="number"
-                                                                                                    min={
-                                                                                                        0
-                                                                                                    }
-                                                                                                    value={
-                                                                                                        row
-                                                                                                            .target_unit_sampel[
-                                                                                                            String(
-                                                                                                                unitSampel.id,
-                                                                                                            )
-                                                                                                        ] ??
-                                                                                                        ''
-                                                                                                    }
-                                                                                                    onChange={(
-                                                                                                        e,
+                                                                        {data.metode_sampling ===
+                                                                        'purpossive' ? (
+                                                                            <div className="space-y-3">
+                                                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                                                    Nama
+                                                                                    target{' '}
+                                                                                    <span className="text-red-500">
+                                                                                        *
+                                                                                    </span>
+                                                                                </label>
+                                                                                <input
+                                                                                    type="text"
+                                                                                    value={
+                                                                                        row.sample_name ||
+                                                                                        ''
+                                                                                    }
+                                                                                    onChange={(
+                                                                                        e,
+                                                                                    ) =>
+                                                                                        setData(
+                                                                                            'kegiatan_frame_sampel',
+                                                                                            data.kegiatan_frame_sampel.map(
+                                                                                                (
+                                                                                                    currentRow,
+                                                                                                    currentIndex,
+                                                                                                ) =>
+                                                                                                    currentIndex ===
+                                                                                                    index
+                                                                                                        ? {
+                                                                                                              ...currentRow,
+                                                                                                              sample_name:
+                                                                                                                  e
+                                                                                                                      .target
+                                                                                                                      .value,
+                                                                                                          }
+                                                                                                        : currentRow,
+                                                                                            ),
+                                                                                        )
+                                                                                    }
+                                                                                    className="block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                                    placeholder="Contoh: Nama usaha, subsegmen, atau target spesifik"
+                                                                                />
+                                                                                <div>
+                                                                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                                                        Jenis
+                                                                                        sampel{' '}
+                                                                                        <span className="text-red-500">
+                                                                                            *
+                                                                                        </span>
+                                                                                    </label>
+                                                                                    <Select
+                                                                                        value={
+                                                                                            row.sample_role ||
+                                                                                            defaultPurpossiveSampleRole
+                                                                                        }
+                                                                                        onValueChange={(
+                                                                                            value,
+                                                                                        ) =>
+                                                                                            setData(
+                                                                                                'kegiatan_frame_sampel',
+                                                                                                data.kegiatan_frame_sampel.map(
+                                                                                                    (
+                                                                                                        currentRow,
+                                                                                                        currentIndex,
                                                                                                     ) =>
-                                                                                                        updateFrameSampelRowTarget(
-                                                                                                            index,
-                                                                                                            String(
-                                                                                                                unitSampel.id,
-                                                                                                            ),
-                                                                                                            e
-                                                                                                                .target
-                                                                                                                .value,
-                                                                                                        )
-                                                                                                    }
-                                                                                                    className="mt-1 block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                                                                                                    placeholder="Contoh: 2"
-                                                                                                />
-                                                                                                <InputError
-                                                                                                    message={
-                                                                                                        errors[
-                                                                                                            `kegiatan_frame_sampel.${index}.target_unit_sampel.${unitSampel.id}`
-                                                                                                        ]
-                                                                                                    }
-                                                                                                    className="mt-1"
-                                                                                                />
-                                                                                            </div>
-                                                                                        ),
-                                                                                    )
-                                                                                )}
+                                                                                                        currentIndex ===
+                                                                                                        index
+                                                                                                            ? {
+                                                                                                                  ...currentRow,
+                                                                                                                  sample_role:
+                                                                                                                      value,
+                                                                                                              }
+                                                                                                            : currentRow,
+                                                                                                ),
+                                                                                            )
+                                                                                        }
+                                                                                    >
+                                                                                        <SelectTrigger className="mt-1 h-10 w-full rounded-lg bg-white dark:bg-neutral-800">
+                                                                                            <SelectValue placeholder="Pilih jenis sampel" />
+                                                                                        </SelectTrigger>
+                                                                                        <SelectContent>
+                                                                                            {purpossiveSampleRoles.map(
+                                                                                                (
+                                                                                                    role,
+                                                                                                ) => (
+                                                                                                    <SelectItem
+                                                                                                        key={
+                                                                                                            role.value
+                                                                                                        }
+                                                                                                        value={
+                                                                                                            role.value
+                                                                                                        }
+                                                                                                    >
+                                                                                                        {
+                                                                                                            role.label
+                                                                                                        }
+                                                                                                    </SelectItem>
+                                                                                                ),
+                                                                                            )}
+                                                                                        </SelectContent>
+                                                                                    </Select>
+                                                                                </div>
+                                                                                <InputError
+                                                                                    message={
+                                                                                        errors[
+                                                                                            `kegiatan_frame_sampel.${index}.nama_target`
+                                                                                        ]
+                                                                                    }
+                                                                                    className="mt-1"
+                                                                                />
+                                                                                <InputError
+                                                                                    message={
+                                                                                        errors[
+                                                                                            `kegiatan_frame_sampel.${index}.sample_role`
+                                                                                        ]
+                                                                                    }
+                                                                                    className="mt-1"
+                                                                                />
                                                                             </div>
+                                                                        ) : null}
+
+                                                                        <div className="flex items-end justify-between gap-3">
+                                                                            {data.metode_sampling !==
+                                                                            'purpossive' ? (
+                                                                                <div className="flex flex-wrap gap-3">
+                                                                                    {activeUnitSampelList.length ===
+                                                                                    0 ? (
+                                                                                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                                                            Pilih
+                                                                                            unit
+                                                                                            sampel
+                                                                                            terlebih
+                                                                                            dahulu
+                                                                                            untuk
+                                                                                            mengisi
+                                                                                            jumlah.
+                                                                                        </p>
+                                                                                    ) : (
+                                                                                        activeUnitSampelList.map(
+                                                                                            (
+                                                                                                unitSampel,
+                                                                                            ) => (
+                                                                                                <div
+                                                                                                    key={
+                                                                                                        unitSampel.id
+                                                                                                    }
+                                                                                                    className="w-full max-w-xs"
+                                                                                                >
+                                                                                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                                                                        Jumlah{' '}
+                                                                                                        {
+                                                                                                            unitSampel.nama
+                                                                                                        }{' '}
+                                                                                                        dalam
+                                                                                                        frame
+                                                                                                    </label>
+                                                                                                    <input
+                                                                                                        type="number"
+                                                                                                        min={
+                                                                                                            0
+                                                                                                        }
+                                                                                                        value={
+                                                                                                            row
+                                                                                                                .target_unit_sampel[
+                                                                                                                String(
+                                                                                                                    unitSampel.id,
+                                                                                                                )
+                                                                                                            ] ??
+                                                                                                            ''
+                                                                                                        }
+                                                                                                        onChange={(
+                                                                                                            e,
+                                                                                                        ) =>
+                                                                                                            updateFrameSampelRowTarget(
+                                                                                                                index,
+                                                                                                                String(
+                                                                                                                    unitSampel.id,
+                                                                                                                ),
+                                                                                                                e
+                                                                                                                    .target
+                                                                                                                    .value,
+                                                                                                            )
+                                                                                                        }
+                                                                                                        className="mt-1 block h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                                                        placeholder="Contoh: 2"
+                                                                                                    />
+                                                                                                    <InputError
+                                                                                                        message={
+                                                                                                            errors[
+                                                                                                                `kegiatan_frame_sampel.${index}.target_unit_sampel.${unitSampel.id}`
+                                                                                                            ]
+                                                                                                        }
+                                                                                                        className="mt-1"
+                                                                                                    />
+                                                                                                </div>
+                                                                                            ),
+                                                                                        )
+                                                                                    )}
+                                                                                </div>
+                                                                            ) : null}
 
                                                                             <Button
                                                                                 type="button"

@@ -133,7 +133,7 @@ export default function Index({
                     description={`Kelola BAST hasil pekerjaan petugas tahun ${active_year}`}
                 >
                     {can_access_sensus_mode && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             <Button
                                 variant={
                                     mode === 'regular' ? 'default' : 'outline'
@@ -144,7 +144,7 @@ export default function Index({
                                     })
                                 }
                             >
-                                BAST Reguler
+                                Reguler
                             </Button>
                             <Button
                                 variant={
@@ -158,7 +158,7 @@ export default function Index({
                                     })
                                 }
                             >
-                                BAST Sensus Ekonomi
+                                Sensus Ekonomi
                             </Button>
                         </div>
                     )}
@@ -173,8 +173,8 @@ export default function Index({
                         <ContentCard className="border border-blue-200/60 bg-gradient-to-br from-blue-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-blue-900/40 dark:from-blue-950/30 dark:to-neutral-900">
                             <div className="flex items-start justify-between gap-3">
                                 <div>
-                                    <p className="text-sm text-blue-700 dark:text-blue-300">
-                                        Periode Dengan Perjanjian Kerja
+                                    <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                                        Periode Ber-SPK
                                     </p>
                                     <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
                                         {summaryGroups.allSpkPeriods.length}
@@ -194,7 +194,7 @@ export default function Index({
                         <ContentCard className="border border-amber-200/60 bg-gradient-to-br from-amber-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-amber-900/40 dark:from-amber-950/30 dark:to-neutral-900">
                             <div className="flex items-start justify-between gap-3">
                                 <div>
-                                    <p className="text-sm text-amber-700 dark:text-amber-300">
+                                    <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
                                         Perlu BAST
                                     </p>
                                     <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
@@ -215,7 +215,7 @@ export default function Index({
                         <ContentCard className="border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
                             <div className="flex items-start justify-between gap-3">
                                 <div>
-                                    <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
                                         BAST Selesai
                                     </p>
                                     <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
@@ -236,8 +236,8 @@ export default function Index({
                         <ContentCard className="border border-rose-200/60 bg-gradient-to-br from-rose-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-rose-900/40 dark:from-rose-950/30 dark:to-neutral-900">
                             <div className="flex items-start justify-between gap-3">
                                 <div>
-                                    <p className="text-sm text-rose-700 dark:text-rose-300">
-                                        Tanpa Perjanjian Kerja
+                                    <p className="text-sm font-medium text-rose-700 dark:text-rose-300">
+                                        Tanpa SPK
                                     </p>
                                     <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
                                         {summaryGroups.withoutSpk.length}
