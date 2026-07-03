@@ -883,7 +883,7 @@ class KegiatanController extends Controller
         ?array $frameSampelByTahapanOverride = null
     ): void {
         $normalizedRows = collect($rows)
-            ->map(function (array $row) use ($kegiatan): ?array {
+            ->map(function (array $row): ?array {
                 $frameSampelRowId = isset($row['id']) && is_numeric($row['id'])
                     ? (int) $row['id']
                     : null;
@@ -907,9 +907,7 @@ class KegiatanController extends Controller
                     'id' => $frameSampelRowId,
                     'tahapan' => $tahapan,
                     'nama_target' => $row['nama_target'] ?? ($row['sample_name'] ?? null),
-                    'sample_role' => $kegiatan->metode_sampling === Kegiatan::METODE_SAMPLING_PURPOSSIVE
-                        ? Kegiatan::normalizePurpossiveSampleRole($row['sample_role'] ?? null)
-                        : null,
+                    'sample_role' => Kegiatan::normalizePurpossiveSampleRole($row['sample_role'] ?? null),
                     'is_active' => (bool) ($row['is_active'] ?? true),
                     'target_unit_sampel' => $normalizedTargets,
                     'identitas_tambahan' => $identitasTambahan,
@@ -969,7 +967,7 @@ class KegiatanController extends Controller
                     'frame_sampel_id' => $frameSampelId,
                     'tahapan' => $row['tahapan'],
                     'nama_target' => $row['nama_target'] ?? null,
-                    'sample_role' => $row['sample_role'] ?? null,
+                    'sample_role' => Kegiatan::normalizePurpossiveSampleRole($row['sample_role'] ?? null),
                     'is_active' => $row['is_active'] ?? true,
                     'nama_frame' => $namaFrame,
                     'target_unit_sampel' => $row['target_unit_sampel'],

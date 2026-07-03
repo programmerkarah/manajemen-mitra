@@ -5,7 +5,7 @@
     <title>{{ $judul ?? 'Monitoring' }}</title>
     <style>
         @page {
-            margin: 18px 16px 22px 16px;
+            margin: 1cm 1.5cm 1.5cm 1.5cm;
         }
 
         body {
@@ -47,13 +47,13 @@
         table.report {
             width: 100%;
             border-collapse: collapse;
-            table-layout: fixed;
+            table-layout: auto;
         }
 
         table.report th,
         table.report td {
             border: 1px solid #9ca3af;
-            padding: 5px 6px;
+            padding: 2px 4px;
             vertical-align: top;
             word-wrap: break-word;
             overflow-wrap: break-word;
@@ -71,6 +71,11 @@
             font-size: 9px;
         }
 
+        .merged-cell {
+            text-align: center;
+            vertical-align: middle;
+        }
+
         .text-center {
             text-align: center;
         }
@@ -83,6 +88,8 @@
             width: 100%;
             margin-top: 14px;
             border-collapse: collapse;
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
 
         .signature td {
@@ -155,6 +162,42 @@
         $rows = $rows ?? [];
         $showNamaUsahaColumn = (bool) ($show_nama_usaha_column ?? false);
         $hasNonResponse = collect($rows)->contains(fn ($row): bool => (bool) ($row['status_non_response'] ?? false));
+        $targetTotal = collect($rows)->sum(fn ($row): float => (float) ($row['target_unit_total'] ?? 0));
+        $realisasiTotal = collect($rows)->sum(function (array $row) use ($hasNonResponse): float {
+            if (! $hasNonResponse) {
+                return (float) ($row['realisasi_unit_total'] ?? 0);
+            }
+
+            return (float) ((! ($row['status_non_response'] ?? false)) ? ($row['realisasi_unit_total'] ?? 0) : 0);
+        });
+        $nonResponseTotal = collect($rows)->sum(function (array $row) use ($hasNonResponse): float {
+            if (! $hasNonResponse) {
+                return 0;
+            }
+
+            return (float) (($row['status_non_response'] ?? false) ? ($row['target_unit_total'] ?? 0) : 0);
+        });
+        $percentageTotal = $targetTotal > 0
+            ? (($realisasiTotal + $nonResponseTotal) / $targetTotal) * 100
+            : 0;
+        
+        // Hitung lebar kolom agar total = 100%
+        $fixedWidth = 24; // No(4) + Pengawas(10) + Pencacah(10)
+
+        if ($showNamaUsahaColumn) {
+            $fixedWidth += 10;
+        }
+
+        if ($hasNonResponse) {
+            $fixedWidth += 32; // Target + Berhasil + Non Response + %
+        } else {
+            $fixedWidth += 24; // Target + Realisasi + %
+        }
+
+        $metadataWidth = count($metadataColumns) > 0
+            ? max((100 - $fixedWidth) / count($metadataColumns), 4)
+            : 0;
+
         $formatNumber = static function ($value): string {
             if ($value === null || $value === '') {
                 return '-';
@@ -218,23 +261,29 @@
         <table class="report">
             <thead>
                 <tr>
-                    <th style="width: 28px;" rowspan="2">No</th>
-                    <th style="width: 110px;" rowspan="2">Pengawas</th>
-                    <th style="width: 110px;" rowspan="2">Pencacah</th>
+                    <th style="width:4%;" rowspan="2">No</th>
+                    <th style="width:10%;" rowspan="2">Pengawas</th>
+                    <th style="width:10%;" rowspan="2">Pencacah</th>
+
                     @foreach ($metadataColumns as $column)
-                        <th style="width: 80px;" rowspan="2">{{ $column['label'] }}</th>
+                        <th style="width:{{ number_format($metadataWidth, 2, '.', '') }}%;" rowspan="2">
+                            {{ $column['label'] }}
+                        </th>
                     @endforeach
+
                     @if ($showNamaUsahaColumn)
-                        <th style="width: 120px;" rowspan="2">Nama Usaha</th>
+                        <th style="width:10%;" rowspan="2">Nama Usaha</th>
                     @endif
-                    <th style="width: 48px;" rowspan="2">Target</th>
+
                     @if ($hasNonResponse)
-                        <th style="width: 58px;" rowspan="2">Berhasil Didata</th>
-                        <th style="width: 56px;" rowspan="2">Non Response</th>
-                        <th style="width: 56px;" rowspan="2">%</th>
+                        <th style="width:8%;" rowspan="2">Target</th>
+                        <th style="width:8%;" rowspan="2">Berhasil Didata</th>
+                        <th style="width:8%;" rowspan="2">Non Response</th>
+                        <th style="width:8%;" rowspan="2">%</th>
                     @else
-                        <th style="width: 48px;" rowspan="2">Realisasi</th>
-                        <th style="width: 56px;" rowspan="2">%</th>
+                        <th style="width:8%;" rowspan="2">Target</th>
+                        <th style="width:8%;" rowspan="2">Realisasi</th>
+                        <th style="width:8%;" rowspan="2">%</th>
                     @endif
                 </tr>
                 <tr></tr>
@@ -243,8 +292,12 @@
                 @forelse ($rows as $index => $row)
                     <tr>
                         <td class="text-center">{{ $index + 1 }}</td>
-                        <td>{{ $formatText($row['pengawas_nama'] ?? '-') }}</td>
-                        <td>{{ $formatText($row['pencacah_nama'] ?? '-') }}</td>
+                        @if ($row['show_pengawas_cell'] ?? false)
+                            <td class="merged-cell" rowspan="{{ $row['pengawas_rowspan'] ?? 1 }}">{{ $formatText($row['pengawas_nama'] ?? '-') }}</td>
+                        @endif
+                        @if ($row['show_pencacah_cell'] ?? false)
+                            <td class="merged-cell" rowspan="{{ $row['pencacah_rowspan'] ?? 1 }}">{{ $formatText($row['pencacah_nama'] ?? '-') }}</td>
+                        @endif
                         @foreach ($metadataColumns as $column)
                             <td>{{ $formatDisplayValue(data_get($row['metadata_values'] ?? [], $column['code'], '-')) }}</td>
                         @endforeach
@@ -265,6 +318,20 @@
                     <tr><td colspan="{{ 8 + count($metadataColumns) + ($showNamaUsahaColumn ? 1 : 0) }}" class="text-center">Tidak ada data frame sampel yang dapat ditampilkan.</td></tr>
                 @endforelse
             </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="{{ 3 + count($metadataColumns) + ($showNamaUsahaColumn ? 1 : 0) }}" class="text-right"><strong>Jumlah</strong></td>
+                    <td class="text-right"><strong>{{ $formatNumber($targetTotal) }}</strong></td>
+                    @if ($hasNonResponse)
+                        <td class="text-right"><strong>{{ $formatNumber($realisasiTotal) }}</strong></td>
+                        <td class="text-right"><strong>{{ $formatNumber($nonResponseTotal) }}</strong></td>
+                        <td class="text-right"><strong>{{ $formatNumber($percentageTotal) }}</strong></td>
+                    @else
+                        <td class="text-right"><strong>{{ $formatNumber($realisasiTotal) }}</strong></td>
+                        <td class="text-right"><strong>{{ $formatNumber($percentageTotal) }}</strong></td>
+                    @endif
+                </tr>
+            </tfoot>
         </table>
     </div>
 

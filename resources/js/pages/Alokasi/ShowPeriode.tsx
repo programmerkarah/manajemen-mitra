@@ -1979,13 +1979,14 @@ export default function ShowPeriode({ periode, revisions }: Props) {
                                                                         frame.nama_usaha_penggilingan,
                                                                 )}
                                                             </div>
-                                                            {frame.sample_role && (
-                                                                <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
-                                                                    {formatSampleRoleLabel(
-                                                                        frame.sample_role,
-                                                                    )}
-                                                                </span>
-                                                            )}
+                                                            {isPurpossiveSampling &&
+                                                                frame.sample_role && (
+                                                                    <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+                                                                        {formatSampleRoleLabel(
+                                                                            frame.sample_role,
+                                                                        )}
+                                                                    </span>
+                                                                )}
                                                         </div>
                                                         <div className="mt-2 grid gap-1 text-sm text-neutral-600 dark:text-neutral-300">
                                                             {(

@@ -2609,8 +2609,7 @@ class AlokasiPetugasController extends Controller
             }
         }
 
-        $rows = collect($allocatedFrames)
-            ->sortKeys()
+        $sortedRows = collect($allocatedFrames)
             ->map(function (array $allocatedFrame, int $frameSampleId) use ($frameMetadataColumns): array {
                 /** @var KegiatanFrameSampel|null $frameSample */
                 $frameSample = $allocatedFrame['frame_sample'] ?? null;
@@ -2640,8 +2639,67 @@ class AlokasiPetugasController extends Controller
                     'metadata_values' => $metadataValues,
                 ];
             })
+            ->sort(function (array $left, array $right): int {
+                $leftSort = [
+                    Str::lower(trim((string) ($left['pengawas_nama'] ?? '-'))),
+                    Str::lower(trim((string) ($left['pencacah_nama'] ?? '-'))),
+                    Str::lower(trim((string) ($left['nama_usaha'] ?? '-'))),
+                    (int) ($left['kegiatan_frame_sampel_id'] ?? 0),
+                ];
+
+                $rightSort = [
+                    Str::lower(trim((string) ($right['pengawas_nama'] ?? '-'))),
+                    Str::lower(trim((string) ($right['pencacah_nama'] ?? '-'))),
+                    Str::lower(trim((string) ($right['nama_usaha'] ?? '-'))),
+                    (int) ($right['kegiatan_frame_sampel_id'] ?? 0),
+                ];
+
+                return $leftSort <=> $rightSort;
+            })
             ->values()
             ->all();
+
+        $rows = [];
+        $totalRows = count($sortedRows);
+        $index = 0;
+
+        while ($index < $totalRows) {
+            $pengawasKey = Str::lower(trim((string) ($sortedRows[$index]['pengawas_nama'] ?? '-')));
+            $pengawasStart = $index;
+
+            while ($index < $totalRows && Str::lower(trim((string) ($sortedRows[$index]['pengawas_nama'] ?? '-'))) === $pengawasKey) {
+                $index++;
+            }
+
+            $pengawasEnd = $index;
+            $pengawasSpan = $pengawasEnd - $pengawasStart;
+
+            $subIndex = $pengawasStart;
+            while ($subIndex < $pengawasEnd) {
+                $pencacahKey = Str::lower(trim((string) ($sortedRows[$subIndex]['pencacah_nama'] ?? '-')));
+                $pencacahStart = $subIndex;
+
+                while (
+                    $subIndex < $pengawasEnd
+                    && Str::lower(trim((string) ($sortedRows[$subIndex]['pencacah_nama'] ?? '-'))) === $pencacahKey
+                ) {
+                    $subIndex++;
+                }
+
+                $pencacahEnd = $subIndex;
+                $pencacahSpan = $pencacahEnd - $pencacahStart;
+
+                for ($rowIndex = $pencacahStart; $rowIndex < $pencacahEnd; $rowIndex++) {
+                    $row = $sortedRows[$rowIndex];
+                    $rows[] = $row + [
+                        'show_pengawas_cell' => $rowIndex === $pengawasStart,
+                        'pengawas_rowspan' => $pengawasSpan,
+                        'show_pencacah_cell' => $rowIndex === $pencacahStart,
+                        'pencacah_rowspan' => $pencacahSpan,
+                    ];
+                }
+            }
+        }
 
         $kepala ??= Penandatangan::active()->kepala()->first();
         $signatureDate = $this->resolveMonitoringSignatureDate($periode);

@@ -764,6 +764,79 @@ class KegiatanMetodePendataanTest extends TestCase
         $response->assertHeader('content-disposition', 'attachment; filename=detail-frame-sampel-template.xlsx');
     }
 
+    public function test_update_kegiatan_accepts_frame_sampel_rows_without_sample_role_for_ksa(): void
+    {
+        [$user, $role] = $this->makeKetuaTim();
+        $unitSampel = $this->makeUnitSampel();
+
+        $framePencacahan = MasterFrameSampel::create([
+            'nama' => 'Frame KSA Update',
+            'kode' => 'KSA-1',
+            'is_active' => true,
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'nama_kegiatan' => 'Kegiatan KSA Update',
+            'jenis_kegiatan' => 'survei',
+            'tahun_anggaran' => 2025,
+            'ketua_tim_user_id' => $user->id,
+            'pj_lainnya_id' => null,
+            'status' => 'draft',
+            'has_listing_updating' => false,
+            'metode_pendataan_pencacahan' => 'CAPI',
+            'metode_pendataan_listing' => null,
+            'metode_sampling' => 'targeted',
+            'metode_pelatihan' => 'daring',
+            'bulan_pelatihan' => 6,
+            'frame_sampel_pencacahan_id' => $framePencacahan->id,
+            'unit_sampel_pencacahan_ids' => [$unitSampel->id],
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->put('/kegiatan/'.$kegiatan->hashed_id, [
+                'nama_kegiatan' => 'Kegiatan KSA Update',
+                'jenis_kegiatan' => 'survei',
+                'deskripsi' => $kegiatan->deskripsi,
+                'tanggal_mulai' => '2025-01-01',
+                'tanggal_selesai' => '2025-12-31',
+                'tahun_anggaran' => 2025,
+                'ketua_tim_user_id' => $user->id,
+                'pj_lainnya_id' => null,
+                'metode_sampling' => 'targeted',
+                'metode_pendataan_pencacahan' => 'CAPI_KSA_PRO',
+                'has_listing_updating' => false,
+                'metode_pelatihan' => 'daring',
+                'bulan_pelatihan' => 6,
+                'frame_sampel_pencacahan_id' => $framePencacahan->id,
+                'unit_sampel_pencacahan_ids' => [$unitSampel->id],
+                'kegiatan_frame_sampel' => [
+                    [
+                        'id' => null,
+                        'tahapan' => 'pencacahan',
+                        'nama_target' => 'Usaha KSA A',
+                        'is_active' => true,
+                        'target_unit_sampel' => [$unitSampel->id => 3],
+                        'identitas_tambahan' => [
+                            'kdkec' => '010',
+                            'kddes' => '002',
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertSessionDoesntHaveErrors();
+        $response->assertRedirect();
+
+        $this->assertDatabaseHas('kegiatan_frame_sampel', [
+            'kegiatan_id' => $kegiatan->id,
+            'nama_target' => 'Usaha KSA A',
+            'sample_role' => 'utama',
+            'is_active' => 1,
+            'target_unit_sampel->'.$unitSampel->id => 3,
+        ]);
+    }
+
     public function test_can_download_frame_sampel_detail_template_with_existing_purpossive_rows(): void
     {
         [$user, $role] = $this->makeKetuaTim();
