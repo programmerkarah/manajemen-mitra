@@ -4235,7 +4235,10 @@ class AlokasiPetugasController extends Controller
             return back()->with('error', 'Tidak ada alokasi periode berstatus dikirim yang dapat dikembalikan ke draft.');
         }
 
-        // Block if any non-organik officer in this periode already has SPK in the same periode
+        $isSensusKegiatan = $kegiatan->jenis_kegiatan === 'sensus';
+
+        // Block if any non-organik officer in this periode already has SPK in the same periode,
+        // except for sensus activities where draft reversion should remain available.
         $hasGeneratedSpk = DB::table('alokasi_petugas as ap_current')
             ->where('ap_current.periode_alokasi_id', $periode->id)
             ->where('ap_current.status_kepegawaian', 'non_organik')
@@ -4250,7 +4253,7 @@ class AlokasiPetugasController extends Controller
             })
             ->exists();
 
-        if ($hasGeneratedSpk) {
+        if ($hasGeneratedSpk && ! $isSensusKegiatan) {
             ActivityLog::log(
                 'Kembalikan Alokasi ke Draft',
                 'alokasi',
@@ -4578,6 +4581,10 @@ class AlokasiPetugasController extends Controller
         ?string $newStatusKepegawaian = null,
         ?Kegiatan $kegiatan = null
     ): ?string {
+        if (($newJenisKegiatan ?? $kegiatan?->jenis_kegiatan) === 'sensus') {
+            return null;
+        }
+
         $petugas = Petugas::find($petugasId);
         if (! $petugas) {
             return 'Petugas tidak ditemukan.';

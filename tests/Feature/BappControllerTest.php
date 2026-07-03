@@ -183,6 +183,17 @@ class BappControllerTest extends TestCase
         $this->assertContains($response->getStatusCode(), [200, 302]);
     }
 
+    public function test_admin_can_reach_bapp_generate_route_without_404(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAsWithRole($user, 'admin')
+            ->post('/bapp/generate', []);
+
+        $response->assertStatus(422);
+        $response->assertSee('SPK tidak valid.');
+    }
+
     // -----------------------------------------------------------------------
     // Authorization: unauthenticated users are rejected
     // -----------------------------------------------------------------------

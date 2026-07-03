@@ -95,7 +95,7 @@ class SpkController extends Controller
         $groupedByMonth = $periodes->groupBy(function ($periode) {
             return $this->resolveSpkIndexGroupKey($periode);
         })->map(function ($monthPeriodes) {
-            $primaryPeriode = $monthPeriodes->first();
+            $primaryPeriode = $this->resolveSpkIndexPrimaryPeriode($monthPeriodes);
             $tahun = (int) $primaryPeriode->tahun;
             $bulan = (int) $primaryPeriode->bulan;
             $isPeriodBased = $this->usesPeriodBasedSpkFlow($primaryPeriode);
@@ -6061,11 +6061,38 @@ class SpkController extends Controller
 
     private function resolveSpkIndexGroupKey(PeriodeAlokasi $periode): string
     {
-        if ($this->usesPeriodBasedSpkFlow($periode)) {
-            return 'periode-'.$periode->id;
-        }
-
         return sprintf('%d-%02d', (int) $periode->tahun, (int) $periode->bulan);
+    }
+
+    /**
+     * @param  Collection<int, PeriodeAlokasi>  $monthPeriodes
+     */
+    private function resolveSpkIndexPrimaryPeriode(Collection $monthPeriodes): PeriodeAlokasi
+    {
+        return $monthPeriodes->sort(function (PeriodeAlokasi $left, PeriodeAlokasi $right): int {
+            $leftPriority = $this->resolveSpkIndexStatusPriority($left->status);
+            $rightPriority = $this->resolveSpkIndexStatusPriority($right->status);
+
+            if ($leftPriority !== $rightPriority) {
+                return $rightPriority <=> $leftPriority;
+            }
+
+            $leftCreatedAt = $left->created_at?->getTimestamp() ?? 0;
+            $rightCreatedAt = $right->created_at?->getTimestamp() ?? 0;
+
+            return $rightCreatedAt <=> $leftCreatedAt;
+        })->first();
+    }
+
+    private function resolveSpkIndexStatusPriority(string $status): int
+    {
+        return match ($status) {
+            'perubahan' => 4,
+            'direvisi' => 3,
+            'disetujui' => 2,
+            'dikirim' => 1,
+            default => 0,
+        };
     }
 
     private function resolveSpkIndexDisplayLabel(PeriodeAlokasi $periode): string

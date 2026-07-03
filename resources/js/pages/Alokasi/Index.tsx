@@ -113,6 +113,8 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
     const isAdmin = auth.activeRole?.name === 'admin';
     const isOperator = auth.activeRole?.name === 'operator';
     const isAdminOrOperator = isAdmin || isOperator;
+    const isSensusKegiatan = (periode: AlokasiPeriod) =>
+        periode.jenis_kegiatan === 'sensus';
 
     // State for client-side filtering
     const [search, setSearch] = useState('');
@@ -965,7 +967,10 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                                     {isAdminOrOperator &&
                                                                         periode.status ===
                                                                             'dikirim' &&
-                                                                        !periode.has_non_organik_spk_in_kegiatan && (
+                                                                        (isSensusKegiatan(
+                                                                            periode,
+                                                                        ) ||
+                                                                            !periode.has_non_organik_spk_in_kegiatan) && (
                                                                             <DropdownMenuItem
                                                                                 onClick={() =>
                                                                                     handleKembalikanDraft(

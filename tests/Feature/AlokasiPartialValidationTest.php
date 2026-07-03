@@ -962,6 +962,51 @@ class AlokasiPartialValidationTest extends TestCase
         ]);
     }
 
+    public function test_kembalikan_ke_draft_allows_sensus_even_when_spk_exists(): void
+    {
+        [$admin, $adminRole] = $this->makeAdminUser();
+        $tahun = ActiveYearService::get();
+        [$kegiatan] = $this->setupSensusEkonomiKegiatanWithRateHonor($tahun);
+
+        $petugas = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '03',
+            'tahun' => $tahun,
+            'jenis_kegiatan' => 'sensus',
+            'status' => 'dikirim',
+            'submitted_at' => now(),
+            'submitted_by' => $admin->id,
+        ]);
+
+        $alokasi = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'jumlah_satuan' => 1,
+            'total_honor' => 1000,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+        ]);
+
+        $this->createSpkForAlokasi($alokasi, $admin);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->post("/alokasi/periode/{$kegiatan->hashed_id}/{$tahun}/03/kembalikan-draft");
+
+        $response->assertRedirect(route('alokasi.index'));
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('periode_alokasi', [
+            'id' => $periode->id,
+            'status' => 'draft',
+        ]);
+    }
+
     public function test_show_periode_returns_paid_workload_and_rate_honor_from_master_rate(): void
     {
         [$admin, $adminRole] = $this->makeAdminUser();

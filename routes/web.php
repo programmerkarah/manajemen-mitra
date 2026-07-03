@@ -687,11 +687,6 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::get('bapp/create', [BappController::class, 'create'])->name('bapp.create');
         Route::get('bapp/template', [BappController::class, 'downloadTemplate'])->name('bapp.template');
         Route::get('bapp/termin/{terminHashed}', [BappController::class, 'show'])->name('bapp.show');
-        Route::get('bapp/{bapp}/download', [BappController::class, 'download'])->name('bapp.download');
-        Route::get('bapp/{bapp}/preview', [BappController::class, 'preview'])->name('bapp.preview');
-        Route::get('bapp/{bapp}/download-signed', [BappController::class, 'downloadSigned'])->name('bapp.download-signed');
-        Route::post('bapp/{bapp}/upload-screenshot', [BappController::class, 'uploadFasihScreenshot'])->name('bapp.upload-screenshot');
-        Route::post('bapp/{bapp}/upload-signed', [BappController::class, 'uploadSignedBapp'])->name('bapp.upload-signed');
     });
 
     Route::middleware(['active.role:admin,operator'])->group(function () {
@@ -699,6 +694,14 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('bapp/import', [BappController::class, 'importRealisasi'])->name('bapp.import');
         Route::post('bapp/generate', [BappController::class, 'generate'])->name('bapp.generate');
         Route::post('bapp/generate-batch', [BappController::class, 'generateBatch'])->name('bapp.generate-batch');
+    });
+
+    Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
+        Route::get('bapp/{bapp}/download', [BappController::class, 'download'])->name('bapp.download');
+        Route::get('bapp/{bapp}/preview', [BappController::class, 'preview'])->name('bapp.preview');
+        Route::get('bapp/{bapp}/download-signed', [BappController::class, 'downloadSigned'])->name('bapp.download-signed');
+        Route::post('bapp/{bapp}/upload-screenshot', [BappController::class, 'uploadFasihScreenshot'])->name('bapp.upload-screenshot');
+        Route::post('bapp/{bapp}/upload-signed', [BappController::class, 'uploadSignedBapp'])->name('bapp.upload-signed');
     });
 
     // Document Management - Upload signed file (Admin, PJ, Operator can upload)

@@ -155,19 +155,15 @@ class BappController extends Controller
         return Spk::query()
             ->where('addendum_number', 0)
             ->whereIn('lampiran_template', ['sensus_ekonomi', 'pml_sensus_ekonomi'])
-            ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($tahun): void {
-                $q->where('tahun', $tahun)
-                    ->whereHas('kegiatan', function ($q2): void {
-                        $q2->where('jenis_kegiatan', 'sensus')
-                            ->where('nama_kegiatan', 'like', '%sensus ekonomi%');
-                    });
+            ->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($query): void {
+                $query->where('jenis_kegiatan', 'sensus')
+                    ->where('nama_kegiatan', 'like', '%sensus ekonomi%');
             })
             ->with([
                 'petugas',
                 'alokasiPetugas.periodeAlokasi.kegiatan',
-                'alokasiPetugas.frameSampelAllocations.kegiatanFrameSampel',
             ])
-            ->orderBy('nomor_spk')
+            ->orderBy('id')
             ->get();
     }
 
