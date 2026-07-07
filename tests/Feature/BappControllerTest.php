@@ -2,11 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\BappController;
 use App\Models\Kegiatan;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class BappControllerTest extends TestCase
@@ -36,6 +40,17 @@ class BappControllerTest extends TestCase
         return $this->actingAs($user)->withSession([
             'active_role_id' => $role->id,
         ]);
+    }
+
+    private function insertIfColumnsExist(string $table, array $attributes): int
+    {
+        $filteredAttributes = array_filter(
+            $attributes,
+            fn ($value, string $column): bool => Schema::hasColumn($table, $column),
+            ARRAY_FILTER_USE_BOTH,
+        );
+
+        return (int) DB::table($table)->insertGetId($filteredAttributes);
     }
 
     // -----------------------------------------------------------------------
@@ -73,16 +88,55 @@ class BappControllerTest extends TestCase
     {
         $user = User::factory()->create();
 
-        Kegiatan::factory()->create([
-            'jenis_kegiatan' => 'sensus',
+        $this->insertIfColumnsExist('kegiatan', [
+            'kode_kegiatan' => 'KEG-INDEX-TEST',
             'nama_kegiatan' => 'Sensus Ekonomi 2026',
+            'jenis_kegiatan' => 'sensus',
+            'deskripsi' => 'Index test activity',
+            'tanggal_mulai' => '2026-07-01',
+            'tanggal_selesai' => '2026-08-31',
+            'tahun_anggaran' => 2026,
+            'has_listing_updating' => false,
+            'metode_pendataan_pencacahan' => 'CAPI_KSA_PRO',
+            'metode_pendataan_listing' => 'CAPI_KSA_PRO',
+            'metode_sampling' => 'targeted',
+            'metode_pelatihan' => 'tidak_ada_pelatihan',
+            'bulan_pelatihan' => 4,
+            'pagu_listing' => 0,
+            'pagu_pencacahan' => 0,
+            'kode_coa' => null,
             'ketua_tim_user_id' => $user->id,
+            'pj_lainnya_id' => $user->id,
+            'status' => 'aktif',
+            'tanggal_validasi' => null,
+            'catatan' => null,
         ]);
 
         $response = $this->actingAsWithRole($user, 'ketua_tim')
             ->get('/bapp');
 
         $response->assertOk();
+    }
+
+    public function test_regular_bapp_context_does_not_filter_spks(): void
+    {
+        $controller = new class extends BappController
+        {
+            protected function getSensusEkonomiSpks(int $tahun): Collection
+            {
+                return new Collection([
+                    (object) ['id' => 1],
+                    (object) ['id' => 2],
+                ]);
+            }
+        };
+
+        $resolver = new \ReflectionMethod($controller, 'getSpksForBappContext');
+        $resolver->setAccessible(true);
+
+        $result = $resolver->invoke($controller, 2026, 1, 'regular');
+
+        $this->assertCount(2, $result);
     }
 
     public function test_bapp_index_returns_two_termin(): void
@@ -192,6 +246,27 @@ class BappControllerTest extends TestCase
 
         $response->assertStatus(422);
         $response->assertSee('SPK tidak valid.');
+    }
+
+    public function test_resolve_entry_tanggal_bapp_prefers_entry_then_shared(): void
+    {
+        $controller = new BappController;
+        $resolver = new \ReflectionMethod(BappController::class, 'resolveEntryTanggalBapp');
+        $resolver->setAccessible(true);
+
+        $this->assertSame(
+            '2026-07-15',
+            $resolver->invoke($controller, ['tanggal_bapp' => '2026-07-15'], '2026-07-16'),
+        );
+
+        $this->assertSame(
+            '2026-07-16',
+            $resolver->invoke($controller, ['tanggal_bapp' => ''], '2026-07-16'),
+        );
+
+        $this->assertNull(
+            $resolver->invoke($controller, ['tanggal_bapp' => null], null),
+        );
     }
 
     // -----------------------------------------------------------------------

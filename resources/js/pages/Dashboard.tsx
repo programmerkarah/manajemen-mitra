@@ -521,7 +521,7 @@ export default function Dashboard({
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div className="min-w-0">
                             <h1 className="text-xl font-bold break-words text-neutral-900 dark:text-white">
-                                Selamat Datang, {auth.user.name}! 👋
+                                Selamat Datang, {auth.user.name}! 👋🏻
                             </h1>
                             <p className="mt-1 text-sm break-words text-neutral-500 dark:text-neutral-400">
                                 {new Date().toLocaleDateString('id-ID', {

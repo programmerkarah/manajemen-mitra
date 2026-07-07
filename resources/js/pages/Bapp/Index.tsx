@@ -5,14 +5,7 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
-import {
-    AlertCircle,
-    ArrowLeft,
-    CheckCircle,
-    Clock,
-    FileText,
-    Plus,
-} from 'lucide-react';
+import { AlertCircle, ArrowLeft, Eye, Plus } from 'lucide-react';
 
 interface TerminData {
     termin: number;
@@ -32,6 +25,8 @@ interface IndexProps {
     termin_data: TerminData[];
     has_kegiatan: boolean;
     unit_sampel_items: { id: number; nama: string }[];
+    document_type?: 'regular' | 'stopped_petugas' | 'replacement_pkpp';
+    replacement_termin_count?: number;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'BAPP SE2026', href: '/bapp' }];
@@ -42,6 +37,51 @@ export default function Index({
     has_kegiatan,
     unit_sampel_items,
 }: IndexProps) {
+    const defaultTermin = termin_data[0] ?? null;
+    const createHref = '/bapp/create';
+    const showHref = defaultTermin
+        ? `/bapp/termin/${defaultTermin.termin_hashed}`
+        : '/bapp';
+
+    const buildCreateQuery = (
+        nextDocumentType: 'regular' | 'stopped_petugas' | 'replacement_pkpp',
+        nextReplacementTerminCount: number = 2,
+    ) => {
+        const query = new URLSearchParams();
+
+        if (defaultTermin) {
+            query.set('termin', defaultTermin.termin_hashed);
+        }
+
+        query.set('document_type', nextDocumentType);
+
+        if (nextDocumentType === 'replacement_pkpp') {
+            query.set(
+                'replacement_termin_count',
+                nextReplacementTerminCount === 1 ? '1' : '2',
+            );
+        }
+
+        return query.toString();
+    };
+
+    const buildDocumentQuery = (
+        nextDocumentType: 'regular' | 'stopped_petugas' | 'replacement_pkpp',
+        nextReplacementTerminCount: number = 2,
+    ) => {
+        const query = new URLSearchParams();
+        query.set('document_type', nextDocumentType);
+
+        if (nextDocumentType === 'replacement_pkpp') {
+            query.set(
+                'replacement_termin_count',
+                nextReplacementTerminCount === 1 ? '1' : '2',
+            );
+        }
+
+        return query.toString();
+    };
+
     if (!has_kegiatan) {
         return (
             <AppLayout breadcrumbs={breadcrumbs}>
@@ -84,97 +124,152 @@ export default function Index({
                     </Button>
                 </PageHeader>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                    {termin_data.map((termin) => (
-                        <ContentCard key={termin.termin}>
-                            <div className="flex flex-col gap-4">
-                                <div className="flex items-start justify-between gap-4">
-                                    <div>
-                                        <h2 className="text-xl font-bold">
-                                            Termin {termin.termin_roman}
-                                        </h2>
-                                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                                            Generate bulan {termin.bulan_label}{' '}
-                                            &bull; Target {termin.persentase}%
-                                            pekerjaan
-                                        </p>
-                                    </div>
-                                    {termin.is_complete ? (
-                                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                                            <CheckCircle className="mr-1 h-3 w-3" />
-                                            Selesai
-                                        </Badge>
-                                    ) : termin.bapp_count > 0 ? (
-                                        <Badge variant="secondary">
-                                            <Clock className="mr-1 h-3 w-3" />
-                                            Sebagian
-                                        </Badge>
-                                    ) : (
-                                        <Badge variant="outline">
-                                            Belum Ada
-                                        </Badge>
-                                    )}
+                <div className="grid gap-4 xl:grid-cols-3">
+                    <ContentCard className="border-neutral-200 bg-gradient-to-br from-neutral-50 to-white dark:border-neutral-800 dark:from-neutral-900 dark:to-neutral-950">
+                        <div className="flex h-full flex-col gap-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
+                                        Dokumen Operasional
+                                    </p>
+                                    <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                        BAPP Petugas Berhenti
+                                    </h3>
                                 </div>
-
-                                <div className="grid grid-cols-2 gap-3 rounded-lg bg-neutral-50 p-3 dark:bg-neutral-800/50">
-                                    <div className="text-center">
-                                        <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                                            {termin.bapp_count}
-                                        </div>
-                                        <div className="text-xs text-neutral-500">
-                                            BAPP Dibuat
-                                        </div>
-                                    </div>
-                                    <div className="text-center">
-                                        <div className="text-2xl font-bold text-neutral-700 dark:text-neutral-200">
-                                            {termin.spk_count}
-                                        </div>
-                                        <div className="text-xs text-neutral-500">
-                                            Total SPK
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {!termin.can_generate && (
-                                    <div className="flex items-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-800/40 dark:bg-yellow-900/20 dark:text-yellow-300">
-                                        <AlertCircle className="h-4 w-4 shrink-0" />
-                                        <span>
-                                            Generate BAPP Termin{' '}
-                                            {termin.termin_roman} baru tersedia
-                                            mulai bulan {termin.bulan_label}.
-                                        </span>
-                                    </div>
-                                )}
-
-                                <div className="flex gap-2">
-                                    <Button
-                                        variant="outline"
-                                        asChild
-                                        className="flex-1"
-                                    >
-                                        <Link
-                                            href={`/bapp/termin/${termin.termin_hashed}`}
-                                        >
-                                            <FileText className="mr-2 h-4 w-4" />
-                                            Lihat Detail
-                                        </Link>
-                                    </Button>
-                                    <Button
-                                        asChild
-                                        className="flex-1"
-                                        disabled={!termin.can_generate}
-                                    >
-                                        <Link
-                                            href={`/bapp/create?termin=${termin.termin_hashed}`}
-                                        >
-                                            <Plus className="mr-2 h-4 w-4" />
-                                            Input Realisasi & Generate
-                                        </Link>
-                                    </Button>
-                                </div>
+                                <Badge variant="secondary">Single</Badge>
                             </div>
-                        </ContentCard>
-                    ))}
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Untuk petugas yang berhenti di tengah jalan.
+                                Tidak memakai termin tab di detail.
+                            </p>
+                            <div className="mt-auto flex flex-wrap gap-2">
+                                <Button
+                                    asChild
+                                    className="flex-1"
+                                    disabled={!defaultTermin}
+                                >
+                                    <Link
+                                        href={`${createHref}?${buildCreateQuery('stopped_petugas')}`}
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Input & Generate
+                                    </Link>
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    asChild
+                                    className="flex-1"
+                                    disabled={!defaultTermin}
+                                >
+                                    <Link
+                                        href={`${showHref}?${buildDocumentQuery('stopped_petugas')}`}
+                                    >
+                                        <Eye className="mr-2 h-4 w-4" />
+                                        Lihat Detail
+                                    </Link>
+                                </Button>
+                            </div>
+                        </div>
+                    </ContentCard>
+
+                    <ContentCard className="border-emerald-200/70 bg-gradient-to-br from-emerald-50 to-white dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
+                        <div className="flex h-full flex-col gap-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                                        Dokumen Awal
+                                    </p>
+                                    <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                        BAPP Petugas Reguler
+                                    </h3>
+                                </div>
+                                <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+                                    Termin I / II
+                                </Badge>
+                            </div>
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Untuk alur reguler sesuai termin awal. Detail
+                                tetap memisah per termin.
+                            </p>
+                            <div className="mt-auto flex flex-wrap gap-2">
+                                <Button
+                                    asChild
+                                    className="flex-1"
+                                    disabled={!defaultTermin}
+                                >
+                                    <Link
+                                        href={`${createHref}?${buildCreateQuery('regular')}`}
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Input & Generate
+                                    </Link>
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    asChild
+                                    className="flex-1"
+                                    disabled={!defaultTermin}
+                                >
+                                    <Link
+                                        href={`${showHref}?${buildDocumentQuery('regular')}`}
+                                    >
+                                        <Eye className="mr-2 h-4 w-4" />
+                                        Lihat Detail
+                                    </Link>
+                                </Button>
+                            </div>
+                        </div>
+                    </ContentCard>
+
+                    <ContentCard className="border-sky-200/70 bg-gradient-to-br from-sky-50 to-white dark:border-sky-900/40 dark:from-sky-950/30 dark:to-neutral-900">
+                        <div className="flex h-full flex-col gap-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="text-sm font-medium text-sky-700 dark:text-sky-300">
+                                        Dokumen Pengganti
+                                    </p>
+                                    <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                        BAPP Petugas Pengganti
+                                    </h3>
+                                </div>
+                                <Badge className="bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-200">
+                                    Termin I / II
+                                </Badge>
+                            </div>
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Untuk dokumen BAPP setelah replacement
+                                disetujui. Proses penggantian petugas sekarang
+                                dilakukan di PK Petugas Pengganti.
+                            </p>
+                            <div className="mt-auto flex flex-wrap gap-2">
+                                <Button
+                                    asChild
+                                    className="flex-1"
+                                    disabled={!defaultTermin}
+                                >
+                                    <Link
+                                        href={`${createHref}?${buildCreateQuery('replacement_pkpp')}`}
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Input & Generate
+                                    </Link>
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    asChild
+                                    className="flex-1"
+                                    disabled={!defaultTermin}
+                                >
+                                    <Link
+                                        href={`${showHref}?${buildDocumentQuery('replacement_pkpp')}`}
+                                    >
+                                        <Eye className="mr-2 h-4 w-4" />
+                                        Lihat Detail
+                                    </Link>
+                                </Button>
+                            </div>
+                        </div>
+                    </ContentCard>
                 </div>
 
                 {unit_sampel_items.length > 0 && (

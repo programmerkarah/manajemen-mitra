@@ -25,7 +25,7 @@ import {
     Loader2,
     Upload,
 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 interface SpkItem {
     spk_id: number;
@@ -48,11 +48,15 @@ interface SpkItem {
     file_path: string | null;
     fasih_screenshot_path: string | null;
     nomor_bapp_auto: string;
+    tanggal_bapp: string | null;
+    bapp_preview_url: string | null;
+    bapp_download_url: string | null;
 }
 
 interface CreateProps {
     tahun: number;
     termin: number;
+    termin_hashed: string;
     termin_roman: string;
     bulan: number;
     bulan_label: string;
@@ -63,6 +67,8 @@ interface CreateProps {
     tanggal_min: string;
     tanggal_max: string;
     tanggal_fixed: boolean;
+    document_type: 'regular' | 'stopped_petugas' | 'replacement_pkpp';
+    replacement_termin_count: number;
     spk_list: SpkItem[];
     unit_sampel_items: { id: number; nama: string }[];
     ketua_tim: { nama: string | null; nip: string | null };
@@ -92,6 +98,7 @@ type RealisasiEntry = {
     spk_hashed_id: string;
     realisasi_sls: string;
     realisasi_unit_sampel: Record<string, string>;
+    tanggal_bapp: string;
 };
 
 const peranLabel: Record<string, string> = {
@@ -141,6 +148,8 @@ export default function Create({
     tanggal_min,
     tanggal_max,
     tanggal_fixed,
+    document_type,
+    replacement_termin_count,
     spk_list,
     unit_sampel_items,
     ketua_tim,
@@ -161,11 +170,29 @@ export default function Create({
     const [screenshotModalPath, setScreenshotModalPath] = useState<
         string | null
     >(null);
-
-    // Shared date for ALL SPKs in this termin
-    const [tanggalBapp, setTanggalBapp] = useState<string>(
+    const [sharedTanggalBapp, setSharedTanggalBapp] = useState<string>(
         initialTanggal ?? '',
     );
+
+    const contextQuery = new URLSearchParams();
+    contextQuery.set('document_type', document_type);
+    if (document_type === 'replacement_pkpp') {
+        contextQuery.set(
+            'replacement_termin_count',
+            replacement_termin_count === 1 ? '1' : '2',
+        );
+    }
+    const queryString = contextQuery.toString();
+    const documentTypeLabel =
+        document_type === 'stopped_petugas'
+            ? 'BAPP Petugas Berhenti'
+            : document_type === 'replacement_pkpp'
+              ? `BAPP Petugas Pengganti (${replacement_termin_count === 1 ? '1 Termin' : '2 Termin'})`
+              : 'BAPP Petugas Reguler';
+
+    const [selectedGenerateSpkIds, setSelectedGenerateSpkIds] = useState<
+        number[]
+    >([]);
 
     // Validation errors
     const [validationError, setValidationError] = useState<string | null>(null);
@@ -186,10 +213,27 @@ export default function Create({
                     spk_hashed_id: spk.spk_hashed_id,
                     realisasi_sls: spk.realisasi_sls?.toString() ?? '',
                     realisasi_unit_sampel: unitSampel,
+                    tanggal_bapp: spk.tanggal_bapp ?? initialTanggal ?? '',
                 };
             });
             return initial;
         },
+    );
+
+    const selectableGenerateSpks = useMemo(
+        () => spk_list.filter((spk) => !spk.has_bapp),
+        [spk_list],
+    );
+
+    const selectedGenerateSpkIdSet = useMemo(
+        () => new Set(selectedGenerateSpkIds),
+        [selectedGenerateSpkIds],
+    );
+
+    const selectedGenerateSpks = useMemo(
+        () =>
+            spk_list.filter((spk) => selectedGenerateSpkIdSet.has(spk.spk_id)),
+        [selectedGenerateSpkIdSet, spk_list],
     );
 
     const updateEntry = (
@@ -214,10 +258,19 @@ export default function Create({
 
     const handleSaveRealisasi = () => {
         setValidationError(null);
-        if (!tanggalBapp) {
-            setValidationError('Tanggal BAPP wajib diisi sebelum menyimpan.');
+        const missingTanggalBapp = spk_list.filter((spk) => {
+            const entry = entries[spk.spk_id];
+
+            return !entry?.tanggal_bapp;
+        });
+
+        if (missingTanggalBapp.length > 0) {
+            setValidationError(
+                `Tanggal BAPP wajib diisi untuk ${missingTanggalBapp.length} SPK sebelum menyimpan.`,
+            );
             return;
         }
+
         const missingRealisasi = spk_list.filter((spk) => {
             const e = entries[spk.spk_id];
             if (!e || e.realisasi_sls === '') return true;
@@ -249,11 +302,13 @@ export default function Create({
         setSavingRealisasi(true);
         const payload = {
             termin,
-            tanggal_bapp: tanggalBapp,
+            document_type,
+            replacement_termin_count: replacement_termin_count,
             entries: Object.values(entries).map((e) => ({
                 spk_hashed_id: e.spk_hashed_id,
                 realisasi_sls: e.realisasi_sls,
                 realisasi_unit_sampel: e.realisasi_unit_sampel,
+                tanggal_bapp: e.tanggal_bapp,
             })),
         };
         router.post('/bapp/realisasi', payload, {
@@ -262,13 +317,38 @@ export default function Create({
         });
     };
 
-    const handleGenerateAll = () => {
-        setValidationError(null);
-        if (!tanggalBapp) {
-            setValidationError('Tanggal BAPP wajib diisi sebelum generate.');
+    const applySharedTanggalBappToEmptyEntries = () => {
+        if (!sharedTanggalBapp) {
             return;
         }
-        const missingRealisasi = spk_list.filter((spk) => {
+
+        setEntries((prev) => {
+            const next = { ...prev };
+
+            Object.values(next).forEach((entry) => {
+                if (!entry.tanggal_bapp) {
+                    entry.tanggal_bapp = sharedTanggalBapp;
+                }
+            });
+
+            return next;
+        });
+    };
+
+    const handleGenerateSelected = (spkIds: number[]) => {
+        setValidationError(null);
+
+        const uniqueIds = Array.from(new Set(spkIds));
+        const selectedSpks = spk_list.filter((spk) =>
+            uniqueIds.includes(spk.spk_id),
+        );
+
+        if (selectedSpks.length === 0) {
+            setValidationError('Pilih minimal satu SPK untuk generate BAPP.');
+            return;
+        }
+
+        const missingRealisasi = selectedSpks.filter((spk) => {
             const e = entries[spk.spk_id];
             if (!e || e.realisasi_sls === '') return true;
             return unit_sampel_items.some((u) => {
@@ -277,45 +357,90 @@ export default function Create({
                 return val === '';
             });
         });
-        if (missingRealisasi.length > 0) {
+
+        const missingTanggalBapp = selectedSpks.filter((spk) => {
+            const entry = entries[spk.spk_id];
+
+            return !entry?.tanggal_bapp;
+        });
+
+        if (missingTanggalBapp.length > 0) {
             setValidationError(
-                `Semua realisasi (SLS, keluarga, usaha) wajib diisi untuk ${missingRealisasi.length} SPK.`,
+                `Tanggal BAPP wajib diisi untuk ${missingTanggalBapp.length} SPK terpilih sebelum generate.`,
             );
             return;
         }
-        const belowTargetSpks = spk_list.flatMap((spk) => {
+
+        if (missingRealisasi.length > 0) {
+            setValidationError(
+                `Semua realisasi (SLS, keluarga, usaha) wajib diisi untuk ${missingRealisasi.length} SPK terpilih.`,
+            );
+            return;
+        }
+
+        const belowTargetSpks = selectedSpks.flatMap((spk) => {
             const below = getUnitBelowTarget(spk, entries[spk.spk_id]);
             return below.map(
                 (b) =>
                     `${spk.petugas.nama ?? spk.nomor_spk}: ${b.key} ${b.realisasi} < target ${b.target}`,
             );
         });
+
         if (belowTargetSpks.length > 0) {
             setValidationError(
                 `Realisasi keluarga/usaha tidak boleh di bawah target:\n• ${belowTargetSpks.slice(0, 5).join('\n• ')}`,
             );
             return;
         }
+
         setGeneratingAll(true);
         router.post(
             '/bapp/generate-batch',
-            { termin },
             {
-                onFinish: () => setGeneratingAll(false),
+                termin,
+                document_type,
+                replacement_termin_count: replacement_termin_count,
+                spk_hashed_ids: selectedSpks.map((spk) => spk.spk_hashed_id),
+            },
+            {
+                onFinish: () => {
+                    setGeneratingAll(false);
+                    setSelectedGenerateSpkIds((prev) =>
+                        prev.filter((spkId) => !uniqueIds.includes(spkId)),
+                    );
+                },
                 preserveScroll: true,
             },
         );
     };
 
+    const toggleGenerateSelection = (spkId: number) => {
+        setSelectedGenerateSpkIds((prev) =>
+            prev.includes(spkId)
+                ? prev.filter((value) => value !== spkId)
+                : [...prev, spkId],
+        );
+    };
+
+    const selectAllGenerateSpks = () => {
+        setSelectedGenerateSpkIds(
+            selectableGenerateSpks.map((spk) => spk.spk_id),
+        );
+    };
+
+    const clearGenerateSelection = () => {
+        setSelectedGenerateSpkIds([]);
+    };
+
     const handleGenerateSingle = (spkId: number) => {
         setValidationError(null);
         const entry = entries[spkId];
-        if (!tanggalBapp) {
-            setValidationError('Tanggal BAPP wajib diisi sebelum generate.');
-            return;
-        }
         if (!entry || entry.realisasi_sls === '') {
             setValidationError('Realisasi SLS wajib diisi sebelum generate.');
+            return;
+        }
+        if (!entry.tanggal_bapp) {
+            setValidationError('Tanggal BAPP wajib diisi sebelum generate.');
             return;
         }
         const missingUnit = unit_sampel_items.some((u) => {
@@ -354,6 +479,9 @@ export default function Create({
                 spk_list.find((s) => s.spk_id === spkId)?.spk_hashed_id ?? '',
             ],
             ['termin', termin.toString()],
+            ['document_type', document_type],
+            ['replacement_termin_count', replacement_termin_count.toString()],
+            ['tanggal_bapp', entry.tanggal_bapp],
         ];
 
         inputs.forEach(([name, value]) => {
@@ -377,6 +505,11 @@ export default function Create({
         const formData = new FormData();
         formData.append('file', file);
         formData.append('termin', termin.toString());
+        formData.append('document_type', document_type);
+        formData.append(
+            'replacement_termin_count',
+            replacement_termin_count.toString(),
+        );
 
         router.post('/bapp/import', formData, {
             preserveScroll: true,
@@ -451,12 +584,144 @@ export default function Create({
                     description={`Input realisasi pekerjaan termin ${termin_roman} (${bulan_label} ${tahun}) — Target ${persentase}%`}
                 >
                     <Button variant="outline" asChild>
-                        <Link href="/bapp">
+                        <Link href={`/bapp?${queryString}`}>
                             <ArrowLeft className="mr-2 h-4 w-4" />
                             Kembali
                         </Link>
                     </Button>
                 </PageHeader>
+
+                <ContentCard>
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <p className="text-sm text-neutral-500">
+                                Konteks dokumen aktif
+                            </p>
+                            <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                                {documentTypeLabel}
+                            </p>
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                                Pemilihan jenis dokumen sekarang dilakukan dari
+                                kartu di halaman BAPP utama.
+                            </p>
+                        </div>
+                        <Badge variant="secondary">{termin_roman}</Badge>
+                    </div>
+                </ContentCard>
+
+                {document_type === 'stopped_petugas' && (
+                    <ContentCard>
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <h3 className="font-semibold">
+                                    Daftar Petugas Berhenti
+                                </h3>
+                                <p className="text-xs text-neutral-500">
+                                    Petugas yang berhenti di context ini akan
+                                    muncul di daftar ini beserta dokumen
+                                    BAPP-nya.
+                                </p>
+                            </div>
+                            <Badge variant="secondary">
+                                {spk_list.length.toLocaleString('id-ID')}{' '}
+                                petugas
+                            </Badge>
+                        </div>
+
+                        <div className="mt-4 flex flex-col gap-3">
+                            {spk_list.length === 0 ? (
+                                <div className="rounded-lg border border-dashed border-neutral-300 px-3 py-4 text-sm text-neutral-500 dark:border-neutral-700">
+                                    Tidak ada petugas berhenti yang memenuhi
+                                    aturan tanggal untuk termin ini.
+                                </div>
+                            ) : (
+                                spk_list.map((spk) => (
+                                    <div
+                                        key={spk.spk_id}
+                                        className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-700"
+                                    >
+                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                            <div>
+                                                <div className="font-medium">
+                                                    {spk.petugas.nama ??
+                                                        '(Tanpa Nama)'}
+                                                </div>
+                                                <div className="text-sm text-neutral-500 dark:text-neutral-400">
+                                                    SPK: {spk.nomor_spk}
+                                                    {spk.petugas.nik
+                                                        ? ` • NIK: ${spk.petugas.nik}`
+                                                        : ''}
+                                                </div>
+                                                <div className="mt-1 text-xs text-neutral-400">
+                                                    {peranLabel[spk.peran] ??
+                                                        spk.peran}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-2">
+                                                {spk.has_bapp &&
+                                                spk.bapp_preview_url ? (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        asChild
+                                                    >
+                                                        <a
+                                                            href={
+                                                                spk.bapp_preview_url
+                                                            }
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                        >
+                                                            <Eye className="mr-2 h-4 w-4" />
+                                                            Preview
+                                                        </a>
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled
+                                                    >
+                                                        <Eye className="mr-2 h-4 w-4" />
+                                                        Preview
+                                                    </Button>
+                                                )}
+
+                                                {spk.has_bapp &&
+                                                spk.bapp_download_url ? (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        asChild
+                                                    >
+                                                        <a
+                                                            href={
+                                                                spk.bapp_download_url
+                                                            }
+                                                        >
+                                                            <Download className="mr-2 h-4 w-4" />
+                                                            Unduh
+                                                        </a>
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled
+                                                    >
+                                                        <Download className="mr-2 h-4 w-4" />
+                                                        Unduh
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </ContentCard>
+                )}
 
                 {/* Flash messages */}
                 {(flash as { success?: string })?.success && (
@@ -682,7 +947,7 @@ export default function Create({
                     </div>
                 )}
 
-                {/* Info + shared BAPP fields */}
+                {/* Info + date helper */}
                 <ContentCard>
                     <div className="grid gap-6 md:grid-cols-2">
                         <div>
@@ -721,28 +986,24 @@ export default function Create({
                             </dl>
                         </div>
 
-                        {/* Shared BAPP date (apply to all SPKs) */}
+                        {/* Optional helper for filling row dates */}
                         <div>
-                            <h3 className="mb-3 font-semibold">Tanggal BAPP</h3>
+                            <h3 className="mb-3 font-semibold">
+                                Tanggal BAPP Acuan
+                            </h3>
                             <p className="mb-3 text-xs text-neutral-500">
-                                Berlaku untuk semua BAPP dalam termin ini. Nomor
-                                BAPP di-generate otomatis urut abjad petugas.
+                                Gunakan sebagai tanggal acuan jika ingin
+                                menyalin cepat ke baris SPK yang belum diisi.
                             </p>
                             <div className="flex flex-col gap-1">
                                 <Label htmlFor="tanggal-bapp-shared">
-                                    Tanggal BAPP{' '}
-                                    <span className="text-red-500">*</span>
-                                    {tanggal_fixed && (
-                                        <span className="ml-1 text-xs text-neutral-400">
-                                            (otomatis 31 Agustus)
-                                        </span>
-                                    )}
+                                    Tanggal Acuan
                                 </Label>
                                 <DatePicker
                                     id="tanggal-bapp-shared"
-                                    value={tanggalBapp}
+                                    value={sharedTanggalBapp}
                                     onChange={(v) => {
-                                        setTanggalBapp(v);
+                                        setSharedTanggalBapp(v);
                                         setValidationError(null);
                                     }}
                                     min={tanggal_min}
@@ -750,8 +1011,20 @@ export default function Create({
                                     disabled={
                                         tanggal_fixed || !can_input_realisasi
                                     }
-                                    placeholder="Pilih tanggal BAPP"
+                                    placeholder="Pilih tanggal acuan"
                                 />
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={
+                                        applySharedTanggalBappToEmptyEntries
+                                    }
+                                >
+                                    Salin ke SPK kosong
+                                </Button>
                             </div>
                         </div>
                     </div>
@@ -760,7 +1033,10 @@ export default function Create({
                     <div className="mt-4 flex flex-wrap gap-2 border-t pt-4 dark:border-neutral-700">
                         {can_input_realisasi ? (
                             <Button variant="outline" size="sm" asChild>
-                                <a href="/bapp/template" download>
+                                <a
+                                    href={`/bapp/template?${queryString}`}
+                                    download
+                                >
                                     <Download className="mr-2 h-4 w-4" />
                                     Template Excel
                                 </a>
@@ -802,6 +1078,71 @@ export default function Create({
                     </div>
                 </ContentCard>
 
+                {can_generate && selectableGenerateSpks.length > 0 && (
+                    <ContentCard>
+                        <div className="flex flex-col gap-4">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <h3 className="font-semibold">
+                                        Seleksi Generate BAPP
+                                    </h3>
+                                    <p className="text-xs text-neutral-500">
+                                        Pilih petugas yang sudah siap untuk
+                                        dibuatkan BAPP. Petugas yang sudah
+                                        selesai digenerate akan tetap tersimpan,
+                                        tetapi tidak lagi masuk daftar seleksi.
+                                    </p>
+                                </div>
+                                <Badge variant="secondary">
+                                    {selectedGenerateSpks.length.toLocaleString(
+                                        'id-ID',
+                                    )}{' '}
+                                    terpilih
+                                </Badge>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={selectAllGenerateSpks}
+                                >
+                                    Pilih Semua
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={clearGenerateSelection}
+                                >
+                                    Hapus Pilihan
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() =>
+                                        handleGenerateSelected(
+                                            selectedGenerateSpkIds,
+                                        )
+                                    }
+                                    disabled={
+                                        generatingAll ||
+                                        selectedGenerateSpkIds.length === 0
+                                    }
+                                >
+                                    {generatingAll ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <FileText className="mr-2 h-4 w-4" />
+                                    )}
+                                    Generate Terpilih
+                                </Button>
+                            </div>
+                        </div>
+                    </ContentCard>
+                )}
+
                 {/* SPK list */}
                 {spk_list.length === 0 ? (
                     <ContentCard>
@@ -815,6 +1156,13 @@ export default function Create({
                     </ContentCard>
                 ) : (
                     <div className="flex flex-col gap-4">
+                        {document_type === 'stopped_petugas' && (
+                            <div className="text-sm text-neutral-500">
+                                Daftar di bawah ini menampilkan dokumen BAPP
+                                petugas berhenti yang memenuhi aturan context
+                                termin ini.
+                            </div>
+                        )}
                         {spk_list.map((spk) => {
                             const entry = entries[spk.spk_id];
                             const unitLabel = formatTargetUnitSampel(
@@ -846,6 +1194,24 @@ export default function Create({
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
+                                                {can_generate &&
+                                                    !spk.has_bapp && (
+                                                        <label className="inline-flex items-center gap-2 rounded-full border border-neutral-200 px-3 py-1 text-xs text-neutral-600 dark:border-neutral-700 dark:text-neutral-300">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedGenerateSpkIdSet.has(
+                                                                    spk.spk_id,
+                                                                )}
+                                                                onChange={() =>
+                                                                    toggleGenerateSelection(
+                                                                        spk.spk_id,
+                                                                    )
+                                                                }
+                                                                className="h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
+                                                            />
+                                                            Pilih generate
+                                                        </label>
+                                                    )}
                                                 {spk.has_bapp &&
                                                 spk.file_path ? (
                                                     <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
@@ -906,6 +1272,37 @@ export default function Create({
                                                         *
                                                     </span>
                                                 </Label>
+
+                                                <div className="flex flex-col gap-1">
+                                                    <Label
+                                                        htmlFor={`tanggal-bapp-${spk.spk_id}`}
+                                                    >
+                                                        Tanggal BAPP{' '}
+                                                        <span className="text-red-500">
+                                                            *
+                                                        </span>
+                                                    </Label>
+                                                    <DatePicker
+                                                        id={`tanggal-bapp-${spk.spk_id}`}
+                                                        value={
+                                                            entry?.tanggal_bapp ??
+                                                            ''
+                                                        }
+                                                        onChange={(value) =>
+                                                            updateEntry(
+                                                                spk.spk_id,
+                                                                'tanggal_bapp',
+                                                                value,
+                                                            )
+                                                        }
+                                                        min={tanggal_min}
+                                                        max={tanggal_max}
+                                                        disabled={
+                                                            !can_input_realisasi
+                                                        }
+                                                        placeholder="Pilih tanggal BAPP"
+                                                    />
+                                                </div>
                                                 <Input
                                                     id={`sls-${spk.spk_id}`}
                                                     type="number"
@@ -1099,7 +1496,10 @@ export default function Create({
                                                                         asChild
                                                                     >
                                                                         <a
-                                                                            href={`/bapp/${spk.bapp_hashed_id}/preview`}
+                                                                            href={
+                                                                                spk.bapp_preview_url ??
+                                                                                `/bapp/${spk.bapp_hashed_id}/preview`
+                                                                            }
                                                                             target="_blank"
                                                                             rel="noreferrer"
                                                                         >
@@ -1127,7 +1527,10 @@ export default function Create({
                                                                         asChild
                                                                     >
                                                                         <a
-                                                                            href={`/bapp/${spk.bapp_hashed_id}/download`}
+                                                                            href={
+                                                                                spk.bapp_download_url ??
+                                                                                `/bapp/${spk.bapp_hashed_id}/download`
+                                                                            }
                                                                         >
                                                                             <Download className="mr-2 h-4 w-4" />
                                                                             Unduh
@@ -1200,19 +1603,6 @@ export default function Create({
                             )}
                             Simpan Realisasi
                         </Button>
-                        {can_generate && (
-                            <Button
-                                onClick={handleGenerateAll}
-                                disabled={generatingAll}
-                            >
-                                {generatingAll ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                    <FileText className="mr-2 h-4 w-4" />
-                                )}
-                                Generate Semua BAPP
-                            </Button>
-                        )}
                     </div>
                 )}
             </div>

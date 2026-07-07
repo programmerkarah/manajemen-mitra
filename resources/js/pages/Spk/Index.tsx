@@ -327,34 +327,44 @@ export default function Index({
                     title="Perjanjian Kerja"
                     description="Kelola Perjanjian Kerja untuk petugas per bulan dan periode khusus"
                 >
-                    {can_access_sensus_mode && (
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Button
-                                variant={
-                                    mode === 'regular' ? 'default' : 'outline'
-                                }
-                                onClick={() =>
-                                    router.get('/spk', { mode: 'regular' })
-                                }
-                            >
-                                Reguler
-                            </Button>
-                            <Button
-                                variant={
-                                    mode === 'sensus-ekonomi'
-                                        ? 'default'
-                                        : 'outline'
-                                }
-                                onClick={() =>
-                                    router.get('/spk', {
-                                        mode: 'sensus-ekonomi',
-                                    })
-                                }
-                            >
-                                Sensus Ekonomi
-                            </Button>
-                        </div>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                        {can_access_sensus_mode && (
+                            <>
+                                <Button
+                                    variant={
+                                        mode === 'regular'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() =>
+                                        router.get('/spk', { mode: 'regular' })
+                                    }
+                                >
+                                    Reguler
+                                </Button>
+                                <Button
+                                    variant={
+                                        mode === 'sensus-ekonomi'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    onClick={() =>
+                                        router.get('/spk', {
+                                            mode: 'sensus-ekonomi',
+                                        })
+                                    }
+                                >
+                                    Sensus Ekonomi
+                                </Button>
+                            </>
+                        )}
+                        <Button variant="outline" asChild>
+                            <Link href="/spk/petugas-pengganti">
+                                <FileText className="mr-2 h-4 w-4" />
+                                PK Petugas Pengganti
+                            </Link>
+                        </Button>
+                    </div>
                 </PageHeader>
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

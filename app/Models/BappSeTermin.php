@@ -16,8 +16,11 @@ class BappSeTermin extends Model
 
     protected $fillable = [
         'spk_id',
+        'replacement_id',
         'petugas_id',
         'termin',
+        'document_type',
+        'replacement_termin_count',
         'bulan',
         'tahun',
         'nomor_bapp',
@@ -46,6 +49,7 @@ class BappSeTermin extends Model
         return [
             'tanggal_bapp' => 'date:Y-m-d',
             'termin' => 'integer',
+            'replacement_termin_count' => 'integer',
             'bulan' => 'integer',
             'tahun' => 'integer',
             'target_sls' => 'integer',
@@ -71,6 +75,11 @@ class BappSeTermin extends Model
     public function petugas(): BelongsTo
     {
         return $this->belongsTo(Petugas::class);
+    }
+
+    public function replacement(): BelongsTo
+    {
+        return $this->belongsTo(SensusEkonomiPetugasReplacement::class, 'replacement_id');
     }
 
     public function createdBy(): BelongsTo

@@ -1,0 +1,39 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('sensus_ekonomi_replacement_details', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('replacement_id')->constrained('sensus_ekonomi_petugas_replacements')->cascadeOnDelete();
+            $table->foreignId('alokasi_petugas_frame_sampel_id')->constrained('alokasi_petugas_frame_sampel')->cascadeOnDelete();
+            $table->foreignId('kegiatan_frame_sampel_id')->nullable()->constrained('kegiatan_frame_sampel')->nullOnDelete();
+            $table->json('metadata')->nullable();
+            $table->decimal('target_awal', 12, 2)->default(0);
+            $table->decimal('realisasi_petugas_berhenti', 12, 2)->default(0);
+            $table->decimal('realisasi_pml_cover', 12, 2)->default(0);
+            $table->decimal('target_sisa', 12, 2)->default(0);
+            $table->unsignedInteger('urutan')->default(0);
+            $table->timestamps();
+
+            $table->unique(['replacement_id', 'alokasi_petugas_frame_sampel_id'], 'se_repl_detail_repl_frame_unique');
+            $table->index(['replacement_id', 'urutan'], 'se_repl_detail_repl_urutan_idx');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('sensus_ekonomi_replacement_details');
+    }
+};

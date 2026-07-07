@@ -41,6 +41,15 @@ interface SpkItem {
     fasih_screenshot_path: string | null;
     realisasi_sls: number | null;
     realisasi_unit_sampel: Record<string, number>;
+    bapp_preview_url: string | null;
+    bapp_download_url: string | null;
+    bapp_download_signed_url: string | null;
+}
+
+interface TerminOption {
+    termin: number;
+    termin_hashed: string;
+    termin_roman: string;
 }
 
 interface ShowProps {
@@ -53,6 +62,9 @@ interface ShowProps {
     can_generate: boolean;
     can_input_realisasi: boolean;
     tanggal_min: string;
+    document_type: 'regular' | 'stopped_petugas' | 'replacement_pkpp';
+    replacement_termin_count: number;
+    termin_options: TerminOption[];
     spk_list: SpkItem[];
     summary: {
         total: number;
@@ -114,9 +126,30 @@ export default function Show({
     bulan_label,
     persentase,
     can_input_realisasi,
+    document_type,
+    replacement_termin_count,
+    termin_options: terminOptions,
     spk_list,
     summary,
 }: ShowProps) {
+    const contextQuery = new URLSearchParams();
+    contextQuery.set('document_type', document_type);
+    if (document_type === 'replacement_pkpp') {
+        contextQuery.set(
+            'replacement_termin_count',
+            replacement_termin_count === 1 ? '1' : '2',
+        );
+    }
+    const queryString = contextQuery.toString();
+    const documentTypeLabel =
+        document_type === 'stopped_petugas'
+            ? 'BAPP Petugas Berhenti'
+            : document_type === 'replacement_pkpp'
+              ? `BAPP Petugas Pengganti (${replacement_termin_count === 1 ? '1 Termin' : '2 Termin'})`
+              : 'BAPP Petugas Reguler';
+
+    const showTerminTabs = document_type !== 'stopped_petugas';
+
     const [uploadingId, setUploadingId] = useState<number | null>(null);
     const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
@@ -158,6 +191,47 @@ export default function Show({
                         </Link>
                     </Button>
                 </PageHeader>
+
+                <ContentCard>
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <p className="text-sm text-neutral-500">
+                                Konteks dokumen aktif
+                            </p>
+                            <p className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                                {documentTypeLabel}
+                            </p>
+                            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                                Pemilihan jenis dokumen dilakukan dari kartu
+                                workflow di halaman BAPP utama.
+                            </p>
+                        </div>
+                        <Badge variant="secondary">Termin {termin_roman}</Badge>
+                    </div>
+                </ContentCard>
+
+                {showTerminTabs && (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                        {terminOptions.map((term: TerminOption) => (
+                            <Button
+                                key={term.termin}
+                                variant={
+                                    term.termin === termin
+                                        ? 'secondary'
+                                        : 'outline'
+                                }
+                                asChild
+                                className="justify-center"
+                            >
+                                <Link
+                                    href={`/bapp/termin/${term.termin_hashed}?${queryString}`}
+                                >
+                                    Termin {term.termin_roman}
+                                </Link>
+                            </Button>
+                        ))}
+                    </div>
+                )}
 
                 {/* Summary Stats */}
                 <div className="grid grid-cols-3 gap-4">
@@ -210,7 +284,9 @@ export default function Show({
                             Daftar Petugas — Termin {termin_roman}
                         </h3>
                         <Button variant="outline" size="sm" asChild>
-                            <Link href={`/bapp/create?termin=${termin_hashed}`}>
+                            <Link
+                                href={`/bapp/create?termin=${termin_hashed}&${queryString}`}
+                            >
                                 <FileText className="mr-2 h-4 w-4" />
                                 Input Realisasi
                             </Link>
@@ -285,7 +361,10 @@ export default function Show({
                                                     asChild
                                                 >
                                                     <a
-                                                        href={`/bapp/${item.bapp_hashed_id}/preview`}
+                                                        href={
+                                                            item.bapp_preview_url ??
+                                                            `/bapp/${item.bapp_hashed_id}/preview`
+                                                        }
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                     >
@@ -314,7 +393,10 @@ export default function Show({
                                                     asChild
                                                 >
                                                     <a
-                                                        href={`/bapp/${item.bapp_hashed_id}/download`}
+                                                        href={
+                                                            item.bapp_download_url ??
+                                                            `/bapp/${item.bapp_hashed_id}/download`
+                                                        }
                                                     >
                                                         <Download className="mr-1 h-4 w-4" />
                                                         Unduh
@@ -340,7 +422,10 @@ export default function Show({
                                                     asChild
                                                 >
                                                     <a
-                                                        href={`/bapp/${item.bapp_hashed_id}/download-signed`}
+                                                        href={
+                                                            item.bapp_download_signed_url ??
+                                                            `/bapp/${item.bapp_hashed_id}/download-signed`
+                                                        }
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                     >

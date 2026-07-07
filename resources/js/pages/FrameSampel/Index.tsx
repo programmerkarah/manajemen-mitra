@@ -125,9 +125,6 @@ export default function FrameSampelIndex({ kegiatans }: Props) {
                                                 <div className="font-medium text-neutral-900 dark:text-white">
                                                     {kegiatan.nama_kegiatan}
                                                 </div>
-                                                <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                    {kegiatan.kode_kegiatan}
-                                                </div>
                                             </td>
                                             <td className="py-3 pr-4 text-neutral-600 dark:text-neutral-300">
                                                 {kegiatan.tahun_anggaran}

@@ -27,6 +27,7 @@ use App\Http\Controllers\RoleSwitchController;
 use App\Http\Controllers\SampleMasterController;
 use App\Http\Controllers\SbmlController;
 use App\Http\Controllers\SbmlReportController;
+use App\Http\Controllers\SensusEkonomiReplacementController;
 use App\Http\Controllers\SkKpaController;
 use App\Http\Controllers\SpkController;
 use App\Http\Controllers\TwoFactorPromptController;
@@ -639,6 +640,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('spk/month', [SpkController::class, 'showByMonth'])->name('spk.show-by-month');
         Route::post('spk/month/kegiatan/{kegiatan}/download', [SpkController::class, 'downloadByKegiatanMonth'])->name('spk.download-by-kegiatan-month');
         Route::post('spk/{spk}/upload-signed', [SpkController::class, 'uploadSigned'])->name('spk.upload-signed');
+        Route::get('spk/petugas-pengganti', [SensusEkonomiReplacementController::class, 'index'])->name('se-replacements.index');
         Route::get('spk/{spk}', [SpkController::class, 'show'])->name('spk.show');
 
         // Berita Acara Routes - View (all authenticated)
@@ -694,6 +696,14 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('bapp/import', [BappController::class, 'importRealisasi'])->name('bapp.import');
         Route::post('bapp/generate', [BappController::class, 'generate'])->name('bapp.generate');
         Route::post('bapp/generate-batch', [BappController::class, 'generateBatch'])->name('bapp.generate-batch');
+
+        Route::get('spk/petugas-pengganti/{replacement}/pkpp-contracts/create', [SensusEkonomiReplacementController::class, 'createPkppContract'])
+            ->name('se-replacements.pkpp-contracts.create');
+
+        Route::post('sensus-ekonomi/replacements', [SensusEkonomiReplacementController::class, 'storeReplacement'])
+            ->name('se-replacements.store');
+        Route::post('sensus-ekonomi/replacements/{replacement}/pkpp-contracts', [SensusEkonomiReplacementController::class, 'storePkppContract'])
+            ->name('se-replacements.pkpp-contracts.store');
     });
 
     Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
