@@ -3886,9 +3886,7 @@ export default function Create({
                                                         | 'pencacahan_only',
                                                 )
                                             }
-                                            disabled={
-                                                isRevisiMode || isViewMode
-                                            }
+                                            disabled={isViewMode}
                                         >
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Pilih Tahapan" />
