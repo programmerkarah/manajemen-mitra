@@ -565,6 +565,9 @@ export default function Create({
     const [frameImportMessage, setFrameImportMessage] = useState('');
     const [frameImportError, setFrameImportError] = useState('');
     const [isFrameDetailOpen, setIsFrameDetailOpen] = useState(false);
+    const [frameDetailStep, setFrameDetailStep] = useState<
+        'metadata' | 'details'
+    >('metadata');
     const [wizardStep, setWizardStep] = useState(0);
     const [frameDetailPage, setFrameDetailPage] = useState(1);
     const [frameDetailPerPage, setFrameDetailPerPage] = useState(10);
@@ -711,12 +714,19 @@ export default function Create({
     useEffect(() => {
         if (isFrameDetailOpen) {
             setFrameDetailPage(1);
+            if (!isMetadataSaved) {
+                setFrameDetailStep('metadata');
+            } else {
+                setFrameDetailStep('details');
+            }
         }
     }, [
         isFrameDetailOpen,
         activeFrameSelectionId,
         data.frame_tahapan,
         activeUnitSampelIdsKey,
+        isMetadataSaved,
+        activeFrameRows.length,
     ]);
     useEffect(() => {
         if (isSensus && data.has_listing_updating) {
@@ -1004,6 +1014,7 @@ export default function Create({
         setIsMetadataSaved(true);
         setIsEditingMetadata(false);
         setMetadataActionError('');
+        setFrameDetailStep('details');
     };
 
     const enableMetadataEditing = () => {
@@ -2071,9 +2082,9 @@ export default function Create({
                                         open={isFrameDetailOpen}
                                         onOpenChange={setIsFrameDetailOpen}
                                     >
-                                        <DialogContent className="max-h-[90vh] overflow-hidden sm:max-w-6xl">
-                                            <div className="flex h-full max-h-[90vh] flex-col overflow-hidden">
-                                                <div className="shrink-0 space-y-4 border-b border-neutral-200 bg-white px-6 pt-6 pb-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-950">
+                                        <DialogContent className="h-[96vh] w-[calc(100vw-0.75rem)] max-w-[calc(100vw-0.75rem)] overflow-hidden p-0 sm:h-[92vh] sm:w-[min(96vw,1200px)] sm:max-w-[min(96vw,1200px)]">
+                                            <div className="flex h-full flex-col overflow-y-auto">
+                                                <div className="shrink-0 space-y-4 border-b border-neutral-200 bg-white px-4 pt-5 pb-4 shadow-sm sm:px-6 sm:pt-6 dark:border-neutral-700 dark:bg-neutral-950">
                                                     <DialogHeader>
                                                         <DialogTitle>
                                                             Daftar Frame Sampel
@@ -2085,7 +2096,68 @@ export default function Create({
                                                         </DialogDescription>
                                                     </DialogHeader>
 
-                                                    <div className="space-y-2 rounded-xl border border-neutral-200 bg-neutral-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/40">
+                                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setFrameDetailStep(
+                                                                    'metadata',
+                                                                )
+                                                            }
+                                                            className={`rounded-xl border px-3 py-2 text-left text-xs transition ${
+                                                                frameDetailStep ===
+                                                                'metadata'
+                                                                    ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900'
+                                                                    : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200'
+                                                            }`}
+                                                        >
+                                                            <p className="font-semibold">
+                                                                1. Metadata
+                                                            </p>
+                                                            <p className="mt-0.5 opacity-80">
+                                                                Definisikan
+                                                                struktur kolom
+                                                            </p>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (
+                                                                    isMetadataSaved
+                                                                ) {
+                                                                    setFrameDetailStep(
+                                                                        'details',
+                                                                    );
+                                                                }
+                                                            }}
+                                                            disabled={
+                                                                !isMetadataSaved
+                                                            }
+                                                            className={`rounded-xl border px-3 py-2 text-left text-xs transition ${
+                                                                frameDetailStep ===
+                                                                'details'
+                                                                    ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900'
+                                                                    : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200'
+                                                            } ${!isMetadataSaved ? 'cursor-not-allowed opacity-60' : ''}`}
+                                                        >
+                                                            <p className="font-semibold">
+                                                                2. Detail Frame
+                                                            </p>
+                                                            <p className="mt-0.5 opacity-80">
+                                                                Aksi cepat dan
+                                                                isi baris frame
+                                                            </p>
+                                                        </button>
+                                                    </div>
+
+                                                    <div
+                                                        className={`space-y-2 rounded-xl border border-neutral-200 bg-neutral-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/40 ${
+                                                            frameDetailStep !==
+                                                            'metadata'
+                                                                ? 'hidden'
+                                                                : ''
+                                                        }`}
+                                                    >
                                                         <div className="flex flex-wrap items-center justify-between gap-3">
                                                             <div>
                                                                 <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -2128,141 +2200,143 @@ export default function Create({
                                                             )}
                                                         </div>
 
-                                                        <div className="space-y-2">
-                                                            {data.frame_metadata_columns.map(
-                                                                (
-                                                                    column,
-                                                                    columnIndex,
-                                                                ) => (
-                                                                    <div
-                                                                        key={`column-${columnIndex}`}
-                                                                        className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1.5fr_1fr_2fr_auto]"
-                                                                    >
-                                                                        <input
-                                                                            type="text"
-                                                                            value={
-                                                                                column.code
-                                                                            }
-                                                                            disabled={
-                                                                                canManageDetailFrame
-                                                                            }
-                                                                            onChange={(
-                                                                                e,
-                                                                            ) =>
-                                                                                updateMetadataColumn(
-                                                                                    columnIndex,
-                                                                                    'code',
-                                                                                    e
-                                                                                        .target
-                                                                                        .value,
-                                                                                )
-                                                                            }
-                                                                            className="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                                                                            placeholder="Kode metadata (contoh: kdkec)"
-                                                                        />
-                                                                        <input
-                                                                            type="text"
-                                                                            value={
-                                                                                column.label
-                                                                            }
-                                                                            disabled={
-                                                                                canManageDetailFrame
-                                                                            }
-                                                                            onChange={(
-                                                                                e,
-                                                                            ) =>
-                                                                                updateMetadataColumn(
-                                                                                    columnIndex,
-                                                                                    'label',
-                                                                                    e
-                                                                                        .target
-                                                                                        .value,
-                                                                                )
-                                                                            }
-                                                                            className="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                                                                            placeholder="Label UI (contoh: Kecamatan)"
-                                                                        />
-                                                                        <Select
-                                                                            value={
-                                                                                column.mode
-                                                                            }
-                                                                            onValueChange={(
-                                                                                value,
-                                                                            ) =>
-                                                                                updateMetadataColumn(
-                                                                                    columnIndex,
-                                                                                    'mode',
+                                                        <div className="overflow-x-auto">
+                                                            <div className="min-w-[860px] space-y-2">
+                                                                {data.frame_metadata_columns.map(
+                                                                    (
+                                                                        column,
+                                                                        columnIndex,
+                                                                    ) => (
+                                                                        <div
+                                                                            key={`column-${columnIndex}`}
+                                                                            className="grid grid-cols-[1fr_1.5fr_1fr_2fr_auto] gap-2"
+                                                                        >
+                                                                            <input
+                                                                                type="text"
+                                                                                value={
+                                                                                    column.code
+                                                                                }
+                                                                                disabled={
+                                                                                    canManageDetailFrame
+                                                                                }
+                                                                                onChange={(
+                                                                                    e,
+                                                                                ) =>
+                                                                                    updateMetadataColumn(
+                                                                                        columnIndex,
+                                                                                        'code',
+                                                                                        e
+                                                                                            .target
+                                                                                            .value,
+                                                                                    )
+                                                                                }
+                                                                                className="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                                placeholder="Kode metadata (contoh: kdkec)"
+                                                                            />
+                                                                            <input
+                                                                                type="text"
+                                                                                value={
+                                                                                    column.label
+                                                                                }
+                                                                                disabled={
+                                                                                    canManageDetailFrame
+                                                                                }
+                                                                                onChange={(
+                                                                                    e,
+                                                                                ) =>
+                                                                                    updateMetadataColumn(
+                                                                                        columnIndex,
+                                                                                        'label',
+                                                                                        e
+                                                                                            .target
+                                                                                            .value,
+                                                                                    )
+                                                                                }
+                                                                                className="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                                placeholder="Label UI (contoh: Kecamatan)"
+                                                                            />
+                                                                            <Select
+                                                                                value={
+                                                                                    column.mode
+                                                                                }
+                                                                                onValueChange={(
                                                                                     value,
-                                                                                )
-                                                                            }
-                                                                            disabled={
-                                                                                canManageDetailFrame
-                                                                            }
-                                                                        >
-                                                                            <SelectTrigger className="h-10 w-full rounded-lg bg-white dark:bg-neutral-800">
-                                                                                <SelectValue placeholder="Mode metadata" />
-                                                                            </SelectTrigger>
-                                                                            <SelectContent>
-                                                                                {metadataModeOptions.map(
-                                                                                    (
-                                                                                        option,
-                                                                                    ) => (
-                                                                                        <SelectItem
-                                                                                            key={
-                                                                                                option.value
-                                                                                            }
-                                                                                            value={
-                                                                                                option.value
-                                                                                            }
-                                                                                        >
-                                                                                            {
-                                                                                                option.label
-                                                                                            }
-                                                                                        </SelectItem>
-                                                                                    ),
-                                                                                )}
-                                                                            </SelectContent>
-                                                                        </Select>
-                                                                        <input
-                                                                            type="text"
-                                                                            value={
-                                                                                column.description
-                                                                            }
-                                                                            disabled={
-                                                                                canManageDetailFrame
-                                                                            }
-                                                                            onChange={(
-                                                                                e,
-                                                                            ) =>
-                                                                                updateMetadataColumn(
-                                                                                    columnIndex,
-                                                                                    'description',
-                                                                                    e
-                                                                                        .target
-                                                                                        .value,
-                                                                                )
-                                                                            }
-                                                                            className="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
-                                                                            placeholder="Deskripsi (contoh: Kode Kecamatan)"
-                                                                        />
-                                                                        <Button
-                                                                            type="button"
-                                                                            size="sm"
-                                                                            variant="destructive"
-                                                                            disabled={
-                                                                                canManageDetailFrame
-                                                                            }
-                                                                            onClick={() =>
-                                                                                removeMetadataColumn(
-                                                                                    columnIndex,
-                                                                                )
-                                                                            }
-                                                                        >
-                                                                            Hapus
-                                                                        </Button>
-                                                                    </div>
-                                                                ),
-                                                            )}
+                                                                                ) =>
+                                                                                    updateMetadataColumn(
+                                                                                        columnIndex,
+                                                                                        'mode',
+                                                                                        value,
+                                                                                    )
+                                                                                }
+                                                                                disabled={
+                                                                                    canManageDetailFrame
+                                                                                }
+                                                                            >
+                                                                                <SelectTrigger className="h-10 w-full rounded-lg bg-white dark:bg-neutral-800">
+                                                                                    <SelectValue placeholder="Mode metadata" />
+                                                                                </SelectTrigger>
+                                                                                <SelectContent>
+                                                                                    {metadataModeOptions.map(
+                                                                                        (
+                                                                                            option,
+                                                                                        ) => (
+                                                                                            <SelectItem
+                                                                                                key={
+                                                                                                    option.value
+                                                                                                }
+                                                                                                value={
+                                                                                                    option.value
+                                                                                                }
+                                                                                            >
+                                                                                                {
+                                                                                                    option.label
+                                                                                                }
+                                                                                            </SelectItem>
+                                                                                        ),
+                                                                                    )}
+                                                                                </SelectContent>
+                                                                            </Select>
+                                                                            <input
+                                                                                type="text"
+                                                                                value={
+                                                                                    column.description
+                                                                                }
+                                                                                disabled={
+                                                                                    canManageDetailFrame
+                                                                                }
+                                                                                onChange={(
+                                                                                    e,
+                                                                                ) =>
+                                                                                    updateMetadataColumn(
+                                                                                        columnIndex,
+                                                                                        'description',
+                                                                                        e
+                                                                                            .target
+                                                                                            .value,
+                                                                                    )
+                                                                                }
+                                                                                className="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+                                                                                placeholder="Deskripsi (contoh: Kode Kecamatan)"
+                                                                            />
+                                                                            <Button
+                                                                                type="button"
+                                                                                size="sm"
+                                                                                variant="destructive"
+                                                                                disabled={
+                                                                                    canManageDetailFrame
+                                                                                }
+                                                                                onClick={() =>
+                                                                                    removeMetadataColumn(
+                                                                                        columnIndex,
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                Hapus
+                                                                            </Button>
+                                                                        </div>
+                                                                    ),
+                                                                )}
+                                                            </div>
                                                         </div>
 
                                                         {metadataActionError && (
@@ -2289,7 +2363,14 @@ export default function Create({
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-900">
+                                                    <div
+                                                        className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-900 ${
+                                                            frameDetailStep !==
+                                                            'details'
+                                                                ? 'hidden'
+                                                                : ''
+                                                        }`}
+                                                    >
                                                         <div className="space-y-1">
                                                             <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                                                                 Total{' '}
@@ -2431,7 +2512,14 @@ export default function Create({
                                                         </div>
                                                     </div>
 
-                                                    <div className="space-y-3 rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-950/40">
+                                                    <div
+                                                        className={`space-y-3 rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-950/40 ${
+                                                            frameDetailStep !==
+                                                            'details'
+                                                                ? 'hidden'
+                                                                : ''
+                                                        }`}
+                                                    >
                                                         <div className="flex flex-wrap items-center justify-between gap-3">
                                                             <div>
                                                                 <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -2530,7 +2618,14 @@ export default function Create({
                                                     </div>
                                                 </div>
 
-                                                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pt-4 pb-6">
+                                                <div
+                                                    className={`space-y-4 px-4 pt-4 pb-6 sm:px-6 ${
+                                                        frameDetailStep !==
+                                                        'details'
+                                                            ? 'hidden'
+                                                            : ''
+                                                    }`}
+                                                >
                                                     {paginatedFrameRows.length ===
                                                     0 ? (
                                                         <p className="text-sm text-gray-500 dark:text-gray-400">

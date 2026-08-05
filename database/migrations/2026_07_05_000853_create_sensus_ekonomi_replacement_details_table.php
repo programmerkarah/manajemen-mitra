@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sensus_ekonomi_replacement_details')) {
+            return;
+        }
+
         Schema::create('sensus_ekonomi_replacement_details', function (Blueprint $table) {
             $table->id();
             $table->foreignId('replacement_id')->constrained('sensus_ekonomi_petugas_replacements')->cascadeOnDelete();

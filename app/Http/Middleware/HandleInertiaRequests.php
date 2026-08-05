@@ -105,6 +105,7 @@ class HandleInertiaRequests extends Middleware
                 'error' => $request->session()->pull('error'),
                 'warning' => $request->session()->pull('warning'),
                 'info' => $request->session()->pull('info'),
+                'deadline_blocked' => $request->session()->pull('deadline_blocked'),
             ],
             'ssoSync' => [
                 'enabled' => $ssoSyncEnabled,

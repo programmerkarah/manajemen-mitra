@@ -1616,43 +1616,35 @@ class AlokasiPetugasController extends Controller
                                 ->first();
 
                             if ($sourcePeriodeData && $sourcePeriodeData->alokasiPetugas->isNotEmpty()) {
-                                // Calculate kegiatan duration
-                                $tanggalMulai = Carbon::parse($kegiatan->tanggal_mulai);
-                                $tanggalSelesai = Carbon::parse($kegiatan->tanggal_selesai);
-                                $durationMonths = $tanggalMulai->diffInMonths($tanggalSelesai) + 1;
-
-                                // Only allow copy if kegiatan spans multiple months
-                                if ($durationMonths > 1) {
-                                    $copiedAlokasi = $sourcePeriodeData->alokasiPetugas->map(function ($alokasi) {
-                                        return [
-                                            'petugas_id' => $alokasi->petugas_id,
-                                            'petugas_nama' => $alokasi->petugas->nama,
-                                            'status_kepegawaian' => $alokasi->status_kepegawaian,
-                                            'peran' => $alokasi->peran,
-                                            'jumlah_satuan' => $this->normalizeSatuanForResponse($alokasi->jumlah_satuan),
-                                            'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing,
-                                            'total_honor' => (float) ($alokasi->total_honor ?? 0),
-                                            'total_honor_listing' => (float) ($alokasi->total_honor_listing ?? 0),
-                                            'is_partial_payment' => (bool) $alokasi->is_partial_payment,
-                                            'partial_jumlah_satuan' => $this->normalizeSatuanForResponse($alokasi->partial_jumlah_satuan),
-                                            'estimasi_honor_partial' => $alokasi->estimasi_honor_partial,
-                                            'is_partial_payment_listing' => (bool) $alokasi->is_partial_payment_listing,
-                                            'partial_jumlah_satuan_listing' => $alokasi->partial_jumlah_satuan_listing,
-                                            'estimasi_honor_partial_listing' => $alokasi->estimasi_honor_partial_listing,
-                                            'jumlah_unit_sampel' => (int) ($alokasi->jumlah_unit_sampel ?? 0),
-                                            'frame_sampel_ids' => $alokasi->frameSampelAllocations->pluck('kegiatan_frame_sampel_id')->map(fn ($value) => (int) $value)->values()->all(),
-                                            'catatan' => $alokasi->catatan,
-                                        ];
-                                    });
-
-                                    $sourcePeriode = [
-                                        'id' => $sourcePeriodeData->id,
-                                        'hashed_id' => $sourcePeriodeData->hashed_id,
-                                        'bulan' => str_pad($request->copy_from_bulan, 2, '0', STR_PAD_LEFT),
-                                        'tahun' => $request->copy_from_tahun,
-                                        'tahapan' => $sourcePeriodeData->tahapan ?? 'both',
+                                $copiedAlokasi = $sourcePeriodeData->alokasiPetugas->map(function ($alokasi) {
+                                    return [
+                                        'petugas_id' => $alokasi->petugas_id,
+                                        'petugas_nama' => $alokasi->petugas->nama,
+                                        'status_kepegawaian' => $alokasi->status_kepegawaian,
+                                        'peran' => $alokasi->peran,
+                                        'jumlah_satuan' => $this->normalizeSatuanForResponse($alokasi->jumlah_satuan),
+                                        'jumlah_satuan_listing' => $alokasi->jumlah_satuan_listing,
+                                        'total_honor' => (float) ($alokasi->total_honor ?? 0),
+                                        'total_honor_listing' => (float) ($alokasi->total_honor_listing ?? 0),
+                                        'is_partial_payment' => (bool) $alokasi->is_partial_payment,
+                                        'partial_jumlah_satuan' => $this->normalizeSatuanForResponse($alokasi->partial_jumlah_satuan),
+                                        'estimasi_honor_partial' => $alokasi->estimasi_honor_partial,
+                                        'is_partial_payment_listing' => (bool) $alokasi->is_partial_payment_listing,
+                                        'partial_jumlah_satuan_listing' => $alokasi->partial_jumlah_satuan_listing,
+                                        'estimasi_honor_partial_listing' => $alokasi->estimasi_honor_partial_listing,
+                                        'jumlah_unit_sampel' => (int) ($alokasi->jumlah_unit_sampel ?? 0),
+                                        'frame_sampel_ids' => $alokasi->frameSampelAllocations->pluck('kegiatan_frame_sampel_id')->map(fn ($value) => (int) $value)->values()->all(),
+                                        'catatan' => $alokasi->catatan,
                                     ];
-                                }
+                                });
+
+                                $sourcePeriode = [
+                                    'id' => $sourcePeriodeData->id,
+                                    'hashed_id' => $sourcePeriodeData->hashed_id,
+                                    'bulan' => str_pad($request->copy_from_bulan, 2, '0', STR_PAD_LEFT),
+                                    'tahun' => $request->copy_from_tahun,
+                                    'tahapan' => $sourcePeriodeData->tahapan ?? 'both',
+                                ];
                             }
                         }
                     }

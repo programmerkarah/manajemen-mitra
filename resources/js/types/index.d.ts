@@ -58,6 +58,20 @@ export interface SharedData {
         error?: string;
         warning?: string;
         info?: string;
+        deadline_blocked?: {
+            message?: string;
+            rule_key?: string;
+            request_context?: {
+                rule_key?: string;
+                kegiatan_id?: number | null;
+                periode_alokasi_id?: number | null;
+                year?: number | null;
+                month?: number | null;
+                route_name?: string | null;
+                http_method?: string | null;
+                target_url?: string | null;
+            };
+        };
     };
     ssoSync?: {
         enabled: boolean;

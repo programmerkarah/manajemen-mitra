@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\BypassTwoFactorIfTrustedDevice;
 use App\Http\Middleware\CheckActiveRole;
+use App\Http\Middleware\EnforceFeatureDeadlines;
 use App\Http\Middleware\EnsureSingleActiveSession;
 use App\Http\Middleware\EnsureSsoOrganizationAllowed;
 use App\Http\Middleware\EnsureTwoFactorEnabled;
@@ -67,6 +68,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             LogRequests::class,
             PreventMaintenanceModeRequests::class,
+            EnforceFeatureDeadlines::class,
             PreventDisabledFeatureRequests::class,
             EnsureSingleActiveSession::class,
             PreserveSessionLastActivityForSsoSync::class,

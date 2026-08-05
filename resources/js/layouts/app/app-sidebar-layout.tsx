@@ -2,6 +2,7 @@ import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
+import { DeadlineBypassRequestModal } from '@/components/deadline-bypass-request-modal';
 import { FlashMessage } from '@/components/flash-message';
 import { useSessionInvalidation } from '@/hooks/use-session-invalidation';
 import { useSessionKeepAlive } from '@/hooks/use-session-keepalive';
@@ -57,6 +58,7 @@ export default function AppSidebarLayout({
                         </div>
                     </AppContent>
                     <FlashMessage />
+                    <DeadlineBypassRequestModal />
                 </div>
             </div>
         </AppShell>

@@ -15,6 +15,7 @@ use App\Models\Satuan;
 use App\Models\User;
 use App\Services\ActiveYearService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class AlokasiCreatePreselectedKegiatanTest extends TestCase
@@ -425,6 +426,85 @@ class AlokasiCreatePreselectedKegiatanTest extends TestCase
             ->where("petugas_review_recommendations.by_petugas.{$petugasNotRecommended->id}.status", 'not_recommended')
             ->where("petugas_review_recommendations.by_petugas.{$petugasRecommended->id}.review_count", 2)
             ->where("petugas_review_recommendations.by_petugas.{$petugasNotRecommended->id}.review_count", 2)
+        );
+    }
+
+    public function test_create_alokasi_copy_from_selected_periode_keeps_frame_sampel_for_single_month_kegiatan(): void
+    {
+        [$admin, $adminRole] = $this->makeUserWithRole('admin');
+        $activeYear = ActiveYearService::get();
+
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'tahun_anggaran' => $activeYear,
+            'jenis_kegiatan' => 'survei',
+            'has_listing_updating' => false,
+            'tanggal_mulai' => $activeYear.'-05-01',
+            'tanggal_selesai' => $activeYear.'-05-31',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'status' => 'aktif',
+            'jenis_petugas' => 'non-organik',
+        ]);
+
+        $masterFrameSampel = MasterFrameSampel::query()->create([
+            'nama' => 'Frame Sampel Copy',
+            'kode' => 'FSC-'.$activeYear,
+            'is_active' => true,
+        ]);
+
+        $frameSampel = $kegiatan->kegiatanFrameSampel()->create([
+            'frame_sampel_id' => $masterFrameSampel->id,
+            'tahapan' => 'pencacahan',
+            'nama_target' => 'Target Copy',
+            'sample_role' => 'utama',
+            'is_active' => true,
+            'nama_frame' => 'Frame Copy',
+            'target_unit_sampel' => ['unit' => 3],
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '05',
+            'tahun' => $activeYear,
+            'jenis_kegiatan' => 'survei',
+            'status' => 'dikirim',
+            'tahapan' => 'pencacahan_only',
+        ]);
+
+        $alokasi = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 3,
+            'jumlah_satuan_listing' => 0,
+            'jumlah_unit_sampel' => 3,
+            'total_honor' => 450000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $alokasi->frameSampelAllocations()->create([
+            'kegiatan_frame_sampel_id' => $frameSampel->id,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->withSession(['active_role_id' => $adminRole->id])
+            ->get('/alokasi/create?kegiatan_id='.$kegiatan->hashed_id.'&copy_from_bulan=05&copy_from_tahun='.$activeYear);
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Alokasi/Create')
+            ->where('sourcePeriode.id', $periode->id)
+            ->where('sourcePeriode.hashed_id', $periode->hashed_id)
+            ->where('sourcePeriode.bulan', '05')
+            ->where('sourcePeriode.tahapan', 'pencacahan_only')
+            ->has('copiedAlokasi', 1)
+            ->where('copiedAlokasi.0.petugas_id', $petugas->id)
+            ->where('copiedAlokasi.0.peran', 'pcl_ppl')
+            ->where('copiedAlokasi.0.jumlah_unit_sampel', 3)
+            ->where('copiedAlokasi.0.frame_sampel_ids.0', $frameSampel->id)
         );
     }
 }

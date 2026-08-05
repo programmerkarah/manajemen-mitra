@@ -11,6 +11,7 @@ use App\Http\Controllers\BappController;
 use App\Http\Controllers\BastController;
 use App\Http\Controllers\DasarHukumController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DeadlineBypassRequestController;
 use App\Http\Controllers\DipaController;
 use App\Http\Controllers\KegiatanController;
 use App\Http\Controllers\KegiatanFrameSampelController;
@@ -237,6 +238,11 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
     Route::post('view-as-user/clear', [ViewAsUserController::class, 'clear'])->name('view-as-user.clear');
     Route::get('view-as-user/search', [ViewAsUserController::class, 'search'])->name('view-as-user.search');
 
+    // User request bypass deadline (approval required)
+    Route::post('deadline-bypass/request', [DeadlineBypassRequestController::class, 'store'])
+        ->name('deadline-bypass.request')
+        ->middleware('active.role:admin,operator,ketua_tim,pj,approver,administrator');
+
     // Admin System Settings
     Route::middleware(['active.role:admin'])->prefix('admin')->group(function () {
         Route::get('dashboard', function () {
@@ -296,6 +302,14 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('system-settings/maintenance', [SystemSettingsController::class, 'updateMaintenance'])->name('admin.system-settings.maintenance');
         Route::post('system-settings/sso-sync', [SystemSettingsController::class, 'updateSsoSync'])->name('admin.system-settings.sso-sync');
         Route::post('system-settings/feature-toggle', [SystemSettingsController::class, 'updateFeatureToggle'])->name('admin.system-settings.feature-toggle');
+        Route::post('system-settings/deadline-rule', [SystemSettingsController::class, 'updateDeadlineRule'])->name('admin.system-settings.deadline-rule');
+        Route::post('system-settings/deadline-bypass', [SystemSettingsController::class, 'grantDeadlineBypass'])->name('admin.system-settings.deadline-bypass');
+        Route::post('system-settings/deadline-bypass-request/{requestId}/approve', [SystemSettingsController::class, 'approveDeadlineBypassRequest'])
+            ->name('admin.system-settings.deadline-bypass-request.approve')
+            ->where('requestId', '[0-9]+');
+        Route::post('system-settings/deadline-bypass-request/{requestId}/reject', [SystemSettingsController::class, 'rejectDeadlineBypassRequest'])
+            ->name('admin.system-settings.deadline-bypass-request.reject')
+            ->where('requestId', '[0-9]+');
         Route::match(['get', 'post'], 'activity-log', [SystemSettingsController::class, 'activityLog'])->name('admin.activity-log');
         Route::get('activity-log/export', [SystemSettingsController::class, 'exportActivityLog'])->name('admin.activity-log.export');
         Route::get('database-status', [SystemSettingsController::class, 'databaseStatus'])->name('admin.database-status');

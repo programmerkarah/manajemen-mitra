@@ -1065,25 +1065,112 @@ class BastController extends Controller
             return;
         }
 
-        collect($kegiatanList)
+        $normalizedItems = collect($kegiatanList)
             ->filter(fn (array $item) => filled($item['kegiatan_id'] ?? null) && filled($item['periode_alokasi_id'] ?? null))
             ->unique(fn (array $item) => $this->makeBastKegiatanKey((int) $item['kegiatan_id'], (int) $item['periode_alokasi_id']))
-            ->each(function (array $item) use ($bast) {
-                BastKegiatan::updateOrCreate(
-                    [
-                        'bast_id' => $bast->id,
-                        'kegiatan_id' => (int) $item['kegiatan_id'],
-                        'periode_alokasi_id' => (int) $item['periode_alokasi_id'],
-                    ],
-                    [
-                        'kode_kegiatan' => (string) ($item['kode_kegiatan'] ?? '-'),
-                        'nama_kegiatan' => (string) ($item['nama_kegiatan'] ?? '-'),
-                        'bulan' => str_pad((string) $bast->tanggal_bast->month, 2, '0', STR_PAD_LEFT),
-                        'tahun' => $bast->tanggal_bast->year,
-                        'jenis_kegiatan' => (string) ($item['jenis_kegiatan'] ?? 'survei'),
-                    ]
-                );
+            ->values();
+
+        if ($normalizedItems->isEmpty()) {
+            return;
+        }
+
+        $existingByKegiatan = $bast->bastKegiatan()
+            ->get()
+            ->groupBy(fn (BastKegiatan $record) => (int) $record->kegiatan_id);
+
+        $activeKegiatanIds = [];
+        $hasAttachmentMutation = false;
+
+        $normalizedItems->each(function (array $item) use ($bast, $existingByKegiatan, &$activeKegiatanIds, &$hasAttachmentMutation) {
+            $kegiatanId = (int) $item['kegiatan_id'];
+            $periodeAlokasiId = (int) $item['periode_alokasi_id'];
+            $activeKegiatanIds[] = $kegiatanId;
+
+            /** @var Collection<int, BastKegiatan> $recordsForKegiatan */
+            $recordsForKegiatan = $existingByKegiatan->get($kegiatanId, collect());
+
+            $exactMatch = $recordsForKegiatan->first(fn (BastKegiatan $record) => (int) $record->periode_alokasi_id === $periodeAlokasiId);
+
+            if ($exactMatch) {
+                $exactMatch->update([
+                    'kode_kegiatan' => (string) ($item['kode_kegiatan'] ?? '-'),
+                    'nama_kegiatan' => (string) ($item['nama_kegiatan'] ?? '-'),
+                    'bulan' => str_pad((string) $bast->tanggal_bast->month, 2, '0', STR_PAD_LEFT),
+                    'tahun' => $bast->tanggal_bast->year,
+                    'jenis_kegiatan' => (string) ($item['jenis_kegiatan'] ?? 'survei'),
+                ]);
+
+                return;
+            }
+
+            if ($recordsForKegiatan->isNotEmpty()) {
+                /** @var BastKegiatan $recordToReuse */
+                $recordToReuse = $recordsForKegiatan->sortBy('id')->first();
+
+                $this->deleteStoredDocument($recordToReuse->file_path);
+                $this->deleteStoredDocument($recordToReuse->signed_file_path);
+
+                $recordToReuse->update([
+                    'periode_alokasi_id' => $periodeAlokasiId,
+                    'kode_kegiatan' => (string) ($item['kode_kegiatan'] ?? '-'),
+                    'nama_kegiatan' => (string) ($item['nama_kegiatan'] ?? '-'),
+                    'bulan' => str_pad((string) $bast->tanggal_bast->month, 2, '0', STR_PAD_LEFT),
+                    'tahun' => $bast->tanggal_bast->year,
+                    'jenis_kegiatan' => (string) ($item['jenis_kegiatan'] ?? 'survei'),
+                    'file_path' => null,
+                    'signed_file_path' => null,
+                    'generated_at' => null,
+                    'signed_uploaded_at' => null,
+                ]);
+
+                $recordsForKegiatan
+                    ->filter(fn (BastKegiatan $record) => $record->id !== $recordToReuse->id)
+                    ->each(function (BastKegiatan $record): void {
+                        $this->deleteStoredDocument($record->file_path);
+                        $this->deleteStoredDocument($record->signed_file_path);
+                        $record->delete();
+                    });
+
+                $hasAttachmentMutation = true;
+
+                return;
+            }
+
+            BastKegiatan::create([
+                'bast_id' => $bast->id,
+                'kegiatan_id' => $kegiatanId,
+                'periode_alokasi_id' => $periodeAlokasiId,
+                'kode_kegiatan' => (string) ($item['kode_kegiatan'] ?? '-'),
+                'nama_kegiatan' => (string) ($item['nama_kegiatan'] ?? '-'),
+                'bulan' => str_pad((string) $bast->tanggal_bast->month, 2, '0', STR_PAD_LEFT),
+                'tahun' => $bast->tanggal_bast->year,
+                'jenis_kegiatan' => (string) ($item['jenis_kegiatan'] ?? 'survei'),
+            ]);
+
+            $hasAttachmentMutation = true;
+        });
+
+        $activeKegiatanIds = collect($activeKegiatanIds)->unique()->values()->all();
+
+        $removedRecords = $bast->bastKegiatan()
+            ->when(! empty($activeKegiatanIds), function ($query) use ($activeKegiatanIds) {
+                $query->whereNotIn('kegiatan_id', $activeKegiatanIds);
+            })
+            ->get();
+
+        if ($removedRecords->isNotEmpty()) {
+            $removedRecords->each(function (BastKegiatan $record): void {
+                $this->deleteStoredDocument($record->file_path);
+                $this->deleteStoredDocument($record->signed_file_path);
+                $record->delete();
             });
+
+            $hasAttachmentMutation = true;
+        }
+
+        if ($hasAttachmentMutation) {
+            $this->syncCompiledBastFiles($bast->fresh('bastKegiatan'));
+        }
     }
 
     private function nextBastNomorForDate(Carbon $targetDate, bool $isSensusEkonomi = false): string
