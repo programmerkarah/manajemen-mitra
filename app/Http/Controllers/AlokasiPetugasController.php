@@ -900,7 +900,7 @@ class AlokasiPetugasController extends Controller
             }
 
             // Find matching rate honor based on petugas type, jenis_kegiatan, and jenis_penugasan
-            $statusKepegawaian = $petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik';
+            $statusKepegawaian = $this->resolveStatusKepegawaianFromPetugas($petugas);
             $rateHonor = $kegiatan->rateHonors()
                 ->where('status_kepegawaian', $statusKepegawaian)
                 ->where('jenis_kegiatan', $alokasiData['jenis_kegiatan'])
@@ -1031,7 +1031,7 @@ class AlokasiPetugasController extends Controller
                 'partial_jumlah_satuan_listing' => $isPartialPaymentListing ? $partialJumlahSatuanListing : null,
                 'estimasi_honor_partial_listing' => $isPartialPaymentListing ? $estimasiHonorPartialListing : null,
                 'peran' => $jenisPenugasan,
-                'status_kepegawaian' => $rateHonor->status_kepegawaian,
+                'status_kepegawaian' => $statusKepegawaian,
                 'catatan' => $alokasiData['catatan'] ?? null,
             ];
 
@@ -1754,10 +1754,18 @@ class AlokasiPetugasController extends Controller
     {
         $data = $request->validated();
         $kegiatan = Kegiatan::findOrFail($data['kegiatan_id']);
+        $petugas = Petugas::findOrFail($data['petugas_id']);
+        $statusKepegawaian = $this->resolveStatusKepegawaianFromPetugas($petugas);
         $hasListing = $kegiatan->has_listing_updating;
 
         // Calculate total honor for pencacahan
         $rateHonor = RateHonor::findOrFail($data['rate_honor_id']);
+        if ($rateHonor->status_kepegawaian !== $statusKepegawaian) {
+            return back()->withErrors([
+                'rate_honor_id' => 'Rate honor tidak sesuai dengan status kepegawaian petugas terpilih.',
+            ])->withInput();
+        }
+
         $pencacahanWorkload = $this->resolvePencacahanWorkload(
             $kegiatan,
             (float) ($data['jumlah_satuan'] ?? 0)
@@ -1777,7 +1785,7 @@ class AlokasiPetugasController extends Controller
         $constraintError = $this->checkSbmlConstraint(
             $data['tahun'],
             $data['jenis_kegiatan'],
-            $rateHonor->status_kepegawaian,
+            $statusKepegawaian,
             $rateHonor->jenis_penugasan,
             $totalHonor,
             $kegiatan
@@ -1797,7 +1805,7 @@ class AlokasiPetugasController extends Controller
                 null,
                 $rateHonor->jenis_penugasan,
                 $data['jenis_kegiatan'],
-                $rateHonor->status_kepegawaian,
+                $statusKepegawaian,
                 $kegiatan
             );
             if ($petugasTotalError) {
@@ -1811,7 +1819,7 @@ class AlokasiPetugasController extends Controller
         $data['total_honor_listing'] = $totalHonorListing;
         $data['jumlah_satuan_listing'] = $jumlahSatuanListing;
         $data['peran'] = $this->resolvePeranCodeFromRateHonor($rateHonor);
-        $data['status_kepegawaian'] = $rateHonor->status_kepegawaian;
+        $data['status_kepegawaian'] = $statusKepegawaian;
         $data['submitted_by'] = effectiveUser($request)->id;
 
         AlokasiPetugas::create($data);
@@ -1871,10 +1879,18 @@ class AlokasiPetugasController extends Controller
     {
         $data = $request->validated();
         $kegiatan = Kegiatan::findOrFail($data['kegiatan_id']);
+        $petugas = Petugas::findOrFail($data['petugas_id']);
+        $statusKepegawaian = $this->resolveStatusKepegawaianFromPetugas($petugas);
         $hasListing = $kegiatan->has_listing_updating;
 
         // Calculate total honor for pencacahan
         $rateHonor = RateHonor::findOrFail($data['rate_honor_id']);
+        if ($rateHonor->status_kepegawaian !== $statusKepegawaian) {
+            return back()->withErrors([
+                'rate_honor_id' => 'Rate honor tidak sesuai dengan status kepegawaian petugas terpilih.',
+            ])->withInput();
+        }
+
         $pencacahanWorkload = $this->resolvePencacahanWorkload(
             $kegiatan,
             (float) ($data['jumlah_satuan'] ?? 0)
@@ -1894,7 +1910,7 @@ class AlokasiPetugasController extends Controller
         $constraintError = $this->checkSbmlConstraint(
             $data['tahun'],
             $data['jenis_kegiatan'],
-            $rateHonor->status_kepegawaian,
+            $statusKepegawaian,
             $rateHonor->jenis_penugasan,
             $totalHonor,
             $kegiatan
@@ -1915,7 +1931,7 @@ class AlokasiPetugasController extends Controller
                 $alokasi->periode_alokasi_id,
                 $rateHonor->jenis_penugasan,
                 $data['jenis_kegiatan'],
-                $rateHonor->status_kepegawaian,
+                $statusKepegawaian,
                 $kegiatan
             );
             if ($petugasTotalError) {
@@ -1927,7 +1943,7 @@ class AlokasiPetugasController extends Controller
         $data['total_honor_listing'] = $totalHonorListing;
         $data['jumlah_satuan_listing'] = $jumlahSatuanListing;
         $data['peran'] = $this->resolvePeranCodeFromRateHonor($rateHonor);
-        $data['status_kepegawaian'] = $rateHonor->status_kepegawaian;
+        $data['status_kepegawaian'] = $statusKepegawaian;
 
         $alokasi->update($data);
 
@@ -3819,7 +3835,7 @@ class AlokasiPetugasController extends Controller
                 }
 
                 // Get rate honor for this petugas
-                $petugasType = $petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik';
+                $petugasType = $this->resolveStatusKepegawaianFromPetugas($petugas);
                 $rateHonor = $kegiatan->rateHonors()
                     ->where('status_kepegawaian', $petugasType)
                     ->where('jenis_penugasan', $jenisPenugasan)
@@ -3929,6 +3945,7 @@ class AlokasiPetugasController extends Controller
                     'periode_alokasi_id' => $periode->id,
                     'petugas_id' => $alokasiData['petugas_id'],
                     'peran' => $jenisPenugasan,
+                    'status_kepegawaian' => $petugasType,
                     'jumlah_satuan' => $alokasiData['jumlah_satuan'],
                     'jumlah_satuan_listing' => $jumlahSatuanListing,
                     'jumlah_frame_sampel' => count(array_unique(array_map('intval', $alokasiData['frame_sampel_ids'] ?? []))),
@@ -4622,7 +4639,7 @@ class AlokasiPetugasController extends Controller
         }
 
         // Map peran ke jenis_penugasan dan ambil honor_max SBML untuk tiap penugasan yang sudah diberikan
-        $statusKepegawaian = $petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik';
+        $statusKepegawaian = $this->resolveStatusKepegawaianFromPetugas($petugas);
         // Ambil kombinasi unik dari alokasi: [jenis_kegiatan, jenis_penugasan, status_kepegawaian]
         $alokasiKombinasi = $existingAlokasis->map(function ($alokasi) {
             return [
@@ -4683,6 +4700,17 @@ class AlokasiPetugasController extends Controller
         }
 
         return null;
+    }
+
+    private function resolveStatusKepegawaianFromPetugas(Petugas $petugas): string
+    {
+        $normalizedJenisPetugas = Str::of((string) $petugas->jenis_petugas)
+            ->lower()
+            ->replace('_', '-')
+            ->trim()
+            ->value();
+
+        return $normalizedJenisPetugas === 'organik' ? 'organik' : 'non_organik';
     }
 
     /**
@@ -4924,7 +4952,7 @@ class AlokasiPetugasController extends Controller
                 continue;
             }
 
-            $statusKepegawaian = $petugas->jenis_petugas === 'organik' ? 'organik' : 'non_organik';
+            $statusKepegawaian = $this->resolveStatusKepegawaianFromPetugas($petugas);
             $rate = $rateByKey->get($statusKepegawaian.'|'.$peranCode);
 
             if (! $rate) {
