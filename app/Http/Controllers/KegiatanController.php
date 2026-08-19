@@ -248,9 +248,12 @@ class KegiatanController extends Controller
         // Format: KEG-{TAHUN}-{NOMOR_URUT}
         $prefix = "KEG-{$tahunAnggaran}-";
 
-        // Get last kegiatan number for this year
-        $lastKegiatan = Kegiatan::where('kode_kegiatan', 'like', $prefix.'%')
+        // withTrashed: the unique index still applies to soft-deleted rows.
+        // Lock matching rows so concurrent requests serialize instead of reading the same "last" value
+        $lastKegiatan = Kegiatan::withTrashed()
+            ->where('kode_kegiatan', 'like', $prefix.'%')
             ->orderBy('kode_kegiatan', 'desc')
+            ->lockForUpdate()
             ->first();
 
         if ($lastKegiatan) {
