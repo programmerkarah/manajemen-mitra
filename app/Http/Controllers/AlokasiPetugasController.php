@@ -3723,10 +3723,15 @@ class AlokasiPetugasController extends Controller
                         'petugas_id' => (int) $a->petugas_id,
                         'peran' => $a->peran,
                         'jumlah_satuan' => (float) $a->jumlah_satuan,
+                        'is_partial_payment' => (bool) $a->is_partial_payment,
+                        'partial_jumlah_satuan' => $a->partial_jumlah_satuan !== null ? (float) $a->partial_jumlah_satuan : null,
+                        'jumlah_satuan_listing' => $a->jumlah_satuan_listing !== null ? (int) $a->jumlah_satuan_listing : null,
+                        'is_partial_payment_listing' => (bool) $a->is_partial_payment_listing,
+                        'partial_jumlah_satuan_listing' => $a->partial_jumlah_satuan_listing !== null ? (int) $a->partial_jumlah_satuan_listing : null,
                     ];
                 })->sortBy('petugas_id')->values()->all();
 
-                // Format new alokasi for comparison
+                // Format new alokasi for comparison, including partial-payment fields.
                 $newAlokasi = collect($validated['alokasi'])->map(function ($a) {
                     return [
                         'petugas_id' => (int) $a['petugas_id'],
@@ -3739,10 +3744,15 @@ class AlokasiPetugasController extends Controller
                             default => null,
                         },
                         'jumlah_satuan' => (float) $a['jumlah_satuan'],
+                        'is_partial_payment' => (bool) ($a['is_partial_payment'] ?? false),
+                        'partial_jumlah_satuan' => isset($a['partial_jumlah_satuan']) ? (float) $a['partial_jumlah_satuan'] : null,
+                        'jumlah_satuan_listing' => isset($a['jumlah_satuan_listing']) ? (int) $a['jumlah_satuan_listing'] : null,
+                        'is_partial_payment_listing' => (bool) ($a['is_partial_payment_listing'] ?? false),
+                        'partial_jumlah_satuan_listing' => isset($a['partial_jumlah_satuan_listing']) ? (int) $a['partial_jumlah_satuan_listing'] : null,
                     ];
                 })->sortBy('petugas_id')->values()->all();
 
-                // Check if there are changes
+                // Check if there are changes, including partial-payment adjustments.
                 $hasChanges = json_encode($originalAlokasi) !== json_encode($newAlokasi);
                 // If no changes, just redirect without creating anything
                 if (! $hasChanges) {
