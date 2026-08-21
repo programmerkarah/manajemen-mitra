@@ -3,6 +3,8 @@
 namespace Tests\Unit;
 
 use App\Models\DeadlineRule;
+use App\Models\Role;
+use App\Models\User;
 use App\Services\DeadlineAccessService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -130,6 +132,28 @@ class DeadlineAccessServiceTest extends TestCase
         ]);
 
         $this->assertFalse($result['allowed']);
+    }
+
+    public function test_revisi_allows_any_month_for_admin(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 8, 20, 9, 0, 0));
+        $this->upsertRule('alokasi.revisi', 1);
+
+        $user = User::factory()->create();
+        $adminRole = Role::query()->firstOrCreate(
+            ['name' => 'admin'],
+            ['display_name' => 'Admin', 'description' => 'Administrator'],
+        );
+        $user->roles()->syncWithoutDetaching([$adminRole->id]);
+
+        $service = app(DeadlineAccessService::class);
+        $result = $service->evaluate('alokasi.revisi', [
+            'year' => 2026,
+            'month' => 6,
+        ], $user);
+
+        $this->assertTrue($result['allowed']);
+        $this->assertNull($result['message']);
     }
 
     private function upsertRule(string $key, int $cutoffDay): void

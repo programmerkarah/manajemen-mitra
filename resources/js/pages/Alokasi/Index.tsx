@@ -253,8 +253,13 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
         { value: '12', label: 'Desember' },
     ];
 
-    // Function to check if periode is current month or previous month
+    // Function to check if periode is current month or previous month.
+    // Admin may revise any period without month restrictions.
     const canRevisiPeriode = (bulan: string, tahun: number): boolean => {
+        if (isAdmin) {
+            return true;
+        }
+
         const now = new Date();
         const currentMonth = now.getMonth() + 1; // getMonth() returns 0-11
         const currentYear = now.getFullYear();

@@ -25,6 +25,15 @@ class DeadlineAccessService
             ];
         }
 
+        if ($user && ($user->hasActiveRole('admin') || $user->isAdmin())) {
+            return [
+                'allowed' => true,
+                'message' => null,
+                'bypass' => null,
+                'rule' => null,
+            ];
+        }
+
         DeadlineRule::ensureDefaults();
 
         $rule = DeadlineRule::query()->where('key', $ruleKey)->first();
