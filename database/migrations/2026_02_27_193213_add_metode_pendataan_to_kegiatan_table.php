@@ -12,15 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('kegiatan', function (Blueprint $table) {
-            $table->enum('metode_pendataan_pencacahan', ['PAPI', 'CAPI'])
+            $table->enum('metode_pendataan_pencacahan', ['PAPI', 'CAPI_FASIH', 'CAPI_KSA_PRO'])
                 ->nullable()
                 ->after('has_listing_updating')
-                ->comment('Metode pendataan tahap pencacahan: PAPI atau CAPI (FASIH)');
+                ->comment('Metode pendataan tahap pencacahan: PAPI, CAPI FASIH, atau CAPI KSA Pro');
 
-            $table->enum('metode_pendataan_listing', ['PAPI', 'CAPI'])
+            $table->enum('metode_pendataan_listing', ['PAPI', 'CAPI_FASIH', 'CAPI_KSA_PRO'])
                 ->nullable()
                 ->after('metode_pendataan_pencacahan')
-                ->comment('Metode pendataan tahap listing: PAPI atau CAPI (FASIH), hanya untuk kegiatan dengan listing');
+                ->comment('Metode pendataan tahap listing: PAPI, CAPI FASIH, atau CAPI KSA Pro');
         });
     }
 

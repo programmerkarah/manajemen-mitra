@@ -90,16 +90,21 @@ class SsoOAuthTest extends TestCase
         $this->assertSame('/dashboard?from=test', session('sso_oauth_context.return_to'));
     }
 
-    public function test_sso_redirect_sync_request_returns_back_without_hitting_oauth_when_sso_inactive(): void
+    public function test_sso_redirect_sync_request_attempts_registration_when_sso_application_is_inactive(): void
     {
         config()->set('services.sso.base_url', 'http://localhost:8000');
         config()->set('services.sso.client_id', 'client-id-123');
         config()->set('services.sso.active', true);
         config()->set('services.sso.redirect_uri', 'http://localhost:8001/auth/sso/callback');
+        config()->set('services.sso.prompt', 'consent');
 
         Http::fake([
             'http://localhost:8000/api/application/status*' => Http::response([
                 'is_active' => false,
+            ], 200),
+            'http://localhost:8000/api/application/register*' => Http::response([
+                'registered' => true,
+                'is_active' => true,
             ], 200),
         ]);
 
@@ -110,9 +115,10 @@ class SsoOAuthTest extends TestCase
             'return_to' => '/dashboard?from=sync',
         ]));
 
-        $response->assertRedirect('/dashboard?from=sync');
-        $this->assertFalse(session()->has('sso_oauth_state'));
-        $this->assertFalse(session()->has('sso_oauth_context'));
+        $response->assertRedirect();
+        $location = (string) $response->headers->get('Location', '');
+        $this->assertStringStartsWith('http://localhost:8000/oauth/authorize?', $location);
+        $this->assertStringContainsString('prompt=none', $location);
     }
 
     public function test_sso_callback_can_login_existing_local_user(): void

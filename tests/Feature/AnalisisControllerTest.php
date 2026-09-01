@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
+use App\Models\PengajuanPulsa;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\SkKpa;
@@ -553,6 +554,46 @@ class AnalisisControllerTest extends TestCase
             );
     }
 
+    public function test_analisis_pulsa_includes_numeric_total_values_for_each_month(): void
+    {
+        $user = User::factory()->admin()->create();
+        $petugas = Petugas::factory()->create();
+        $kegiatan = Kegiatan::factory()->create([
+            'status' => 'aktif',
+            'tahun_anggaran' => (int) date('Y'),
+        ]);
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '01',
+            'tahun' => (int) date('Y'),
+            'status' => 'dikirim',
+        ]);
+
+        PengajuanPulsa::query()->create([
+            'petugas_id' => $petugas->id,
+            'kegiatan_id' => $kegiatan->id,
+            'periode_alokasi_id' => $periode->id,
+            'bulan' => '01',
+            'tahun' => (int) date('Y'),
+            'jenis_pulsa' => 'pendataan',
+            'nominal' => 100000,
+            'nominal_disetujui' => 95000,
+            'status' => 'diterima',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('analisis.pulsa'))
+            ->assertOk();
+
+        $props = $response->original->getData()['page']['props'];
+        $januari = collect($props['pulsaPerBulan'])->firstWhere('bulan', 1);
+
+        $this->assertNotNull($januari);
+        $this->assertSame(1, $januari['total_pengajuan']);
+        $this->assertSame(100000.0, $januari['total_nominal']);
+        $this->assertSame(95000.0, $januari['total_disetujui']);
+    }
+
     public function test_admin_can_access_analisis_dokumen(): void
     {
         $user = User::factory()->admin()->create();
@@ -653,12 +694,159 @@ class AnalisisControllerTest extends TestCase
         $this->assertNotNull($juni);
         $this->assertNotNull($juli);
         $this->assertNotNull($agustus);
-        $this->assertEquals(100000, $juni['total_honor']);
+        $this->assertEquals(0, $juni['total_honor']);
         $this->assertEquals(200000, $juli['total_honor']);
-        $this->assertEquals(200000, $agustus['total_honor']);
+        $this->assertEquals(300000, $agustus['total_honor']);
         $this->assertEquals(2, $juni['jumlah_petugas']);
         $this->assertEquals(2, $juli['jumlah_petugas']);
         $this->assertEquals(2, $agustus['jumlah_petugas']);
+    }
+
+    public function test_analisis_umum_top_petugas_ignores_inactive_petugas(): void
+    {
+        $user = User::factory()->admin()->create();
+        $currentYear = (int) date('Y');
+
+        $activePetugas = Petugas::factory()->create([
+            'nama' => 'Petugas Aktif',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $inactivePetugas = Petugas::factory()->create([
+            'nama' => 'Petugas Nonaktif',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'nonaktif',
+        ]);
+
+        $kegiatan = Kegiatan::factory()->create([
+            'nama_kegiatan' => 'Kegiatan Honor Tinggi',
+            'jenis_kegiatan' => 'survei',
+            'tahun_anggaran' => $currentYear,
+            'status' => 'aktif',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '07',
+            'tahun' => $currentYear,
+            'status' => 'dikirim',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $activePetugas->id,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 250000,
+            'total_honor_listing' => 0,
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $inactivePetugas->id,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 500000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('analisis.umum'))
+            ->assertOk();
+
+        $props = $response->original->getData()['page']['props'];
+        $topPetugas = collect($props['topPetugas']);
+
+        $this->assertNotNull($topPetugas->first());
+        $this->assertSame($activePetugas->id, $topPetugas->first()['petugas_id']);
+        $this->assertSame(0, $topPetugas->where('petugas_id', $inactivePetugas->id)->count());
+    }
+
+    public function test_analisis_umum_top_petugas_uses_full_year_total_honor(): void
+    {
+        $user = User::factory()->admin()->create();
+        $currentYear = (int) date('Y');
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Tahun Penuh',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $lowerPetugas = Petugas::factory()->create([
+            'nama' => 'Petugas Bulan Saat Ini',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $kegiatanA = Kegiatan::factory()->create([
+            'nama_kegiatan' => 'Kegiatan Januari',
+            'jenis_kegiatan' => 'survei',
+            'tahun_anggaran' => $currentYear,
+            'status' => 'aktif',
+        ]);
+
+        $kegiatanB = Kegiatan::factory()->create([
+            'nama_kegiatan' => 'Kegiatan Desember',
+            'jenis_kegiatan' => 'survei',
+            'tahun_anggaran' => $currentYear,
+            'status' => 'aktif',
+        ]);
+
+        $januari = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanA->id,
+            'bulan' => '01',
+            'tahun' => $currentYear,
+            'status' => 'dikirim',
+        ]);
+
+        $desember = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanB->id,
+            'bulan' => '12',
+            'tahun' => $currentYear,
+            'status' => 'dikirim',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $januari->id,
+            'petugas_id' => $petugas->id,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 10000000,
+            'total_honor_listing' => 0,
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $desember->id,
+            'petugas_id' => $petugas->id,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 9500000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $currentMonth = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanA->id,
+            'bulan' => '07',
+            'tahun' => $currentYear,
+            'status' => 'dikirim',
+        ]);
+
+        AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $currentMonth->id,
+            'petugas_id' => $lowerPetugas->id,
+            'status_kepegawaian' => 'non_organik',
+            'total_honor' => 15000000,
+            'total_honor_listing' => 0,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('analisis.umum'))
+            ->assertOk();
+
+        $props = $response->original->getData()['page']['props'];
+        $topPetugas = collect($props['topPetugas']);
+
+        $this->assertSame($petugas->id, $topPetugas->first()['petugas_id']);
+        $this->assertSame(19500000.0, round((float) $topPetugas->first()['total_honor'], 1));
+        $this->assertSame($lowerPetugas->id, $topPetugas->get(1)['petugas_id']);
     }
 
     public function test_operator_can_access_analisis_petugas(): void

@@ -49,35 +49,56 @@ trait EffectivePeriodeScope
         };
     }
 
+    protected function effectiveCombinedHonorSqlExpression(string $table = 'alokasi_petugas'): string
+    {
+        return "(
+            CASE
+                WHEN {$table}.is_partial_payment = 1 AND {$table}.estimasi_honor_partial IS NOT NULL
+                    THEN COALESCE({$table}.estimasi_honor_partial, 0)
+                ELSE COALESCE({$table}.total_honor, 0)
+            END
+        ) + (
+            CASE
+                WHEN {$table}.is_partial_payment_listing = 1 AND {$table}.estimasi_honor_partial_listing IS NOT NULL
+                    THEN COALESCE({$table}.estimasi_honor_partial_listing, 0)
+                ELSE COALESCE({$table}.total_honor_listing, 0)
+            END
+        )";
+    }
+
     protected function sensusEkonomiHonorSqlCase(string $kegiatanAlias = 'kegiatan'): string
     {
+        $effectiveHonor = $this->effectiveCombinedHonorSqlExpression();
+
         return "CASE
             WHEN {$kegiatanAlias}.jenis_kegiatan = 'sensus'
                 AND LOWER(COALESCE({$kegiatanAlias}.nama_kegiatan, '')) LIKE '%sensus ekonomi%'
                 AND CAST(periode_alokasi.bulan AS UNSIGNED) = 6 THEN 0
             WHEN {$kegiatanAlias}.jenis_kegiatan = 'sensus'
                 AND LOWER(COALESCE({$kegiatanAlias}.nama_kegiatan, '')) LIKE '%sensus ekonomi%'
-                AND CAST(periode_alokasi.bulan AS UNSIGNED) = 7 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
+                AND CAST(periode_alokasi.bulan AS UNSIGNED) = 7 THEN ({$effectiveHonor}) * 0.4
             WHEN {$kegiatanAlias}.jenis_kegiatan = 'sensus'
                 AND LOWER(COALESCE({$kegiatanAlias}.nama_kegiatan, '')) LIKE '%sensus ekonomi%'
-                AND CAST(periode_alokasi.bulan AS UNSIGNED) = 8 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.6
-            ELSE COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)
+                AND CAST(periode_alokasi.bulan AS UNSIGNED) = 8 THEN ({$effectiveHonor}) * 0.6
+            ELSE {$effectiveHonor}
         END";
     }
 
     protected function sensusEkonomiHonorSqlCaseForMonth(int $bulan, string $kegiatanAlias = 'kegiatan'): string
     {
+        $effectiveHonor = $this->effectiveCombinedHonorSqlExpression();
+
         return "CASE
             WHEN {$kegiatanAlias}.jenis_kegiatan = 'sensus'
                 AND LOWER(COALESCE({$kegiatanAlias}.nama_kegiatan, '')) LIKE '%sensus ekonomi%'
                 AND {$bulan} = 6 THEN 0
             WHEN {$kegiatanAlias}.jenis_kegiatan = 'sensus'
                 AND LOWER(COALESCE({$kegiatanAlias}.nama_kegiatan, '')) LIKE '%sensus ekonomi%'
-                AND {$bulan} = 7 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.4
+                AND {$bulan} = 7 THEN ({$effectiveHonor}) * 0.4
             WHEN {$kegiatanAlias}.jenis_kegiatan = 'sensus'
                 AND LOWER(COALESCE({$kegiatanAlias}.nama_kegiatan, '')) LIKE '%sensus ekonomi%'
-                AND {$bulan} = 8 THEN (COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)) * 0.6
-            ELSE COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0)
+                AND {$bulan} = 8 THEN ({$effectiveHonor}) * 0.6
+            ELSE {$effectiveHonor}
         END";
     }
 
@@ -114,6 +135,8 @@ trait EffectivePeriodeScope
             OR COALESCE(alokasi_petugas.jumlah_satuan_listing, 0) > 0
             OR COALESCE(alokasi_petugas.total_honor, 0) > 0
             OR COALESCE(alokasi_petugas.total_honor_listing, 0) > 0
+            OR COALESCE(alokasi_petugas.estimasi_honor_partial, 0) > 0
+            OR COALESCE(alokasi_petugas.estimasi_honor_partial_listing, 0) > 0
             OR (
                 CAST(periode_alokasi.bulan AS UNSIGNED) IN (6, 7, 8)
                 AND COALESCE(kegiatan.jenis_kegiatan, \'\') = \'sensus\'

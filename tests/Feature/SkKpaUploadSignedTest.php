@@ -87,6 +87,7 @@ class SkKpaUploadSignedTest extends TestCase
         $skKpa->refresh();
 
         $this->assertTrue($skKpa->is_signed);
+        $this->assertEquals('diterbitkan', $skKpa->status);
         $this->assertNotNull($skKpa->signed_file_path);
         $this->assertNotNull($skKpa->signed_at);
         $this->assertEquals($admin->id, $skKpa->signed_by);

@@ -179,13 +179,16 @@ export default function AnalisisPulsa({
     distribusiJenisPulsa,
     currentYear,
 }: Props) {
-    const totalNominal = pulsaPerBulan.reduce((s, i) => s + i.total_nominal, 0);
+    const totalNominal = pulsaPerBulan.reduce(
+        (s, i) => s + Number(i.total_nominal ?? 0),
+        0,
+    );
     const totalDisetujui = pulsaPerBulan.reduce(
-        (s, i) => s + i.total_disetujui,
+        (s, i) => s + Number(i.total_disetujui ?? 0),
         0,
     );
     const totalPengajuan = pulsaPerBulan.reduce(
-        (s, i) => s + i.total_pengajuan,
+        (s, i) => s + Number(i.total_pengajuan ?? 0),
         0,
     );
     const approvalRate =

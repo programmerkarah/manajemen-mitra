@@ -30,9 +30,13 @@ class SsoOAuthController extends Controller
         $syncTransport = $this->resolveSyncTransport($request->query('transport'));
 
         if ($isSyncRequest && ! $this->isSsoActive()) {
-            return $syncTransport === 'iframe'
-                ? $this->syncCompleteRedirect(status: 'skipped')
-                : redirect()->to($this->resolveSyncReturnTo($syncReturnTo));
+            $registered = $this->ensureSsoApplicationIsActive();
+
+            if (! $registered) {
+                return $syncTransport === 'iframe'
+                    ? $this->syncCompleteRedirect(status: 'skipped')
+                    : redirect()->to($this->resolveSyncReturnTo($syncReturnTo));
+            }
         }
 
         $baseUrl = $this->baseUrl();
@@ -496,6 +500,49 @@ class SsoOAuthController extends Controller
                 return false;
             }
         });
+    }
+
+    private function ensureSsoApplicationIsActive(): bool
+    {
+        if ($this->isSsoActive()) {
+            return true;
+        }
+
+        $baseUrl = $this->baseUrl();
+        $clientId = (string) config('services.sso.client_id');
+
+        if ($baseUrl === '' || $clientId === '') {
+            return false;
+        }
+
+        try {
+            $response = Http::timeout(10)
+                ->acceptJson()
+                ->post(rtrim($baseUrl, '/').'/api/application/register', [
+                    'client_id' => $clientId,
+                    'redirect_uri' => $this->redirectUri(),
+                    'name' => config('app.name', 'Laravel App'),
+                    'source' => 'local-registration',
+                ]);
+
+            if ($response->successful()) {
+                $registered = (bool) $response->json('registered', false);
+                $isActive = (bool) $response->json('is_active', false);
+
+                if ($registered || $isActive) {
+                    Cache::forget(sprintf('sso:application-active:%s:%s', $clientId, md5($baseUrl)));
+
+                    return true;
+                }
+            }
+        } catch (\Throwable $exception) {
+            Log::warning('SSO app registration failed during sync.', [
+                'error' => $exception->getMessage(),
+                'client_id' => $clientId,
+            ]);
+        }
+
+        return false;
     }
 
     /**

@@ -122,29 +122,66 @@ class AnalisisExportController extends Controller
             1,
         );
 
-        // Top 10 petugas penyerap honor terbesar (s.d. bulan berjalan, dengan bobot sensus)
-        $topPetugasQuery = DB::table('alokasi_petugas')
+        // Top 10 petugas penyerap honor terbesar, mengikuti formula per bulan seperti analisis petugas
+        $topPetugasByMonth = collect();
+        for ($bulan = 1; $bulan <= 12; $bulan++) {
+            $monthlyTopPetugasQuery = DB::table('alokasi_petugas')
+                ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+                ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+                ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
+                ->where('periode_alokasi.tahun', $currentYear)
+                ->where('petugas.jenis_petugas', 'non-organik')
+                ->where('petugas.status', 'aktif')
+                ->whereNull('petugas.deleted_at')
+                ->whereRaw($this->allocationOrHonorExistsClause());
+            $this->applySensusEkonomiMonthFilter($monthlyTopPetugasQuery, $bulan, 'kegiatan');
+            $this->applyEffectivePeriode($monthlyTopPetugasQuery);
+
+            $topPetugasByMonth = $topPetugasByMonth->merge(
+                $monthlyTopPetugasQuery
+                    ->groupBy('alokasi_petugas.petugas_id', 'petugas.nama', 'petugas.jabatan')
+                    ->select(
+                        'alokasi_petugas.petugas_id',
+                        'petugas.nama',
+                        'petugas.jabatan',
+                    )
+                    ->selectRaw('COALESCE(SUM('.$this->sensusEkonomiHonorSqlCaseForMonth($bulan).'), 0) as total_honor')
+                    ->get()
+            );
+        }
+
+        $topPetugasKegiatanCount = DB::table('alokasi_petugas')
             ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
             ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
             ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
             ->where('periode_alokasi.tahun', $currentYear)
-            ->whereRaw('CAST(periode_alokasi.bulan AS UNSIGNED) <= ?', [$currentMonth])
             ->where('petugas.jenis_petugas', 'non-organik')
+            ->where('petugas.status', 'aktif')
+            ->whereNull('petugas.deleted_at')
             ->whereRaw($this->allocationOrHonorExistsClause());
-        $this->applyEffectivePeriode($topPetugasQuery);
-        $topPetugas = $topPetugasQuery
+        $this->applyEffectivePeriode($topPetugasKegiatanCount);
+        $topPetugasKegiatanCount = $topPetugasKegiatanCount
             ->groupBy('alokasi_petugas.petugas_id', 'petugas.nama', 'petugas.jabatan')
             ->selectRaw('alokasi_petugas.petugas_id, petugas.nama, petugas.jabatan, COUNT(DISTINCT periode_alokasi.kegiatan_id) as jumlah_kegiatan')
-            ->selectRaw('COALESCE(SUM('.$this->sensusEkonomiHonorSqlCase().'), 0) as total_honor')
-            ->orderByRaw('total_honor DESC')
-            ->limit(10)
             ->get()
-            ->map(fn ($item) => [
-                'nama' => $item->nama,
-                'jabatan' => $item->jabatan,
-                'jumlah_kegiatan' => (int) $item->jumlah_kegiatan,
-                'total_honor' => (float) $item->total_honor,
-            ])
+            ->keyBy('petugas_id');
+
+        $topPetugas = $topPetugasByMonth
+            ->groupBy('petugas_id')
+            ->map(function ($items) use ($topPetugasKegiatanCount) {
+                $first = $items->first();
+
+                return [
+                    'petugas_id' => $first->petugas_id,
+                    'nama' => $first->nama,
+                    'jabatan' => $first->jabatan,
+                    'jumlah_kegiatan' => (int) ($topPetugasKegiatanCount->get($first->petugas_id)->jumlah_kegiatan ?? 0),
+                    'total_honor' => (float) $items->sum('total_honor'),
+                ];
+            })
+            ->sortByDesc('total_honor')
+            ->values()
+            ->slice(0, 10)
             ->all();
 
         $pdf = Pdf::loadView('analisis.umum-pdf', [
@@ -1351,7 +1388,18 @@ class AnalisisExportController extends Controller
 
     private function nonZeroHonorClause(): string
     {
-        return '(COALESCE(alokasi_petugas.total_honor, 0) + COALESCE(alokasi_petugas.total_honor_listing, 0))';
+        return '(
+            CASE
+                WHEN alokasi_petugas.is_partial_payment = 1 AND alokasi_petugas.estimasi_honor_partial IS NOT NULL
+                    THEN COALESCE(alokasi_petugas.estimasi_honor_partial, 0)
+                ELSE COALESCE(alokasi_petugas.total_honor, 0)
+            END
+            + CASE
+                WHEN alokasi_petugas.is_partial_payment_listing = 1 AND alokasi_petugas.estimasi_honor_partial_listing IS NOT NULL
+                    THEN COALESCE(alokasi_petugas.estimasi_honor_partial_listing, 0)
+                ELSE COALESCE(alokasi_petugas.total_honor_listing, 0)
+            END
+        )';
     }
 
     private function escapeSvg(string $value): string

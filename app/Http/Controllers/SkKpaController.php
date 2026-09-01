@@ -467,12 +467,13 @@ class SkKpaController extends Controller
         $filePath = 'sk/'.$filename;
         $file->move(public_path('sk'), $filename);
 
-        // Update SK record
+        // Update SK record. Once a signed copy is uploaded, the record is no longer a draft.
         $skKpa->update([
             'signed_file_path' => $filePath,
             'is_signed' => true,
             'signed_at' => now(),
             'signed_by' => Auth::id(),
+            'status' => 'diterbitkan',
         ]);
 
         ActivityLog::log(
