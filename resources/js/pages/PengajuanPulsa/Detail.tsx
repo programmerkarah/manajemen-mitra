@@ -1137,7 +1137,7 @@ export default function PengajuanPulsaDetail({
 
                         {/* Per-item table */}
                         <div className="overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-700">
-                            <table className="min-w-[760px] w-full text-sm">
+                            <table className="w-full min-w-[760px] text-sm">
                                 <thead className="border-b border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900">
                                     <tr>
                                         <th className="px-3 py-2.5 text-left font-semibold text-neutral-700 dark:text-neutral-300">
@@ -1204,7 +1204,7 @@ export default function PengajuanPulsaDetail({
                                                                     'diterima',
                                                                 )
                                                             }
-                                                            className={`flex min-w-[88px] items-center justify-center gap-1 whitespace-nowrap rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition-all sm:text-xs md:text-sm ${
+                                                            className={`flex min-w-[88px] items-center justify-center gap-1 rounded-md border px-2.5 py-1.5 text-[11px] font-medium whitespace-nowrap transition-all sm:text-xs md:text-sm ${
                                                                 batchItem.action ===
                                                                 'diterima'
                                                                     ? 'border-green-500 bg-green-50 text-green-700 dark:border-green-600 dark:bg-green-950 dark:text-green-300'
@@ -1222,7 +1222,7 @@ export default function PengajuanPulsaDetail({
                                                                     'ditolak',
                                                                 )
                                                             }
-                                                            className={`flex min-w-[88px] items-center justify-center gap-1 whitespace-nowrap rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition-all sm:text-xs md:text-sm ${
+                                                            className={`flex min-w-[88px] items-center justify-center gap-1 rounded-md border px-2.5 py-1.5 text-[11px] font-medium whitespace-nowrap transition-all sm:text-xs md:text-sm ${
                                                                 batchItem.action ===
                                                                 'ditolak'
                                                                     ? 'border-red-500 bg-red-50 text-red-700 dark:border-red-600 dark:bg-red-950 dark:text-red-300'
