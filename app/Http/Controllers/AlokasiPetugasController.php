@@ -4085,6 +4085,13 @@ class AlokasiPetugasController extends Controller
                 }
             }
 
+            if (count($errors) > 0) {
+                DB::rollBack();
+
+                return back()->withErrors(['validation' => $errors])
+                    ->withInput();
+            }
+
             DB::commit();
 
             // Clear revisi session only after successful commit
@@ -4107,15 +4114,6 @@ class AlokasiPetugasController extends Controller
                     'is_revision' => $isRevision,
                 ]
             );
-
-            if (count($errors) > 0) {
-                $warningMessage = $isRevision
-                    ? "Berhasil mengirim revisi untuk {$created} alokasi, namun ada beberapa yang gagal."
-                    : "Berhasil memperbarui {$created} alokasi, namun ada beberapa yang gagal.";
-
-                return back()->withErrors(['validation' => $errors])
-                    ->with('warning', $warningMessage);
-            }
 
             $successMessage = $isRevision
                 ? 'Revisi alokasi berhasil dikirim.'

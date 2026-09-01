@@ -30,9 +30,7 @@ class SsoOAuthController extends Controller
         $syncTransport = $this->resolveSyncTransport($request->query('transport'));
 
         if ($isSyncRequest && ! $this->isSsoActive()) {
-            return $syncTransport === 'iframe'
-                ? $this->syncCompleteRedirect(status: 'skipped')
-                : redirect()->to($this->resolveSyncReturnTo($syncReturnTo));
+            return $this->logoutAndRedirectToLogin($request, $syncTransport);
         }
 
         $baseUrl = $this->baseUrl();
@@ -146,6 +144,18 @@ class SsoOAuthController extends Controller
                 ]);
         }
 
+        if ($isSyncRequest) {
+            if (! Auth::check()) {
+                return $syncTransport === 'iframe'
+                    ? $this->syncCompleteRedirect(status: 'login_required')
+                    : redirect()->route('login')->with('warning', 'Sesi aplikasi Anda sudah berakhir. Silakan login kembali.');
+            }
+
+            return $syncTransport === 'iframe'
+                ? $this->syncCompleteRedirect(status: 'ok')
+                : redirect()->to($this->resolveSyncReturnTo($syncReturnTo));
+        }
+
         $code = $request->string('code')->toString();
 
         if ($code === '') {
@@ -156,12 +166,6 @@ class SsoOAuthController extends Controller
 
         /** @var Response $tokenResponse */
         $tokenRequest = Http::asForm()->acceptJson();
-
-        if ($isSyncRequest) {
-            $tokenRequest = $tokenRequest->withHeaders([
-                'X-SSO-Sync' => '1',
-            ]);
-        }
 
         $tokenResponse = $tokenRequest
             ->acceptJson()
@@ -344,22 +348,6 @@ class SsoOAuthController extends Controller
 
         $this->ensureDefaultRole($localUser);
 
-        if ($isSyncRequest) {
-            // For a sync (prompt=none) callback, only update the user profile.
-            // Do NOT regenerate the session or call activateLatestSession:
-            // doing so broadcasts SessionInvalidated via WebSocket and kicks
-            // the user out through the useSessionInvalidation hook.
-            if (! Auth::check()) {
-                return $syncTransport === 'iframe'
-                    ? $this->syncCompleteRedirect(status: 'login_required')
-                    : redirect()->route('login')->with('warning', 'Sesi aplikasi Anda sudah berakhir. Silakan login kembali.');
-            }
-
-            return $syncTransport === 'iframe'
-                ? $this->syncCompleteRedirect(status: 'ok')
-                : redirect()->to($this->resolveSyncReturnTo($syncReturnTo));
-        }
-
         Auth::login($localUser, true);
         $request->session()->regenerate();
         $request->session()->put('last_user_activity_at', now()->timestamp);
@@ -502,40 +490,6 @@ class SsoOAuthController extends Controller
     {
         if ($this->isSsoActive()) {
             return true;
-        }
-
-        $baseUrl = $this->baseUrl();
-        $clientId = (string) config('services.sso.client_id');
-
-        if ($baseUrl === '' || $clientId === '') {
-            return false;
-        }
-
-        try {
-            $response = Http::timeout(10)
-                ->acceptJson()
-                ->post(rtrim($baseUrl, '/').'/api/application/register', [
-                    'client_id' => $clientId,
-                    'redirect_uri' => $this->redirectUri(),
-                    'name' => config('app.name', 'Laravel App'),
-                    'source' => 'local-registration',
-                ]);
-
-            if ($response->successful()) {
-                $registered = (bool) $response->json('registered', false);
-                $isActive = (bool) $response->json('is_active', false);
-
-                if ($registered || $isActive) {
-                    Cache::forget(sprintf('sso:application-active:%s:%s', $clientId, md5($baseUrl)));
-
-                    return true;
-                }
-            }
-        } catch (\Throwable $exception) {
-            Log::warning('SSO app registration failed during sync.', [
-                'error' => $exception->getMessage(),
-                'client_id' => $clientId,
-            ]);
         }
 
         return false;

@@ -164,7 +164,8 @@ export default function Index({
                 monthData.total_spk > 0 &&
                 !isNeedGenerate(monthData) &&
                 (monthData.has_incomplete_addendum ||
-                    monthData.has_addendum_changes)
+                    monthData.has_addendum_changes ||
+                    monthData.has_new_revision_after_addendum)
             );
         },
         [canCreateSpk, isNeedGenerate],

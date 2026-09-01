@@ -90,7 +90,7 @@ class SsoOAuthTest extends TestCase
         $this->assertSame('/dashboard?from=test', session('sso_oauth_context.return_to'));
     }
 
-    public function test_sso_redirect_sync_request_skips_registration_when_sso_application_is_inactive(): void
+    public function test_sso_redirect_sync_request_logs_user_out_when_sso_application_is_inactive(): void
     {
         config()->set('services.sso.base_url', 'http://localhost:8000');
         config()->set('services.sso.client_id', 'client-id-123');
@@ -115,7 +115,9 @@ class SsoOAuthTest extends TestCase
             'return_to' => '/dashboard?from=sync',
         ]));
 
-        $response->assertRedirect('/dashboard?from=sync');
+        $response->assertRedirect(route('login'));
+        $response->assertSessionHas('error', 'Sesi SSO Anda sudah berakhir. Silakan login ulang.');
+        $this->assertGuest();
         Http::assertSentCount(1);
         Http::assertSent(fn ($request) => str_contains($request->url(), '/api/application/status'));
     }

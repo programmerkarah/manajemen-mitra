@@ -2,12 +2,15 @@
 
 namespace Tests\Unit;
 
+use App\Http\Middleware\EnforceFeatureDeadlines;
+use App\Models\DeadlineBypass;
 use App\Models\DeadlineRule;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\DeadlineAccessService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class DeadlineAccessServiceTest extends TestCase
@@ -156,9 +159,56 @@ class DeadlineAccessServiceTest extends TestCase
         $this->assertNull($result['message']);
     }
 
-    private function upsertRule(string $key, int $cutoffDay): void
+    public function test_middleware_does_not_consume_bypass_for_intermediate_alokasi_edit_request(): void
     {
-        DeadlineRule::query()->updateOrCreate(
+        Carbon::setTestNow(Carbon::create(2026, 8, 20, 9, 0, 0));
+
+        $rule = $this->upsertRule('alokasi.manage', 25);
+
+        $approvedBy = User::factory()->create();
+
+        $bypass = new DeadlineBypass([
+            'deadline_rule_id' => $rule->id,
+            'approved_by_user_id' => $approvedBy->id,
+            'granted_for_user_id' => null,
+            'kegiatan_id' => null,
+            'periode_alokasi_id' => null,
+            'year' => 2026,
+            'month' => 7,
+            'is_active' => true,
+            'max_uses' => 1,
+            'uses_count' => 0,
+            'reason' => 'Test bypass',
+            'expires_at' => null,
+        ]);
+        $bypass->save();
+
+        $service = \Mockery::mock(DeadlineAccessService::class);
+        $service->shouldReceive('evaluate')
+            ->once()
+            ->with('alokasi.manage', \Mockery::type('array'), null)
+            ->andReturn([
+                'allowed' => true,
+                'message' => null,
+                'bypass' => $bypass,
+                'rule' => $rule,
+            ]);
+        $service->shouldNotReceive('consumeBypass');
+
+        app()->instance(DeadlineAccessService::class, $service);
+
+        Route::middleware(['web', EnforceFeatureDeadlines::class])
+            ->post('/test-alokasi-update', fn () => response()->json(['ok' => true]))
+            ->name('alokasi.periode.update');
+
+        $response = $this->withSession([])->post('/test-alokasi-update');
+
+        $response->assertOk();
+    }
+
+    private function upsertRule(string $key, int $cutoffDay): DeadlineRule
+    {
+        return DeadlineRule::query()->updateOrCreate(
             ['key' => $key],
             [
                 'feature_key' => explode('.', $key)[0],

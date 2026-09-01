@@ -1113,31 +1113,31 @@ export default function PengajuanPulsaDetail({
                             </span>
                             <span>{items.length} petugas</span>
                         </div>
-                        <div className="flex shrink-0 items-center gap-2">
+                        <div className="flex shrink-0 flex-wrap items-center gap-2">
                             <span className="text-sm text-neutral-500 dark:text-neutral-400">
                                 Isi cepat:
                             </span>
                             <button
                                 type="button"
                                 onClick={() => setAllBatchAction('diterima')}
-                                className="flex items-center gap-1.5 rounded-md border border-green-200 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-950"
+                                className="flex items-center gap-1.5 rounded-md border border-green-200 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 md:text-sm dark:border-green-800 dark:text-green-400 dark:hover:bg-green-950"
                             >
-                                <Check className="h-3 w-3" />
+                                <Check className="h-3.5 w-3.5" />
                                 Setuju Semua
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setAllBatchAction('ditolak')}
-                                className="flex items-center gap-1.5 rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+                                className="flex items-center gap-1.5 rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 md:text-sm dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
                             >
-                                <X className="h-3 w-3" />
+                                <X className="h-3.5 w-3.5" />
                                 Tolak Semua
                             </button>
                         </div>
 
                         {/* Per-item table */}
                         <div className="overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-700">
-                            <table className="w-full text-sm">
+                            <table className="min-w-[760px] w-full text-sm">
                                 <thead className="border-b border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900">
                                     <tr>
                                         <th className="px-3 py-2.5 text-left font-semibold text-neutral-700 dark:text-neutral-300">
@@ -1204,14 +1204,14 @@ export default function PengajuanPulsaDetail({
                                                                     'diterima',
                                                                 )
                                                             }
-                                                            className={`flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition-all ${
+                                                            className={`flex min-w-[88px] items-center justify-center gap-1 whitespace-nowrap rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition-all sm:text-xs md:text-sm ${
                                                                 batchItem.action ===
                                                                 'diterima'
                                                                     ? 'border-green-500 bg-green-50 text-green-700 dark:border-green-600 dark:bg-green-950 dark:text-green-300'
                                                                     : 'border-neutral-200 text-neutral-500 hover:border-green-300 hover:bg-green-50/50 dark:border-neutral-700 dark:text-neutral-400'
                                                             }`}
                                                         >
-                                                            <Check className="h-3 w-3" />
+                                                            <Check className="h-3.5 w-3.5" />
                                                             Terima
                                                         </button>
                                                         <button
@@ -1222,14 +1222,14 @@ export default function PengajuanPulsaDetail({
                                                                     'ditolak',
                                                                 )
                                                             }
-                                                            className={`flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition-all ${
+                                                            className={`flex min-w-[88px] items-center justify-center gap-1 whitespace-nowrap rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition-all sm:text-xs md:text-sm ${
                                                                 batchItem.action ===
                                                                 'ditolak'
                                                                     ? 'border-red-500 bg-red-50 text-red-700 dark:border-red-600 dark:bg-red-950 dark:text-red-300'
                                                                     : 'border-neutral-200 text-neutral-500 hover:border-red-300 hover:bg-red-50/50 dark:border-neutral-700 dark:text-neutral-400'
                                                             }`}
                                                         >
-                                                            <X className="h-3 w-3" />
+                                                            <X className="h-3.5 w-3.5" />
                                                             Tolak
                                                         </button>
                                                     </div>

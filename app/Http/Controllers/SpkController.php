@@ -7461,12 +7461,24 @@ class SpkController extends Controller
     }
 
     /**
-     * Check if there are new revisions after addendum was generated
+     * Check if there are new revisions after addendum was generated.
+     *
+     * Only the current month/period scope should trigger the addendum flag. Old
+     * revisions from earlier months must not be treated as the active requirement.
      */
+    private function isActiveAddendumMonth(int $tahun, int $bulan): bool
+    {
+        return $tahun === ActiveYearService::get() && $bulan === (int) now()->month;
+    }
+
     private function hasNewRevisionAfterAddendum(int $tahun, int $bulan, iterable $monthPeriodes): bool
     {
-        // Get the latest Addendum (SPK with addendum_number > 0) creation timestamp in this month
+        if (! $this->isActiveAddendumMonth($tahun, $bulan)) {
+            return false;
+        }
+
         $latestAddendumCreatedAt = null;
+
         foreach ($monthPeriodes as $periode) {
             $latestAddendum = $periode->spk()
                 ->where('addendum_number', '>', 0)
@@ -7482,7 +7494,6 @@ class SpkController extends Controller
             return false;
         }
 
-        $hasNewRevision = false;
         foreach ($monthPeriodes as $periode) {
             if (! in_array($periode->status, ['perubahan', 'direvisi'])) {
                 continue;
@@ -7503,14 +7514,15 @@ class SpkController extends Controller
                     ->where('addendum_number', '>', 0)
                     ->exists();
 
-                if (! $hasAddendum || $periode->updated_at > $latestAddendumCreatedAt) {
-                    $hasNewRevision = true;
-                    break 2;
+                $isLaterThanAddendum = $periode->updated_at && $periode->updated_at > $latestAddendumCreatedAt;
+
+                if (! $hasAddendum || $isLaterThanAddendum) {
+                    return true;
                 }
             }
         }
 
-        return $hasNewRevision;
+        return false;
     }
 
     /**
@@ -7518,8 +7530,17 @@ class SpkController extends Controller
      */
     private function hasIncompleteAddendum(int $tahun, int $bulan, $monthPeriodes): bool
     {
-        return $this->resolveAddendumCandidatesForMonth($tahun, $bulan)
-            ->contains(fn (array $item): bool => ! (bool) ($item['has_addendum'] ?? false));
+        if (! $this->isActiveAddendumMonth($tahun, $bulan)) {
+            return false;
+        }
+
+        $candidateSummary = $this->resolveAddendumCandidatesForMonth($tahun, $bulan);
+
+        if ($candidateSummary->contains(fn (array $item): bool => ! (bool) ($item['has_addendum'] ?? false))) {
+            return true;
+        }
+
+        return $this->hasNewRevisionAfterAddendum($tahun, $bulan, $monthPeriodes);
     }
 
     /**
@@ -7527,8 +7548,21 @@ class SpkController extends Controller
      */
     private function hasAddendumChanges(int $tahun, int $bulan, $monthPeriodes): bool
     {
-        return $this->resolveAddendumCandidatesForMonth($tahun, $bulan)
-            ->contains(fn (array $item): bool => (bool) ($item['has_addendum'] ?? false));
+        if (! $this->isActiveAddendumMonth($tahun, $bulan)) {
+            return false;
+        }
+
+        $candidateSummary = $this->resolveAddendumCandidatesForMonth($tahun, $bulan);
+
+        if ($candidateSummary->isEmpty()) {
+            return false;
+        }
+
+        if ($candidateSummary->contains(fn (array $item): bool => (bool) ($item['has_addendum'] ?? false))) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -7715,13 +7749,25 @@ class SpkController extends Controller
                     $isChangeAlreadyCovered = $this->snapshotsMatch($documentSnapshot, $currentSnapshot);
                 }
 
+                $shouldAddendum = $hasMeaningfulPerubahanChange && ! $isChangeAlreadyCovered;
+                if (! $shouldAddendum && $this->isActiveAddendumMonth($tahun, (int) $bulanFormatted)) {
+                    $hasCurrentMonthPerubahan = $alokasiGroup->contains(function ($alokasi) {
+                        return ($alokasi->periodeAlokasi?->status ?? '') === 'perubahan'
+                            && ((float) ($alokasi->total_honor ?? 0) + (float) ($alokasi->total_honor_listing ?? 0)) > 0;
+                    });
+
+                    if ($hasCurrentMonthPerubahan && ! $hasExistingAddendum) {
+                        $shouldAddendum = true;
+                    }
+                }
+
                 // Addendum is only needed when there's a meaningful change in perubahan allocations
                 // AND the change is not yet covered by an existing document (addendum or regenerated SPK).
                 return [
                     'petugas_id' => $petugasId,
                     'has_addendum' => $hasExistingAddendum,
                     'should_regenerate' => $shouldRegenerate,
-                    'should_addendum' => $hasMeaningfulPerubahanChange && ! $isChangeAlreadyCovered,
+                    'should_addendum' => $shouldAddendum,
                 ];
             })
             ->filter()

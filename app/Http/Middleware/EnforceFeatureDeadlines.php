@@ -61,11 +61,43 @@ class EnforceFeatureDeadlines
 
         $response = $next($request);
 
-        if (($evaluation['bypass'] ?? null) && $response->getStatusCode() < 400) {
+        if (
+            ($evaluation['bypass'] ?? null)
+            && $response->getStatusCode() < 400
+            && $this->shouldConsumeBypass($request, $ruleKey)
+        ) {
             $this->deadlineAccessService->consumeBypass($evaluation['bypass']);
         }
 
         return $response;
+    }
+
+    private function shouldConsumeBypass(Request $request, string $ruleKey): bool
+    {
+        $routeName = (string) $request->route()?->getName();
+
+        if ($routeName === '') {
+            return false;
+        }
+
+        $terminalRoutes = [
+            'alokasi.submit',
+            'alokasi.periode.submit',
+            'alokasi.approve',
+            'alokasi.reject',
+            'pengajuan-pulsa.store',
+            'pengajuan-pulsa.resubmit',
+            'pengajuan-pulsa.review',
+            'pengajuan-pulsa.review-all',
+            'spk.store',
+            'spk.update',
+            'bast.store',
+            'bast.update',
+            'sk-kpa.store',
+            'sk-kpa.update',
+        ];
+
+        return in_array($routeName, $terminalRoutes, true);
     }
 
     /**
