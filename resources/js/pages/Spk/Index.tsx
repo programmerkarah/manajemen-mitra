@@ -58,6 +58,17 @@ interface MonthlyPeriodeItem {
     has_been_regenerated: boolean; // SPK sudah pernah di-regenerate
     has_incomplete_addendum: boolean; // Ada petugas dengan revisi yang belum punya addendum
     has_addendum_changes: boolean; // Ada perubahan alokasi ke petugas yang sudah punya addendum
+    action_counts: {
+        generate_pk: number;
+        regenerate_pk: number;
+        generate_addendum: number;
+        regenerate_addendum: number;
+        no_action: number;
+    };
+    can_generate_pk: boolean;
+    can_regenerate_pk: boolean;
+    can_generate_addendum: boolean;
+    can_regenerate_addendum: boolean;
     kegiatan_list: KegiatanItem[];
 }
 
@@ -135,18 +146,10 @@ export default function Index({
 
     const isNeedGenerate = useCallback(
         (monthData: MonthlyPeriodeItem) => {
-            const canGenerateInitialOrRemaining =
-                monthData.total_spk === 0 ||
-                monthData.total_spk < monthData.total_petugas_non_organik;
-
-            const canRegenerate =
-                monthData.total_spk >= monthData.total_petugas_non_organik &&
-                monthData.has_new_kegiatan_after_spk;
-
             return (
                 canCreateSpk &&
                 monthData.kegiatan_list.length > 0 &&
-                (canGenerateInitialOrRemaining || canRegenerate)
+                (monthData.can_generate_pk || monthData.can_regenerate_pk)
             );
         },
         [canCreateSpk],
@@ -160,10 +163,8 @@ export default function Index({
 
             return (
                 canCreateSpk &&
-                monthData.total_spk > 0 &&
-                (monthData.has_incomplete_addendum ||
-                    monthData.has_addendum_changes ||
-                    monthData.has_new_revision_after_addendum)
+                (monthData.can_generate_addendum ||
+                    monthData.can_regenerate_addendum)
             );
         },
         [canCreateSpk],
@@ -582,16 +583,8 @@ export default function Index({
                                                         </Button>
                                                     )}
 
-                                                    {/* Generate SPK - Show if:
-                                                        1. No SPK exists at all (total_spk === 0), OR
-                                                        2. Some petugas don't have SPK yet (total_spk < total_petugas_non_organik)
-                                                        This will show form with ONLY petugas who don't have SPK
-                                                    */}
                                                     {canCreateSpk &&
-                                                        (monthData.total_spk ===
-                                                            0 ||
-                                                            monthData.total_spk <
-                                                                monthData.total_petugas_non_organik) &&
+                                                        monthData.can_generate_pk &&
                                                         monthData.kegiatan_list
                                                             .length > 0 && (
                                                             <Button
@@ -600,7 +593,7 @@ export default function Index({
                                                                 className="w-full cursor-pointer justify-start gap-1"
                                                             >
                                                                 <Link
-                                                                    href={`/spk/periode/${monthData.primary_periode_hashed_id}/generate`}
+                                                                    href={`/spk/periode/${monthData.primary_periode_hashed_id}/generate?action=generate_pk`}
                                                                 >
                                                                     <Plus className="h-3.5 w-3.5" />
                                                                     Generate
@@ -610,15 +603,8 @@ export default function Index({
                                                             </Button>
                                                         )}
 
-                                                    {/* Re-generate SPK - Show if:
-                                                        1. All petugas have SPK (total_spk >= total_petugas_non_organik)
-                                                        2. AND there are new kegiatan added after SPK was generated
-                                                        This will show form with ONLY petugas who have allocation changes
-                                                    */}
                                                     {canCreateSpk &&
-                                                        monthData.total_spk >=
-                                                            monthData.total_petugas_non_organik &&
-                                                        monthData.has_new_kegiatan_after_spk && (
+                                                        monthData.can_regenerate_pk && (
                                                             <Button
                                                                 size="sm"
                                                                 variant="default"
@@ -626,7 +612,7 @@ export default function Index({
                                                                 className="w-full cursor-pointer justify-start gap-1 bg-orange-600 hover:bg-orange-700"
                                                             >
                                                                 <Link
-                                                                    href={`/spk/periode/${monthData.primary_periode_hashed_id}/generate`}
+                                                                    href={`/spk/periode/${monthData.primary_periode_hashed_id}/generate?action=regenerate_pk`}
                                                                 >
                                                                     <Plus className="h-3.5 w-3.5" />
                                                                     Re-generate
@@ -695,17 +681,8 @@ export default function Index({
                                                             </Button>
                                                         )}
 
-                                                    {/* Addendum SPK - Show if:
-                                                        1. Has revisions AND
-                                                        2. Some petugas don't have addendum yet (has_incomplete_addendum) AND
-                                                        3. No allocation changes to existing addendum petugas (!has_addendum_changes)
-                                                        This will show form with ONLY petugas who don't have addendum
-                                                    */}
                                                     {canCreateSpk &&
-                                                        monthData.total_spk >
-                                                            0 &&
-                                                        monthData.has_incomplete_addendum &&
-                                                        !monthData.has_addendum_changes && (
+                                                        monthData.can_generate_addendum && (
                                                             <Button
                                                                 size="sm"
                                                                 variant="default"
@@ -720,6 +697,7 @@ export default function Index({
                                                                                         {
                                                                                             bulan: monthData.bulan,
                                                                                             tahun: monthData.tahun,
+                                                                                            mode: 'addendum',
                                                                                         },
                                                                                     ),
                                                                             },
@@ -733,15 +711,8 @@ export default function Index({
                                                             </Button>
                                                         )}
 
-                                                    {/* Re-generate Addendum - Show if:
-                                                        1. Has revisions AND
-                                                        2. There are allocation changes to petugas who already have addendum
-                                                        This will show form with ONLY petugas who have allocation changes
-                                                    */}
                                                     {canCreateSpk &&
-                                                        monthData.total_spk >
-                                                            0 &&
-                                                        monthData.has_addendum_changes && (
+                                                        monthData.can_regenerate_addendum && (
                                                             <Button
                                                                 size="sm"
                                                                 variant="default"

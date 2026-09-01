@@ -62,7 +62,13 @@ class SpkController extends Controller
         $query = PeriodeAlokasi::query()
             ->with([
                 'kegiatan:id,kode_kegiatan,nama_kegiatan,jenis_kegiatan,tahun_anggaran',
-                'alokasiPetugas:id,periode_alokasi_id,petugas_id,total_honor,total_honor_listing,is_partial_payment,estimasi_honor_partial,is_partial_payment_listing,estimasi_honor_partial_listing',
+                // Keep every column used by hasPositiveEffectiveHonor() and
+                // SpkActionDecisionService::isMeaningfulAllocation().  When
+                // these columns are omitted Eloquent exposes them as null,
+                // making every allocation look like it has zero volume.  That
+                // previously emptied kegiatan_list and returned a zero
+                // non-organic officer count to Index.tsx.
+                'alokasiPetugas:id,periode_alokasi_id,petugas_id,peran,jumlah_unit_sampel,jumlah_satuan,jumlah_satuan_listing,total_honor,total_honor_listing,is_partial_payment,estimasi_honor_partial,is_partial_payment_listing,estimasi_honor_partial_listing',
                 'alokasiPetugas.petugas:id,nama,nik,jenis_petugas',
                 'spk:spk.id,alokasi_petugas_id,addendum_number,regeneration_count,spk.created_at',
             ])
@@ -102,6 +108,19 @@ class SpkController extends Controller
             $tahun = (int) $primaryPeriode->tahun;
             $bulan = (int) $primaryPeriode->bulan;
             $isPeriodBased = $this->usesPeriodBasedSpkFlow($primaryPeriode);
+
+            // The backend is the single source of truth for action eligibility.
+            // Period-based (Sensus) flows currently use their own workflow.
+            $actionDecisions = $isPeriodBased
+                ? collect()
+                : $this->spkActionDecisionService->resolveForMonth($tahun, $bulan);
+            $actionCounts = collect([
+                'generate_pk' => 0,
+                'regenerate_pk' => 0,
+                'generate_addendum' => 0,
+                'regenerate_addendum' => 0,
+                'no_action' => 0,
+            ])->merge($actionDecisions->countBy('final_action'));
 
             // Count unique non-organik petugas across all kegiatan in this month
             // Only count petugas with honor > 0
@@ -251,6 +270,16 @@ class SpkController extends Controller
                 'has_been_regenerated' => $hasBeenRegenerated,
                 'has_incomplete_addendum' => $hasIncompleteAddendum,
                 'has_addendum_changes' => $hasAddendumChanges,
+                'action_counts' => $actionCounts->all(),
+                'can_generate_pk' => $isPeriodBased
+                    ? $totalPetugasNonOrganik > $totalSpk
+                    : ($actionCounts['generate_pk'] ?? 0) > 0,
+                'can_regenerate_pk' => ! $isPeriodBased
+                    && ($actionCounts['regenerate_pk'] ?? 0) > 0,
+                'can_generate_addendum' => ! $isPeriodBased
+                    && ($actionCounts['generate_addendum'] ?? 0) > 0,
+                'can_regenerate_addendum' => ! $isPeriodBased
+                    && ($actionCounts['regenerate_addendum'] ?? 0) > 0,
                 'kegiatan_list' => $kegiatanList,
             ];
         })->sortByDesc(function ($item) {
@@ -3131,7 +3160,7 @@ class SpkController extends Controller
     /**
      * Show the form to generate SPKs for a periode
      */
-    public function create(string $periodeHashedId): Response|RedirectResponse
+    public function create(Request $request, string $periodeHashedId): Response|RedirectResponse
     {
         $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
 
@@ -3175,6 +3204,26 @@ class SpkController extends Controller
             })
             ->values();
 
+        $isPeriodBased = $this->usesPeriodBasedSpkFlow($periode);
+        $requestedAction = (string) $request->query('action', '');
+        if (! $isPeriodBased) {
+            $allowedAction = in_array($requestedAction, ['generate_pk', 'regenerate_pk'], true)
+                ? $requestedAction
+                : null;
+            $decisionsByPetugas = $this->spkActionDecisionService
+                ->resolveForMonth((int) $periode->tahun, (int) $periode->bulan)
+                ->keyBy('petugas_id');
+
+            $petugasList = $petugasList->filter(function (array $item) use ($decisionsByPetugas, $allowedAction): bool {
+                $decision = $decisionsByPetugas->get((int) ($item['petugas']['id'] ?? 0));
+                $finalAction = $decision['final_action'] ?? 'no_action';
+
+                return $allowedAction
+                    ? $finalAction === $allowedAction
+                    : in_array($finalAction, ['generate_pk', 'regenerate_pk'], true);
+            })->values();
+        }
+
         // Get next nomor urut for this year
         $nextNomorUrut = $this->getNextNomorUrutForPeriode($periode);
 
@@ -3183,7 +3232,8 @@ class SpkController extends Controller
         $existingSpk = (clone $existingSpkQuery)->first();
 
         // If existing SPK found, use its dates and set readonly mode
-        $isRegenerate = $existingSpk !== null;
+        $isRegenerate = $requestedAction === 'regenerate_pk'
+            || ($requestedAction === '' && $existingSpk !== null);
         $defaultTanggalSpk = $isRegenerate ? $existingSpk->tanggal_spk->format('Y-m-d') : null;
 
         // Get all existing SPKs for petugas in this month (map petugas_id => nomor_spk)

@@ -36,7 +36,9 @@ class SpkActionDecisionService
             })
             ->where(function ($query): void {
                 $query->where('total_honor', '>', 0)
-                    ->orWhere('total_honor_listing', '>', 0);
+                    ->orWhere('total_honor_listing', '>', 0)
+                    ->orWhere('estimasi_honor_partial', '>', 0)
+                    ->orWhere('estimasi_honor_partial_listing', '>', 0);
             })
             ->with(['petugas', 'periodeAlokasi.kegiatan'])
             ->get()
@@ -361,8 +363,11 @@ class SpkActionDecisionService
 
     private function resolvePkReferenceAllocation(Collection $kegiatanGroup): ?AlokasiPetugas
     {
-        return $kegiatanGroup->first(fn ($a) => ($a->periodeAlokasi?->status ?? '') === 'dikirim')
-            ?? $kegiatanGroup->first(fn ($a) => ($a->periodeAlokasi?->status ?? '') === 'perubahan');
+        // A perubahan row is the active replacement. The direvisi/dikirim row
+        // remains history and must never shadow it in the current snapshot.
+        return $kegiatanGroup->first(fn ($a) => ($a->periodeAlokasi?->status ?? '') === 'perubahan')
+            ?? $kegiatanGroup->first(fn ($a) => ($a->periodeAlokasi?->status ?? '') === 'disetujui')
+            ?? $kegiatanGroup->first(fn ($a) => ($a->periodeAlokasi?->status ?? '') === 'dikirim');
     }
 
     private function isMeaningfulAllocation(object $alokasi): bool
@@ -371,7 +376,9 @@ class SpkActionDecisionService
         $totalVolume = $unitSampelVolume > 0
             ? $unitSampelVolume
             : (int) ($alokasi->jumlah_satuan ?? 0) + (int) ($alokasi->jumlah_satuan_listing ?? 0);
-        $totalHonor = (float) ($alokasi->total_honor ?? 0) + (float) ($alokasi->total_honor_listing ?? 0);
+        $totalHonor = method_exists($alokasi, 'getEffectiveCombinedHonor')
+            ? (float) $alokasi->getEffectiveCombinedHonor()
+            : (float) ($alokasi->total_honor ?? 0) + (float) ($alokasi->total_honor_listing ?? 0);
 
         return $totalVolume > 0 && $totalHonor > 0;
     }
