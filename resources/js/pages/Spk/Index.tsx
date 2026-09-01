@@ -75,7 +75,7 @@ interface IndexProps {
             per_page: number;
             total: number;
             from: number;
-            display_label: ' + this.resolveSpkIndexDisplayLabel($primaryPeriode) + ';
+            to: number | null;
         };
         links: Array<{
             url: string | null;
@@ -85,7 +85,6 @@ interface IndexProps {
     };
     filters: {
         search?: string;
-        bulan?: number;
     };
     mode?: 'regular' | 'sensus-ekonomi';
     can_access_sensus_mode?: boolean;
@@ -162,13 +161,12 @@ export default function Index({
             return (
                 canCreateSpk &&
                 monthData.total_spk > 0 &&
-                !isNeedGenerate(monthData) &&
                 (monthData.has_incomplete_addendum ||
                     monthData.has_addendum_changes ||
                     monthData.has_new_revision_after_addendum)
             );
         },
-        [canCreateSpk, isNeedGenerate],
+        [canCreateSpk],
     );
 
     const summaryGroups = useMemo(() => {
@@ -706,7 +704,6 @@ export default function Index({
                                                     {canCreateSpk &&
                                                         monthData.total_spk >
                                                             0 &&
-                                                        !monthData.has_new_kegiatan_after_spk &&
                                                         monthData.has_incomplete_addendum &&
                                                         !monthData.has_addendum_changes && (
                                                             <Button
@@ -723,7 +720,6 @@ export default function Index({
                                                                                         {
                                                                                             bulan: monthData.bulan,
                                                                                             tahun: monthData.tahun,
-                                                                                            mode: 'addendum',
                                                                                         },
                                                                                     ),
                                                                             },
@@ -745,7 +741,6 @@ export default function Index({
                                                     {canCreateSpk &&
                                                         monthData.total_spk >
                                                             0 &&
-                                                        !monthData.has_new_kegiatan_after_spk &&
                                                         monthData.has_addendum_changes && (
                                                             <Button
                                                                 size="sm"

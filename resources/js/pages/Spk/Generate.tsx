@@ -35,6 +35,7 @@ interface AlokasiPetugas {
     petugas: Petugas;
     jumlah_kegiatan: number;
     kegiatan_list: KegiatanPeran[];
+    perubahan?: string[];
     total_honor: number;
 }
 
@@ -755,6 +756,9 @@ export default function Generate({
                                             Nomor Dokumen Perjanjian Kerja
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
+                                            Perubahan
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
                                             Jumlah Kegiatan
                                         </th>
                                         <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-neutral-700 uppercase dark:text-neutral-300">
@@ -861,6 +865,35 @@ export default function Generate({
                                                 <td className="px-6 py-4 text-sm font-medium text-neutral-900 dark:text-white">
                                                     {getNomorSpkForAlokasi(
                                                         alokasi,
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4 align-top text-sm text-neutral-900 dark:text-white">
+                                                    {(alokasi.perubahan ?? [])
+                                                        .length > 0 ? (
+                                                        <div className="space-y-1">
+                                                            {(
+                                                                alokasi.perubahan ??
+                                                                []
+                                                            ).map(
+                                                                (
+                                                                    item,
+                                                                    changeIndex,
+                                                                ) => (
+                                                                    <div
+                                                                        key={
+                                                                            changeIndex
+                                                                        }
+                                                                        className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+                                                                    >
+                                                                        {item}
+                                                                    </div>
+                                                                ),
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-neutral-400 dark:text-neutral-500">
+                                                            -
+                                                        </span>
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4 text-sm text-neutral-900 dark:text-white">
