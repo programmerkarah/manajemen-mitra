@@ -1,4 +1,5 @@
 import { ContentCard } from '@/components/content-card';
+import { MultiSelectCheckbox } from '@/components/multi-select-checkbox';
 import { StatusBadge } from '@/components/status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,7 @@ import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 interface AlokasiDetail {
     peran: string;
@@ -91,6 +92,9 @@ export default function Report({
         initialFilters.tahun.toString(),
     );
     const [selectedBulan, setSelectedBulan] = useState(initialFilters.bulan);
+    const [selectedPetugasIds, setSelectedPetugasIds] = useState<number[]>([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 10;
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -99,7 +103,7 @@ export default function Report({
     ];
 
     const handleFilterChange = (tahun: string, bulan: string) => {
-        router.get(
+        router.post(
             '/rekap-honor',
             { tahun, bulan },
             { preserveState: true, replace: true },
@@ -134,6 +138,29 @@ export default function Report({
     };
 
     const currentMonth = bulan_options.find((b) => b.value === selectedBulan);
+
+    const filteredPetugas = useMemo(() => {
+        const source = decryptedPetugas ?? [];
+
+        if (selectedPetugasIds.length === 0) {
+            return source;
+        }
+
+        return source.filter((petugas) =>
+            selectedPetugasIds.includes(petugas.petugas_id),
+        );
+    }, [decryptedPetugas, selectedPetugasIds]);
+
+    const totalPages = Math.max(
+        1,
+        Math.ceil(filteredPetugas.length / pageSize),
+    );
+    const effectiveCurrentPage =
+        totalPages > 0 ? Math.min(currentPage, totalPages) : 1;
+    const pageRows = useMemo(() => {
+        const start = (effectiveCurrentPage - 1) * pageSize;
+        return filteredPetugas.slice(start, start + pageSize);
+    }, [effectiveCurrentPage, filteredPetugas]);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -205,11 +232,31 @@ export default function Report({
                                 </SelectContent>
                             </Select>
                         </div>
+
+                        <div className="min-w-[220px] flex-1 space-y-2 md:max-w-xs">
+                            <label className="text-sm font-medium">
+                                Filter Petugas
+                            </label>
+                            <MultiSelectCheckbox
+                                options={(decryptedPetugas ?? []).map(
+                                    (petugas) => ({
+                                        value: petugas.petugas_id,
+                                        label: petugas.nama,
+                                    }),
+                                )}
+                                values={selectedPetugasIds}
+                                onValuesChange={(values) => {
+                                    setSelectedPetugasIds(values);
+                                    setCurrentPage(1);
+                                }}
+                                placeholder="Pilih petugas..."
+                            />
+                        </div>
                     </div>
                 </ContentCard>
 
                 {/* Summary Info */}
-                {decryptedPetugas && decryptedPetugas.length > 0 && (
+                {filteredPetugas && filteredPetugas.length > 0 && (
                     <div className="grid gap-4 md:grid-cols-3">
                         <ContentCard>
                             <div className="space-y-1">
@@ -217,7 +264,7 @@ export default function Report({
                                     Total Petugas
                                 </p>
                                 <p className="text-2xl font-bold">
-                                    {decryptedPetugas.length}
+                                    {filteredPetugas.length}
                                 </p>
                             </div>
                         </ContentCard>
@@ -228,7 +275,7 @@ export default function Report({
                                 </p>
                                 <p className="text-2xl font-bold">
                                     {formatCurrency(
-                                        decryptedPetugas.reduce(
+                                        filteredPetugas.reduce(
                                             (sum, p) => sum + p.total_honor,
                                             0,
                                         ),
@@ -243,9 +290,8 @@ export default function Report({
                                 </p>
                                 <p className="text-2xl font-bold text-destructive">
                                     {
-                                        decryptedPetugas.filter(
-                                            (p) => p.exceeds,
-                                        ).length
+                                        filteredPetugas.filter((p) => p.exceeds)
+                                            .length
                                     }
                                 </p>
                             </div>
@@ -255,7 +301,7 @@ export default function Report({
 
                 {/* Table */}
                 <ContentCard>
-                    {!decryptedPetugas || decryptedPetugas.length === 0 ? (
+                    {!filteredPetugas || filteredPetugas.length === 0 ? (
                         <div className="py-12 text-center text-muted-foreground">
                             Tidak ada data honor petugas untuk{' '}
                             {currentMonth?.label} {selectedTahun}
@@ -291,7 +337,7 @@ export default function Report({
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {decryptedPetugas.map((p) => (
+                                        {pageRows.map((p) => (
                                             <>
                                                 <tr
                                                     key={p.petugas_id}
@@ -578,6 +624,60 @@ export default function Report({
                                     </tbody>
                                 </table>
                             </div>
+
+                            {filteredPetugas.length > 0 && (
+                                <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <p className="text-sm text-muted-foreground">
+                                        Menampilkan{' '}
+                                        {(effectiveCurrentPage - 1) * pageSize +
+                                            1}
+                                        -
+                                        {Math.min(
+                                            effectiveCurrentPage * pageSize,
+                                            filteredPetugas.length,
+                                        )}{' '}
+                                        dari {filteredPetugas.length} petugas
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                                setCurrentPage((page) =>
+                                                    Math.max(1, page - 1),
+                                                )
+                                            }
+                                            disabled={effectiveCurrentPage <= 1}
+                                        >
+                                            Sebelumnya
+                                        </Button>
+                                        <span className="text-sm text-muted-foreground">
+                                            Halaman {effectiveCurrentPage} dari{' '}
+                                            {totalPages}
+                                        </span>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                                setCurrentPage((page) =>
+                                                    Math.min(
+                                                        totalPages,
+                                                        page + 1,
+                                                    ),
+                                                )
+                                            }
+                                            disabled={
+                                                effectiveCurrentPage >=
+                                                totalPages
+                                            }
+                                        >
+                                            Berikutnya
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </ContentCard>

@@ -3198,7 +3198,18 @@ class SpkController extends Controller
 
         // Group by petugas_id and aggregate their data
         $petugasList = $allAlokasi->groupBy('petugas_id')
-            ->map(fn (Collection $alokasiGroup) => $this->buildGeneratePetugasListItem($alokasiGroup))
+            ->map(function (Collection $alokasiGroup): ?array {
+                $effectiveAlokasi = $this->spkActionDecisionService
+                    ->getEffectiveAlokasiByKegiatan($alokasiGroup)
+                    ->values();
+
+                if ($effectiveAlokasi->isEmpty()) {
+                    return null;
+                }
+
+                return $this->buildGeneratePetugasListItem($effectiveAlokasi);
+            })
+            ->filter()
             ->sortBy(function ($item) {
                 return $item['petugas']['nama'];
             })
@@ -3234,7 +3245,9 @@ class SpkController extends Controller
         // If existing SPK found, use its dates and set readonly mode
         $isRegenerate = $requestedAction === 'regenerate_pk'
             || ($requestedAction === '' && $existingSpk !== null);
-        $defaultTanggalSpk = $isRegenerate ? $existingSpk->tanggal_spk->format('Y-m-d') : null;
+        $defaultTanggalSpk = $isRegenerate && $existingSpk && $existingSpk->tanggal_spk
+            ? Carbon::parse($existingSpk->tanggal_spk)->format('Y-m-d')
+            : null;
 
         // Get all existing SPKs for petugas in this month (map petugas_id => nomor_spk)
         $existingSpkMap = [];
@@ -3338,28 +3351,9 @@ class SpkController extends Controller
         }
 
         if ($isRegenerate) {
-            $petugasList = $petugasList->filter(function (array $item) use ($existingSpkMap): bool {
-                $petugasId = (int) ($item['petugas']['id'] ?? 0);
-
-                $existingRecords = $existingSpkMap[$petugasId] ?? [];
-                if ($existingRecords === []) {
-                    return false;
-                }
-
-                $currentAllocationIds = collect($item['alokasi_ids'] ?? [])
-                    ->map(static fn ($alokasiId) => (int) $alokasiId)
-                    ->unique()
-                    ->values();
-
-                $existingAllocationIds = collect($existingRecords)
-                    ->flatMap(fn (array $record) => $record['alokasi_ids'] ?? [])
-                    ->map(static fn ($alokasiId) => (int) $alokasiId)
-                    ->unique()
-                    ->values();
-
-                return $currentAllocationIds->diff($existingAllocationIds)->isNotEmpty();
-            })->values();
-
+            // Eligibility has already been decided by SpkActionDecisionService.
+            // Do not apply a second ID-diff filter here: it can disagree with
+            // the Index decision and produce an empty Generate page.
             $petugasList = $petugasList->map(function (array $item) use ($existingSpkMap) {
                 $petugasId = (int) ($item['petugas']['id'] ?? 0);
                 $item['perubahan'] = $this->buildGenerateChangeSummaries(
@@ -3436,6 +3430,7 @@ class SpkController extends Controller
         $monthPeriodes = PeriodeAlokasi::whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
             ->where('tahun', $tahun)
             ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+            ->whereHas('kegiatan', fn ($q) => $q->where('jenis_kegiatan', '!=', 'sensus'))
             ->with('spk')
             ->get();
 
@@ -3443,46 +3438,31 @@ class SpkController extends Controller
             return redirect()->route('spk.index')->with('error', 'Tidak ada periode valid untuk bulan ini.');
         }
 
-        if ($this->hasNewKegiatanAfterSpk((int) $tahun, (int) $bulan, $monthPeriodes)) {
-            return redirect()->route('spk.index')
-                ->with('warning', 'Silakan selesaikan re-generate SPK terlebih dahulu sebelum membuat addendum.');
-        }
-
         $allPeriodeInMonth = $monthPeriodes->pluck('id');
 
-        $petugasWithAllocation = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
-            ->whereHas('petugas', function ($q) {
-                $q->where('jenis_petugas', 'non-organik');
-            })
-            ->where(function ($query) {
-                $query->where('total_honor', '>', 0)
-                    ->orWhere('total_honor_listing', '>', 0);
-            })
-            ->pluck('petugas_id')
-            ->unique();
+        $candidateSummary = $this->spkActionDecisionService->resolveAddendumCandidatesForMonth((int) $tahun, (int) $bulan);
+        $candidateDecisions = $candidateSummary->keyBy('petugas_id');
 
-        // Get all petugas with allocation in this month.
-        // Load ALL alokasi in month for those petugas (including honor 0) for comparison and total display
+        $eligiblePetugasIds = $candidateSummary
+            ->pluck('petugas_id')
+            ->map(static fn ($petugasId) => (int) $petugasId)
+            ->unique()
+            ->values()
+            ->all();
+
+        // Load the exact candidates decided by the service. Do not run a
+        // second honor-based eligibility query that can disagree with Index.
         $allAlokasi = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
-            ->whereIn('petugas_id', $petugasWithAllocation)
+            ->whereIn('petugas_id', $eligiblePetugasIds)
             ->with(['petugas', 'periodeAlokasi.kegiatan'])
             ->get()
             ->filter(function ($alokasi) {
                 return $alokasi->petugas && $alokasi->petugas->jenis_petugas === 'non-organik';
             });
 
-        $candidateSummary = $this->spkActionDecisionService->resolveAddendumCandidatesForMonth((int) $tahun, (int) $bulan);
-
         $petugasWithAddendum = $candidateSummary
             ->filter(fn (array $item): bool => (bool) ($item['has_addendum'] ?? false))
             ->pluck('petugas_id')
-            ->values()
-            ->all();
-
-        $eligiblePetugasIds = $candidateSummary
-            ->pluck('petugas_id')
-            ->map(static fn ($petugasId) => (int) $petugasId)
-            ->unique()
             ->values()
             ->all();
 
@@ -3493,7 +3473,7 @@ class SpkController extends Controller
 
         // Group by petugas_id and aggregate their data
         $petugasListRaw = $allAlokasi->groupBy('petugas_id')
-            ->map(function ($alokasiGroup) use ($bulanFormatted, $tahun, $petugasWithAddendum, $eligiblePetugasIds) {
+            ->map(function ($alokasiGroup) use ($bulanFormatted, $tahun, $petugasWithAddendum, $eligiblePetugasIds, $candidateDecisions) {
                 $firstAlokasi = $alokasiGroup->first();
 
                 if (! in_array((int) $firstAlokasi->petugas_id, $eligiblePetugasIds, true)) {
@@ -3501,12 +3481,11 @@ class SpkController extends Controller
                 }
 
                 // Get existing SPK for this petugas in this month
-                $existingSpk = Spk::where('petugas_id', $firstAlokasi->petugas_id)
-                    ->where('addendum_number', 0) // Get original SPK only
-                    ->whereYear('tanggal_spk', (int) $tahun)
-                    ->whereMonth('tanggal_spk', (int) $bulanFormatted)
-                    ->orderBy('created_at', 'asc')
-                    ->first();
+                $existingSpk = $this->spkActionDecisionService->resolveOriginalSpkForPetugasMonth(
+                    (int) $firstAlokasi->petugas_id,
+                    (int) $tahun,
+                    (int) $bulanFormatted,
+                );
 
                 if (! $existingSpk) {
                     return null; // Skip petugas without original SPK
@@ -3517,15 +3496,10 @@ class SpkController extends Controller
 
                 // Calculate current total honor
                 $currentTotalHonor = $effectiveAlokasiByKegiatan->sum(function ($alokasi) {
-                    return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
+                    return $alokasi->getEffectiveCombinedHonor();
                 });
 
                 $totalHonor = $currentTotalHonor;
-
-                // Skip if total honor from perubahan is 0
-                if ($totalHonor <= 0) {
-                    return null;
-                }
 
                 // Get all effective kegiatan with their peran (perubahan if exists, otherwise latest revisi)
                 $kegiatanList = $effectiveAlokasiByKegiatan
@@ -3566,16 +3540,20 @@ class SpkController extends Controller
                     'jumlah_kegiatan' => count($kegiatanList),
                     'kegiatan_list' => $kegiatanList,
                     'total_honor' => $totalHonor,
+                    'perubahan' => $this->spkActionDecisionService->buildChangeSummariesForPetugasMonth(
+                        (int) $firstAlokasi->petugas_id,
+                        (int) $tahun,
+                        (int) $bulanFormatted,
+                    ),
                     'has_addendum' => in_array($firstAlokasi->petugas_id, $petugasWithAddendum),
+                    'final_action' => (string) ($candidateDecisions->get((int) $firstAlokasi->petugas_id)['final_action'] ?? 'no_action'),
                 ];
             })
             ->filter() // Remove nulls
             ->filter(function ($item) use ($isRegenerateAddendum) {
-                // Generate addendum biasa hanya untuk petugas tanpa addendum.
-                // Re-generate addendum hanya untuk petugas yang sudah punya addendum.
                 return $isRegenerateAddendum
-                    ? $item['has_addendum']
-                    : ! $item['has_addendum'];
+                    ? $item['final_action'] === 'regenerate_addendum'
+                    : $item['final_action'] === 'generate_addendum';
             })
             ->sortBy(function ($item) {
                 return $item['petugas']['nama'];
@@ -5785,8 +5763,10 @@ class SpkController extends Controller
             // Save to database
             $spk = Spk::create([
                 'nomor_spk' => $nomorSpk,
+                'petugas_id' => $petugas->id,
                 'alokasi_petugas_id' => $allAlokasi->first()->id,
                 'alokasi_petugas_ids' => $allAlokasi->pluck('id')->toArray(),
+                'addendum_number' => 0,
                 'tanggal_spk' => $validated['tanggal_spk'],
                 'tanggal_mulai_kerja' => Carbon::create($periode->tahun, $periode->bulan, 1),
                 'tanggal_selesai_kerja' => Carbon::parse($calculatedSampaiTanggal),
@@ -6125,7 +6105,10 @@ class SpkController extends Controller
 
     private function baseSpkScopeQuery(PeriodeAlokasi $periode)
     {
-        $query = Spk::query()->where('addendum_number', 0);
+        $query = Spk::query()->where(function ($builder) {
+            $builder->where('addendum_number', 0)
+                ->orWhereNull('addendum_number');
+        });
 
         if ($this->usesPeriodBasedSpkFlow($periode)) {
             return $query->whereHas('alokasiPetugas', function ($builder) use ($periode) {
@@ -6133,11 +6116,15 @@ class SpkController extends Controller
             });
         }
 
-        return $query->whereYear('tanggal_spk', $periode->tahun)
-            ->whereMonth('tanggal_spk', (int) $periode->bulan)
-            ->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($builder) {
-                $builder->where('jenis_kegiatan', '!=', 'sensus');
-            });
+        $bulanFormatted = str_pad((string) ((int) $periode->bulan), 2, '0', STR_PAD_LEFT);
+
+        // Scope documents through their allocation period, not tanggal_spk.
+        // The signing date may be outside the activity month.
+        return $query->whereHas('alokasiPetugas.periodeAlokasi', function ($builder) use ($periode, $bulanFormatted) {
+            $builder->whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
+                ->where('tahun', $periode->tahun)
+                ->whereHas('kegiatan', fn ($q) => $q->where('jenis_kegiatan', '!=', 'sensus'));
+        });
     }
 
     private function resolveSpkIndexGroupKey(PeriodeAlokasi $periode): string
@@ -7277,6 +7264,13 @@ class SpkController extends Controller
                 ->where('petugas_id', $petugasId)
                 ->get();
 
+            // Persist only the current effective snapshot. Historical
+            // `direvisi` rows must not remain beside their `perubahan`
+            // replacements in alokasi_petugas_ids.
+            $allAlokasiPetugas = $this->spkActionDecisionService
+                ->getEffectiveAlokasiByKegiatan($allAlokasiPetugas)
+                ->values();
+
             if ($allAlokasiPetugas->isEmpty()) {
                 $results[] = [
                     'petugas_id' => $petugasId,
@@ -7455,6 +7449,7 @@ class SpkController extends Controller
                         'petugas_id' => $petugasId,
                         'alokasi_petugas_id' => $allAlokasiPetugas->first()->id,
                         'alokasi_petugas_ids' => $allAlokasiPetugas->pluck('id')->toArray(),
+                        'addendum_number' => 0,
                         'tanggal_spk' => $validated['tanggal_spk'],
                         'tanggal_mulai_kerja' => Carbon::create($periode->tahun, $periode->bulan, 1),
                         'tanggal_selesai_kerja' => $calculatedSampaiTanggal,

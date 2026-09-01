@@ -23,6 +23,7 @@ class SystemSettingsSsoSyncTest extends TestCase
         $admin->roles()->attach($adminRole->id);
 
         Cache::forget('settings:sso_sync_enabled');
+        config()->set('services.sso.sync_enabled', true);
 
         $response = $this->actingAs($admin)
             ->withSession(['active_role_id' => $adminRole->id])
@@ -37,5 +38,6 @@ class SystemSettingsSsoSyncTest extends TestCase
         ]);
 
         $this->assertFalse((bool) Cache::get('settings:sso_sync_enabled', true));
+        $this->assertFalse((bool) config('services.sso.sync_enabled'));
     }
 }

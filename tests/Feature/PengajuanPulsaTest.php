@@ -83,6 +83,24 @@ class PengajuanPulsaTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_detail_accepts_post_state_payload(): void
+    {
+        [$user, $role] = $this->makeUserWithRole('admin');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'metode_pendataan_pencacahan' => 'CAPI',
+            'tahun_anggaran' => date('Y'),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->post('/pengajuan-pulsa/detail', [
+                'state' => encryptFilters(['kegiatan_id' => $kegiatan->id, 'bulan' => '06']),
+            ]);
+
+        $response->assertStatus(200);
+    }
+
     public function test_create_page_is_accessible_by_ketua_tim(): void
     {
         [$user, $role] = $this->makeUserWithRole('ketua_tim');

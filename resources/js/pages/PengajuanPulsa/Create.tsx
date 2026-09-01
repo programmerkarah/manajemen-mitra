@@ -157,8 +157,8 @@ export default function PengajuanPulsaCreate({
     existingPerKegiatan,
     filters,
 }: Props) {
-    const [bulan, setBulan] = useState(filters.bulan);
-    const tahun = filters.tahun;
+    const [bulan, setBulan] = useState(filters.bulan ?? '01');
+    const [tahun, setTahun] = useState(filters.tahun ?? '');
     const [currentPage, setCurrentPage] = useState(1);
     const perPage = 6;
     const [catatan, setCatatan] = useState('');
@@ -290,6 +290,11 @@ export default function PengajuanPulsaCreate({
     const pageEnd = Math.min(currentPage * perPage, petugasWithKegiatan.length);
 
     useEffect(() => {
+        setBulan(filters.bulan ?? '01');
+        setTahun(filters.tahun ?? '');
+    }, [filters.bulan, filters.tahun]);
+
+    useEffect(() => {
         setCurrentPage(1);
     }, [bulan]);
 
@@ -318,9 +323,14 @@ export default function PengajuanPulsaCreate({
     }, [petugasWithKegiatan]);
 
     const handleFilterChange = (newBulan: string) => {
-        router.get(
-            '/pengajuan-pulsa/create',
-            { bulan: newBulan },
+        router.post(
+            '/pengajuan-pulsa/create/filter',
+            {
+                state: encryptFilters({
+                    bulan: newBulan,
+                    tahun: String(tahun || filters.tahun || ''),
+                }),
+            },
             { preserveState: false },
         );
     };
@@ -465,7 +475,12 @@ export default function PengajuanPulsaCreate({
 
         router.post(
             '/pengajuan-pulsa',
-            { bulan, tahun, catatan, items },
+            {
+                bulan: String(bulan),
+                tahun: String(tahun || filters.tahun || ''),
+                catatan,
+                items,
+            },
             {
                 onError: (errs) => {
                     setErrors(errs as Record<string, string>);

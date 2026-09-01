@@ -15,7 +15,7 @@ import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { encryptFilters } from '@/utils/encryption';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import {
     ArrowLeft,
     Check,
@@ -25,7 +25,7 @@ import {
     RotateCcw,
     X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 interface PengajuanPulsaItem {
     id: number;
@@ -154,6 +154,8 @@ export default function PengajuanPulsaDetail({
     const [reviewAction, setReviewAction] = useState<'diterima' | 'ditolak'>(
         'diterima',
     );
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 8;
     const [nominalDisetujui, setNominalDisetujui] = useState<number>(0);
     const [catatanPenolakan, setCatatanPenolakan] = useState('');
     const [isReviewing, setIsReviewing] = useState(false);
@@ -256,6 +258,17 @@ export default function PengajuanPulsaDetail({
         );
     };
 
+    const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+    const effectiveCurrentPage =
+        totalPages > 0 ? Math.min(currentPage, totalPages) : 1;
+    const paginatedItems = useMemo(() => {
+        const start = (effectiveCurrentPage - 1) * pageSize;
+        return items.slice(start, start + pageSize);
+    }, [effectiveCurrentPage, items]);
+    const pageStart =
+        items.length === 0 ? 0 : (effectiveCurrentPage - 1) * pageSize + 1;
+    const pageEnd = Math.min(effectiveCurrentPage * pageSize, items.length);
+
     const totalNominal = items.reduce((sum, i) => sum + i.nominal, 0);
     const acceptedNominal = items.reduce((sum, item) => {
         if (item.status !== 'diterima') {
@@ -310,13 +323,18 @@ export default function PengajuanPulsaDetail({
                     title="Detail Pengajuan Pulsa"
                     description={`${kegiatan.nama_kegiatan}`}
                 >
-                    <Button variant="outline" asChild className="gap-2">
-                        <Link
-                            href={`/pengajuan-pulsa?state=${encodeURIComponent(encryptFilters({ bulan }))}`}
-                        >
-                            <ArrowLeft className="h-4 w-4" />
-                            Kembali
-                        </Link>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="gap-2"
+                        onClick={() =>
+                            router.post('/pengajuan-pulsa/filter', {
+                                state: encryptFilters({ bulan, tahun }),
+                            })
+                        }
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                        Kembali
                     </Button>
                 </PageHeader>
 
@@ -488,7 +506,7 @@ export default function PengajuanPulsaDetail({
                                         </td>
                                     </tr>
                                 ) : (
-                                    items.map((item) => (
+                                    paginatedItems.map((item) => (
                                         <tr
                                             key={item.id}
                                             className={`transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50 ${
@@ -637,6 +655,48 @@ export default function PengajuanPulsaDetail({
                             </tbody>
                         </table>
                     </div>
+                    {items.length > 0 && (
+                        <div className="flex flex-col gap-3 border-t border-neutral-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-neutral-800">
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Menampilkan {pageStart}-{pageEnd} dari{' '}
+                                {items.length} pengajuan
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setCurrentPage((page) =>
+                                            Math.max(1, page - 1),
+                                        )
+                                    }
+                                    disabled={effectiveCurrentPage <= 1}
+                                >
+                                    Sebelumnya
+                                </Button>
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    Halaman {effectiveCurrentPage} dari{' '}
+                                    {totalPages}
+                                </span>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setCurrentPage((page) =>
+                                            Math.min(totalPages, page + 1),
+                                        )
+                                    }
+                                    disabled={
+                                        effectiveCurrentPage >= totalPages
+                                    }
+                                >
+                                    Berikutnya
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </ContentCard>
             </div>
 
@@ -649,7 +709,13 @@ export default function PengajuanPulsaDetail({
                     }
                 }}
             >
-                <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-2xl">
+                <DialogContent
+                    className="flex max-h-[90vh] flex-col overflow-hidden p-0"
+                    style={{
+                        width: 'min(100vw - 2rem, 1500px)',
+                        maxWidth: 'min(100vw - 2rem, 1500px)',
+                    }}
+                >
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <ClipboardCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -1091,15 +1157,21 @@ export default function PengajuanPulsaDetail({
                     }
                 }}
             >
-                <DialogContent className="sm:max-w-9xl flex max-h-[120vh] flex-col">
-                    <DialogHeader className="shrink-0">
+                <DialogContent
+                    className="!flex !max-h-[96vh] !flex-col !overflow-hidden !p-0"
+                    style={{
+                        width: 'min(100vw - 2rem, 1700px)',
+                        maxWidth: 'min(100vw - 2rem, 1700px)',
+                    }}
+                >
+                    <DialogHeader className="shrink-0 border-b border-neutral-200 px-6 py-4 dark:border-neutral-800">
                         <DialogTitle className="flex items-center gap-2">
                             <ClipboardCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                             Proses Review Pengajuan ({dikirimItems.length})
                         </DialogTitle>
                     </DialogHeader>
 
-                    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-1">
+                    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-6 py-4">
                         {/* Quick-fill buttons */}
                         <div className="flex shrink-0 items-center gap-2">
                             <span className="text-sm text-neutral-500 dark:text-neutral-400">
@@ -1136,9 +1208,9 @@ export default function PengajuanPulsaDetail({
                         </div>
 
                         {/* Per-item table */}
-                        <div className="overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-700">
+                        <div className="max-h-[48vh] overflow-auto rounded-lg border border-neutral-200 dark:border-neutral-700">
                             <table className="w-full min-w-[760px] text-sm">
-                                <thead className="border-b border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900">
+                                <thead className="sticky top-0 z-10 border-b border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900">
                                     <tr>
                                         <th className="px-3 py-2.5 text-left font-semibold text-neutral-700 dark:text-neutral-300">
                                             Petugas
@@ -1297,7 +1369,7 @@ export default function PengajuanPulsaDetail({
                         )}
                     </div>
 
-                    <DialogFooter className="shrink-0 gap-2 sm:gap-0">
+                    <DialogFooter className="shrink-0 gap-2 border-t border-neutral-200 px-6 py-4 sm:gap-0 dark:border-neutral-800">
                         <Button
                             variant="outline"
                             onClick={() => setShowBatchDialog(false)}

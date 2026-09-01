@@ -20,7 +20,7 @@ import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { encryptFilters } from '@/utils/encryption';
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import {
     CheckCircle,
     ChevronLeft,
@@ -286,7 +286,7 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
     }, [kegiatanGroups]);
 
     const handleFilterChange = (newBulan: string) => {
-        router.get('/pengajuan-pulsa', {
+        router.post('/pengajuan-pulsa/filter', {
             state: encryptFilters({ bulan: newBulan }),
         });
     };
@@ -302,13 +302,18 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                     {(activeRole === 'ketua_tim' ||
                         activeRole === 'admin' ||
                         activeRole === 'operator') && (
-                        <Button asChild className="gap-2">
-                            <Link
-                                href={`/pengajuan-pulsa/create?bulan=${bulan}`}
-                            >
-                                <Plus className="h-4 w-4" />
-                                Ajukan Pulsa
-                            </Link>
+                        <Button
+                            type="button"
+                            className="gap-2"
+                            onClick={() =>
+                                router.post('/pengajuan-pulsa/create', {
+                                    bulan,
+                                    tahun: String(tahun),
+                                })
+                            }
+                        >
+                            <Plus className="h-4 w-4" />
+                            Ajukan Pulsa
                         </Button>
                     )}
                 </PageHeader>
@@ -514,8 +519,8 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                                                     size="sm"
                                                     className="gap-1.5"
                                                     onClick={() =>
-                                                        router.get(
-                                                            '/pengajuan-pulsa/detail',
+                                                        router.post(
+                                                            '/pengajuan-pulsa/detail/filter',
                                                             {
                                                                 state: encryptFilters(
                                                                     {
@@ -620,8 +625,8 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() =>
-                                                    router.get(
-                                                        '/pengajuan-pulsa/detail',
+                                                    router.post(
+                                                        '/pengajuan-pulsa/detail/filter',
                                                         {
                                                             state: encryptFilters(
                                                                 {

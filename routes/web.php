@@ -774,10 +774,10 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
     });
 
     // Monitoring Pulsa
-    Route::get('monitoring-pulsa', [MonitoringPulsaController::class, 'index'])
+    Route::match(['get', 'post'], 'monitoring-pulsa', [MonitoringPulsaController::class, 'index'])
         ->name('monitoring-pulsa.index')
         ->middleware('active.role:admin,operator,ketua_tim');
-    Route::get('monitoring-pulsa/export-pdf', [MonitoringPulsaController::class, 'exportPdf'])
+    Route::match(['get', 'post'], 'monitoring-pulsa/export-pdf', [MonitoringPulsaController::class, 'exportPdf'])
         ->name('monitoring-pulsa.export-pdf')
         ->middleware('active.role:admin,operator,ketua_tim');
 
@@ -787,10 +787,14 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
     // Pengajuan Pulsa
     Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
         Route::get('pengajuan-pulsa', [PengajuanPulsaController::class, 'index'])->name('pengajuan-pulsa.index');
+        Route::post('pengajuan-pulsa/filter', [PengajuanPulsaController::class, 'index'])->name('pengajuan-pulsa.filter');
         Route::get('pengajuan-pulsa/create', [PengajuanPulsaController::class, 'create'])->name('pengajuan-pulsa.create');
+        Route::post('pengajuan-pulsa/create/filter', [PengajuanPulsaController::class, 'create'])->name('pengajuan-pulsa.create.filter');
         Route::get('pengajuan-pulsa/template', [PengajuanPulsaController::class, 'downloadTemplate'])->name('pengajuan-pulsa.template');
         Route::post('pengajuan-pulsa/import-preview', [PengajuanPulsaController::class, 'importPreview'])->name('pengajuan-pulsa.import-preview');
         Route::get('pengajuan-pulsa/detail', [PengajuanPulsaController::class, 'detail'])->name('pengajuan-pulsa.detail');
+        Route::post('pengajuan-pulsa/detail/filter', [PengajuanPulsaController::class, 'detail'])->name('pengajuan-pulsa.detail.filter');
+        Route::post('pengajuan-pulsa/detail', [PengajuanPulsaController::class, 'detail'])->name('pengajuan-pulsa.detail.post');
         Route::post('pengajuan-pulsa', [PengajuanPulsaController::class, 'store'])->name('pengajuan-pulsa.store');
         Route::post('pengajuan-pulsa/{pengajuanPulsa}/resubmit', [PengajuanPulsaController::class, 'resubmit'])->name('pengajuan-pulsa.resubmit');
     });

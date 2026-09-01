@@ -61,27 +61,38 @@ class SpkActionDecisionService
                 $petugasId = (int) $firstAlokasi->petugas_id;
 
                 $effectiveAlokasiByKegiatan = $this->getEffectiveAlokasiByKegiatan($alokasiGroup);
-                $currentAllocationIds = $alokasiGroup
+                if ($effectiveAlokasiByKegiatan->isEmpty()) {
+                    return [
+                        'petugas_id' => $petugasId,
+                        'has_addendum' => false,
+                        'final_action' => 'no_action',
+                        'should_regenerate' => false,
+                        'should_addendum' => false,
+                    ];
+                }
+
+                $currentAllocationIds = $effectiveAlokasiByKegiatan
                     ->pluck('id')
                     ->map(static fn ($id): int => (int) $id)
                     ->values();
-                $existingAllocationIds = $this->getExistingOriginalAllocationIdsForPetugas($petugasId, $tahun, (int) $bulanFormatted);
+                // Include historical rows in this activity month as document
+                // linkage candidates. A generated PK may still point to the
+                // old `direvisi` ID while the current effective allocation is
+                // its newer `perubahan` replacement.
+                $monthAllocationIds = $alokasiGroup
+                    ->pluck('id')
+                    ->filter()
+                    ->map(static fn ($id): int => (int) $id)
+                    ->unique()
+                    ->values();
 
-                $candidateOriginalSpks = Spk::query()
-                    ->where('petugas_id', $petugasId)
-                    ->where('addendum_number', 0)
-                    ->where(function ($query) use ($tahun, $bulanFormatted): void {
-                        $query->whereYear('tanggal_spk', '<', $tahun)
-                            ->orWhere(function ($query) use ($tahun, $bulanFormatted): void {
-                                $query->whereYear('tanggal_spk', $tahun)
-                                    ->whereRaw("LPAD(CAST(MONTH(tanggal_spk) AS UNSIGNED), 2, '0') <= ?", [$bulanFormatted]);
-                            });
-                    })
-                    ->orderByDesc('tanggal_spk')
-                    ->orderByDesc('created_at')
-                    ->get();
-
-                $existingSpk = $this->resolveBestMatchingOriginalSpk($candidateOriginalSpks, $currentAllocationIds);
+                $existingSpk = $this->resolveOriginalSpkForPetugasMonth(
+                    $petugasId,
+                    $tahun,
+                    (int) $bulanFormatted,
+                    $monthAllocationIds,
+                    $currentAllocationIds,
+                );
 
                 $hasExistingAddendum = $existingSpk
                     ? Spk::query()
@@ -100,24 +111,7 @@ class SpkActionDecisionService
                     ];
                 }
 
-                $delta = $this->analyzeAllocationDeltaForPetugas(
-                    $petugasId,
-                    $bulanFormatted,
-                    $tahun,
-                    'original_spk',
-                );
-
-                $hasMissingAllocationIds = $existingAllocationIds->isNotEmpty()
-                    && $currentAllocationIds->diff($existingAllocationIds)->isNotEmpty();
-
-                $shouldRegenerate = ! $hasExistingAddendum
-                    && $hasMissingAllocationIds
-                    && $delta['is_allocation_incomplete']
-                    && $delta['has_new_kegiatan_added']
-                    && ! $delta['has_allocation_change'];
-
                 $latestDocument = Spk::query()
-                    ->where('petugas_id', $petugasId)
                     ->where(function ($q) use ($existingSpk): void {
                         $q->where('id', $existingSpk->id)
                             ->orWhere('parent_spk_id', $existingSpk->id);
@@ -130,14 +124,16 @@ class SpkActionDecisionService
                     return [
                         'petugas_id' => $petugasId,
                         'has_addendum' => $hasExistingAddendum,
-                        'final_action' => $shouldRegenerate ? 'regenerate_pk' : 'no_action',
-                        'should_regenerate' => $shouldRegenerate,
+                        'final_action' => 'no_action',
+                        'should_regenerate' => false,
                         'should_addendum' => false,
                     ];
                 }
 
                 $currentTotalHonor = $effectiveAlokasiByKegiatan->sum(function ($alokasi): float {
-                    return (float) ($alokasi->total_honor ?? 0) + (float) ($alokasi->total_honor_listing ?? 0);
+                    return method_exists($alokasi, 'getEffectiveCombinedHonor')
+                        ? (float) $alokasi->getEffectiveCombinedHonor()
+                        : (float) ($alokasi->total_honor ?? 0) + (float) ($alokasi->total_honor_listing ?? 0);
                 });
 
                 if ($currentTotalHonor <= 0) {
@@ -150,58 +146,20 @@ class SpkActionDecisionService
                     ];
                 }
 
-                $currentSnapshot = $effectiveAlokasiByKegiatan
-                    ->mapWithKeys(function ($alokasi, $kegiatanId): array {
-                        return [
-                            (int) $kegiatanId => [
-                                'alokasi_id' => (int) ($alokasi->id ?? 0),
-                                'periode_alokasi_id' => (int) ($alokasi->periode_alokasi_id ?? 0),
-                                'peran' => $alokasi?->peran,
-                                'jumlah_satuan' => (int) ($alokasi->jumlah_satuan ?? 0),
-                                'jumlah_satuan_listing' => (int) ($alokasi->jumlah_satuan_listing ?? 0),
-                                'total_honor' => (float) ($alokasi->total_honor ?? 0),
-                                'total_honor_listing' => (float) ($alokasi->total_honor_listing ?? 0),
-                            ],
-                        ];
-                    })
-                    ->all();
-
-                $hasMeaningfulPerubahanChange = $this->detectMeaningfulPerubahanChange($alokasiGroup);
-
-                $isChangeAlreadyCovered = false;
-                if ($hasExistingAddendum && $latestDocument->addendum_number > 0) {
-                    $documentSnapshot = $this->buildEffectiveAllocationSnapshotForPetugasFromDocument(
-                        $petugasId,
-                        $latestDocument,
-                        $bulanFormatted,
-                        $tahun,
-                    );
-
-                    $isChangeAlreadyCovered = $this->snapshotsMatch($documentSnapshot, $currentSnapshot);
-                }
-
-                $hasUncoveredPostAddendumChange = $hasExistingAddendum
-                    && $delta['has_new_kegiatan_added']
-                    && ! $isChangeAlreadyCovered;
-
-                $isMeaningfulCurrentRevision = (
-                    $hasMeaningfulPerubahanChange
-                    || (bool) ($delta['has_allocation_change'] ?? false)
-                    || $hasUncoveredPostAddendumChange
-                ) && ! $isChangeAlreadyCovered;
-
-                $hasReplacementChange = $hasMeaningfulPerubahanChange
-                    || ($delta['has_allocation_change'] ?? false);
-                $hasUncoveredReplacementChange = $hasReplacementChange && ! $isChangeAlreadyCovered;
-                $hasUncoveredNewAllocation = (bool) ($delta['has_new_kegiatan_added'] ?? false)
-                    && ! $isChangeAlreadyCovered;
+                $changes = $this->classifyChangesAgainstDocument(
+                    $petugasId,
+                    $latestDocument,
+                    $effectiveAlokasiByKegiatan,
+                );
+                $isChangeAlreadyCovered = ! $changes['has_replacement'] && ! $changes['has_new'];
 
                 $finalAction = $this->determineFinalAction(
                     hasExistingSpk: true,
                     hasExistingAddendum: $hasExistingAddendum,
-                    hasReplacementChange: $hasUncoveredReplacementChange,
-                    hasNewAllocation: $hasUncoveredNewAllocation,
-                    hasUncoveredPostAddendumChange: $hasUncoveredPostAddendumChange,
+                    hasReplacementChange: $changes['has_replacement'],
+                    hasNewAllocation: $changes['has_new'],
+                    hasUncoveredPostAddendumChange: $hasExistingAddendum
+                        && ($changes['has_replacement'] || $changes['has_new']),
                     isChangeAlreadyCovered: $isChangeAlreadyCovered,
                 );
 
@@ -248,6 +206,62 @@ class SpkActionDecisionService
             ->values();
     }
 
+    /**
+     * Resolve the original PK through its allocation snapshot. This method is
+     * shared by Index, Generate, and Addendum so all entry points identify the
+     * same document without relying on tanggal_spk.
+     */
+    public function resolveOriginalSpkForPetugasMonth(
+        int $petugasId,
+        int $tahun,
+        int $bulan,
+        ?Collection $monthAllocationIds = null,
+        ?Collection $currentAllocationIds = null,
+    ): ?Spk {
+        if ($monthAllocationIds === null) {
+            $bulanFormatted = str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
+            $periodeIds = PeriodeAlokasi::query()
+                ->whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
+                ->where('tahun', $tahun)
+                ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+                ->whereHas('kegiatan', fn ($q) => $q->where('jenis_kegiatan', '!=', 'sensus'))
+                ->pluck('id');
+
+            $monthAllocationIds = AlokasiPetugas::query()
+                ->whereIn('periode_alokasi_id', $periodeIds)
+                ->where('petugas_id', $petugasId)
+                ->pluck('id')
+                ->map(static fn ($id): int => (int) $id)
+                ->unique()
+                ->values();
+        }
+
+        if ($monthAllocationIds->isEmpty()) {
+            return null;
+        }
+
+        $candidateOriginalSpks = Spk::query()
+            ->where(function ($query) use ($petugasId): void {
+                $query->where('petugas_id', $petugasId)
+                    ->orWhereNull('petugas_id');
+            })
+            ->where(function ($query): void {
+                $query->where('addendum_number', 0)
+                    ->orWhereNull('addendum_number');
+            })
+            ->orderByDesc('created_at')
+            ->get()
+            ->filter(fn (Spk $spk): bool => $this->getDocumentAllocationIds($spk)
+                ->intersect($monthAllocationIds)
+                ->isNotEmpty())
+            ->values();
+
+        return $this->resolveBestMatchingOriginalSpk(
+            $candidateOriginalSpks,
+            $currentAllocationIds ?? $monthAllocationIds,
+        );
+    }
+
     public function determineFinalAction(
         bool $hasExistingSpk,
         bool $hasExistingAddendum,
@@ -265,12 +279,17 @@ class SpkActionDecisionService
         }
 
         if ($hasExistingAddendum) {
-            if ($hasUncoveredPostAddendumChange || $hasNewAllocation) {
-                return 'regenerate_addendum';
-            }
-
+            // A replacement always creates the next numbered addendum. When a
+            // replacement and a new allocation arrive together, replacement
+            // takes priority and the resulting addendum snapshots both.
             if ($hasReplacementChange) {
                 return 'generate_addendum';
+            }
+
+            // Re-generate Addendum is reserved for a pure new allocation after
+            // at least one addendum already exists.
+            if ($hasNewAllocation || $hasUncoveredPostAddendumChange) {
+                return 'regenerate_addendum';
             }
 
             return 'no_action';
@@ -288,6 +307,218 @@ class SpkActionDecisionService
     }
 
     /**
+     * Compare the current effective allocation IDs with the snapshot stored in
+     * the last document. A new ID is a replacement only when it is a
+     * `perubahan` row for a kegiatan already represented by that snapshot.
+     * Otherwise it is a genuine new allocation.
+     *
+     * @return array{has_new:bool,has_replacement:bool,new_ids:array<int,int>,replacement_ids:array<int,int>,summaries:array<int,string>}
+     */
+    private function classifyChangesAgainstDocument(
+        int $petugasId,
+        Spk $document,
+        Collection $currentByKegiatan,
+    ): array {
+        $documentIds = $this->getDocumentAllocationIds($document);
+
+        $documentByKegiatan = AlokasiPetugas::query()
+            ->whereIn('id', $documentIds)
+            ->where('petugas_id', $petugasId)
+            ->with('periodeAlokasi:id,kegiatan_id,status')
+            ->get()
+            ->filter(fn (AlokasiPetugas $alokasi): bool => $alokasi->periodeAlokasi !== null)
+            ->keyBy(fn (AlokasiPetugas $alokasi): int => (int) $alokasi->periodeAlokasi->kegiatan_id);
+
+        $newIds = [];
+        $replacementIds = [];
+        $summaries = [];
+
+        foreach ($currentByKegiatan as $kegiatanId => $current) {
+            $currentId = (int) $current->id;
+            if ($documentIds->contains($currentId)) {
+                continue;
+            }
+
+            $status = (string) ($current->periodeAlokasi?->status ?? '');
+            $hasDocumentAllocationForKegiatan = $documentByKegiatan->has((int) $kegiatanId);
+
+            if ($status === 'perubahan' && $hasDocumentAllocationForKegiatan) {
+                $documentAllocation = $documentByKegiatan->get((int) $kegiatanId);
+
+                // A replacement ID by itself is not a meaningful amendment.
+                // Only volume and/or honor deltas create an Addendum candidate.
+                if ($this->hasMeaningfulVolumeOrHonorDelta($documentAllocation, $current)) {
+                    $replacementIds[] = $currentId;
+                    $oldValues = $this->contractualAllocationValues($documentAllocation);
+                    $newValues = $this->contractualAllocationValues($current);
+                    $deltaParts = [];
+
+                    if ($oldValues['volume'] !== $newValues['volume']) {
+                        $deltaParts[] = "volume {$oldValues['volume']} → {$newValues['volume']}";
+                    }
+
+                    if (abs($oldValues['honor'] - $newValues['honor']) > 0.01) {
+                        $deltaParts[] = 'total honor '.$this->formatRupiah($oldValues['honor'])
+                            .' → '.$this->formatRupiah($newValues['honor']);
+                    }
+
+                    $kegiatanName = (string) ($current->periodeAlokasi?->kegiatan?->nama_kegiatan ?? 'Kegiatan');
+                    $summaries[] = 'Perubahan '.$kegiatanName.': '.implode('; ', $deltaParts).'.';
+                }
+            } else {
+                $newIds[] = $currentId;
+                $newValues = $this->contractualAllocationValues($current);
+                $kegiatanName = (string) ($current->periodeAlokasi?->kegiatan?->nama_kegiatan ?? 'Kegiatan');
+                $summaries[] = 'Penambahan kegiatan '.$kegiatanName
+                    .": volume {$newValues['volume']}; total honor "
+                    .$this->formatRupiah($newValues['honor']).'.';
+            }
+        }
+
+        return [
+            'has_new' => $newIds !== [],
+            'has_replacement' => $replacementIds !== [],
+            'new_ids' => $newIds,
+            'replacement_ids' => $replacementIds,
+            'summaries' => $summaries,
+        ];
+    }
+
+    /**
+     * Build UI-ready changes against the latest processed document snapshot.
+     * This covers initial Addendum, numbered Addendum, and Re-generate
+     * Addendum without reimplementing delta rules in the controller.
+     *
+     * @return array<int, string>
+     */
+    public function buildChangeSummariesForPetugasMonth(int $petugasId, int $tahun, int $bulan): array
+    {
+        $originalSpk = $this->resolveOriginalSpkForPetugasMonth($petugasId, $tahun, $bulan);
+        if (! $originalSpk) {
+            return [];
+        }
+
+        $latestDocument = Spk::query()
+            ->where(function ($query) use ($originalSpk): void {
+                $query->whereKey($originalSpk->id)
+                    ->orWhere('parent_spk_id', $originalSpk->id);
+            })
+            ->orderByDesc('addendum_number')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (! $latestDocument) {
+            return [];
+        }
+
+        $currentByKegiatan = $this->getEffectiveAddendumAlokasiForPetugas($petugasId, $tahun, $bulan)
+            ->keyBy(fn (AlokasiPetugas $allocation): int => (int) $allocation->periodeAlokasi->kegiatan_id);
+
+        if ($currentByKegiatan->isEmpty()) {
+            return [];
+        }
+
+        $changes = $this->classifyChangesAgainstDocument(
+            $petugasId,
+            $latestDocument,
+            $currentByKegiatan,
+        );
+
+        return $changes['summaries'];
+    }
+
+    private function formatRupiah(float $value): string
+    {
+        return 'Rp '.number_format($value, 0, ',', '.');
+    }
+
+    /**
+     * Determine whether a replacement changes the contractual values.
+     * Identity, period row, status, and role changes are deliberately ignored
+     * when effective volume and honor remain identical.
+     */
+    private function hasMeaningfulVolumeOrHonorDelta(
+        AlokasiPetugas $documentAllocation,
+        AlokasiPetugas $currentAllocation,
+    ): bool {
+        $documentValues = $this->contractualAllocationValues($documentAllocation);
+        $currentValues = $this->contractualAllocationValues($currentAllocation);
+
+        return $documentValues['volume'] !== $currentValues['volume']
+            || abs($documentValues['honor'] - $currentValues['honor']) > 0.01;
+    }
+
+    /**
+     * Normalize storage variants into contractual totals. Some allocation
+     * types store volume in jumlah_unit_sampel while others use regular and
+     * listing columns. Moving the same value between those columns must not
+     * create a false Addendum candidate.
+     *
+     * @return array{volume:int,honor:float}
+     */
+    private function contractualAllocationValues(AlokasiPetugas $allocation): array
+    {
+        $regularVolume = method_exists($allocation, 'getEffectiveJumlahSatuan')
+            ? (int) $allocation->getEffectiveJumlahSatuan()
+            : (int) ($allocation->jumlah_satuan ?? 0);
+        $listingVolume = method_exists($allocation, 'getEffectiveJumlahSatuanListing')
+            ? (int) $allocation->getEffectiveJumlahSatuanListing()
+            : (int) ($allocation->jumlah_satuan_listing ?? 0);
+        $unitSampelVolume = (int) ($allocation->jumlah_unit_sampel ?? 0);
+
+        $regularHonor = method_exists($allocation, 'getEffectiveTotalHonor')
+            ? (float) $allocation->getEffectiveTotalHonor()
+            : (float) ($allocation->total_honor ?? 0);
+        $listingHonor = method_exists($allocation, 'getEffectiveTotalHonorListing')
+            ? (float) $allocation->getEffectiveTotalHonorListing()
+            : (float) ($allocation->total_honor_listing ?? 0);
+
+        return [
+            'volume' => $unitSampelVolume > 0
+                ? $unitSampelVolume
+                : $regularVolume + $listingVolume,
+            'honor' => $regularHonor + $listingHonor,
+        ];
+    }
+
+    /**
+     * Normalize the stored snapshot regardless of whether the model returns an
+     * array, Collection, JSON string, scalar legacy value, or null.
+     *
+     * @return Collection<int, int>
+     */
+    private function getDocumentAllocationIds(Spk $document): Collection
+    {
+        $rawIds = $document->alokasi_petugas_ids;
+
+        if ($rawIds instanceof Collection) {
+            $ids = $rawIds;
+        } elseif (is_array($rawIds)) {
+            $ids = collect($rawIds);
+        } elseif (is_string($rawIds) && trim($rawIds) !== '') {
+            $decoded = json_decode($rawIds, true);
+            $ids = collect(is_array($decoded) ? $decoded : [$rawIds]);
+        } elseif ($rawIds !== null && $rawIds !== '') {
+            $ids = collect([$rawIds]);
+        } else {
+            $ids = collect();
+        }
+
+        // The primary FK is part of the document even when a malformed or
+        // incomplete legacy JSON snapshot is present. Always include it.
+        if ($document->alokasi_petugas_id) {
+            $ids->push($document->alokasi_petugas_id);
+        }
+
+        return $ids
+            ->flatten()
+            ->filter(static fn ($id): bool => is_numeric($id) && (int) $id > 0)
+            ->map(static fn ($id): int => (int) $id)
+            ->unique()
+            ->values();
+    }
+
+    /**
      * @param  Collection<int, Spk>  $candidateOriginalSpks
      */
     private function resolveBestMatchingOriginalSpk(Collection $candidateOriginalSpks, Collection $currentAllocationIds): ?Spk
@@ -298,9 +529,7 @@ class SpkActionDecisionService
 
         return $candidateOriginalSpks
             ->sortByDesc(function (Spk $spk) use ($currentAllocationIds): string {
-                $candidateAllocationIds = collect($spk->alokasi_petugas_ids ?? [$spk->alokasi_petugas_id])
-                    ->filter()
-                    ->map(static fn ($id): int => (int) $id);
+                $candidateAllocationIds = $this->getDocumentAllocationIds($spk);
 
                 $overlapCount = $candidateAllocationIds->intersect($currentAllocationIds)->count();
 
@@ -335,7 +564,8 @@ class SpkActionDecisionService
         $allPeriodeInMonth = PeriodeAlokasi::query()
             ->whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
             ->where('tahun', $tahun)
-            ->whereIn('status', ['dikirim', 'perubahan'])
+            ->whereIn('status', ['dikirim', 'disetujui', 'perubahan'])
+            ->whereHas('kegiatan', fn ($q) => $q->where('jenis_kegiatan', '!=', 'sensus'))
             ->pluck('id');
 
         if ($allPeriodeInMonth->isEmpty()) {

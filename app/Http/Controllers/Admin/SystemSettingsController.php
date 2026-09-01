@@ -208,6 +208,7 @@ class SystemSettingsController
         $enabled = (bool) $validated['enabled'];
 
         Cache::forever(self::SSO_SYNC_CACHE_KEY, $enabled);
+        config()->set('services.sso.sync_enabled', $enabled);
 
         ActivityLog::logSystem(
             'Pengaturan SSO Sync Diperbarui',

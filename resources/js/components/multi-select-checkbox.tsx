@@ -27,6 +27,7 @@ export function MultiSelectCheckbox({
     disabled = false,
 }: MultiSelectCheckboxProps) {
     const [open, setOpen] = React.useState(false);
+    const [search, setSearch] = React.useState('');
     const containerRef = React.useRef<HTMLDivElement>(null);
     const dropdownRef = React.useRef<HTMLDivElement>(null);
     const [dropdownStyle, setDropdownStyle] = React.useState<{
@@ -37,6 +38,20 @@ export function MultiSelectCheckbox({
     }>({ top: 0, left: 0, width: 0, maxHeight: 240 });
 
     const selectedOptions = options.filter((opt) => values.includes(opt.value));
+    const filteredOptions = React.useMemo(() => {
+        if (!search.trim()) {
+            return options;
+        }
+
+        const query = search.trim().toLowerCase();
+
+        return options.filter((option) => {
+            const label = option.label.toLowerCase();
+            const subLabel = option.subLabel?.toLowerCase() ?? '';
+
+            return label.includes(query) || subLabel.includes(query);
+        });
+    }, [options, search]);
 
     // Close dropdown when clicking outside
     React.useEffect(() => {
@@ -211,7 +226,19 @@ export function MultiSelectCheckbox({
                             maxHeight: dropdownStyle.maxHeight,
                         }}
                     >
-                        {options.length === 0 ? (
+                        <div className="border-b border-neutral-200 px-3 py-2 dark:border-neutral-800">
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={(event) =>
+                                    setSearch(event.target.value)
+                                }
+                                placeholder="Cari nama petugas..."
+                                className="h-9 w-full rounded-md border border-neutral-200 bg-white px-2.5 text-sm ring-0 outline-none placeholder:text-neutral-400 focus:border-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500"
+                                autoFocus
+                            />
+                        </div>
+                        {filteredOptions.length === 0 ? (
                             <div className="px-3 py-4 text-center text-sm text-neutral-500 dark:text-neutral-400">
                                 Tidak ada pilihan tersedia
                             </div>
@@ -221,7 +248,7 @@ export function MultiSelectCheckbox({
                                 role="listbox"
                                 aria-multiselectable="true"
                             >
-                                {options.map((option) => {
+                                {filteredOptions.map((option) => {
                                     const isSelected = values.includes(
                                         option.value,
                                     );

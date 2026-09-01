@@ -33,6 +33,17 @@ class PengajuanPulsaController extends Controller
 
     private const PENGOLAHAN_ROLES = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'];
 
+    private function applyEncryptedState(Request $request): void
+    {
+        $state = $request->input('state', $request->query('state'));
+
+        if (! is_string($state) || $state === '') {
+            return;
+        }
+
+        $request->merge(decryptFilters($state));
+    }
+
     /**
      * Display a listing of pengajuan pulsa.
      */
@@ -40,9 +51,7 @@ class PengajuanPulsaController extends Controller
     {
         $effectiveUser = effectiveUser($request);
 
-        if ($request->has('state')) {
-            $request->merge(decryptFilters((string) $request->query('state')));
-        }
+        $this->applyEncryptedState($request);
 
         $bulan = $request->input('bulan', now()->format('m'));
         $tahun = ActiveYearService::get();
@@ -88,9 +97,7 @@ class PengajuanPulsaController extends Controller
     {
         $effectiveUser = effectiveUser($request);
 
-        if ($request->has('state')) {
-            $request->merge(decryptFilters((string) $request->query('state')));
-        }
+        $this->applyEncryptedState($request);
 
         $bulan = $request->input('bulan', now()->format('m'));
         $tahun = (string) ActiveYearService::get();
@@ -1007,9 +1014,7 @@ class PengajuanPulsaController extends Controller
     {
         $effectiveUser = effectiveUser($request);
 
-        if ($request->has('state')) {
-            $request->merge(decryptFilters((string) $request->query('state')));
-        }
+        $this->applyEncryptedState($request);
 
         $kegiatanId = (int) $request->input('kegiatan_id');
         $bulan = $request->input('bulan', now()->format('m'));

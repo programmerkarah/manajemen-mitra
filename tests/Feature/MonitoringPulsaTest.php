@@ -91,6 +91,18 @@ class MonitoringPulsaTest extends TestCase
         $response->assertInertia(fn ($page) => $page->component('MonitoringPulsa/Index'));
     }
 
+    public function test_index_accepts_post_filter_payload(): void
+    {
+        [$user, $role] = $this->makeUserWithRole('admin');
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->post('/monitoring-pulsa', ['bulan' => '06']);
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page->component('MonitoringPulsa/Index'));
+    }
+
     public function test_index_excludes_draft_submissions(): void
     {
         [$user, $role] = $this->makeUserWithRole('admin');

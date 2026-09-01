@@ -1,6 +1,7 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -19,6 +20,7 @@ import {
     ChevronRight,
     Clock,
     Download,
+    Search,
     SendHorizontal,
     Users,
 } from 'lucide-react';
@@ -150,14 +152,18 @@ export default function MonitoringPulsaIndex({
     const [bulan, setBulan] = useState(initialBulan);
     const tahun = filters.tahun;
     const [activeTab, setActiveTab] = useState<ActiveTab>('semua');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedPetugasIds] = useState<number[]>([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 8;
 
     const handleFilterChange = (newBulan: string) => {
         const normalizedBulan = normalizeBulanValue(newBulan);
         setBulan(normalizedBulan);
-        router.get(
+        router.post(
             '/monitoring-pulsa',
             { bulan: normalizedBulan },
-            { preserveState: true },
+            { preserveState: true, replace: true },
         );
     };
 
@@ -222,6 +228,24 @@ export default function MonitoringPulsaIndex({
         );
     }, [displayItems]);
 
+    const searchedGroups = useMemo(() => {
+        if (selectedPetugasIds.length === 0) {
+            return petugasGroups;
+        }
+
+        return petugasGroups.filter((group) =>
+            selectedPetugasIds.includes(group.petugasId),
+        );
+    }, [petugasGroups, selectedPetugasIds]);
+
+    const totalPages = Math.max(1, Math.ceil(searchedGroups.length / pageSize));
+    const effectiveCurrentPage =
+        totalPages > 0 ? Math.min(currentPage, totalPages) : 1;
+    const paginatedGroups = useMemo(() => {
+        const start = (effectiveCurrentPage - 1) * pageSize;
+        return searchedGroups.slice(start, start + pageSize);
+    }, [effectiveCurrentPage, searchedGroups]);
+
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
     const toggleRow = (petugasId: number) => {
@@ -281,23 +305,44 @@ export default function MonitoringPulsaIndex({
                 {/* Filter */}
                 <ContentCard>
                     <div className="flex flex-wrap items-end justify-between gap-4">
-                        <div className="space-y-1.5">
-                            <Label>Bulan</Label>
-                            <Select
-                                value={bulan}
-                                onValueChange={handleFilterChange}
-                            >
-                                <SelectTrigger className="w-40">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {BULAN_LIST.map(([val, label]) => (
-                                        <SelectItem key={val} value={val}>
-                                            {label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                        <div className="flex flex-1 flex-wrap items-end gap-4">
+                            <div className="space-y-1.5">
+                                <Label>Bulan</Label>
+                                <Select
+                                    value={bulan}
+                                    onValueChange={handleFilterChange}
+                                >
+                                    <SelectTrigger className="w-40">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {BULAN_LIST.map(([val, label]) => (
+                                            <SelectItem key={val} value={val}>
+                                                {label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="min-w-[220px] flex-1 space-y-1.5 md:max-w-xs">
+                                <Label htmlFor="petugas-search">
+                                    Cari Petugas
+                                </Label>
+                                <div className="relative">
+                                    <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+                                    <Input
+                                        id="petugas-search"
+                                        value={searchTerm}
+                                        onChange={(event) => {
+                                            setSearchTerm(event.target.value);
+                                            setCurrentPage(1);
+                                        }}
+                                        placeholder="Nama petugas..."
+                                        className="pl-9"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         <Button
@@ -368,6 +413,7 @@ export default function MonitoringPulsaIndex({
                                 type="button"
                                 onClick={() => {
                                     setActiveTab(tab.key);
+                                    setCurrentPage(1);
                                     setExpandedRows(new Set());
                                 }}
                                 className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors focus:outline-none ${
@@ -396,7 +442,7 @@ export default function MonitoringPulsaIndex({
                     {/* Summary line */}
                     <div className="px-6 pt-4 pb-2">
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Menampilkan {petugasGroups.length} petugas untuk{' '}
+                            Menampilkan {searchedGroups.length} petugas untuk{' '}
                             {BULAN_LABELS[bulan]} {tahun}
                         </p>
                     </div>
@@ -433,7 +479,7 @@ export default function MonitoringPulsaIndex({
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                {petugasGroups.length === 0 ? (
+                                {paginatedGroups.length === 0 ? (
                                     <tr>
                                         <td
                                             colSpan={colSpan}
@@ -445,7 +491,7 @@ export default function MonitoringPulsaIndex({
                                         </td>
                                     </tr>
                                 ) : (
-                                    petugasGroups.map((group) => {
+                                    paginatedGroups.map((group) => {
                                         const isExpanded = expandedRows.has(
                                             group.petugasId,
                                         );
@@ -674,6 +720,56 @@ export default function MonitoringPulsaIndex({
                             </tbody>
                         </table>
                     </div>
+
+                    {searchedGroups.length > 0 && (
+                        <div className="flex flex-col gap-3 border-t border-neutral-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-neutral-800">
+                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                Menampilkan{' '}
+                                {(effectiveCurrentPage - 1) * pageSize + 1}-
+                                {Math.min(
+                                    effectiveCurrentPage * pageSize,
+                                    searchedGroups.length,
+                                )}{' '}
+                                dari {searchedGroups.length} petugas
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setCurrentPage((page) =>
+                                            Math.max(1, page - 1),
+                                        )
+                                    }
+                                    disabled={effectiveCurrentPage <= 1}
+                                >
+                                    <ChevronRight className="mr-1 h-4 w-4 rotate-180" />
+                                    Sebelumnya
+                                </Button>
+                                <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    Halaman {effectiveCurrentPage} dari{' '}
+                                    {totalPages}
+                                </span>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setCurrentPage((page) =>
+                                            Math.min(totalPages, page + 1),
+                                        )
+                                    }
+                                    disabled={
+                                        effectiveCurrentPage >= totalPages
+                                    }
+                                >
+                                    Berikutnya
+                                    <ChevronRight className="ml-1 h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </ContentCard>
             </div>
         </AppLayout>
