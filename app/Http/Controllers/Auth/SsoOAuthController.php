@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -127,6 +128,14 @@ class SsoOAuthController extends Controller
                 $oauthError = $request->string('error')->toString();
 
                 if ($this->isExpiredSsoSessionError($oauthError)) {
+                    $user = Auth::user();
+
+                    if ($this->hasActiveSsoAccessToken($user)) {
+                        return $syncTransport === 'iframe'
+                            ? $this->syncCompleteRedirect(status: 'ok')
+                            : redirect()->to($this->resolveSyncReturnTo($syncReturnTo));
+                    }
+
                     return $this->logoutAndRedirectToLogin($request, $syncTransport);
                 }
 
@@ -398,6 +407,37 @@ class SsoOAuthController extends Controller
         // Other prompt=none errors (e.g. login_required / interaction_required) can be transient
         // and should not force local logout.
         return in_array($oauthError, ['session_expired'], true);
+    }
+
+    private function hasActiveSsoAccessToken(?User $user): bool
+    {
+        if (! $user instanceof User) {
+            return false;
+        }
+
+        if (! Schema::hasTable('oauth_access_tokens')) {
+            return false;
+        }
+
+        $clientId = (string) config('services.sso.client_id');
+
+        if ($clientId === '') {
+            return false;
+        }
+
+        $query = DB::table('oauth_access_tokens')
+            ->where('user_id', $user->getAuthIdentifier())
+            ->where('client_id', $clientId)
+            ->where('revoked', false);
+
+        if (Schema::hasColumn('oauth_access_tokens', 'expires_at')) {
+            $query->where(function ($subQuery) {
+                $subQuery->whereNull('expires_at')
+                    ->orWhere('expires_at', '>', now());
+            });
+        }
+
+        return $query->exists();
     }
 
     private function logoutAndRedirectToLogin(Request $request, string $syncTransport = 'redirect'): RedirectResponse

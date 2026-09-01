@@ -4,6 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -301,6 +302,45 @@ class SsoOAuthTest extends TestCase
 
         $response->assertRedirect('/dashboard');
         $response->assertSessionHas('warning', 'Sinkronisasi sesi SSO belum berhasil.');
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_sso_callback_sync_request_keeps_local_session_when_matching_valid_sso_token_exists(): void
+    {
+        config()->set('services.sso.base_url', 'http://localhost:8000');
+        config()->set('services.sso.client_id', 'client-id-123');
+
+        $user = User::factory()->withoutTwoFactor()->create([
+            'is_active' => true,
+        ]);
+
+        DB::table('oauth_access_tokens')->insert([
+            'id' => 'token-valid-123',
+            'user_id' => $user->id,
+            'client_id' => 'client-id-123',
+            'name' => 'sync-token',
+            'scopes' => '[]',
+            'revoked' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+            'expires_at' => now()->addHour(),
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->withSession([
+                'sso_oauth_state' => 'sync-state',
+                'sso_oauth_context' => [
+                    'sync' => true,
+                    'return_to' => '/dashboard',
+                ],
+            ])
+            ->get(route('sso.callback', [
+                'state' => 'sync-state',
+                'error' => 'session_expired',
+            ]));
+
+        $response->assertRedirect('/dashboard');
         $this->assertAuthenticatedAs($user);
     }
 
