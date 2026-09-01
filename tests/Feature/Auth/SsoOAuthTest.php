@@ -90,7 +90,7 @@ class SsoOAuthTest extends TestCase
         $this->assertSame('/dashboard?from=test', session('sso_oauth_context.return_to'));
     }
 
-    public function test_sso_redirect_sync_request_attempts_registration_when_sso_application_is_inactive(): void
+    public function test_sso_redirect_sync_request_skips_registration_when_sso_application_is_inactive(): void
     {
         config()->set('services.sso.base_url', 'http://localhost:8000');
         config()->set('services.sso.client_id', 'client-id-123');
@@ -115,10 +115,9 @@ class SsoOAuthTest extends TestCase
             'return_to' => '/dashboard?from=sync',
         ]));
 
-        $response->assertRedirect();
-        $location = (string) $response->headers->get('Location', '');
-        $this->assertStringStartsWith('http://localhost:8000/oauth/authorize?', $location);
-        $this->assertStringContainsString('prompt=none', $location);
+        $response->assertRedirect('/dashboard?from=sync');
+        Http::assertSentCount(1);
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/api/application/status'));
     }
 
     public function test_sso_callback_can_login_existing_local_user(): void

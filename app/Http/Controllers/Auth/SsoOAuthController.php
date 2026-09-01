@@ -30,13 +30,9 @@ class SsoOAuthController extends Controller
         $syncTransport = $this->resolveSyncTransport($request->query('transport'));
 
         if ($isSyncRequest && ! $this->isSsoActive()) {
-            $registered = $this->ensureSsoApplicationIsActive();
-
-            if (! $registered) {
-                return $syncTransport === 'iframe'
-                    ? $this->syncCompleteRedirect(status: 'skipped')
-                    : redirect()->to($this->resolveSyncReturnTo($syncReturnTo));
-            }
+            return $syncTransport === 'iframe'
+                ? $this->syncCompleteRedirect(status: 'skipped')
+                : redirect()->to($this->resolveSyncReturnTo($syncReturnTo));
         }
 
         $baseUrl = $this->baseUrl();
