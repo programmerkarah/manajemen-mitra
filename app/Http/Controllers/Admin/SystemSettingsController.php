@@ -109,6 +109,8 @@ class SystemSettingsController
                     'deadline_rule_id' => $bypass->deadline_rule_id,
                     'rule_key' => $bypass->deadlineRule?->key,
                     'rule_label' => $bypass->deadlineRule?->label,
+                    'granted_for_user_id' => $bypass->granted_for_user_id,
+                    'approved_by_user_id' => $bypass->approved_by_user_id,
                     'kegiatan_id' => $bypass->kegiatan_id,
                     'periode_alokasi_id' => $bypass->periode_alokasi_id,
                     'year' => $bypass->year,
@@ -122,6 +124,7 @@ class SystemSettingsController
                     'expires_at' => $bypass->expires_at?->format('Y-m-d H:i:s'),
                     'consumed_at' => $bypass->consumed_at?->format('Y-m-d H:i:s'),
                     'created_at' => $bypass->created_at?->format('Y-m-d H:i:s'),
+                    'metadata' => $bypass->metadata ?? null,
                 ]);
         }
 
