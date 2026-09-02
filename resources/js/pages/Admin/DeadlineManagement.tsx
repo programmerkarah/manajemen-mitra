@@ -377,7 +377,7 @@ export default function DeadlineManagement() {
             });
             setActiveTab('manual');
 
-            router.reload({
+            await router.reload({
                 only: ['deadline_bypasses', 'deadline_bypass_requests'],
             });
 
