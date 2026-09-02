@@ -186,6 +186,7 @@ class SystemSettingsController
         $users = User::query()
             ->select(['id', 'name'])
             ->whereNotNull('name')
+            ->whereHas('roles', fn ($query) => $query->where('name', '!=', 'guest'))
             ->orderBy('name')
             ->get()
             ->map(fn (User $user) => [
