@@ -17,7 +17,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
-import { Head, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import {
     AlertTriangle,
     Clock3,
@@ -35,10 +35,10 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const DEADLINE_RULE_API_URL = '/system-settings/deadline-rule';
-const DEADLINE_BYPASS_API_URL = '/system-settings/deadline-bypass';
+const DEADLINE_RULE_API_URL = '/admin/system-settings/deadline-rule';
+const DEADLINE_BYPASS_API_URL = '/admin/system-settings/deadline-bypass';
 const DEADLINE_BYPASS_REQUEST_APPROVE_API_URL =
-    '/system-settings/deadline-bypass-request';
+    '/admin/system-settings/deadline-bypass-request';
 const ALLOCATION_REVISION_KEY = 'alokasi.revisi';
 
 interface CompactDayStepperProps {
@@ -213,12 +213,14 @@ export default function DeadlineManagement() {
         reason: '',
     });
     const [bypassSaving, setBypassSaving] = React.useState(false);
-    const [modalAlert, setModalAlert] = React.useState<{
+    const [flashMessage, setFlashMessage] = React.useState<{
         open: boolean;
+        type: 'success' | 'error' | 'warning' | 'info';
         title: string;
         message: string;
     }>({
         open: false,
+        type: 'info',
         title: '',
         message: '',
     });
@@ -232,6 +234,12 @@ export default function DeadlineManagement() {
         bypassIds: [],
         label: '',
         description: '',
+    });
+    const [bypassFilters, setBypassFilters] = React.useState({
+        userName: '',
+        status: 'all',
+        createdFrom: '',
+        createdTo: '',
     });
 
     const userOptions = React.useMemo(
@@ -263,9 +271,29 @@ export default function DeadlineManagement() {
         return '';
     };
 
-    const showModalAlert = (title: string, message: string) => {
-        setModalAlert({ open: true, title, message });
+    const showFlashMessage = (
+        title: string,
+        message: string,
+        type: 'success' | 'error' | 'warning' | 'info' = 'info',
+    ) => {
+        setFlashMessage({ open: true, type, title, message });
     };
+
+    const showModalAlert = (title: string, message: string) => {
+        showFlashMessage(title, message, 'info');
+    };
+
+    React.useEffect(() => {
+        if (!flashMessage.open) {
+            return;
+        }
+
+        const timer = window.setTimeout(() => {
+            setFlashMessage((current) => ({ ...current, open: false }));
+        }, 4000);
+
+        return () => window.clearTimeout(timer);
+    }, [flashMessage.open]);
 
     const handleGrantBypass = async () => {
         if (!deadlineStorageReady) {
@@ -340,7 +368,20 @@ export default function DeadlineManagement() {
                 );
             }
 
-            window.location.reload();
+            setManualBypassForm({
+                granted_for_user_id: '',
+                rule_ids: [],
+                expires_at: '',
+                reason: '',
+            });
+            setActiveTab('manual');
+
+            router.reload();
+
+            showModalAlert(
+                'Bypass Dibuat',
+                'Bypass manual berhasil dibuat untuk user yang dipilih.',
+            );
         } catch (error) {
             console.error('Failed to grant bypass:', error);
             showModalAlert(
@@ -691,9 +732,59 @@ export default function DeadlineManagement() {
         return `${monthLabel} ${year ?? ''}`.trim();
     };
 
+    const matchesBypassFilters = React.useCallback(
+        (item: DeadlineBypassItem) => {
+            const userName = (item.granted_for ?? '').trim().toLowerCase();
+            const normalizedUserFilter = bypassFilters.userName
+                .trim()
+                .toLowerCase();
+
+            if (
+                normalizedUserFilter !== '' &&
+                !userName.includes(normalizedUserFilter)
+            ) {
+                return false;
+            }
+
+            const statusValue = item.is_active ? 'aktif' : 'tidak_aktif';
+            if (
+                bypassFilters.status !== 'all' &&
+                statusValue !== bypassFilters.status
+            ) {
+                return false;
+            }
+
+            if (!item.created_at) {
+                return !(bypassFilters.createdFrom || bypassFilters.createdTo);
+            }
+
+            const itemCreatedAt = new Date(item.created_at);
+
+            if (bypassFilters.createdFrom) {
+                const fromDate = new Date(
+                    `${bypassFilters.createdFrom}T00:00:00`,
+                );
+                if (itemCreatedAt < fromDate) {
+                    return false;
+                }
+            }
+
+            if (bypassFilters.createdTo) {
+                const toDate = new Date(`${bypassFilters.createdTo}T23:59:59`);
+                if (itemCreatedAt > toDate) {
+                    return false;
+                }
+            }
+
+            return true;
+        },
+        [bypassFilters],
+    );
+
     const groupManualBypasses = React.useMemo(() => {
         const manualOnlyBypasses = deadlineBypasses.filter(
-            (item) => !isRequestBackedBypass(item),
+            (item) =>
+                !isRequestBackedBypass(item) && matchesBypassFilters(item),
         );
 
         const entries = new Map<
@@ -735,11 +826,11 @@ export default function DeadlineManagement() {
                 return (right.id ?? 0) - (left.id ?? 0);
             }),
         }));
-    }, [deadlineBypasses, isRequestBackedBypass]);
+    }, [deadlineBypasses, isRequestBackedBypass, matchesBypassFilters]);
 
     const groupApprovedBypasses = React.useMemo(() => {
-        const requestBackedBypasses = deadlineBypasses.filter((item) =>
-            isRequestBackedBypass(item),
+        const requestBackedBypasses = deadlineBypasses.filter(
+            (item) => isRequestBackedBypass(item) && matchesBypassFilters(item),
         );
 
         const entries = new Map<
@@ -781,7 +872,7 @@ export default function DeadlineManagement() {
                 return (right.id ?? 0) - (left.id ?? 0);
             }),
         }));
-    }, [deadlineBypasses, isRequestBackedBypass]);
+    }, [deadlineBypasses, isRequestBackedBypass, matchesBypassFilters]);
 
     const getBypassStatus = (item: DeadlineBypassItem) => {
         if (!item.is_active) {
@@ -1275,6 +1366,84 @@ export default function DeadlineManagement() {
                         </div>
                     ) : activeTab === 'approved' ? (
                         <div className="space-y-3">
+                            <div className="grid gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-3 md:grid-cols-4 dark:border-neutral-800 dark:bg-neutral-900/60">
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-medium tracking-[0.13em] text-muted-foreground uppercase">
+                                        Nama petugas
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={bypassFilters.userName}
+                                        onChange={(event) =>
+                                            setBypassFilters((current) => ({
+                                                ...current,
+                                                userName: event.target.value,
+                                            }))
+                                        }
+                                        placeholder="Cari nama..."
+                                        className="h-10 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 transition outline-none focus:border-amber-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-medium tracking-[0.13em] text-muted-foreground uppercase">
+                                        Status bypass
+                                    </label>
+                                    <select
+                                        value={bypassFilters.status}
+                                        onChange={(event) =>
+                                            setBypassFilters((current) => ({
+                                                ...current,
+                                                status: event.target.value,
+                                            }))
+                                        }
+                                        className="h-10 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 transition outline-none focus:border-amber-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white"
+                                    >
+                                        <option value="all">
+                                            Semua status
+                                        </option>
+                                        <option value="aktif">Aktif</option>
+                                        <option value="tidak_aktif">
+                                            Tidak aktif
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-medium tracking-[0.13em] text-muted-foreground uppercase">
+                                        Dibuat dari
+                                    </label>
+                                    <DatePicker
+                                        value={bypassFilters.createdFrom}
+                                        onChange={(value) =>
+                                            setBypassFilters((current) => ({
+                                                ...current,
+                                                createdFrom: value,
+                                            }))
+                                        }
+                                        placeholder="Pilih tanggal"
+                                        className="h-10 w-full"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-medium tracking-[0.13em] text-muted-foreground uppercase">
+                                        Sampai
+                                    </label>
+                                    <DatePicker
+                                        value={bypassFilters.createdTo}
+                                        onChange={(value) =>
+                                            setBypassFilters((current) => ({
+                                                ...current,
+                                                createdTo: value,
+                                            }))
+                                        }
+                                        placeholder="Pilih tanggal"
+                                        className="h-10 w-full"
+                                    />
+                                </div>
+                            </div>
+
                             {approvedRequests.length === 0 && (
                                 <div className="rounded-2xl border border-dashed border-neutral-300 p-6 text-sm text-muted-foreground dark:border-neutral-700">
                                     Belum ada request bypass yang disetujui.
@@ -1496,6 +1665,84 @@ export default function DeadlineManagement() {
                         </div>
                     ) : (
                         <div className="space-y-4">
+                            <div className="grid gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-3 md:grid-cols-4 dark:border-neutral-800 dark:bg-neutral-900/60">
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-medium tracking-[0.13em] text-muted-foreground uppercase">
+                                        Nama petugas
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={bypassFilters.userName}
+                                        onChange={(event) =>
+                                            setBypassFilters((current) => ({
+                                                ...current,
+                                                userName: event.target.value,
+                                            }))
+                                        }
+                                        placeholder="Cari nama..."
+                                        className="h-10 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 transition outline-none focus:border-amber-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-medium tracking-[0.13em] text-muted-foreground uppercase">
+                                        Status bypass
+                                    </label>
+                                    <select
+                                        value={bypassFilters.status}
+                                        onChange={(event) =>
+                                            setBypassFilters((current) => ({
+                                                ...current,
+                                                status: event.target.value,
+                                            }))
+                                        }
+                                        className="h-10 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 transition outline-none focus:border-amber-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white"
+                                    >
+                                        <option value="all">
+                                            Semua status
+                                        </option>
+                                        <option value="aktif">Aktif</option>
+                                        <option value="tidak_aktif">
+                                            Tidak aktif
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-medium tracking-[0.13em] text-muted-foreground uppercase">
+                                        Dibuat dari
+                                    </label>
+                                    <DatePicker
+                                        value={bypassFilters.createdFrom}
+                                        onChange={(value) =>
+                                            setBypassFilters((current) => ({
+                                                ...current,
+                                                createdFrom: value,
+                                            }))
+                                        }
+                                        placeholder="Pilih tanggal"
+                                        className="h-10 w-full"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-medium tracking-[0.13em] text-muted-foreground uppercase">
+                                        Sampai
+                                    </label>
+                                    <DatePicker
+                                        value={bypassFilters.createdTo}
+                                        onChange={(value) =>
+                                            setBypassFilters((current) => ({
+                                                ...current,
+                                                createdTo: value,
+                                            }))
+                                        }
+                                        placeholder="Pilih tanggal"
+                                        className="h-10 w-full"
+                                    />
+                                </div>
+                            </div>
+
                             <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/60">
                                 <div className="mb-3 flex items-center justify-between gap-3">
                                     <div>
@@ -1852,33 +2099,69 @@ export default function DeadlineManagement() {
                 </div>
             )}
 
-            {modalAlert.open && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                    <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl dark:bg-neutral-900">
-                        <div className="mb-3 flex items-start gap-3">
-                            <div className="mt-1 rounded-full bg-amber-100 p-2 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
-                                <AlertTriangle className="h-4 w-4" />
+            {flashMessage.open && (
+                <div className="fixed top-4 right-4 z-[60] w-[min(92vw,26rem)] animate-in duration-300 slide-in-from-top-4">
+                    <div
+                        className={[
+                            'rounded-2xl border p-4 shadow-2xl backdrop-blur-xl',
+                            flashMessage.type === 'success' &&
+                                'border-green-400/30 bg-gradient-to-br from-green-500/10 via-green-400/5 to-green-300/10 text-green-900 dark:border-green-500/20 dark:from-green-600/10 dark:via-green-500/5 dark:to-green-400/10 dark:text-green-50',
+                            flashMessage.type === 'error' &&
+                                'border-red-400/30 bg-gradient-to-br from-red-500/10 via-red-400/5 to-red-300/10 text-red-900 dark:border-red-500/20 dark:from-red-600/10 dark:via-red-500/5 dark:to-red-400/10 dark:text-red-50',
+                            flashMessage.type === 'warning' &&
+                                'border-amber-400/30 bg-gradient-to-br from-amber-500/10 via-amber-400/5 to-amber-300/10 text-amber-900 dark:border-amber-500/20 dark:from-amber-600/10 dark:via-amber-500/5 dark:to-amber-400/10 dark:text-amber-50',
+                            flashMessage.type === 'info' &&
+                                'border-blue-400/30 bg-gradient-to-br from-blue-500/10 via-blue-400/5 to-blue-300/10 text-blue-900 dark:border-blue-500/20 dark:from-blue-600/10 dark:via-blue-500/5 dark:to-blue-400/10 dark:text-blue-50',
+                        ]
+                            .filter(Boolean)
+                            .join(' ')}
+                    >
+                        <div className="flex items-start gap-3">
+                            <div className="mt-0.5 shrink-0 text-current/90">
+                                {flashMessage.type === 'success' && (
+                                    <ShieldCheck className="h-5 w-5" />
+                                )}
+                                {flashMessage.type === 'error' && (
+                                    <AlertTriangle className="h-5 w-5" />
+                                )}
+                                {flashMessage.type === 'warning' && (
+                                    <AlertTriangle className="h-5 w-5" />
+                                )}
+                                {flashMessage.type === 'info' && (
+                                    <Clock3 className="h-5 w-5" />
+                                )}
                             </div>
-                            <div>
-                                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                                    {modalAlert.title}
-                                </h3>
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                    {modalAlert.message}
-                                </p>
+
+                            <div className="min-w-0 flex-1">
+                                <div className="text-base font-bold">
+                                    {flashMessage.title}
+                                </div>
+                                <div className="mt-1 text-sm leading-relaxed">
+                                    {flashMessage.message}
+                                </div>
                             </div>
-                        </div>
-                        <div className="mt-4 flex justify-end">
-                            <Button
+
+                            <button
+                                type="button"
+                                aria-label="Tutup notifikasi"
                                 onClick={() =>
-                                    setModalAlert((current) => ({
+                                    setFlashMessage((current) => ({
                                         ...current,
                                         open: false,
                                     }))
                                 }
+                                className="shrink-0 rounded-md p-1 transition-colors hover:bg-black/5 dark:hover:bg-white/10"
                             >
-                                Tutup
-                            </Button>
+                                <svg
+                                    viewBox="0 0 20 20"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                    className="h-4 w-4"
+                                >
+                                    <path d="M5 5L15 15M15 5L5 15" />
+                                </svg>
+                            </button>
                         </div>
                     </div>
                 </div>

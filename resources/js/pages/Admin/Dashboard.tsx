@@ -186,7 +186,7 @@ export default function AdminDashboard() {
                         </h3>
                         <div className="space-y-2">
                             <Link
-                                href="/activity-log"
+                                href="/admin/activity-log"
                                 className="group flex items-center justify-between rounded-lg border border-neutral-200 p-3 transition-all hover:border-purple-300 hover:bg-purple-50 dark:border-neutral-800 dark:hover:border-purple-700 dark:hover:bg-purple-950/30"
                             >
                                 <div className="flex items-center gap-3">
@@ -206,7 +206,7 @@ export default function AdminDashboard() {
                             </Link>
 
                             <Link
-                                href="/database-status"
+                                href="/admin/database-status"
                                 className="group flex items-center justify-between rounded-lg border border-neutral-200 p-3 transition-all hover:border-green-300 hover:bg-green-50 dark:border-neutral-800 dark:hover:border-green-700 dark:hover:bg-green-950/30"
                             >
                                 <div className="flex items-center gap-3">
@@ -246,7 +246,7 @@ export default function AdminDashboard() {
                             </Link>
 
                             <Link
-                                href="/system-settings"
+                                href="/admin/system-settings"
                                 className="group flex items-center justify-between rounded-lg border border-neutral-200 p-3 transition-all hover:border-gray-300 hover:bg-gray-50 dark:border-neutral-800 dark:hover:border-gray-700 dark:hover:bg-gray-950/30"
                             >
                                 <div className="flex items-center gap-3">

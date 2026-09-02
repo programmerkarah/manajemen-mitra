@@ -30,26 +30,13 @@ import {
 } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Administrasi', href: '/dashboard' },
-    { title: 'Pengaturan Sistem', href: '/system-settings' },
+    { title: 'Administrasi', href: '/admin/dashboard' },
+    { title: 'Pengaturan Sistem', href: '/admin/system-settings' },
 ];
 
-const API_URL = '/system-settings/maintenance';
-const SSO_SYNC_API_URL = '/system-settings/sso-sync';
-const FEATURE_TOGGLE_API_URL = '/system-settings/feature-toggle';
-const DEADLINE_RULE_API_URL = '/system-settings/deadline-rule';
-const DEADLINE_BYPASS_API_URL = '/system-settings/deadline-bypass';
-const DEADLINE_BYPASS_REQUEST_APPROVE_API_URL =
-    '/system-settings/deadline-bypass-request';
-
-const DEADLINE_DAY_OPTIONS = Array.from({ length: 31 }, (_, index) => {
-    const day = index + 1;
-
-    return {
-        label: `Tanggal ${day}`,
-        value: String(day),
-    };
-});
+const API_URL = '/admin/system-settings/maintenance';
+const SSO_SYNC_API_URL = '/admin/system-settings/sso-sync';
+const FEATURE_TOGGLE_API_URL = '/admin/system-settings/feature-toggle';
 
 interface FeatureToggleItem {
     key: string;
@@ -132,11 +119,6 @@ export default function SystemSettings() {
         sso_sync_enabled: initialSsoSyncEnabled,
         session_lifetime: sessionLifetime,
         feature_toggles: initialFeatureToggles,
-        deadline_rules: initialDeadlineRules,
-        deadline_bypasses: initialDeadlineBypasses,
-        deadline_bypass_requests: initialDeadlineBypassRequests,
-        deadline_storage_ready: deadlineStorageReady,
-        users: initialUsers,
     } = usePage<SystemSettingsProps>().props;
     const [maintenance, setMaintenance] = React.useState(initialMaintenance);
     const [loading, setLoading] = React.useState(false);
@@ -158,54 +140,6 @@ export default function SystemSettings() {
     );
     const [featureToggleSavingKey, setFeatureToggleSavingKey] = React.useState<
         string | null
-    >(null);
-    const [deadlineRules, setDeadlineRules] = React.useState(
-        [...initialDeadlineRules].sort(
-            (left, right) => left.sort_order - right.sort_order,
-        ),
-    );
-    const [deadlineBypasses] = React.useState(initialDeadlineBypasses);
-    const [deadlineBypassRequests, setDeadlineBypassRequests] = React.useState(
-        initialDeadlineBypassRequests,
-    );
-    const [deadlineSavingKey, setDeadlineSavingKey] = React.useState<
-        string | null
-    >(null);
-    const today = React.useMemo(() => new Date(), []);
-    const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    const endOfCurrentMonth = new Date(
-        today.getFullYear(),
-        today.getMonth() + 1,
-        0,
-    );
-    const maxBypassDateString = `${endOfCurrentMonth.getFullYear()}-${String(endOfCurrentMonth.getMonth() + 1).padStart(2, '0')}-${String(endOfCurrentMonth.getDate()).padStart(2, '0')}`;
-    const userOptions = React.useMemo(
-        () =>
-            initialUsers.map((user) => ({
-                value: String(user.id),
-                label: user.name,
-                displayLabel: user.name,
-            })),
-        [initialUsers],
-    );
-    const ruleOptions = React.useMemo(
-        () =>
-            initialDeadlineRules.map((rule) => ({
-                value: rule.id,
-                label: rule.label,
-                subLabel: rule.feature_key,
-            })),
-        [initialDeadlineRules],
-    );
-    const [bypassForm, setBypassForm] = React.useState({
-        granted_for_user_id: '',
-        rule_ids: [] as number[],
-        expires_at: '',
-        reason: '',
-    });
-    const [bypassSaving, setBypassSaving] = React.useState(false);
-    const [requestActionLoadingId, setRequestActionLoadingId] = React.useState<
-        number | null
     >(null);
     const [showSaved, setShowSaved] = React.useState(false);
     const [modalAlert, setModalAlert] = React.useState<{
@@ -397,250 +331,6 @@ export default function SystemSettings() {
         navigator.clipboard.writeText(text);
         setShowSaved(true);
         setTimeout(() => setShowSaved(false), 1200);
-    };
-
-    const handleSaveDeadlineRule = async (rule: DeadlineRuleItem) => {
-        if (!deadlineStorageReady) {
-            showModalAlert(
-                'Storage Deadline Belum Aktif',
-                'Tabel deadline belum tersedia. Jalankan migrasi terlebih dahulu agar perubahan dapat disimpan.',
-            );
-
-            return;
-        }
-
-        if (!rule.cutoff_day || rule.cutoff_day < 1 || rule.cutoff_day > 31) {
-            showModalAlert(
-                'Tanggal Belum Valid',
-                `Tanggal deadline untuk ${rule.label} harus diisi antara 1 sampai 31.`,
-            );
-
-            return;
-        }
-
-        setDeadlineSavingKey(rule.key);
-
-        try {
-            const res = await fetch(DEADLINE_RULE_API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': getCsrfToken(),
-                    Accept: 'application/json',
-                },
-                credentials: 'same-origin',
-                body: JSON.stringify({
-                    key: rule.key,
-                    cutoff_day: rule.cutoff_day,
-                }),
-            });
-
-            if (!res.ok) {
-                throw new Error(`HTTP error! status: ${res.status}`);
-            }
-
-            showModalAlert(
-                'Pengaturan Disimpan',
-                `Batas waktu ${rule.label} diperbarui.`,
-            );
-        } catch (error) {
-            console.error('Failed to save deadline rule:', error);
-            showModalAlert(
-                'Aksi Gagal',
-                'Gagal menyimpan batas waktu. Silakan coba lagi.',
-            );
-        } finally {
-            setDeadlineSavingKey(null);
-        }
-    };
-
-    const handleGrantBypass = async () => {
-        if (!deadlineStorageReady) {
-            showModalAlert(
-                'Storage Deadline Belum Aktif',
-                'Tabel deadline belum tersedia. Jalankan migrasi terlebih dahulu agar bypass dapat dibuat.',
-            );
-
-            return;
-        }
-
-        if (!bypassForm.granted_for_user_id) {
-            showModalAlert(
-                'User Belum Dipilih',
-                'Pilih user yang akan diberikan bypass terlebih dahulu.',
-            );
-
-            return;
-        }
-
-        const selectedRuleKeys = bypassForm.rule_ids
-            .map(
-                (ruleId) =>
-                    initialDeadlineRules.find((rule) => rule.id === ruleId)
-                        ?.key,
-            )
-            .filter((ruleKey): ruleKey is string => Boolean(ruleKey));
-
-        if (selectedRuleKeys.length === 0) {
-            showModalAlert(
-                'Jenis Akses Belum Dipilih',
-                'Pilih minimal satu jenis akses yang akan diberikan bypass.',
-            );
-
-            return;
-        }
-
-        if (!bypassForm.expires_at) {
-            showModalAlert(
-                'Batas Waktu Belum Diisi',
-                'Pilih tanggal batas waktu bypass sebelum menyimpan.',
-            );
-
-            return;
-        }
-
-        setBypassSaving(true);
-
-        try {
-            const res = await fetch(DEADLINE_BYPASS_API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': getCsrfToken(),
-                    Accept: 'application/json',
-                },
-                credentials: 'same-origin',
-                body: JSON.stringify({
-                    granted_for_user_id: Number(bypassForm.granted_for_user_id),
-                    rule_keys: selectedRuleKeys,
-                    expires_at: bypassForm.expires_at || null,
-                    reason: bypassForm.reason || null,
-                }),
-            });
-
-            if (!res.ok) {
-                const response = await res.json().catch(() => ({}));
-                throw new Error(
-                    response?.message || `HTTP error! status: ${res.status}`,
-                );
-            }
-
-            window.location.reload();
-        } catch (error) {
-            console.error('Failed to grant bypass:', error);
-            showModalAlert(
-                'Aksi Gagal',
-                error instanceof Error && error.message
-                    ? error.message
-                    : 'Gagal membuat bypass batas waktu. Silakan coba lagi.',
-            );
-        } finally {
-            setBypassSaving(false);
-        }
-    };
-
-    const handleApproveBypassRequest = async (requestId: number) => {
-        setRequestActionLoadingId(requestId);
-
-        try {
-            const res = await fetch(
-                `${DEADLINE_BYPASS_REQUEST_APPROVE_API_URL}/${requestId}/approve`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': getCsrfToken(),
-                        Accept: 'application/json',
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({}),
-                },
-            );
-
-            if (!res.ok) {
-                throw new Error(`HTTP error! status: ${res.status}`);
-            }
-
-            setDeadlineBypassRequests((current) =>
-                current.map((item) =>
-                    item.id === requestId
-                        ? {
-                              ...item,
-                              status: 'approved',
-                              reviewed_by: 'Admin',
-                              reviewed_at: new Date().toISOString(),
-                          }
-                        : item,
-                ),
-            );
-
-            showModalAlert(
-                'Request Disetujui',
-                'Request bypass berhasil disetujui dan bypass aktif sudah dibuat.',
-            );
-        } catch (error) {
-            console.error('Failed to approve bypass request:', error);
-            showModalAlert(
-                'Aksi Gagal',
-                'Gagal menyetujui request bypass. Silakan coba lagi.',
-            );
-        } finally {
-            setRequestActionLoadingId(null);
-        }
-    };
-
-    const handleRejectBypassRequest = async (requestId: number) => {
-        setRequestActionLoadingId(requestId);
-
-        try {
-            const res = await fetch(
-                `${DEADLINE_BYPASS_REQUEST_APPROVE_API_URL}/${requestId}/reject`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': getCsrfToken(),
-                        Accept: 'application/json',
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({
-                        review_note: 'Permintaan bypass ditolak oleh admin.',
-                    }),
-                },
-            );
-
-            if (!res.ok) {
-                throw new Error(`HTTP error! status: ${res.status}`);
-            }
-
-            setDeadlineBypassRequests((current) =>
-                current.map((item) =>
-                    item.id === requestId
-                        ? {
-                              ...item,
-                              status: 'rejected',
-                              reviewed_by: 'Admin',
-                              reviewed_at: new Date().toISOString(),
-                              review_note:
-                                  'Permintaan bypass ditolak oleh admin.',
-                          }
-                        : item,
-                ),
-            );
-
-            showModalAlert(
-                'Request Ditolak',
-                'Request bypass berhasil ditolak.',
-            );
-        } catch (error) {
-            console.error('Failed to reject bypass request:', error);
-            showModalAlert(
-                'Aksi Gagal',
-                'Gagal menolak request bypass. Silakan coba lagi.',
-            );
-        } finally {
-            setRequestActionLoadingId(null);
-        }
     };
 
     const bypassUrl = `${window.location.origin}/bypass`;
