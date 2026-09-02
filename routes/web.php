@@ -243,6 +243,10 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         ->name('deadline-bypass.request')
         ->middleware('active.role:admin,operator,ketua_tim,pj,approver,administrator');
 
+    Route::middleware(['active.role:admin'])->group(function () {
+        Route::get('manage-deadline', [SystemSettingsController::class, 'deadlineManagement'])->name('manage-deadline');
+    });
+
     // Admin System Settings
     Route::middleware(['active.role:admin'])->prefix('admin')->group(function () {
         Route::get('dashboard', function () {
@@ -304,6 +308,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('system-settings/feature-toggle', [SystemSettingsController::class, 'updateFeatureToggle'])->name('admin.system-settings.feature-toggle');
         Route::post('system-settings/deadline-rule', [SystemSettingsController::class, 'updateDeadlineRule'])->name('admin.system-settings.deadline-rule');
         Route::post('system-settings/deadline-bypass', [SystemSettingsController::class, 'grantDeadlineBypass'])->name('admin.system-settings.deadline-bypass');
+        Route::post('system-settings/deadline-bypass/{bypassId}/revoke', [SystemSettingsController::class, 'revokeDeadlineBypass'])->name('admin.system-settings.deadline-bypass.revoke')->where('bypassId', '[0-9]+');
         Route::post('system-settings/deadline-bypass-request/{requestId}/approve', [SystemSettingsController::class, 'approveDeadlineBypassRequest'])
             ->name('admin.system-settings.deadline-bypass-request.approve')
             ->where('requestId', '[0-9]+');

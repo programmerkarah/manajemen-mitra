@@ -24,8 +24,16 @@ class PreventMaintenanceModeRequests extends Middleware
         'mt/*',
         'maintenance',
         'maintenance/*',
-        'admin/system-settings',
-        'admin/system-settings/*',
+        'system-settings',
+        'system-settings/*',
+        'activity-log',
+        'activity-log/*',
+        'database-status',
+        'database-status/*',
+        'dashboard',
+        'dashboard/*',
+        'manage-deadline',
+        'manage-deadline/*',
         'health',
     ];
 

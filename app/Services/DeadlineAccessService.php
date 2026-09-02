@@ -85,8 +85,7 @@ class DeadlineAccessService
             ->where(function (Builder $builder) {
                 $builder->whereNull('expires_at')
                     ->orWhere('expires_at', '>', now());
-            })
-            ->whereColumn('uses_count', '<', 'max_uses');
+            });
 
         $this->applyScopeMatcher($query, 'kegiatan_id', $scope['kegiatan_id'] ?? null);
         $this->applyScopeMatcher($query, 'periode_alokasi_id', $scope['periode_alokasi_id'] ?? null);
@@ -123,12 +122,13 @@ class DeadlineAccessService
     public function consumeBypass(DeadlineBypass $bypass): void
     {
         $nextUses = (int) $bypass->uses_count + 1;
-        $maxUses = max(1, (int) $bypass->max_uses);
+        $expiresAt = $bypass->expires_at;
+        $isStillValid = $expiresAt === null || $expiresAt->greaterThan(now());
 
         $bypass->forceFill([
             'uses_count' => $nextUses,
             'consumed_at' => now(),
-            'is_active' => $nextUses < $maxUses,
+            'is_active' => $isStillValid,
         ])->save();
     }
 

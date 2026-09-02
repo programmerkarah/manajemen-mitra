@@ -233,7 +233,7 @@ export function MultiSelectCheckbox({
                                 onChange={(event) =>
                                     setSearch(event.target.value)
                                 }
-                                placeholder="Cari nama petugas..."
+                                placeholder="Ketik kata kunci yang akan dicari..."
                                 className="h-9 w-full rounded-md border border-neutral-200 bg-white px-2.5 text-sm ring-0 outline-none placeholder:text-neutral-400 focus:border-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500"
                                 autoFocus
                             />
@@ -277,11 +277,6 @@ export function MultiSelectCheckbox({
                                                 <div className="truncate font-medium text-neutral-900 dark:text-neutral-100">
                                                     {option.label}
                                                 </div>
-                                                {option.subLabel && (
-                                                    <div className="truncate text-xs text-neutral-500 dark:text-neutral-400">
-                                                        {option.subLabel}
-                                                    </div>
-                                                )}
                                             </div>
                                         </li>
                                     );

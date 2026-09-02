@@ -44,8 +44,8 @@ import {
 } from '@/components/ui/select';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Administrasi', href: '/admin/dashboard' },
-    { title: 'Log Aktivitas', href: '/admin/activity-log' },
+    { title: 'Administrasi', href: '/dashboard' },
+    { title: 'Log Aktivitas', href: '/activity-log' },
 ];
 
 interface ActivityLog {
@@ -210,7 +210,7 @@ export default function ActivityLog() {
     const handleFilter = (e: React.FormEvent) => {
         e.preventDefault();
         router.post(
-            '/admin/activity-log',
+            '/activity-log',
             {
                 encrypted_filters: encryptFilters(buildFilterData()),
             },
@@ -224,7 +224,7 @@ export default function ActivityLog() {
     const handleRefresh = () => {
         setIsRefreshing(true);
         router.post(
-            '/admin/activity-log',
+            '/activity-log',
             {
                 encrypted_filters: encryptFilters(
                     buildFilterData(pagination?.current_page ?? 1),
@@ -241,12 +241,12 @@ export default function ActivityLog() {
     const handleExport = () => {
         const params = new URLSearchParams(buildFilterData());
         const queryString = params.toString();
-        window.location.href = `/admin/activity-log/export${queryString ? `?${queryString}` : ''}`;
+        window.location.href = `/activity-log/export${queryString ? `?${queryString}` : ''}`;
     };
 
     const handlePageChange = (page: number) => {
         router.post(
-            '/admin/activity-log',
+            '/activity-log',
             {
                 encrypted_filters: encryptFilters(buildFilterData(page)),
             },

@@ -12,8 +12,8 @@ import { AlertTriangle, CircleAlert, Database, Download } from 'lucide-react';
 import React from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Administrasi', href: '/admin/dashboard' },
-    { title: 'Status Database', href: '/admin/database-status' },
+    { title: 'Administrasi', href: '/dashboard' },
+    { title: 'Status Database', href: '/database-status' },
 ];
 
 export default function DatabaseStatus() {
@@ -45,7 +45,7 @@ export default function DatabaseStatus() {
     const [showRestoreConfirm, setShowRestoreConfirm] = React.useState(false);
 
     React.useEffect(() => {
-        fetch('/admin/database-list-backups')
+        fetch('/database-list-backups')
             .then((res) => res.json())
             .then((data) => {
                 if (data.success) setBackups(data.backups);
@@ -65,7 +65,7 @@ export default function DatabaseStatus() {
         setBackupResult(null);
         setRestoreResult(null);
         try {
-            const res = await fetch('/admin/database-backup', {
+            const res = await fetch('/database-backup', {
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
@@ -95,7 +95,7 @@ export default function DatabaseStatus() {
         setRestoreResult(null);
         setBackupResult(null);
         try {
-            const res = await fetch('/admin/database-restore', {
+            const res = await fetch('/database-restore', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

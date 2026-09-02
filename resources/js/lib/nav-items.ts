@@ -152,11 +152,16 @@ export function buildNavItems(
             },
             { title: 'Manajemen User', href: '/users', icon: Users },
             {
+                title: 'Deadline & Bypass',
+                href: '/manage-deadline',
+                icon: ClipboardList,
+            },
+            {
                 title: 'Pengaturan Sistem',
                 href: '/admin/dashboard',
                 icon: LayoutGrid,
-                /** Stay active for all /admin/* sub-pages */
-                activeWhen: ['/admin/'],
+                /** Stay active for all admin sub-pages */
+                activeWhen: ['/admin'],
             },
         );
     } else if (activeRoleName === 'operator') {

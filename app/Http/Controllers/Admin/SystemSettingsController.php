@@ -53,6 +53,15 @@ class SystemSettingsController
             'sort_order' => $toggle->sort_order,
         ]);
         $deadlineStorageReady = DeadlineRule::supportsStorage();
+        $users = User::query()
+            ->select(['id', 'name'])
+            ->whereNotNull('name')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+            ]);
         $deadlineRules = collect();
         $recentBypasses = collect();
         $pendingBypassRequests = collect();
@@ -164,6 +173,126 @@ class SystemSettingsController
             'deadline_bypasses' => $recentBypasses,
             'deadline_bypass_requests' => $pendingBypassRequests,
             'deadline_storage_ready' => $deadlineStorageReady,
+            'users' => $users,
+        ]);
+    }
+
+    public function deadlineManagement(): Response
+    {
+        $deadlineStorageReady = DeadlineRule::supportsStorage();
+        $users = User::query()
+            ->select(['id', 'name'])
+            ->whereNotNull('name')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+            ]);
+
+        $deadlineRules = collect();
+        $recentBypasses = collect();
+        $pendingBypassRequests = collect();
+
+        if ($deadlineStorageReady) {
+            $deadlineRules = DeadlineRule::ordered()->map(fn (DeadlineRule $rule) => [
+                'id' => $rule->id,
+                'key' => $rule->key,
+                'feature_key' => $rule->feature_key,
+                'action_key' => $rule->action_key,
+                'label' => $rule->label,
+                'description' => $rule->description,
+                'deadline_at' => $rule->deadline_at?->format('Y-m-d H:i:s'),
+                'cutoff_day' => $rule->cutoff_day,
+                'is_enforced' => $rule->is_enforced,
+                'allow_manual_bypass' => $rule->allow_manual_bypass,
+                'scope_type' => $rule->scope_type,
+                'sort_order' => $rule->sort_order,
+            ]);
+        } else {
+            $deadlineRules = collect(DeadlineRule::defaultDefinitions())->map(fn (array $definition) => [
+                'id' => 0,
+                'key' => $definition['key'],
+                'feature_key' => $definition['feature_key'],
+                'action_key' => $definition['action_key'],
+                'label' => $definition['label'],
+                'description' => $definition['description'],
+                'deadline_at' => null,
+                'cutoff_day' => $definition['cutoff_day'],
+                'is_enforced' => true,
+                'allow_manual_bypass' => true,
+                'scope_type' => $definition['scope_type'],
+                'sort_order' => $definition['sort_order'],
+            ]);
+        }
+
+        if (Schema::hasTable('deadline_bypasses')) {
+            $recentBypasses = DeadlineBypass::query()
+                ->with(['deadlineRule:id,key,label', 'approvedBy:id,name', 'grantedFor:id,name'])
+                ->orderByDesc('id')
+                ->limit(25)
+                ->get()
+                ->map(fn (DeadlineBypass $bypass) => [
+                    'id' => $bypass->id,
+                    'deadline_rule_id' => $bypass->deadline_rule_id,
+                    'rule_key' => $bypass->deadlineRule?->key,
+                    'rule_label' => $bypass->deadlineRule?->label,
+                    'kegiatan_id' => $bypass->kegiatan_id,
+                    'periode_alokasi_id' => $bypass->periode_alokasi_id,
+                    'year' => $bypass->year,
+                    'month' => $bypass->month,
+                    'approved_by' => $bypass->approvedBy?->name,
+                    'granted_for' => $bypass->grantedFor?->name,
+                    'reason' => $bypass->reason,
+                    'max_uses' => $bypass->max_uses,
+                    'uses_count' => $bypass->uses_count,
+                    'is_active' => $bypass->is_active,
+                    'expires_at' => $bypass->expires_at?->format('Y-m-d H:i:s'),
+                    'consumed_at' => $bypass->consumed_at?->format('Y-m-d H:i:s'),
+                    'created_at' => $bypass->created_at?->format('Y-m-d H:i:s'),
+                ]);
+        }
+
+        if (Schema::hasTable('deadline_bypass_requests')) {
+            $pendingBypassRequests = DeadlineBypassRequest::query()
+                ->with([
+                    'deadlineRule:id,key,label',
+                    'requestedBy:id,name',
+                    'reviewedBy:id,name',
+                ])
+                ->orderByRaw("FIELD(status, 'pending', 'approved', 'rejected')")
+                ->orderByDesc('id')
+                ->limit(50)
+                ->get()
+                ->map(fn (DeadlineBypassRequest $request) => [
+                    'id' => $request->id,
+                    'rule_key' => $request->deadlineRule?->key,
+                    'rule_label' => $request->deadlineRule?->label,
+                    'requested_by' => $request->requestedBy?->name,
+                    'reviewed_by' => $request->reviewedBy?->name,
+                    'kegiatan_id' => $request->kegiatan_id,
+                    'periode_alokasi_id' => $request->periode_alokasi_id,
+                    'year' => $request->year,
+                    'month' => $request->month,
+                    'reason' => $request->reason,
+                    'status' => $request->status,
+                    'route_name' => $request->route_name,
+                    'http_method' => $request->http_method,
+                    'target_url' => $request->target_url,
+                    'max_uses' => $request->max_uses,
+                    'expires_at' => $request->expires_at?->format('Y-m-d H:i:s'),
+                    'review_note' => $request->review_note,
+                    'reviewed_at' => $request->reviewed_at?->format('Y-m-d H:i:s'),
+                    'created_at' => $request->created_at?->format('Y-m-d H:i:s'),
+                ]);
+        }
+
+        return Inertia::render('Admin/DeadlineManagement', [
+            'deadline_rules' => $deadlineRules,
+            'deadline_bypasses' => $recentBypasses,
+            'deadline_bypass_requests' => $pendingBypassRequests,
+            'deadline_storage_ready' => $deadlineStorageReady,
+            'users' => $users,
         ]);
     }
 
@@ -288,50 +417,102 @@ class SystemSettingsController
         }
 
         $validated = $request->validate([
-            'rule_key' => ['required', 'string', 'exists:deadline_rules,key'],
+            'rule_key' => ['nullable', 'string', 'exists:deadline_rules,key'],
+            'rule_keys' => ['nullable', 'array', 'min:1'],
+            'rule_keys.*' => ['string', 'exists:deadline_rules,key'],
             'kegiatan_id' => ['nullable', 'integer', 'exists:kegiatan,id'],
             'periode_alokasi_id' => ['nullable', 'integer', 'exists:periode_alokasi,id'],
-            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
-            'month' => ['nullable', 'integer', 'min:1', 'max:12'],
-            'granted_for_user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'granted_for_user_id' => ['required', 'integer', 'exists:users,id'],
             'reason' => ['nullable', 'string', 'max:2000'],
-            'max_uses' => ['nullable', 'integer', 'min:1', 'max:10'],
-            'expires_at' => ['nullable', 'date'],
+            'expires_at' => [
+                'nullable',
+                'date',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($value === null || $value === '') {
+                        return;
+                    }
+
+                    $minDate = now()->startOfDay()->toDateString();
+                    $maxDate = now()->endOfMonth()->toDateString();
+                    $selectedDate = Carbon::parse((string) $value)->toDateString();
+
+                    if ($selectedDate < $minDate) {
+                        $fail('Batas waktu bypass minimum adalah hari ini.');
+                    }
+
+                    if ($selectedDate > $maxDate) {
+                        $fail('Batas waktu bypass maksimum adalah akhir bulan ini.');
+                    }
+                },
+            ],
         ]);
 
-        /** @var DeadlineRule $rule */
-        $rule = DeadlineRule::query()->where('key', (string) $validated['rule_key'])->firstOrFail();
+        $ruleKeys = array_values(array_unique(array_filter([
+            isset($validated['rule_key']) && $validated['rule_key'] !== '' ? (string) $validated['rule_key'] : null,
+            ...((array) ($validated['rule_keys'] ?? [])),
+        ], fn (?string $ruleKey) => $ruleKey !== null && $ruleKey !== '')));
 
-        $bypass = DeadlineBypass::query()->create([
-            'deadline_rule_id' => $rule->id,
-            'kegiatan_id' => $validated['kegiatan_id'] ?? null,
-            'periode_alokasi_id' => $validated['periode_alokasi_id'] ?? null,
-            'year' => $validated['year'] ?? null,
-            'month' => $validated['month'] ?? null,
-            'approved_by_user_id' => (int) Auth::id(),
-            'granted_for_user_id' => $validated['granted_for_user_id'] ?? null,
-            'reason' => $validated['reason'] ?? null,
-            'max_uses' => (int) ($validated['max_uses'] ?? 1),
-            'uses_count' => 0,
-            'is_active' => true,
-            'expires_at' => $validated['expires_at'] ? Carbon::parse((string) $validated['expires_at']) : null,
-            'metadata' => null,
-        ]);
+        if ($ruleKeys === []) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pilih minimal satu jenis akses untuk bypass.',
+            ], 422);
+        }
+
+        $activeYear = now()->year;
+        $activeMonth = now()->month;
+        $effectiveMaxUses = 0;
+
+        $rules = DeadlineRule::query()
+            ->whereIn('key', $ruleKeys)
+            ->orderBy('sort_order')
+            ->get();
+
+        if ($rules->count() !== count($ruleKeys)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Satu atau lebih jenis akses tidak valid.',
+            ], 422);
+        }
+
+        $createdBypasses = [];
+
+        DB::transaction(function () use ($rules, $validated, $ruleKeys, $activeYear, $activeMonth, $effectiveMaxUses, &$createdBypasses) {
+            foreach ($rules as $rule) {
+                $createdBypasses[] = DeadlineBypass::query()->create([
+                    'deadline_rule_id' => $rule->id,
+                    'kegiatan_id' => $validated['kegiatan_id'] ?? null,
+                    'periode_alokasi_id' => $validated['periode_alokasi_id'] ?? null,
+                    'year' => $activeYear,
+                    'month' => $activeMonth,
+                    'approved_by_user_id' => (int) Auth::id(),
+                    'granted_for_user_id' => (int) $validated['granted_for_user_id'],
+                    'reason' => $validated['reason'] ?? null,
+                    'max_uses' => $effectiveMaxUses,
+                    'uses_count' => 0,
+                    'is_active' => true,
+                    'expires_at' => $validated['expires_at'] ? Carbon::parse((string) $validated['expires_at'])->endOfDay() : null,
+                    'metadata' => [
+                        'source' => 'manual_admin_grant',
+                        'rule_keys' => $ruleKeys,
+                    ],
+                ]);
+            }
+        });
 
         ActivityLog::logSystem(
             'Bypass Batas Waktu Dibuat',
-            'Bypass manual untuk '.$rule->label.' berhasil dibuat.',
+            'Bypass manual untuk '.count($createdBypasses).' jenis akses berhasil dibuat.',
             'info',
             [
-                'deadline_bypass_id' => $bypass->id,
-                'deadline_rule_key' => $rule->key,
-                'kegiatan_id' => $bypass->kegiatan_id,
-                'periode_alokasi_id' => $bypass->periode_alokasi_id,
-                'year' => $bypass->year,
-                'month' => $bypass->month,
-                'granted_for_user_id' => $bypass->granted_for_user_id,
-                'max_uses' => $bypass->max_uses,
-                'expires_at' => $bypass->expires_at?->toDateTimeString(),
+                'deadline_rule_keys' => $ruleKeys,
+                'kegiatan_id' => $validated['kegiatan_id'] ?? null,
+                'periode_alokasi_id' => $validated['periode_alokasi_id'] ?? null,
+                'year' => $activeYear,
+                'month' => $activeMonth,
+                'granted_for_user_id' => (int) $validated['granted_for_user_id'],
+                'max_uses' => $effectiveMaxUses,
+                'expires_at' => $validated['expires_at'] ? Carbon::parse((string) $validated['expires_at'])->endOfDay()->toDateTimeString() : null,
                 'user_id' => Auth::id(),
             ]
         );
@@ -339,17 +520,13 @@ class SystemSettingsController
         return response()->json([
             'success' => true,
             'deadline_bypass' => [
-                'id' => $bypass->id,
-                'rule_key' => $rule->key,
-                'rule_label' => $rule->label,
-                'kegiatan_id' => $bypass->kegiatan_id,
-                'periode_alokasi_id' => $bypass->periode_alokasi_id,
-                'year' => $bypass->year,
-                'month' => $bypass->month,
-                'max_uses' => $bypass->max_uses,
-                'uses_count' => $bypass->uses_count,
-                'is_active' => $bypass->is_active,
-                'expires_at' => $bypass->expires_at?->format('Y-m-d H:i:s'),
+                'count' => count($createdBypasses),
+                'rule_keys' => $ruleKeys,
+                'granted_for_user_id' => (int) $validated['granted_for_user_id'],
+                'year' => $activeYear,
+                'month' => $activeMonth,
+                'max_uses' => $effectiveMaxUses,
+                'expires_at' => $validated['expires_at'] ? Carbon::parse((string) $validated['expires_at'])->endOfDay()->format('Y-m-d H:i:s') : null,
             ],
         ]);
     }
@@ -422,6 +599,66 @@ class SystemSettingsController
         return response()->json([
             'success' => true,
             'message' => 'Request bypass berhasil disetujui.',
+        ]);
+    }
+
+    public function revokeDeadlineBypass(Request $request, int $bypassId): JsonResponse
+    {
+        if (! DeadlineRule::supportsStorage() || ! Schema::hasTable('deadline_bypasses')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tabel bypass belum tersedia. Jalankan migrasi terlebih dahulu.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        /** @var DeadlineBypass $bypass */
+        $bypass = DeadlineBypass::query()->findOrFail($bypassId);
+
+        if (! $bypass->is_active) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bypass ini sudah tidak aktif.',
+            ], 422);
+        }
+
+        $newReason = trim((string) ($validated['reason'] ?? ''));
+        $baseReason = $bypass->reason ? trim((string) $bypass->reason) : null;
+        $combinedReason = $newReason !== ''
+            ? ($baseReason ? $baseReason.' | '.$newReason : $newReason)
+            : $baseReason;
+
+        $bypass->forceFill([
+            'is_active' => false,
+            'reason' => $combinedReason,
+            'consumed_at' => now(),
+            'metadata' => array_merge((array) $bypass->metadata, [
+                'revoked_by_admin' => true,
+                'revoked_at' => now()->toDateTimeString(),
+                'revocation_reason' => $newReason !== '' ? $newReason : 'Dicabut oleh admin',
+            ]),
+        ])->save();
+
+        ActivityLog::logSystem(
+            'Bypass Batas Waktu Dicabut',
+            'Bypass manual untuk '.($bypass->deadlineRule?->label ?? 'fitur').' dicabut oleh admin.',
+            'warning',
+            [
+                'deadline_bypass_id' => $bypass->id,
+                'deadline_rule_id' => $bypass->deadline_rule_id,
+                'granted_for_user_id' => $bypass->granted_for_user_id,
+                'revoked_by_user_id' => Auth::id(),
+                'reason' => $newReason !== '' ? $newReason : 'Dicabut oleh admin',
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Bypass berhasil dicabut dan tidak dapat digunakan lagi.',
+            'bypass_id' => $bypass->id,
         ]);
     }
 

@@ -11,14 +11,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
@@ -38,17 +30,17 @@ import {
 } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Administrasi', href: '/admin/dashboard' },
-    { title: 'Pengaturan Sistem', href: '/admin/system-settings' },
+    { title: 'Administrasi', href: '/dashboard' },
+    { title: 'Pengaturan Sistem', href: '/system-settings' },
 ];
 
-const API_URL = '/admin/system-settings/maintenance';
-const SSO_SYNC_API_URL = '/admin/system-settings/sso-sync';
-const FEATURE_TOGGLE_API_URL = '/admin/system-settings/feature-toggle';
-const DEADLINE_RULE_API_URL = '/admin/system-settings/deadline-rule';
-const DEADLINE_BYPASS_API_URL = '/admin/system-settings/deadline-bypass';
+const API_URL = '/system-settings/maintenance';
+const SSO_SYNC_API_URL = '/system-settings/sso-sync';
+const FEATURE_TOGGLE_API_URL = '/system-settings/feature-toggle';
+const DEADLINE_RULE_API_URL = '/system-settings/deadline-rule';
+const DEADLINE_BYPASS_API_URL = '/system-settings/deadline-bypass';
 const DEADLINE_BYPASS_REQUEST_APPROVE_API_URL =
-    '/admin/system-settings/deadline-bypass-request';
+    '/system-settings/deadline-bypass-request';
 
 const DEADLINE_DAY_OPTIONS = Array.from({ length: 31 }, (_, index) => {
     const day = index + 1;
@@ -129,6 +121,7 @@ interface SystemSettingsProps {
     deadline_bypasses: DeadlineBypassItem[];
     deadline_bypass_requests: DeadlineBypassRequestItem[];
     deadline_storage_ready: boolean;
+    users: Array<{ id: number; name: string }>;
     [key: string]: unknown;
 }
 
@@ -143,6 +136,7 @@ export default function SystemSettings() {
         deadline_bypasses: initialDeadlineBypasses,
         deadline_bypass_requests: initialDeadlineBypassRequests,
         deadline_storage_ready: deadlineStorageReady,
+        users: initialUsers,
     } = usePage<SystemSettingsProps>().props;
     const [maintenance, setMaintenance] = React.useState(initialMaintenance);
     const [loading, setLoading] = React.useState(false);
@@ -177,11 +171,35 @@ export default function SystemSettings() {
     const [deadlineSavingKey, setDeadlineSavingKey] = React.useState<
         string | null
     >(null);
+    const today = React.useMemo(() => new Date(), []);
+    const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const endOfCurrentMonth = new Date(
+        today.getFullYear(),
+        today.getMonth() + 1,
+        0,
+    );
+    const maxBypassDateString = `${endOfCurrentMonth.getFullYear()}-${String(endOfCurrentMonth.getMonth() + 1).padStart(2, '0')}-${String(endOfCurrentMonth.getDate()).padStart(2, '0')}`;
+    const userOptions = React.useMemo(
+        () =>
+            initialUsers.map((user) => ({
+                value: String(user.id),
+                label: user.name,
+                displayLabel: user.name,
+            })),
+        [initialUsers],
+    );
+    const ruleOptions = React.useMemo(
+        () =>
+            initialDeadlineRules.map((rule) => ({
+                value: rule.id,
+                label: rule.label,
+                subLabel: rule.feature_key,
+            })),
+        [initialDeadlineRules],
+    );
     const [bypassForm, setBypassForm] = React.useState({
-        rule_key: initialDeadlineRules[0]?.key ?? 'alokasi.manage',
-        year: String(new Date().getFullYear()),
-        month: String(new Date().getMonth() + 1),
-        max_uses: '1',
+        granted_for_user_id: '',
+        rule_ids: [] as number[],
         expires_at: '',
         reason: '',
     });
@@ -446,6 +464,41 @@ export default function SystemSettings() {
             return;
         }
 
+        if (!bypassForm.granted_for_user_id) {
+            showModalAlert(
+                'User Belum Dipilih',
+                'Pilih user yang akan diberikan bypass terlebih dahulu.',
+            );
+
+            return;
+        }
+
+        const selectedRuleKeys = bypassForm.rule_ids
+            .map(
+                (ruleId) =>
+                    initialDeadlineRules.find((rule) => rule.id === ruleId)
+                        ?.key,
+            )
+            .filter((ruleKey): ruleKey is string => Boolean(ruleKey));
+
+        if (selectedRuleKeys.length === 0) {
+            showModalAlert(
+                'Jenis Akses Belum Dipilih',
+                'Pilih minimal satu jenis akses yang akan diberikan bypass.',
+            );
+
+            return;
+        }
+
+        if (!bypassForm.expires_at) {
+            showModalAlert(
+                'Batas Waktu Belum Diisi',
+                'Pilih tanggal batas waktu bypass sebelum menyimpan.',
+            );
+
+            return;
+        }
+
         setBypassSaving(true);
 
         try {
@@ -458,17 +511,18 @@ export default function SystemSettings() {
                 },
                 credentials: 'same-origin',
                 body: JSON.stringify({
-                    rule_key: bypassForm.rule_key,
-                    year: bypassForm.year ? Number(bypassForm.year) : null,
-                    month: bypassForm.month ? Number(bypassForm.month) : null,
-                    max_uses: Number(bypassForm.max_uses || '1'),
+                    granted_for_user_id: Number(bypassForm.granted_for_user_id),
+                    rule_keys: selectedRuleKeys,
                     expires_at: bypassForm.expires_at || null,
                     reason: bypassForm.reason || null,
                 }),
             });
 
             if (!res.ok) {
-                throw new Error(`HTTP error! status: ${res.status}`);
+                const response = await res.json().catch(() => ({}));
+                throw new Error(
+                    response?.message || `HTTP error! status: ${res.status}`,
+                );
             }
 
             window.location.reload();
@@ -476,7 +530,9 @@ export default function SystemSettings() {
             console.error('Failed to grant bypass:', error);
             showModalAlert(
                 'Aksi Gagal',
-                'Gagal membuat bypass batas waktu. Silakan coba lagi.',
+                error instanceof Error && error.message
+                    ? error.message
+                    : 'Gagal membuat bypass batas waktu. Silakan coba lagi.',
             );
         } finally {
             setBypassSaving(false);
@@ -850,331 +906,6 @@ export default function SystemSettings() {
                                 </div>
                             </div>
                         ))}
-                    </div>
-                </ContentCard>
-
-                <ContentCard>
-                    <div className="mb-6 flex items-start justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/30">
-                                <Clock className="h-7 w-7 text-amber-600 dark:text-amber-400" />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold">
-                                    Manajemen Batas Waktu
-                                </h2>
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                    Daftar fitur di bawah wajib memiliki tanggal
-                                    cutoff bulanan per periode target.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="mb-4 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900/50">
-                        <p className="text-sm font-medium text-neutral-800 dark:text-neutral-100">
-                            Daftar Fitur Yang Perlu Diatur Deadline
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                            Contoh: cutoff 25 berarti periode Juli ditutup
-                            setelah 25 Juni. Setelah itu user harus request
-                            bypass ke admin.
-                        </p>
-                    </div>
-
-                    {!deadlineStorageReady && (
-                        <div className="mb-4 rounded-xl border border-amber-400/50 bg-amber-100/70 px-4 py-3 text-amber-900 dark:border-amber-500/40 dark:bg-amber-900/20 dark:text-amber-100">
-                            <p className="text-sm font-semibold">
-                                Storage deadline belum aktif
-                            </p>
-                            <p className="mt-1 text-xs">
-                                Daftar fitur sudah ditampilkan dari konfigurasi
-                                default, tetapi penyimpanan perubahan deadline
-                                membutuhkan migrasi database.
-                            </p>
-                        </div>
-                    )}
-
-                    <div className="space-y-4">
-                        {deadlineRules.map((rule) => (
-                            <div
-                                key={rule.key}
-                                className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800"
-                            >
-                                <div className="mb-3 flex items-start justify-between gap-3">
-                                    <div>
-                                        <p className="text-base font-semibold">
-                                            {rule.label}
-                                        </p>
-                                        <p className="text-sm text-muted-foreground">
-                                            {rule.description ||
-                                                'Tidak ada deskripsi.'}
-                                        </p>
-                                        <p className="mt-1 text-xs text-muted-foreground">
-                                            Fitur: {rule.feature_key}
-                                        </p>
-                                    </div>
-                                    <Badge variant="default">
-                                        Cutoff Periode Bulanan
-                                    </Badge>
-                                </div>
-
-                                <div className="grid gap-3 md:grid-cols-1">
-                                    <div className="space-y-1">
-                                        <p className="text-xs font-medium text-muted-foreground">
-                                            Tanggal deadline bulanan
-                                        </p>
-                                        <Select
-                                            value={
-                                                rule.cutoff_day
-                                                    ? String(rule.cutoff_day)
-                                                    : ''
-                                            }
-                                            onValueChange={(value) =>
-                                                setDeadlineRules((current) =>
-                                                    current.map((item) =>
-                                                        item.key === rule.key
-                                                            ? {
-                                                                  ...item,
-                                                                  cutoff_day:
-                                                                      Number(
-                                                                          value,
-                                                                      ),
-                                                              }
-                                                            : item,
-                                                    ),
-                                                )
-                                            }
-                                        >
-                                            <SelectTrigger className="w-full bg-white dark:bg-neutral-900">
-                                                <SelectValue placeholder="Pilih tanggal deadline" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {DEADLINE_DAY_OPTIONS.map(
-                                                    (option) => (
-                                                        <SelectItem
-                                                            key={option.value}
-                                                            value={option.value}
-                                                        >
-                                                            {option.label}
-                                                        </SelectItem>
-                                                    ),
-                                                )}
-                                            </SelectContent>
-                                        </Select>
-                                        <p className="text-xs text-muted-foreground">
-                                            {rule.key === 'alokasi.revisi'
-                                                ? 'Khusus revisi: bulan berjalan selalu bisa diproses. Bulan sebelumnya hanya bisa sampai tanggal cutoff di bulan berjalan.'
-                                                : 'Periode target akan ditutup pada tanggal ini di bulan sebelumnya. Setelah lewat cutoff, aksi butuh persetujuan admin.'}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="mt-3 flex justify-end">
-                                    <Button
-                                        size="sm"
-                                        onClick={() =>
-                                            handleSaveDeadlineRule(rule)
-                                        }
-                                        disabled={
-                                            !deadlineStorageReady ||
-                                            deadlineSavingKey === rule.key
-                                        }
-                                    >
-                                        {deadlineSavingKey === rule.key
-                                            ? 'Menyimpan...'
-                                            : 'Simpan Rule'}
-                                    </Button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="mt-6 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
-                        <p className="mb-3 text-base font-semibold">
-                            Request Bypass Dari User
-                        </p>
-                        <div className="space-y-2">
-                            {deadlineBypassRequests.length === 0 && (
-                                <p className="text-sm text-muted-foreground">
-                                    Belum ada request bypass.
-                                </p>
-                            )}
-                            {deadlineBypassRequests.map((item) => (
-                                <div
-                                    key={item.id}
-                                    className="rounded-lg border border-neutral-200 px-3 py-3 text-sm dark:border-neutral-800"
-                                >
-                                    <div className="flex flex-wrap items-start justify-between gap-2">
-                                        <div className="space-y-1">
-                                            <p className="font-semibold">
-                                                {item.rule_label ||
-                                                    item.rule_key}{' '}
-                                                • {item.month || '-'} /{' '}
-                                                {item.year || '-'}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                Pemohon:{' '}
-                                                {item.requested_by || '-'}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                Alasan: {item.reason || '-'}
-                                            </p>
-                                        </div>
-                                        <Badge
-                                            variant={
-                                                item.status === 'pending'
-                                                    ? 'secondary'
-                                                    : item.status === 'approved'
-                                                      ? 'default'
-                                                      : 'destructive'
-                                            }
-                                        >
-                                            {item.status}
-                                        </Badge>
-                                    </div>
-
-                                    {item.status === 'pending' && (
-                                        <div className="mt-3 flex flex-wrap justify-end gap-2">
-                                            <Button
-                                                size="sm"
-                                                variant="destructive"
-                                                onClick={() =>
-                                                    handleRejectBypassRequest(
-                                                        item.id,
-                                                    )
-                                                }
-                                                disabled={
-                                                    requestActionLoadingId ===
-                                                    item.id
-                                                }
-                                            >
-                                                Tolak
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                onClick={() =>
-                                                    handleApproveBypassRequest(
-                                                        item.id,
-                                                    )
-                                                }
-                                                disabled={
-                                                    requestActionLoadingId ===
-                                                    item.id
-                                                }
-                                            >
-                                                Setujui
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="mt-6 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
-                        <p className="mb-3 text-base font-semibold">
-                            Grant Bypass Manual
-                        </p>
-                        <div className="grid gap-3 md:grid-cols-3">
-                            <Input
-                                value={bypassForm.rule_key}
-                                onChange={(event) =>
-                                    setBypassForm((current) => ({
-                                        ...current,
-                                        rule_key: event.target.value,
-                                    }))
-                                }
-                                placeholder="Rule key"
-                            />
-                            <Input
-                                value={bypassForm.year}
-                                onChange={(event) =>
-                                    setBypassForm((current) => ({
-                                        ...current,
-                                        year: event.target.value,
-                                    }))
-                                }
-                                placeholder="Tahun"
-                            />
-                            <Input
-                                value={bypassForm.month}
-                                onChange={(event) =>
-                                    setBypassForm((current) => ({
-                                        ...current,
-                                        month: event.target.value,
-                                    }))
-                                }
-                                placeholder="Bulan"
-                            />
-                            <Input
-                                value={bypassForm.max_uses}
-                                onChange={(event) =>
-                                    setBypassForm((current) => ({
-                                        ...current,
-                                        max_uses: event.target.value,
-                                    }))
-                                }
-                                placeholder="Maksimal pakai"
-                            />
-                            <Input
-                                type="datetime-local"
-                                value={bypassForm.expires_at}
-                                onChange={(event) =>
-                                    setBypassForm((current) => ({
-                                        ...current,
-                                        expires_at: event.target.value,
-                                    }))
-                                }
-                            />
-                        </div>
-                        <Textarea
-                            className="mt-3"
-                            value={bypassForm.reason}
-                            onChange={(event) =>
-                                setBypassForm((current) => ({
-                                    ...current,
-                                    reason: event.target.value,
-                                }))
-                            }
-                            placeholder="Alasan bypass"
-                        />
-                        <div className="mt-3 flex justify-end">
-                            <Button
-                                onClick={handleGrantBypass}
-                                disabled={!deadlineStorageReady || bypassSaving}
-                            >
-                                {bypassSaving ? 'Menyimpan...' : 'Buat Bypass'}
-                            </Button>
-                        </div>
-                    </div>
-
-                    <div className="mt-6">
-                        <p className="mb-3 text-base font-semibold">
-                            Riwayat Bypass Terbaru
-                        </p>
-                        <div className="space-y-2">
-                            {deadlineBypasses.map((item) => (
-                                <div
-                                    key={item.id}
-                                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-800"
-                                >
-                                    <span>
-                                        {item.rule_label || item.rule_key} •{' '}
-                                        {item.month || '-'} / {item.year || '-'}
-                                    </span>
-                                    <Badge
-                                        variant={
-                                            item.is_active
-                                                ? 'default'
-                                                : 'secondary'
-                                        }
-                                    >
-                                        {item.uses_count}/{item.max_uses}
-                                    </Badge>
-                                </div>
-                            ))}
-                        </div>
                     </div>
                 </ContentCard>
 

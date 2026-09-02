@@ -11,6 +11,7 @@ import {
     CheckCircle2,
     ChevronRight,
     Clock,
+    Clock3,
     Database,
     FolderKanban,
     HardDrive,
@@ -185,7 +186,7 @@ export default function AdminDashboard() {
                         </h3>
                         <div className="space-y-2">
                             <Link
-                                href="/admin/activity-log"
+                                href="/activity-log"
                                 className="group flex items-center justify-between rounded-lg border border-neutral-200 p-3 transition-all hover:border-purple-300 hover:bg-purple-50 dark:border-neutral-800 dark:hover:border-purple-700 dark:hover:bg-purple-950/30"
                             >
                                 <div className="flex items-center gap-3">
@@ -205,7 +206,7 @@ export default function AdminDashboard() {
                             </Link>
 
                             <Link
-                                href="/admin/database-status"
+                                href="/database-status"
                                 className="group flex items-center justify-between rounded-lg border border-neutral-200 p-3 transition-all hover:border-green-300 hover:bg-green-50 dark:border-neutral-800 dark:hover:border-green-700 dark:hover:bg-green-950/30"
                             >
                                 <div className="flex items-center gap-3">
@@ -225,7 +226,27 @@ export default function AdminDashboard() {
                             </Link>
 
                             <Link
-                                href="/admin/system-settings"
+                                href="/manage-deadline"
+                                className="group flex items-center justify-between rounded-lg border border-neutral-200 p-3 transition-all hover:border-amber-300 hover:bg-amber-50 dark:border-neutral-800 dark:hover:border-amber-700 dark:hover:bg-amber-950/30"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="rounded-lg bg-amber-100 p-2 transition-colors group-hover:bg-amber-200 dark:bg-amber-900/30 dark:group-hover:bg-amber-900/50">
+                                        <Clock3 className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-neutral-900 dark:text-white">
+                                            Deadline & Bypass
+                                        </p>
+                                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                            Atur batas waktu dan request bypass
+                                        </p>
+                                    </div>
+                                </div>
+                                <ChevronRight className="h-5 w-5 text-neutral-400 transition-colors group-hover:text-amber-600 dark:group-hover:text-amber-400" />
+                            </Link>
+
+                            <Link
+                                href="/system-settings"
                                 className="group flex items-center justify-between rounded-lg border border-neutral-200 p-3 transition-all hover:border-gray-300 hover:bg-gray-50 dark:border-neutral-800 dark:hover:border-gray-700 dark:hover:bg-gray-950/30"
                             >
                                 <div className="flex items-center gap-3">
@@ -326,7 +347,7 @@ export default function AdminDashboard() {
                                 Aktivitas Terbaru
                             </h3>
                             <Link
-                                href="/admin/activity-log"
+                                href="/activity-log"
                                 className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                             >
                                 Lihat Semua

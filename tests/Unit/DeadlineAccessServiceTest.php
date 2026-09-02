@@ -206,6 +206,86 @@ class DeadlineAccessServiceTest extends TestCase
         $response->assertOk();
     }
 
+    public function test_manual_bypass_allows_multiple_rules_for_same_user_in_one_grant(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 9, 12, 9, 0, 0));
+
+        $admin = User::factory()->create();
+        $adminRole = Role::query()->firstOrCreate(
+            ['name' => 'admin'],
+            ['display_name' => 'Admin', 'description' => 'Administrator'],
+        );
+        $admin->roles()->syncWithoutDetaching([$adminRole->id]);
+
+        $targetUser = User::factory()->create();
+
+        $ruleOne = $this->upsertRule('alokasi.manage', 25);
+        $ruleTwo = $this->upsertRule('sk.manage', 25);
+
+        $response = $this->actingAs($admin)
+            ->postJson('/system-settings/deadline-bypass', [
+                'granted_for_user_id' => $targetUser->id,
+                'rule_keys' => [$ruleOne->key, $ruleTwo->key],
+                'expires_at' => '2026-09-30',
+                'reason' => 'Akses uji coba multi fitur',
+            ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
+        $this->assertSame(2, DeadlineBypass::query()->count());
+        $this->assertCount(2, DeadlineBypass::query()->where('granted_for_user_id', $targetUser->id)->get());
+        $this->assertSame(
+            [$ruleOne->id, $ruleTwo->id],
+            DeadlineBypass::query()->where('granted_for_user_id', $targetUser->id)->pluck('deadline_rule_id')->sort()->values()->all(),
+        );
+    }
+
+    public function test_admin_can_revoke_active_bypass_and_it_stops_working(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 9, 12, 9, 0, 0));
+
+        $admin = User::factory()->create();
+        $adminRole = Role::query()->firstOrCreate(
+            ['name' => 'admin'],
+            ['display_name' => 'Admin', 'description' => 'Administrator'],
+        );
+        $admin->roles()->syncWithoutDetaching([$adminRole->id]);
+
+        $targetUser = User::factory()->create();
+        $rule = $this->upsertRule('alokasi.manage', 25);
+
+        $bypass = DeadlineBypass::query()->create([
+            'deadline_rule_id' => $rule->id,
+            'approved_by_user_id' => $admin->id,
+            'granted_for_user_id' => $targetUser->id,
+            'year' => 2026,
+            'month' => 9,
+            'is_active' => true,
+            'max_uses' => 0,
+            'uses_count' => 0,
+            'reason' => 'Uji coba',
+            'expires_at' => Carbon::create(2026, 9, 30, 23, 59, 59),
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->postJson('/system-settings/deadline-bypass/'.$bypass->id.'/revoke', [
+                'reason' => 'Akses dicabut oleh admin',
+            ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
+
+        $bypass->refresh();
+        $this->assertFalse($bypass->is_active);
+
+        $evaluation = app(DeadlineAccessService::class)->evaluate('alokasi.manage', [
+            'year' => 2026,
+            'month' => 9,
+        ], $targetUser);
+
+        $this->assertFalse($evaluation['allowed']);
+    }
+
     private function upsertRule(string $key, int $cutoffDay): DeadlineRule
     {
         return DeadlineRule::query()->updateOrCreate(

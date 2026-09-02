@@ -26,7 +26,7 @@ class SystemSettingsFeatureToggleTest extends TestCase
 
         $response = $this->actingAs($admin)
             ->withSession(['active_role_id' => $adminRole->id])
-            ->postJson('/admin/system-settings/feature-toggle', [
+            ->postJson('/system-settings/feature-toggle', [
                 'key' => 'kegiatan',
                 'enabled' => false,
             ]);
@@ -55,7 +55,7 @@ class SystemSettingsFeatureToggleTest extends TestCase
 
         $response = $this->actingAs($admin)
             ->withSession(['active_role_id' => $adminRole->id])
-            ->get('/admin/system-settings');
+            ->get('/system-settings');
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
