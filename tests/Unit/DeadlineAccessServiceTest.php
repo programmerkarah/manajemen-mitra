@@ -11,6 +11,7 @@ use App\Services\DeadlineAccessService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Route;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 class DeadlineAccessServiceTest extends TestCase
@@ -223,7 +224,7 @@ class DeadlineAccessServiceTest extends TestCase
         $ruleTwo = $this->upsertRule('sk.manage', 25);
 
         $response = $this->actingAs($admin)
-            ->postJson('/system-settings/deadline-bypass', [
+            ->postJson('/admin/system-settings/deadline-bypass', [
                 'granted_for_user_id' => $targetUser->id,
                 'rule_keys' => [$ruleOne->key, $ruleTwo->key],
                 'expires_at' => '2026-09-30',
@@ -268,7 +269,7 @@ class DeadlineAccessServiceTest extends TestCase
         ]);
 
         $response = $this->actingAs($admin)
-            ->postJson('/system-settings/deadline-bypass/'.$bypass->id.'/revoke', [
+            ->postJson('/admin/system-settings/deadline-bypass/'.$bypass->id.'/revoke', [
                 'reason' => 'Akses dicabut oleh admin',
             ]);
 
@@ -284,6 +285,48 @@ class DeadlineAccessServiceTest extends TestCase
         ], $targetUser);
 
         $this->assertFalse($evaluation['allowed']);
+    }
+
+    public function test_manual_admin_grant_metadata_is_exposed_in_deadline_management_page(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 9, 12, 9, 0, 0));
+
+        $admin = User::factory()->create();
+        $rule = $this->upsertRule('alokasi.manage', 25);
+        $targetUser = User::factory()->create();
+
+        $adminRole = Role::query()->firstOrCreate(
+            ['name' => 'admin'],
+            ['display_name' => 'Admin', 'description' => 'Administrator'],
+        );
+        $admin->roles()->syncWithoutDetaching([$adminRole->id]);
+
+        DeadlineBypass::query()->create([
+            'deadline_rule_id' => $rule->id,
+            'approved_by_user_id' => $admin->id,
+            'granted_for_user_id' => $targetUser->id,
+            'year' => 2026,
+            'month' => 9,
+            'is_active' => true,
+            'max_uses' => 0,
+            'uses_count' => 0,
+            'reason' => 'Manual grant',
+            'metadata' => [
+                'source' => 'manual_admin_grant',
+                'rule_keys' => ['alokasi.manage'],
+                'granted_for_user_id' => $targetUser->id,
+            ],
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/manage-deadline')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Admin/DeadlineManagement')
+                ->where('deadline_bypasses.0.metadata.source', 'manual_admin_grant')
+                ->where('deadline_bypasses.0.metadata.granted_for_user_id', $targetUser->id)
+                ->where('deadline_bypasses.0.granted_for_user_id', $targetUser->id)
+            );
     }
 
     private function upsertRule(string $key, int $cutoffDay): DeadlineRule

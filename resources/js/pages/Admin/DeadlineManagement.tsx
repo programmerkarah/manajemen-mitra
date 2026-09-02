@@ -128,6 +128,7 @@ interface DeadlineBypassItem {
     rule_key: string | null;
     rule_label: string | null;
     granted_for: string | null;
+    granted_for_user_id?: number | null;
     approved_by: string | null;
     year: number | null;
     month: number | null;
@@ -236,7 +237,7 @@ export default function DeadlineManagement() {
         description: '',
     });
     const [bypassFilters, setBypassFilters] = React.useState({
-        userName: '',
+        userIds: [] as number[],
         status: 'all',
         createdFrom: '',
         createdTo: '',
@@ -376,7 +377,9 @@ export default function DeadlineManagement() {
             });
             setActiveTab('manual');
 
-            router.reload();
+            router.reload({
+                only: ['deadline_bypasses', 'deadline_bypass_requests'],
+            });
 
             showModalAlert(
                 'Bypass Dibuat',
@@ -662,6 +665,10 @@ export default function DeadlineManagement() {
         (item: DeadlineBypassItem) => {
             const source = item.metadata?.source;
 
+            if (source === 'manual_admin_grant') {
+                return false;
+            }
+
             if (
                 source === 'deadline_bypass_request' ||
                 source === 'deadline_block_prompt' ||
@@ -734,16 +741,21 @@ export default function DeadlineManagement() {
 
     const matchesBypassFilters = React.useCallback(
         (item: DeadlineBypassItem) => {
-            const userName = (item.granted_for ?? '').trim().toLowerCase();
-            const normalizedUserFilter = bypassFilters.userName
-                .trim()
-                .toLowerCase();
+            const selectedUserIds = bypassFilters.userIds;
+            if (selectedUserIds.length > 0) {
+                const grantedUserId =
+                    item.granted_for_user_id ??
+                    (typeof item.metadata?.granted_for_user_id === 'number'
+                        ? item.metadata.granted_for_user_id
+                        : null);
+                const matchesSelectedUser =
+                    typeof grantedUserId === 'number'
+                        ? selectedUserIds.includes(grantedUserId)
+                        : false;
 
-            if (
-                normalizedUserFilter !== '' &&
-                !userName.includes(normalizedUserFilter)
-            ) {
-                return false;
+                if (!matchesSelectedUser) {
+                    return false;
+                }
             }
 
             const statusValue = item.is_active ? 'aktif' : 'tidak_aktif';
@@ -937,12 +949,12 @@ export default function DeadlineManagement() {
 
     const getRuleDisplayTitle = (rule: DeadlineRuleItem) => {
         const titleMap: Record<string, string> = {
-            'alokasi.manage': 'Alokasi',
-            'alokasi.revisi': 'Revisi Alokasi',
+            'alokasi.manage': 'Alokasi Petugas',
+            'alokasi.revisi': 'Perubahan Alokasi Petugas',
             'pengajuan_pulsa.manage': 'Pengajuan Pulsa',
-            'sk.manage': 'SK',
-            'spk.manage': 'PK/SPK',
-            'spk.addendum': 'PK/SPK Addendum',
+            'sk.manage': 'Surat Keputusan',
+            'spk.manage': 'Perjanjian Kerja',
+            'spk.addendum': 'Addendum Perjanjian Kerja',
             'bast.manage': 'BAST',
         };
 
@@ -1371,17 +1383,21 @@ export default function DeadlineManagement() {
                                     <label className="text-[11px] font-medium tracking-[0.13em] text-muted-foreground uppercase">
                                         Nama petugas
                                     </label>
-                                    <input
-                                        type="text"
-                                        value={bypassFilters.userName}
-                                        onChange={(event) =>
+                                    <MultiSelectCheckbox
+                                        options={initialUsers.map((user) => ({
+                                            value: user.id,
+                                            label: user.name,
+                                            subLabel: 'Petugas',
+                                        }))}
+                                        values={bypassFilters.userIds}
+                                        onValuesChange={(values) =>
                                             setBypassFilters((current) => ({
                                                 ...current,
-                                                userName: event.target.value,
+                                                userIds: values,
                                             }))
                                         }
-                                        placeholder="Cari nama..."
-                                        className="h-10 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 transition outline-none focus:border-amber-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white"
+                                        placeholder="Pilih petugas"
+                                        className="min-h-10"
                                     />
                                 </div>
 
@@ -1389,24 +1405,35 @@ export default function DeadlineManagement() {
                                     <label className="text-[11px] font-medium tracking-[0.13em] text-muted-foreground uppercase">
                                         Status bypass
                                     </label>
-                                    <select
+                                    <SearchableSelect
+                                        options={[
+                                            {
+                                                value: 'all',
+                                                label: 'Semua status',
+                                                displayLabel: 'Semua status',
+                                            },
+                                            {
+                                                value: 'aktif',
+                                                label: 'Aktif',
+                                                displayLabel: 'Aktif',
+                                            },
+                                            {
+                                                value: 'tidak_aktif',
+                                                label: 'Tidak aktif',
+                                                displayLabel: 'Tidak aktif',
+                                            },
+                                        ]}
                                         value={bypassFilters.status}
-                                        onChange={(event) =>
+                                        onValueChange={(value) =>
                                             setBypassFilters((current) => ({
                                                 ...current,
-                                                status: event.target.value,
+                                                status: value,
                                             }))
                                         }
-                                        className="h-10 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 transition outline-none focus:border-amber-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white"
-                                    >
-                                        <option value="all">
-                                            Semua status
-                                        </option>
-                                        <option value="aktif">Aktif</option>
-                                        <option value="tidak_aktif">
-                                            Tidak aktif
-                                        </option>
-                                    </select>
+                                        placeholder="Semua status"
+                                        searchPlaceholder="Cari status..."
+                                        className="h-10"
+                                    />
                                 </div>
 
                                 <div className="space-y-1.5">
@@ -1665,89 +1692,11 @@ export default function DeadlineManagement() {
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            <div className="grid gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-3 md:grid-cols-4 dark:border-neutral-800 dark:bg-neutral-900/60">
-                                <div className="space-y-1.5">
-                                    <label className="text-[11px] font-medium tracking-[0.13em] text-muted-foreground uppercase">
-                                        Nama petugas
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={bypassFilters.userName}
-                                        onChange={(event) =>
-                                            setBypassFilters((current) => ({
-                                                ...current,
-                                                userName: event.target.value,
-                                            }))
-                                        }
-                                        placeholder="Cari nama..."
-                                        className="h-10 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 transition outline-none focus:border-amber-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white"
-                                    />
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <label className="text-[11px] font-medium tracking-[0.13em] text-muted-foreground uppercase">
-                                        Status bypass
-                                    </label>
-                                    <select
-                                        value={bypassFilters.status}
-                                        onChange={(event) =>
-                                            setBypassFilters((current) => ({
-                                                ...current,
-                                                status: event.target.value,
-                                            }))
-                                        }
-                                        className="h-10 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 transition outline-none focus:border-amber-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white"
-                                    >
-                                        <option value="all">
-                                            Semua status
-                                        </option>
-                                        <option value="aktif">Aktif</option>
-                                        <option value="tidak_aktif">
-                                            Tidak aktif
-                                        </option>
-                                    </select>
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <label className="text-[11px] font-medium tracking-[0.13em] text-muted-foreground uppercase">
-                                        Dibuat dari
-                                    </label>
-                                    <DatePicker
-                                        value={bypassFilters.createdFrom}
-                                        onChange={(value) =>
-                                            setBypassFilters((current) => ({
-                                                ...current,
-                                                createdFrom: value,
-                                            }))
-                                        }
-                                        placeholder="Pilih tanggal"
-                                        className="h-10 w-full"
-                                    />
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <label className="text-[11px] font-medium tracking-[0.13em] text-muted-foreground uppercase">
-                                        Sampai
-                                    </label>
-                                    <DatePicker
-                                        value={bypassFilters.createdTo}
-                                        onChange={(value) =>
-                                            setBypassFilters((current) => ({
-                                                ...current,
-                                                createdTo: value,
-                                            }))
-                                        }
-                                        placeholder="Pilih tanggal"
-                                        className="h-10 w-full"
-                                    />
-                                </div>
-                            </div>
-
                             <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/60">
                                 <div className="mb-3 flex items-center justify-between gap-3">
                                     <div>
                                         <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
-                                            Grant bypass manual
+                                            Buka Akses manual
                                         </h3>
                                         <p className="text-sm text-muted-foreground">
                                             Beri izin akses sementara untuk user
@@ -1858,8 +1807,101 @@ export default function DeadlineManagement() {
                                     >
                                         {bypassSaving
                                             ? 'Menyimpan...'
-                                            : 'Grant bypass'}
+                                            : 'Berikan akses'}
                                     </Button>
+                                </div>
+                            </div>
+
+                            <div className="grid gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-3 md:grid-cols-4 dark:border-neutral-800 dark:bg-neutral-900/60">
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-medium tracking-[0.13em] text-muted-foreground uppercase">
+                                        Nama petugas
+                                    </label>
+                                    <MultiSelectCheckbox
+                                        options={initialUsers.map((user) => ({
+                                            value: user.id,
+                                            label: user.name,
+                                            subLabel: 'Petugas',
+                                        }))}
+                                        values={bypassFilters.userIds}
+                                        onValuesChange={(values) =>
+                                            setBypassFilters((current) => ({
+                                                ...current,
+                                                userIds: values,
+                                            }))
+                                        }
+                                        placeholder="Pilih petugas"
+                                        className="min-h-10"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-medium tracking-[0.13em] text-muted-foreground uppercase">
+                                        Status bypass
+                                    </label>
+                                    <SearchableSelect
+                                        options={[
+                                            {
+                                                value: 'all',
+                                                label: 'Semua status',
+                                                displayLabel: 'Semua status',
+                                            },
+                                            {
+                                                value: 'aktif',
+                                                label: 'Aktif',
+                                                displayLabel: 'Aktif',
+                                            },
+                                            {
+                                                value: 'tidak_aktif',
+                                                label: 'Tidak aktif',
+                                                displayLabel: 'Tidak aktif',
+                                            },
+                                        ]}
+                                        value={bypassFilters.status}
+                                        onValueChange={(value) =>
+                                            setBypassFilters((current) => ({
+                                                ...current,
+                                                status: value,
+                                            }))
+                                        }
+                                        placeholder="Semua status"
+                                        searchPlaceholder="Cari status..."
+                                        className="h-10"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-medium tracking-[0.13em] text-muted-foreground uppercase">
+                                        Dibuat dari
+                                    </label>
+                                    <DatePicker
+                                        value={bypassFilters.createdFrom}
+                                        onChange={(value) =>
+                                            setBypassFilters((current) => ({
+                                                ...current,
+                                                createdFrom: value,
+                                            }))
+                                        }
+                                        placeholder="Pilih tanggal"
+                                        className="h-10 w-full"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[11px] font-medium tracking-[0.13em] text-muted-foreground uppercase">
+                                        Sampai
+                                    </label>
+                                    <DatePicker
+                                        value={bypassFilters.createdTo}
+                                        onChange={(value) =>
+                                            setBypassFilters((current) => ({
+                                                ...current,
+                                                createdTo: value,
+                                            }))
+                                        }
+                                        placeholder="Pilih tanggal"
+                                        className="h-10 w-full"
+                                    />
                                 </div>
                             </div>
 
