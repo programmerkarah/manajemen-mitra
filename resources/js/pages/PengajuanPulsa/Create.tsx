@@ -21,7 +21,6 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router } from '@inertiajs/react';
 import {
     AlertTriangle,
@@ -324,15 +323,16 @@ export default function PengajuanPulsaCreate({
     }, [petugasWithKegiatan]);
 
     const handleFilterChange = (newBulan: string) => {
-        router.post(
-            '/pengajuan-pulsa/create/filter',
+        router.get(
+            '/pengajuan-pulsa/create',
             {
-                state: encryptFilters({
-                    bulan: newBulan,
-                    tahun: String(tahun || filters.tahun || ''),
-                }),
+                bulan: newBulan,
+                tahun: String(tahun || filters.tahun || ''),
             },
-            { preserveState: false },
+            {
+                preserveState: false,
+                replace: true,
+            },
         );
     };
 
