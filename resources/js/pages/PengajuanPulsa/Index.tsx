@@ -511,16 +511,17 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                                                     size="sm"
                                                     className="gap-1.5"
                                                     onClick={() =>
-                                                        router.post(
-                                                            '/pengajuan-pulsa/detail/filter',
+                                                        router.get(
+                                                            '/pengajuan-pulsa/detail',
                                                             {
-                                                                state: encryptFilters(
-                                                                    {
-                                                                        kegiatan_id:
-                                                                            group.kegiatanId,
-                                                                        bulan,
-                                                                    },
-                                                                ),
+                                                                kegiatan_id:
+                                                                    group.kegiatanId,
+                                                                bulan,
+                                                                tahun: String(tahun),
+                                                            },
+                                                            {
+                                                                preserveState: false,
+                                                                replace: true,
                                                             },
                                                         )
                                                     }
@@ -617,16 +618,17 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() =>
-                                                    router.post(
-                                                        '/pengajuan-pulsa/detail/filter',
+                                                    router.get(
+                                                        '/pengajuan-pulsa/detail',
                                                         {
-                                                            state: encryptFilters(
-                                                                {
-                                                                    kegiatan_id:
-                                                                        group.kegiatanId,
-                                                                    bulan,
-                                                                },
-                                                            ),
+                                                            kegiatan_id:
+                                                                group.kegiatanId,
+                                                            bulan,
+                                                            tahun: String(tahun),
+                                                        },
+                                                        {
+                                                            preserveState: false,
+                                                            replace: true,
                                                         },
                                                     )
                                                 }
