@@ -31,7 +31,7 @@ import {
     Plus,
     XCircle,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Pengajuan Pulsa', href: '/pengajuan-pulsa' },
@@ -204,26 +204,17 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
     }, [items]);
 
     const totalPages = Math.max(1, Math.ceil(kegiatanGroups.length / perPage));
+    const safeCurrentPage = Math.min(currentPage, totalPages);
 
     const paginatedKegiatanGroups = useMemo(() => {
-        const startIndex = (currentPage - 1) * perPage;
+        const startIndex = (safeCurrentPage - 1) * perPage;
 
         return kegiatanGroups.slice(startIndex, startIndex + perPage);
-    }, [currentPage, kegiatanGroups]);
+    }, [safeCurrentPage, kegiatanGroups]);
 
     const pageStart =
-        kegiatanGroups.length === 0 ? 0 : (currentPage - 1) * perPage + 1;
-    const pageEnd = Math.min(currentPage * perPage, kegiatanGroups.length);
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [bulan]);
-
-    useEffect(() => {
-        if (currentPage > totalPages) {
-            setCurrentPage(totalPages);
-        }
-    }, [currentPage, totalPages]);
+        kegiatanGroups.length === 0 ? 0 : (safeCurrentPage - 1) * perPage + 1;
+    const pageEnd = Math.min(safeCurrentPage * perPage, kegiatanGroups.length);
 
     const summaryGroups = useMemo(() => {
         const all = kegiatanGroups;
@@ -306,7 +297,7 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                             type="button"
                             className="gap-2"
                             onClick={() =>
-                                router.post('/pengajuan-pulsa/create', {
+                                router.get('/pengajuan-pulsa/create', {
                                     bulan,
                                     tahun: String(tahun),
                                 })
@@ -327,6 +318,7 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                                 value={bulan}
                                 onValueChange={(v) => {
                                     setBulan(v);
+                                    setCurrentPage(1);
                                     handleFilterChange(v);
                                 }}
                             >
@@ -566,7 +558,7 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                                     Sebelumnya
                                 </Button>
                                 <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                                    Halaman {currentPage} dari {totalPages}
+                                    Halaman {safeCurrentPage} dari {totalPages}
                                 </span>
                                 <Button
                                     type="button"
@@ -577,7 +569,7 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                                             Math.min(totalPages, page + 1),
                                         )
                                     }
-                                    disabled={currentPage >= totalPages}
+                                    disabled={safeCurrentPage >= totalPages}
                                 >
                                     Berikutnya
                                     <ChevronRight className="h-4 w-4" />

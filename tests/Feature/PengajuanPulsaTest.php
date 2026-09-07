@@ -112,6 +112,20 @@ class PengajuanPulsaTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_create_page_accepts_post_requests_with_filters(): void
+    {
+        [$user, $role] = $this->makeUserWithRole('ketua_tim');
+
+        $response = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->post('/pengajuan-pulsa/create', [
+                'bulan' => '06',
+                'tahun' => (string) date('Y'),
+            ]);
+
+        $response->assertStatus(200);
+    }
+
     public function test_template_download_is_accessible_by_ketua_tim(): void
     {
         [$user, $role] = $this->makeUserWithRole('ketua_tim');

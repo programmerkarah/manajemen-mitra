@@ -794,6 +794,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::get('pengajuan-pulsa', [PengajuanPulsaController::class, 'index'])->name('pengajuan-pulsa.index');
         Route::post('pengajuan-pulsa/filter', [PengajuanPulsaController::class, 'index'])->name('pengajuan-pulsa.filter');
         Route::get('pengajuan-pulsa/create', [PengajuanPulsaController::class, 'create'])->name('pengajuan-pulsa.create');
+        Route::post('pengajuan-pulsa/create', [PengajuanPulsaController::class, 'create'])->name('pengajuan-pulsa.create.post');
         Route::post('pengajuan-pulsa/create/filter', [PengajuanPulsaController::class, 'create'])->name('pengajuan-pulsa.create.filter');
         Route::get('pengajuan-pulsa/template', [PengajuanPulsaController::class, 'downloadTemplate'])->name('pengajuan-pulsa.template');
         Route::post('pengajuan-pulsa/import-preview', [PengajuanPulsaController::class, 'importPreview'])->name('pengajuan-pulsa.import-preview');
