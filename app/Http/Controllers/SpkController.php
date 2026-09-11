@@ -1369,6 +1369,173 @@ class SpkController extends Controller
         ])->with('success', 'Dokumen SPK berhasil diunggah');
     }
 
+    /**
+     * Regenerate the same SPK document in place after a technical application error.
+     * This updates only the current record and does not create a new database row.
+     * If a signed PDF was already uploaded, the document must be re-scanned and re-uploaded.
+     */
+    public function regenerateDocument(Request $request, string $spkHashedId): RedirectResponse
+    {
+        $spkId = Hashids::decode($spkHashedId)[0] ?? null;
+
+        if (! $spkId) {
+            abort(404);
+        }
+
+        $request->validate([
+            'mode' => ['nullable', 'string', 'in:full,main,addendum,lampiran'],
+        ]);
+
+        $spk = Spk::with(['petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
+            ->findOrFail($spkId);
+
+        $requestedMode = $request->input('mode', $spk->addendum_number > 0 ? 'addendum' : 'main');
+
+        if ($requestedMode === 'addendum' && $spk->addendum_number === 0) {
+            return redirect()->back()->with('error', 'Mode addendum hanya dapat dipakai untuk dokumen addendum.');
+        }
+
+        if (! $spk->alokasiPetugas || ! $spk->alokasiPetugas->periodeAlokasi) {
+            return redirect()->back()->with('error', 'Data alokasi periode untuk dokumen ini tidak ditemukan.');
+        }
+
+        $periode = $spk->alokasiPetugas->periodeAlokasi;
+        $petugas = $spk->petugas;
+
+        if (! $petugas) {
+            return redirect()->back()->with('error', 'Data petugas untuk dokumen ini tidak ditemukan.');
+        }
+
+        $scopePeriodeIds = $this->resolveSpkScopePeriodeIds($periode, ['dikirim', 'disetujui', 'direvisi', 'perubahan']);
+        $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
+            ->whereIn('periode_alokasi_id', $scopePeriodeIds)
+            ->where('petugas_id', $petugas->id)
+            ->get();
+
+        if ($allAlokasi->isEmpty()) {
+            return redirect()->back()->with('error', 'Tidak ada alokasi aktif untuk petugas ini.');
+        }
+
+        $penandatangan = Penandatangan::active()->ppk()->first();
+        if (! $penandatangan) {
+            return redirect()->back()->with('error', 'Penandatangan PPK tidak ditemukan.');
+        }
+
+        $totalHonor = 0;
+        $uraianTugas = [];
+        $bebanAnggaran = '';
+        foreach ($allAlokasi as $alokasi) {
+            $kegiatan = $alokasi->periodeAlokasi->kegiatan;
+            $totalHonor += $this->calculateTotalHonor($kegiatan, $alokasi);
+            $uraianTugas = array_merge($uraianTugas, $this->getUraianTugas($kegiatan, $alokasi));
+            if (empty($bebanAnggaran)) {
+                $bebanAnggaran = $this->getBebanAnggaran($kegiatan);
+            }
+        }
+
+        $latestEndDate = $spk->tanggal_selesai_kerja ?: Carbon::create($periode->tahun, $periode->bulan, 1)->endOfMonth();
+
+        $data = [
+            'periode' => $periode,
+            'alokasi' => $allAlokasi->first(),
+            'allAlokasi' => $allAlokasi,
+            'petugas' => $petugas,
+            'kegiatan' => $allAlokasi->first()->periodeAlokasi->kegiatan,
+            'nomorSpk' => $spk->nomor_spk,
+            'tanggalSpk' => $spk->tanggal_spk,
+            'sampaiTanggal' => Carbon::parse($latestEndDate),
+            'tanggalPerpanjangan' => null,
+            'penandatangan' => preg_replace('/,.*$/', '', $penandatangan->nama),
+            'kepalaBps' => preg_replace('/,.*$/', '', $penandatangan->nama),
+            'peran' => $allAlokasi->first()->peran,
+            'peranLabel' => $this->getPeranLabel($allAlokasi->first()->peran),
+            'totalHonor' => $totalHonor,
+            'uraianTugas' => $uraianTugas,
+            'bebanAnggaran' => $bebanAnggaran,
+            'workType' => $this->detectWorkType($allAlokasi),
+        ];
+        $data = $this->withLampiranContext($data);
+
+        $lampiranView = $this->resolveLampiranView($data['kegiatan'], $data['peran']);
+        $lampiranPaper = $this->resolveLampiranPaperOrientation($data['kegiatan'], $data['peran']);
+
+        $tempPath = storage_path('app/temp');
+        if (! file_exists($tempPath)) {
+            mkdir($tempPath, 0777, true);
+        }
+
+        $timestamp = time().'_'.uniqid();
+        $mainPath = $tempPath.'/spk_main_regen_'.$timestamp.'.pdf';
+        $lampiranPath = $tempPath.'/spk_lampiran_regen_'.$timestamp.'.pdf';
+        $mergedPath = $tempPath.'/spk_merged_regen_'.$timestamp.'.pdf';
+
+        $pdfMain = Pdf::loadView('spk-main', $data)->setPaper('a4', 'portrait');
+        $mainOutput = $pdfMain->output();
+        $mainPageCount = max(0, (int) $pdfMain->getDomPDF()->getCanvas()->get_page_count());
+        $data['pageNumberOffset'] = $mainPageCount;
+
+        $pdfLampiran = Pdf::loadView($lampiranView, $data)->setPaper('a4', $lampiranPaper);
+        file_put_contents($mainPath, $mainOutput);
+        file_put_contents($lampiranPath, $pdfLampiran->output());
+
+        $merged = PdfMergerService::mergePdfFiles([$mainPath, $lampiranPath], $mergedPath);
+        $pdfOutput = null;
+        if ($merged && file_exists($mergedPath)) {
+            $pdfOutput = file_get_contents($mergedPath);
+        } else {
+            $pdf = Pdf::loadView('spk-petugas', $data)->setPaper('a4', 'portrait');
+            $pdfOutput = $pdf->output();
+        }
+
+        @unlink($mainPath);
+        @unlink($lampiranPath);
+        @unlink($mergedPath);
+
+        $nomorUrut = $this->resolveDisplayNomorUrutSegment((string) $spk->nomor_spk, (int) $this->extractNomorUrut((string) $spk->nomor_spk));
+        $namaPetugas = preg_replace('/[\/\\:*?"<>|]/', '', $petugas->nama);
+        $bulanLabel = $this->getBulanLabel($periode->bulan);
+        $generatedFileName = 'SPK_'.$nomorUrut.'_'.$namaPetugas.'_'.$bulanLabel.'.pdf';
+        $filePath = 'spk-export/'.$periode->tahun.'/'.str_pad((string) $periode->bulan, 2, '0', STR_PAD_LEFT).'/'.$generatedFileName;
+
+        $publicDir = public_path(dirname($filePath));
+        if (! file_exists($publicDir)) {
+            mkdir($publicDir, 0755, true);
+        }
+
+        $previousGeneratedPath = $spk->file_path;
+        $previousSignedPath = $spk->signed_file_path;
+        if ($previousSignedPath && file_exists(public_path($previousSignedPath))) {
+            @unlink(public_path($previousSignedPath));
+        }
+
+        file_put_contents(public_path($filePath), $pdfOutput);
+
+        $updates = [
+            'file_path' => $filePath,
+            'nilai_kontrak' => $totalHonor,
+            'tanggal_selesai_kerja' => $latestEndDate,
+            'lampiran_template' => $data['lampiranTemplate'] ?? null,
+            'lampiran_payload' => $data['lampiranPayload'] ?? null,
+            'status' => 'draft',
+        ];
+
+        if ($previousGeneratedPath) {
+            $updates['previous_file_path'] = $previousGeneratedPath;
+        }
+
+        if ($previousSignedPath) {
+            $updates['signed_file_path'] = null;
+        }
+
+        $spk->update($updates);
+
+        if ($previousSignedPath) {
+            return redirect()->back()->with('success', 'Dokumen SPK berhasil dibuat kembali. Silahkan cetak ulang dokumen dan unggah versi bertanda tangan yang baru.');
+        }
+
+        return redirect()->back()->with('success', 'Dokumen SPK berhasil diregenerasi tanpa membuat record baru.');
+    }
+
     public function cancelByPeriodeAndPetugas(Request $request, string $periodeHashedId, string $petugasHashedId): RedirectResponse
     {
         $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
@@ -1584,26 +1751,23 @@ class SpkController extends Controller
             return collect();
         }
 
-        $relatedChainIds = $matchingSpks
-            ->flatMap(function (Spk $spk): array {
-                return [$spk->id, $spk->parent_spk_id];
-            })
+        $rootCandidates = $matchingSpks
+            ->map(fn (Spk $spk): ?int => $spk->parent_spk_id ? null : $spk->id)
             ->filter()
             ->unique()
             ->values();
 
-        $relatedSpks = Spk::query()
-            ->when($petugasId, function ($query, $resolvedPetugasId) {
-                $query->where('petugas_id', $resolvedPetugasId);
-            })
-            ->where(function ($query) use ($relatedChainIds): void {
-                $query->whereIn('id', $relatedChainIds->all())
-                    ->orWhereIn('parent_spk_id', $relatedChainIds->all());
-            })
-            ->get();
+        if ($rootCandidates->isEmpty()) {
+            return $matchingSpks->unique('id')->values();
+        }
 
-        return $matchingSpks
-            ->merge($relatedSpks)
+        // A root regular PK must be cancellable without pulling its addendum chain
+        // into the same cancellation batch. This preserves addendums when the main
+        // PK is cancelled and avoids the regeneration bug caused by deleting the
+        // parent document and its descendants together.
+        return Spk::query()
+            ->whereIn('id', $rootCandidates->all())
+            ->get()
             ->unique('id')
             ->values();
     }
@@ -1628,20 +1792,29 @@ class SpkController extends Controller
      */
     private function getNextNomorUrut(int $tahun): int
     {
-        // Get last SPK number for the given year
-        $lastSpk = Spk::where('nomor_spk', 'like', "PPIS/13730/%/K/{$tahun}")
-            ->orderByRaw('CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(nomor_spk, "/", 3), "/", -1) AS UNSIGNED) DESC')
-            ->first();
+        $usedNumbers = Spk::query()
+            ->where('nomor_spk', 'like', "PPIS/13730/%/K/{$tahun}")
+            ->whereNull('deleted_at')
+            ->get()
+            ->map(fn (Spk $spk): int => $this->extractNomorUrut((string) $spk->nomor_spk))
+            ->filter(fn (int $nomor): bool => $nomor > 0)
+            ->unique()
+            ->sort()
+            ->values();
 
-        if (! $lastSpk) {
+        if ($usedNumbers->isEmpty()) {
             return 1;
         }
 
-        // Extract nomor urut from format: PPIS/13730/4/K/2025
-        $parts = explode('/', $lastSpk->nomor_spk);
-        $lastUrut = isset($parts[2]) ? (int) $parts[2] : 0;
+        $maxNomor = (int) $usedNumbers->last();
 
-        return $lastUrut + 1;
+        for ($candidate = 1; $candidate <= $maxNomor + 1; $candidate++) {
+            if (! $usedNumbers->contains($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return $maxNomor + 1;
     }
 
     private function getNextNomorUrutForPeriode(PeriodeAlokasi $periode): int
@@ -1763,6 +1936,37 @@ class SpkController extends Controller
         $nomorWithSuffix = $parts[2];
 
         return (int) preg_replace('/[^0-9]/', '', $nomorWithSuffix);
+    }
+
+    private function resolveDisplayNomorUrutSegment(string $nomorSpk, int $nomorUrutBase, ?string $fallbackSuffix = null): string
+    {
+        $nomorSpk = trim($nomorSpk);
+        if ($nomorSpk !== '') {
+            if (preg_match('/^B-(\d+)([A-Z])?(?:\/|$)/i', $nomorSpk, $matches) === 1) {
+                $base = (string) ($matches[1] ?? $nomorUrutBase);
+                $suffix = isset($matches[2]) && $matches[2] !== '' ? strtoupper($matches[2]) : '';
+
+                return $base.$suffix;
+            }
+
+            if (preg_match('/^PPIS\/13730\/(\d+)([A-Z])?(?:\/|$)/i', $nomorSpk, $matches) === 1) {
+                $base = (string) ($matches[1] ?? $nomorUrutBase);
+                $suffix = isset($matches[2]) && $matches[2] !== '' ? strtoupper($matches[2]) : '';
+
+                return $base.$suffix;
+            }
+
+            if (preg_match('/\/(\d+)([A-Z])?(?:\/|$)/', $nomorSpk, $matches) === 1) {
+                $base = (string) ($matches[1] ?? $nomorUrutBase);
+                $suffix = isset($matches[2]) && $matches[2] !== '' ? strtoupper($matches[2]) : '';
+
+                return $base.$suffix;
+            }
+        }
+
+        $suffix = trim((string) ($fallbackSuffix ?? ''));
+
+        return (string) $nomorUrutBase.($suffix !== '' ? strtoupper($suffix) : '');
     }
 
     /**
@@ -5741,8 +5945,9 @@ class SpkController extends Controller
             @unlink($mergedPath);
 
             // Save PDF file to public/spk-export
-            // Extract nomor urut from nomor_spk format: PPIS/13730/4/K/2025 -> get "4"
-            $nomorUrut = (string) $this->extractNomorUrut((string) $data['nomorSpk']);
+            // Use the actual nominal segment from nomor_spk so the exported filename
+            // matches the document number exactly, without inventing a suffix.
+            $nomorUrut = $this->resolveDisplayNomorUrutSegment((string) $data['nomorSpk'], (int) $this->extractNomorUrut((string) $data['nomorSpk']));
 
             // Clean filename - remove special characters that are invalid for filenames
             $namaPetugas = preg_replace('/[\/\\\\:*?"<>|]/', '', $petugas->nama);
@@ -6861,11 +7066,11 @@ class SpkController extends Controller
             $unitSampelVolume = (int) ($alokasi->jumlah_unit_sampel ?? 0);
 
             if ($unitSampelVolume > 0) {
-                if ($effectiveListingVolume > 0) {
+                if ($effectiveListingVolume <= 0) {
                     $effectiveListingVolume = $unitSampelVolume;
                 }
 
-                if ($effectivePencacahanVolume > 0) {
+                if ($effectivePencacahanVolume <= 0) {
                     $effectivePencacahanVolume = $unitSampelVolume;
                 }
             }
@@ -7190,6 +7395,8 @@ class SpkController extends Controller
         $nextSuffix = 'A';
         $results = [];
 
+        $usedNomorUrutInCurrentBatch = collect();
+
         foreach ($sortedPetugas as $petugasId => $alokasiGroup) {
             $petugas = Petugas::findOrFail($petugasId);
             $petugasHashedId = $petugas->hashed_id;
@@ -7220,8 +7427,11 @@ class SpkController extends Controller
                 // New petugas
                 if ($usesPeriodBasedNumbering) {
                     if ($isRegenerate) {
-                        $noUrut = ($lastNomorUrutBase ?? $nextNomorUrut) + 1;
-                        $lastNomorUrutBase = $noUrut;
+                        $noUrut = $this->getNextNomorUrutForPeriode($periode);
+                        while ($usedNomorUrutInCurrentBatch->contains($noUrut)) {
+                            $noUrut++;
+                        }
+                        $usedNomorUrutInCurrentBatch->push($noUrut);
                     } else {
                         $noUrut = $nextNomorUrut + $nomorUrutCounter;
                         $nomorUrutCounter++;
@@ -7229,26 +7439,12 @@ class SpkController extends Controller
 
                     $nomorSpk = $this->formatNomorSpkForPeriode($periode, $noUrut);
                 } elseif ($isRegenerate) {
-                    // Regenerate mode: Check if next sequential number is available
-                    $nextSequential = ($lastNomorUrutBase ?? $nextNomorUrut) + 1;
-
-                    // Check if this number is already used in ANY month this year
-                    $numberUsed = Spk::where('nomor_urut_base', $nextSequential)
-                        ->where('addendum_number', 0)
-                        ->whereYear('tanggal_spk', $tahun)
-                        ->exists();
-
-                    if ($numberUsed) {
-                        // Use suffix mode
-                        $noUrut = $lastNomorUrutBase ?? $nextNomorUrut;
-                        $nomorSpk = 'PPIS/13730/'.$noUrut.$nextSuffix.'/K/'.$tahun;
-                    } else {
-                        // Use sequential mode
-                        $noUrut = $nextSequential;
-                        $nomorSpk = $this->formatNomorSpkForPeriode($periode, $noUrut);
-                        // Update lastNomorUrutBase for next iteration
-                        $lastNomorUrutBase = $noUrut;
+                    $noUrut = $this->getNextNomorUrut((int) $tahun);
+                    while ($usedNomorUrutInCurrentBatch->contains($noUrut)) {
+                        $noUrut++;
                     }
+                    $usedNomorUrutInCurrentBatch->push($noUrut);
+                    $nomorSpk = $this->formatNomorSpkForPeriode($periode, $noUrut);
                 } else {
                     // First time generation: use sequential numbering
                     $noUrut = $nextNomorUrut + $nomorUrutCounter;
@@ -7392,14 +7588,16 @@ class SpkController extends Controller
                 @unlink($mainPath);
                 @unlink($lampiranPath);
                 @unlink($mergedPath);
-                $nomorParts = explode('/', $data['nomorSpk']);
-                $nomorUrut = $nomorParts[2] ?? '0';
+                $nomorUrut = $this->resolveDisplayNomorUrutSegment(
+                    (string) $data['nomorSpk'],
+                    (int) $noUrut,
+                    ($isRegenerate && ! $existingSpk) ? $nextSuffix : null,
+                );
 
                 // Check if SPK already exists for this petugas (use existing SPK from map)
                 $existingSpkRecord = $existingSpk;
                 $bulanLabel = $this->getBulanLabel($periode->bulan);
                 $namaPetugas = preg_replace('/[\/\\\\:*?"<>|]/', '', $petugas->nama);
-                $nomorUrut = $noUrut.(($isRegenerate && ! $existingSpk) ? $nextSuffix : '');
                 $fileName = "SPK_{$nomorUrut}_{$namaPetugas}_{$bulanLabel}.pdf";
                 $filePath = 'spk-export/'.date('Y').'/'.date('m').'/'.$fileName;
                 $publicPath = public_path('spk-export/'.date('Y').'/'.date('m'));
@@ -7524,7 +7722,9 @@ class SpkController extends Controller
             }
         }
 
-        return redirect()->route('spk.index')->with('success', $message);
+        $flashType = $failedCount > 0 ? 'error' : 'success';
+
+        return redirect()->route('spk.index')->with($flashType, $message);
     }
 
     /**

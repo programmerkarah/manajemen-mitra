@@ -233,14 +233,10 @@ export default function Generate({
 
             if (uses_suffix_for_new_petugas) {
                 const suffix = String.fromCharCode(65 + indexAmongNew); // A, B, C...
-                return formatNomorSpkSuffix(
-                    last_nomor_urut_in_month,
-                    suffix,
-                    tahunSpk,
-                );
+                return formatNomorSpkSuffix(next_nomor_urut, suffix, tahunSpk);
             }
 
-            const noUrut = last_nomor_urut_in_month + 1 + indexAmongNew;
+            const noUrut = next_nomor_urut + indexAmongNew;
             return formatNomorSpk(noUrut, tahunSpk);
         }
 

@@ -377,7 +377,7 @@
                         <div class="sub-item">
                             <div class="sub-item-letter">b.</div>
                             <div class="sub-item-content">
-                                mengundurkan diri pada saat pelaksanaan pekerjaan lapangan, maka <strong>WAJIB</strong> membayar ganti rugi sebesar Rp {{ number_format($total_honor, 0, ',', '.') }} ({{ terbilang($total_honor) }} rupiah).
+                                mengundurkan diri pada saat pelaksanaan pekerjaan, diberikan sanksi tidak diberikan honorarium atas pekerjaan yang telah dilaksanakan.
                             </div>
                         </div>
                     </div>

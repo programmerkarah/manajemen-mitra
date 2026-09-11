@@ -71,7 +71,7 @@ interface Petugas {
     id: number;
     hashed_id: string;
     nama: string;
-    nik_masked: string;
+    nik: string;
     email: string;
     telepon: string;
     pendidikan: string;
@@ -799,7 +799,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                                 </div>
                                             </td>
                                             <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                                {Petugas.nik_masked}
+                                                {Petugas.nik}
                                             </td>
                                             <td className="px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                                                 <div

@@ -27,6 +27,7 @@ import {
     Download,
     FileText,
     PenLine,
+    RotateCcw,
     Trash2,
     Upload,
 } from 'lucide-react';
@@ -45,6 +46,7 @@ interface Spk {
     status: 'draft' | 'diterbitkan' | 'dibatalkan';
     file_path: string | null;
     signed_file_path: string | null;
+    previous_file_path: string | null;
     addendum_number: number;
     parent_spk_id: number | null;
     created_by: string;
@@ -355,6 +357,10 @@ export default function ShowByMonth({
     const [uploadingDocId, setUploadingDocId] = useState<string | null>(null);
     const [cancelModalOpen, setCancelModalOpen] = useState(false);
     const [cancelingPk, setCancelingPk] = useState(false);
+    const [regenerateModalOpen, setRegenerateModalOpen] = useState(false);
+    const [selectedRegenerateDoc, setSelectedRegenerateDoc] =
+        useState<SpkDocument | null>(null);
+    const [regeneratingPk, setRegeneratingPk] = useState(false);
     const [downloadingKegiatan, setDownloadingKegiatan] = useState<
         number | null
     >(null);
@@ -511,6 +517,37 @@ export default function ShowByMonth({
 
     const handleCancelPk = () => {
         setCancelModalOpen(true);
+    };
+
+    const handleRegenerateDocument = (doc: SpkDocument) => {
+        setSelectedRegenerateDoc(doc);
+        setRegenerateModalOpen(true);
+    };
+
+    const confirmRegenerateDocument = () => {
+        if (!selectedRegenerateDoc) {
+            return;
+        }
+
+        setRegeneratingPk(true);
+
+        router.post(
+            `/spk/${selectedRegenerateDoc.hashed_id}/regenerate-document`,
+            {
+                mode:
+                    selectedRegenerateDoc.addendum_number > 0
+                        ? 'addendum'
+                        : 'main',
+            },
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setRegeneratingPk(false);
+                    setSelectedRegenerateDoc(null);
+                    setRegenerateModalOpen(false);
+                },
+            },
+        );
     };
 
     const confirmCancelPk = () => {
@@ -826,6 +863,7 @@ export default function ShowByMonth({
                             </div>
                         </ContentCard>
                     )}
+
                 </div>
 
                 {/* Main Content - SPK Details */}
@@ -838,79 +876,166 @@ export default function ShowByMonth({
                                     Riwayat Dokumen {documentLabel}
                                 </h3>
 
-                                {canEdit && (
-                                    <Button
-                                        type="button"
-                                        variant="destructive"
-                                        size="sm"
-                                        onClick={handleCancelPk}
-                                    >
-                                        <Trash2 className="mr-2 h-3.5 w-3.5" />
-                                        Batalkan PK
-                                    </Button>
-                                )}
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {canEdit && (
+                                        <Button
+                                            type="button"
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={handleCancelPk}
+                                        >
+                                            <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                            Batalkan PK
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="space-y-3">
-                                {decryptedSpkDocuments.map((doc) => (
-                                    <div
-                                        key={doc.id}
-                                        className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
-                                    >
-                                        <div className="flex flex-col items-start justify-between gap-4 md:flex-row">
-                                            <div className="flex min-w-0 flex-1 items-start gap-3">
-                                                <FileText className="mt-0.5 h-5 w-5 flex-shrink-0 text-neutral-600 dark:text-neutral-400" />
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="flex flex-wrap items-center gap-2">
-                                                        <p className="font-semibold text-neutral-900 dark:text-white">
-                                                            {getDocumentLabel(
-                                                                doc.addendum_number,
+                                {decryptedSpkDocuments.map((doc) => {
+                                    return (
+                                        <div
+                                            key={doc.id}
+                                            className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
+                                        >
+                                            <div className="flex flex-col items-start justify-between gap-4 md:flex-row">
+                                                <div className="flex min-w-0 flex-1 items-start gap-3">
+                                                    <FileText className="mt-0.5 h-5 w-5 flex-shrink-0 text-neutral-600 dark:text-neutral-400" />
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <p className="font-semibold text-neutral-900 dark:text-white">
+                                                                {getDocumentLabel(
+                                                                    doc.addendum_number,
+                                                                )}
+                                                            </p>
+                                                            {getStatusBadge(
+                                                                doc.status,
                                                             )}
+                                                        </div>
+                                                        <p className="mt-1 text-sm break-words text-neutral-600 dark:text-neutral-400">
+                                                            {doc.nomor_spk}
                                                         </p>
-                                                        {getStatusBadge(
-                                                            doc.status,
+                                                        <p className="mt-1 text-xs break-words text-neutral-600 dark:text-neutral-400">
+                                                            Dibuat oleh{' '}
+                                                            {doc.created_by}{' '}
+                                                            pada{' '}
+                                                            {doc.created_at}
+                                                        </p>
+                                                        {doc.updated_at !==
+                                                            doc.created_at && (
+                                                            <p className="text-xs break-words text-neutral-600 dark:text-neutral-400">
+                                                                Diperbarui pada{' '}
+                                                                {doc.updated_at}
+                                                            </p>
                                                         )}
                                                     </div>
-                                                    <p className="mt-1 text-sm break-words text-neutral-600 dark:text-neutral-400">
-                                                        {doc.nomor_spk}
-                                                    </p>
-                                                    <p className="mt-1 text-xs break-words text-neutral-600 dark:text-neutral-400">
-                                                        Dibuat oleh{' '}
-                                                        {doc.created_by} pada{' '}
-                                                        {doc.created_at}
-                                                    </p>
-                                                    {doc.updated_at !==
-                                                        doc.created_at && (
-                                                        <p className="text-xs break-words text-neutral-600 dark:text-neutral-400">
-                                                            Diperbarui pada{' '}
-                                                            {doc.updated_at}
-                                                        </p>
-                                                    )}
                                                 </div>
-                                            </div>
-                                            <div className="flex flex-shrink-0 flex-col gap-2">
-                                                {doc.file_path ? (
-                                                    <>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="default"
-                                                            className="cursor-pointer"
-                                                            onClick={() =>
-                                                                handleDownload(
-                                                                    doc.signed_file_path ||
-                                                                        doc.file_path!,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Download className="mr-2 h-3.5 w-3.5" />
-                                                            Unduh{' '}
-                                                            {doc.signed_file_path
-                                                                ? '(Bertanda tangan)'
-                                                                : ''}
-                                                        </Button>
-                                                        {canEdit &&
-                                                            doc.file_path &&
-                                                            !doc.signed_file_path && (
+                                                <div className="flex flex-shrink-0 flex-col gap-2">
+                                                    {doc.file_path ? (
+                                                        <>
+                                                            {canEdit && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="regenerate"
+                                                                    onClick={() =>
+                                                                        handleRegenerateDocument(
+                                                                            doc,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <RotateCcw className="mr-2 h-3.5 w-3.5" />
+                                                                    Re-generate
+                                                                    PK
+                                                                </Button>
+                                                            )}
+                                                            <Button
+                                                                size="sm"
+                                                                variant="default"
+                                                                className="cursor-pointer"
+                                                                onClick={() =>
+                                                                    handleDownload(
+                                                                        doc.signed_file_path ||
+                                                                            doc.file_path!,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Download className="mr-2 h-3.5 w-3.5" />
+                                                                Unduh{' '}
+                                                                {doc.signed_file_path
+                                                                    ? '(Bertanda tangan)'
+                                                                    : ''}
+                                                            </Button>
+                                                            {doc.signed_file_path &&
+                                                                doc.file_path && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={() =>
+                                                                            handleDownload(
+                                                                                doc.file_path!,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <Download className="mr-2 h-3.5 w-3.5" />
+                                                                        Unduh
+                                                                        Versi
+                                                                        Tanpa
+                                                                        Tanda
+                                                                        Tangan
+                                                                    </Button>
+                                                                )}
+
+                                                            {decryptedSpk.previous_file_path && (
+                                                                <div className="space-y-2">
+                                                                    <Label className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                        Versi
+                                                                        bertanda
+                                                                        tangan
+                                                                        sebelumnya
+                                                                    </Label>
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        onClick={() =>
+                                                                            handleDownload(
+                                                                                decryptedSpk.previous_file_path!,
+                                                                            )
+                                                                        }
+                                                                        className="w-full"
+                                                                    >
+                                                                        <Download className="mr-2 h-4 w-4" />
+                                                                        Unduh
+                                                                        Versi
+                                                                        Sebelumnya
+                                                                    </Button>
+                                                                </div>
+                                                            )}
+                                                            {canEdit &&
+                                                                doc.file_path &&
+                                                                !doc.signed_file_path && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={() =>
+                                                                            setUploadingDocId(
+                                                                                doc.hashed_id,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <Upload className="mr-2 h-3.5 w-3.5" />
+                                                                        Unggah
+                                                                        Dokumen
+                                                                        Bertanda
+                                                                        Tangan
+                                                                    </Button>
+                                                                )}
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <p className="mb-1 text-xs text-neutral-500 dark:text-neutral-400">
+                                                                File belum
+                                                                tersedia
+                                                            </p>
+                                                            {canEdit && (
                                                                 <Button
                                                                     size="sm"
                                                                     variant="outline"
@@ -923,36 +1048,15 @@ export default function ShowByMonth({
                                                                     <Upload className="mr-2 h-3.5 w-3.5" />
                                                                     Unggah
                                                                     Dokumen
-                                                                    Bertanda
-                                                                    Tangan
                                                                 </Button>
                                                             )}
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <p className="mb-1 text-xs text-neutral-500 dark:text-neutral-400">
-                                                            File belum tersedia
-                                                        </p>
-                                                        {canEdit && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    setUploadingDocId(
-                                                                        doc.hashed_id,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Upload className="mr-2 h-3.5 w-3.5" />
-                                                                Unggah Dokumen
-                                                            </Button>
-                                                        )}
-                                                    </>
-                                                )}
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     </ContentCard>
@@ -1436,6 +1540,56 @@ export default function ShowByMonth({
                         </div>
                     );
                 })()}
+
+            <Dialog
+                open={regenerateModalOpen}
+                onOpenChange={(open) => {
+                    setRegenerateModalOpen(open);
+                    if (!open) {
+                        setSelectedRegenerateDoc(null);
+                    }
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            {selectedRegenerateDoc?.addendum_number
+                                ? 'Re-generate Addendum PK'
+                                : 'Re-generate PK'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Dokumen yang sudah ditandatangani akan dibatalkan
+                            dan wajib diupload ulang untuk perbaikan dokumen.
+                            Proses ini hanya akan memperbarui dokumen yang
+                            dipilih tanpa membuat record baru atau merusak file
+                            dokumen lain dalam keluarga PK.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                setRegenerateModalOpen(false);
+                                setSelectedRegenerateDoc(null);
+                            }}
+                            disabled={regeneratingPk}
+                        >
+                            Tutup
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="regenerate"
+                            onClick={confirmRegenerateDocument}
+                            disabled={regeneratingPk}
+                        >
+                            {regeneratingPk
+                                ? 'Memperbarui...'
+                                : 'Ya, Re-generate'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={cancelModalOpen} onOpenChange={setCancelModalOpen}>
                 <DialogContent>

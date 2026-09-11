@@ -82,13 +82,14 @@ class Petugas extends Model
     }
 
     /**
-     * Get masked NIK for display.
+     * Keep the raw numeric NIK visible for display.
+     * The application should not mask or hash the identifier in the UI.
      */
     public function getNikMaskedAttribute(): string
     {
         $nik = $this->nik;
 
-        return $nik ? substr($nik, 0, 4).'********'.substr($nik, -4) : '';
+        return $nik ? (string) $nik : '';
     }
 
     /**
