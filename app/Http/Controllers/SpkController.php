@@ -879,6 +879,7 @@ class SpkController extends Controller
             });
         }
 
+        $selectedPeriode = null;
         $periodeHashedId = $request->input('periode_hashed_id');
         if (filled($periodeHashedId)) {
             $periodeId = Hashids::decode((string) $periodeHashedId)[0] ?? null;
@@ -899,31 +900,72 @@ class SpkController extends Controller
             ->map(fn ($id): int => (int) $id)
             ->values();
 
-        $mainSpks = Spk::with(['petugas', 'alokasiPetugas.petugas'])
-            ->where('addendum_number', 0)
-            ->where(function ($query) {
-                $query->whereNotNull('file_path')
-                    ->orWhereNotNull('signed_file_path')
-                    ->orWhereNotNull('previous_file_path');
-            })
-            ->where(function ($query) use ($matchingAlokasiIds) {
-                $this->applyAlokasiScopeToSpkQuery($query, $matchingAlokasiIds);
-            })
-            ->orderBy('nomor_spk')
-            ->get();
+        $downloadableFileScope = function ($query): void {
+            $query->whereNotNull('file_path')
+                ->orWhereNotNull('signed_file_path')
+                ->orWhereNotNull('previous_file_path');
+        };
 
-        $addendumSpks = Spk::with(['petugas', 'alokasiPetugas.petugas'])
-            ->where('addendum_number', '>', 0)
-            ->where(function ($query) {
-                $query->whereNotNull('signed_file_path')
-                    ->orWhereNotNull('file_path')
-                    ->orWhereNotNull('previous_file_path');
-            })
-            ->where(function ($query) use ($matchingAlokasiIds) {
-                $this->applyAlokasiScopeToSpkQuery($query, $matchingAlokasiIds);
-            })
-            ->orderBy('nomor_spk')
-            ->get();
+        if ($downloadScope === 'sensus' && $selectedPeriode) {
+            // Sensus Ekonomi uses a period-based PK flow. Scope the main PKs
+            // through the selected period exactly as generation/regeneration does.
+            $mainSpks = $this->baseSpkScopeQuery($selectedPeriode)
+                ->with(['petugas', 'alokasiPetugas.petugas'])
+                ->where($downloadableFileScope)
+                ->orderBy('nomor_spk')
+                ->get();
+
+            $mainSpkIds = $mainSpks->pluck('id')
+                ->map(fn ($id): int => (int) $id)
+                ->values();
+
+            // Include every addendum belonging to those main PKs. The allocation
+            // fallback keeps historical addenda without parent_spk_id downloadable.
+            $addendumSpks = Spk::with(['petugas', 'alokasiPetugas.petugas'])
+                ->where('addendum_number', '>', 0)
+                ->where($downloadableFileScope)
+                ->where(function ($query) use ($mainSpkIds, $matchingAlokasiIds): void {
+                    if ($mainSpkIds->isNotEmpty()) {
+                        $query->whereIn('parent_spk_id', $mainSpkIds->all());
+                    }
+
+                    if ($matchingAlokasiIds->isNotEmpty()) {
+                        $method = $mainSpkIds->isNotEmpty() ? 'orWhere' : 'where';
+                        $query->{$method}(function ($scopeQuery) use ($matchingAlokasiIds): void {
+                            $this->applyAlokasiScopeToSpkQuery($scopeQuery, $matchingAlokasiIds);
+                        });
+                    }
+
+                    if ($mainSpkIds->isEmpty() && $matchingAlokasiIds->isEmpty()) {
+                        $query->whereRaw('0 = 1');
+                    }
+                })
+                ->orderBy('nomor_spk')
+                ->orderBy('addendum_number')
+                ->get();
+        } else {
+            $mainSpks = Spk::with(['petugas', 'alokasiPetugas.petugas'])
+                ->where(function ($query): void {
+                    $query->where('addendum_number', 0)
+                        ->orWhereNull('addendum_number');
+                })
+                ->where($downloadableFileScope)
+                ->where(function ($query) use ($matchingAlokasiIds): void {
+                    $this->applyAlokasiScopeToSpkQuery($query, $matchingAlokasiIds);
+                })
+                ->orderBy('nomor_spk')
+                ->get();
+
+            $addendumSpks = Spk::with(['petugas', 'alokasiPetugas.petugas'])
+                ->where('addendum_number', '>', 0)
+                ->where($downloadableFileScope)
+                ->where(function ($query) use ($matchingAlokasiIds): void {
+                    $this->applyAlokasiScopeToSpkQuery($query, $matchingAlokasiIds);
+                })
+                ->orderBy('nomor_spk')
+                ->orderBy('addendum_number')
+                ->get();
+        }
 
         if ($mainSpks->isEmpty() && $addendumSpks->isEmpty()) {
             return redirect()->back()->with('error', 'Tidak ada SPK/addendum yang sudah ditandatangani untuk diunduh');
