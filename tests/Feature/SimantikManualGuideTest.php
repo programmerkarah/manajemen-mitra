@@ -11,7 +11,7 @@ class SimantikManualGuideTest extends TestCase
         $html = view('panduan.simantik-petunjuk-penggunaan')->render();
 
         $this->assertStringContainsString('PETUNJUK PENGGUNAAN SIMANTIK', $html);
-        $this->assertStringContainsString('simantik.bpskotasawahlunto.cloud', $html);
+        $this->assertStringContainsString('simantik.sawahlunto.io', $html);
         $this->assertStringContainsString('Panduan ini ditulis ulang agar seluruh isi mengacu ke SIMANTIK', $html);
         $this->assertStringContainsString('Fokus Panduan', $html);
         $this->assertStringContainsString('Diagram Alur SOP', $html);
