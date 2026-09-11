@@ -14,11 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
-import {
-    constructDownloadAllFilename,
-    openFastDownload,
-    tryDirectDownload,
-} from '@/utils/downloadUtils';
+import { openFastDownload } from '@/utils/downloadUtils';
 import { encryptFilters } from '@/utils/encryption';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import {
@@ -137,6 +133,7 @@ interface UniqueKegiatanItem {
     kode_kegiatan: string;
     nama_kegiatan: string;
     jumlah_spk: number;
+    download_state: string;
 }
 
 interface BreadcrumbItem {
@@ -178,6 +175,7 @@ interface ShowByMonthProps {
     bulan: number;
     tahun: number;
     bulan_label: string;
+    download_all_state: string;
 }
 
 const bulanLabels: Record<number, string> = {
@@ -207,6 +205,7 @@ export default function ShowByMonth({
     bulan,
     tahun,
     bulan_label,
+    download_all_state,
 }: ShowByMonthProps) {
     // Decrypt data
     const decryptedSpk = useDecryptedData<Spk>(spk.encrypted)[0];
@@ -457,25 +456,33 @@ export default function ShowByMonth({
         openFastDownload(filePath);
     };
 
-    const handleDownloadAll = async () => {
-        // Construct deterministic filename
-        const filename = constructDownloadAllFilename(bulan, tahun);
-        const query = new URLSearchParams({
-            bulan: String(bulan),
-            tahun: String(tahun),
-        });
+    const submitEncryptedDownload = (action: string, state: string) => {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = action;
+        form.style.display = 'none';
 
-        if (isSensusEkonomiContext) {
-            query.set('periode_hashed_id', periode.hashed_id);
-            query.set('context', 'sensus-ekonomi');
-        } else {
-            query.set('context', 'regular');
-        }
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = '_token';
+        csrfInput.value =
+            document
+                .querySelector('meta[name="csrf-token"]')
+                ?.getAttribute('content') || '';
 
-        const fallbackUrl = `/spk/download-all?${query.toString()}`;
+        const stateInput = document.createElement('input');
+        stateInput.type = 'hidden';
+        stateInput.name = 'state';
+        stateInput.value = state;
 
-        // Try direct download first, fallback to Laravel route if not exists
-        await tryDirectDownload(filename, fallbackUrl);
+        form.append(csrfInput, stateInput);
+        document.body.appendChild(form);
+        form.submit();
+        form.remove();
+    };
+
+    const handleDownloadAll = () => {
+        submitEncryptedDownload('/spk/download-all', download_all_state);
     };
 
     const handleSelectPetugas = (spkHashedId: string) => {
@@ -806,8 +813,8 @@ export default function ShowByMonth({
                                                     </div>
                                                     <div className="flex-shrink-0">
                                                         <form
-                                                            method="GET"
-                                                            action={`/spk/month/kegiatan/${kegiatan.hashed_id}/download`}
+                                                            method="POST"
+                                                            action="/spk/month/kegiatan/download"
                                                             className="inline-block"
                                                             onSubmit={() => {
                                                                 setDownloadingKegiatan(
@@ -826,13 +833,23 @@ export default function ShowByMonth({
                                                         >
                                                             <input
                                                                 type="hidden"
-                                                                name="bulan"
-                                                                value={bulan}
+                                                                name="_token"
+                                                                value={
+                                                                    document
+                                                                        .querySelector(
+                                                                            'meta[name="csrf-token"]',
+                                                                        )
+                                                                        ?.getAttribute(
+                                                                            'content',
+                                                                        ) || ''
+                                                                }
                                                             />
                                                             <input
                                                                 type="hidden"
-                                                                name="tahun"
-                                                                value={tahun}
+                                                                name="state"
+                                                                value={
+                                                                    kegiatan.download_state
+                                                                }
                                                             />
                                                             <Button
                                                                 type="submit"
