@@ -657,7 +657,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::get('spk/periode/{periode}/kegiatan/{kegiatan}/download-all', [SpkController::class, 'downloadAllByKegiatan'])->name('spk.download-all-by-kegiatan');
         Route::get('spk/month', [SpkController::class, 'showByMonthGet'])->name('spk.show-by-month-get');
         Route::post('spk/month', [SpkController::class, 'showByMonth'])->name('spk.show-by-month');
-        Route::post('spk/month/kegiatan/{kegiatan}/download', [SpkController::class, 'downloadByKegiatanMonth'])->name('spk.download-by-kegiatan-month');
+        Route::get('spk/month/kegiatan/{kegiatan}/download', [SpkController::class, 'downloadByKegiatanMonth'])->name('spk.download-by-kegiatan-month');
         Route::post('spk/{spk}/upload-signed', [SpkController::class, 'uploadSigned'])->name('spk.upload-signed');
         Route::get('spk/petugas-pengganti', [SensusEkonomiReplacementController::class, 'index'])->name('se-replacements.index');
         Route::get('spk/{spk}', [SpkController::class, 'show'])->name('spk.show');
