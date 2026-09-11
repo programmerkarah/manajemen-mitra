@@ -739,6 +739,31 @@ class SpkController extends Controller
                 ];
             });
 
+        $downloadContext = $this->usesPeriodBasedSpkFlow($periode)
+            ? 'sensus-ekonomi'
+            : 'regular';
+
+        $downloadAllState = encryptFilters([
+            'bulan' => (int) $bulan,
+            'tahun' => (int) $tahun,
+            'context' => $downloadContext,
+            'periode_hashed_id' => $downloadContext === 'sensus-ekonomi'
+                ? $periode->hashed_id
+                : null,
+        ]);
+
+        $uniqueKegiatanList = collect($uniqueKegiatanList)
+            ->map(function (array $kegiatan) use ($bulan, $tahun): array {
+                $kegiatan['download_state'] = encryptFilters([
+                    'bulan' => (int) $bulan,
+                    'tahun' => (int) $tahun,
+                    'kegiatan_hashed_id' => $kegiatan['hashed_id'],
+                ]);
+
+                return $kegiatan;
+            })
+            ->all();
+
         // Encrypt sensitive data
         $encryptedSpkDocuments = encryptData($allSpkDocuments);
         $encryptedKegiatanList = encryptData($kegiatanList);
@@ -816,6 +841,7 @@ class SpkController extends Controller
             'bulan' => (int) $bulan,
             'tahun' => (int) $tahun,
             'bulan_label' => $this->getBulanLabel((int) $bulan),
+            'download_all_state' => $downloadAllState,
         ]);
     }
 
@@ -824,6 +850,8 @@ class SpkController extends Controller
      */
     public function downloadAll(Request $request)
     {
+        $this->mergeEncryptedDownloadState($request);
+
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
 
@@ -1203,9 +1231,16 @@ class SpkController extends Controller
      * Download all SPK files for a specific kegiatan in a specific month as ZIP
      * Used by ketua tim to download all SPK for their activity
      */
-    public function downloadByKegiatanMonth(Request $request, string $kegiatanHashedId)
+    public function downloadByKegiatanMonth(Request $request)
     {
+        $this->mergeEncryptedDownloadState($request);
+
+        $kegiatanHashedId = (string) $request->input('kegiatan_hashed_id');
         $kegiatanId = Hashids::decode($kegiatanHashedId)[0] ?? null;
+        if (! $kegiatanId) {
+            abort(422, 'State download kegiatan tidak valid.');
+        }
+
         $bulan = $request->input('bulan');
         $tahun = $request->input('tahun');
 
@@ -1936,6 +1971,27 @@ class SpkController extends Controller
         // Return direct static URL untuk better CDN caching
         // File di-serve langsung oleh web server (Nginx/Apache), bukan PHP
         return '/downloads/'.rawurlencode($filename);
+    }
+
+    private function mergeEncryptedDownloadState(Request $request): void
+    {
+        $request->validate([
+            'state' => ['required', 'string'],
+        ]);
+
+        $state = decryptFilters((string) $request->input('state'));
+        if (
+            empty($state)
+            || ! isset($state['bulan'], $state['tahun'])
+            || ! is_numeric($state['bulan'])
+            || ! is_numeric($state['tahun'])
+            || (int) $state['bulan'] < 1
+            || (int) $state['bulan'] > 12
+        ) {
+            abort(422, 'State download tidak valid atau tidak lengkap.');
+        }
+
+        $request->merge($state);
     }
 
     private function applyAlokasiScopeToSpkQuery($query, Collection $matchingAlokasiIds): void
