@@ -62,6 +62,7 @@ interface SpkDocument {
     addendum_number: number;
     file_path: string | null;
     signed_file_path: string | null;
+    previous_file_path: string | null;
     status: string;
     created_by: string;
     created_at: string;
@@ -964,50 +965,7 @@ export default function ShowByMonth({
                                                                     ? '(Bertanda tangan)'
                                                                     : ''}
                                                             </Button>
-                                                            {doc.signed_file_path &&
-                                                                doc.file_path && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        onClick={() =>
-                                                                            handleDownload(
-                                                                                doc.file_path!,
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        <Download className="mr-2 h-3.5 w-3.5" />
-                                                                        Unduh
-                                                                        Versi
-                                                                        Tanpa
-                                                                        Tanda
-                                                                        Tangan
-                                                                    </Button>
-                                                                )}
 
-                                                            {decryptedSpk.previous_file_path && (
-                                                                <div className="space-y-2">
-                                                                    <Label className="text-xs text-neutral-600 dark:text-neutral-400">
-                                                                        Versi
-                                                                        bertanda
-                                                                        tangan
-                                                                        sebelumnya
-                                                                    </Label>
-                                                                    <Button
-                                                                        variant="outline"
-                                                                        onClick={() =>
-                                                                            handleDownload(
-                                                                                decryptedSpk.previous_file_path!,
-                                                                            )
-                                                                        }
-                                                                        className="w-full"
-                                                                    >
-                                                                        <Download className="mr-2 h-4 w-4" />
-                                                                        Unduh
-                                                                        Versi
-                                                                        Sebelumnya
-                                                                    </Button>
-                                                                </div>
-                                                            )}
                                                             {canEdit &&
                                                                 doc.file_path &&
                                                                 !doc.signed_file_path && (
@@ -1027,6 +985,31 @@ export default function ShowByMonth({
                                                                         Tangan
                                                                     </Button>
                                                                 )}
+
+                                                            {doc.previous_file_path && (
+                                                                <div className="space-y-2">
+                                                                    <Label className="text-xs text-neutral-600 dark:text-neutral-400">
+                                                                        Versi
+                                                                        bertanda
+                                                                        tangan
+                                                                        sebelumnya
+                                                                    </Label>
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        onClick={() =>
+                                                                            handleDownload(
+                                                                                doc.previous_file_path!,
+                                                                            )
+                                                                        }
+                                                                        className="w-full"
+                                                                    >
+                                                                        <Download className="mr-2 h-4 w-4" />
+                                                                        Unduh
+                                                                        Versi
+                                                                        Sebelumnya
+                                                                    </Button>
+                                                                </div>
+                                                            )}
                                                         </>
                                                     ) : (
                                                         <>

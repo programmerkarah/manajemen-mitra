@@ -657,6 +657,7 @@ class SpkController extends Controller
                 'status' => $s->status,
                 'file_path' => $latestSpkDoc?->file_path,
                 'signed_file_path' => $latestSpkDoc?->signed_file_path,
+                'previous_file_path' => $latestSpkDoc?->previous_file_path,
             ];
         })->sortBy('petugas_nama')->values()->all();
 
@@ -730,6 +731,7 @@ class SpkController extends Controller
                     'addendum_number' => $s->addendum_number,
                     'file_path' => $s->file_path,
                     'signed_file_path' => $s->signed_file_path,
+                    'previous_file_path' => $s->previous_file_path,
                     'status' => $s->status,
                     'created_by' => $s->createdBy->name ?? 'System',
                     'created_at' => $s->created_at->format('d M Y H:i'),
@@ -757,12 +759,15 @@ class SpkController extends Controller
             'status' => $spk->status,
             'file_path' => $spk->file_path,
             'signed_file_path' => $spk->signed_file_path,
+            'previous_file_path' => $spk->previous_file_path,
             'addendum_number' => $spk->addendum_number,
             'parent_spk_id' => $spk->parent_spk_id,
             'created_by' => $spk->createdBy->name ?? 'System',
             'created_at' => $spk->created_at->format('d M Y H:i'),
             'updated_at' => $spk->updated_at->format('d M Y H:i'),
         ];
+
+        // echo json_encode($spkData);exit();
         $encryptedSpk = encryptData($spkData);
 
         // Prepare Petugas data
@@ -1406,11 +1411,24 @@ class SpkController extends Controller
             return redirect()->back()->with('error', 'Data petugas untuk dokumen ini tidak ditemukan.');
         }
 
-        $scopePeriodeIds = $this->resolveSpkScopePeriodeIds($periode, ['dikirim', 'disetujui', 'direvisi', 'perubahan']);
+        $regenerateStatuses = $requestedMode === 'addendum'
+            ? ['dikirim', 'disetujui', 'perubahan']
+            : ['dikirim', 'disetujui', 'direvisi'];
+
+        $scopePeriodeIds = $this->resolveSpkScopePeriodeIds($periode, $regenerateStatuses);
         $allAlokasi = AlokasiPetugas::with(['petugas', 'periodeAlokasi.kegiatan'])
             ->whereIn('periode_alokasi_id', $scopePeriodeIds)
             ->where('petugas_id', $petugas->id)
             ->get();
+
+        $allAlokasi = $this->spkActionDecisionService
+            ->getEffectiveAlokasiByKegiatan(
+                $allAlokasi,
+                $requestedMode === 'addendum'
+                    ? ['perubahan', 'disetujui', 'dikirim']
+                    : ['perubahan', 'direvisi', 'disetujui', 'dikirim'],
+            )
+            ->values();
 
         if ($allAlokasi->isEmpty()) {
             return redirect()->back()->with('error', 'Tidak ada alokasi aktif untuk petugas ini.');

@@ -543,14 +543,14 @@ class SpkActionDecisionService
             ->first();
     }
 
-    public function getEffectiveAlokasiByKegiatan(Collection $alokasiGroup): Collection
+    public function getEffectiveAlokasiByKegiatan(Collection $alokasiGroup, array $statusPriority = ['perubahan', 'direvisi', 'disetujui', 'dikirim']): Collection
     {
         return $alokasiGroup
             ->groupBy(function ($alokasi) {
                 return $alokasi->periodeAlokasi->kegiatan_id;
             })
-            ->map(function ($kegiatanGroup) {
-                return $this->resolvePkReferenceAllocation($kegiatanGroup);
+            ->map(function ($kegiatanGroup) use ($statusPriority) {
+                return $this->resolvePkReferenceAllocation($kegiatanGroup, $statusPriority);
             })
             ->filter(function ($alokasi) {
                 return $alokasi && $this->isMeaningfulAllocation($alokasi);
@@ -591,13 +591,17 @@ class SpkActionDecisionService
         return $this->getEffectiveAlokasiByKegiatan($allAlokasi)->values();
     }
 
-    private function resolvePkReferenceAllocation(Collection $kegiatanGroup): ?AlokasiPetugas
+    private function resolvePkReferenceAllocation(Collection $kegiatanGroup, array $statusPriority = ['perubahan', 'direvisi', 'disetujui', 'dikirim']): ?AlokasiPetugas
     {
-        // A perubahan row is the active replacement. The direvisi/dikirim row
-        // remains history and must never shadow it in the current snapshot.
-        return $kegiatanGroup->first(fn ($a) => ($a->periodeAlokasi?->status ?? '') === 'perubahan')
-            ?? $kegiatanGroup->first(fn ($a) => ($a->periodeAlokasi?->status ?? '') === 'disetujui')
-            ?? $kegiatanGroup->first(fn ($a) => ($a->periodeAlokasi?->status ?? '') === 'dikirim');
+        foreach ($statusPriority as $status) {
+            $match = $kegiatanGroup->first(fn ($a) => ($a->periodeAlokasi?->status ?? '') === $status);
+
+            if ($match) {
+                return $match;
+            }
+        }
+
+        return $kegiatanGroup->first();
     }
 
     private function isMeaningfulAllocation(object $alokasi): bool
