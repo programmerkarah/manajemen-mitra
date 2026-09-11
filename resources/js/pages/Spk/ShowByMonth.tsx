@@ -824,19 +824,7 @@ export default function ShowByMonth({
                                                                 );
                                                             }}
                                                         >
-                                                            <input
-                                                                type="hidden"
-                                                                name="_token"
-                                                                value={
-                                                                    document
-                                                                        .querySelector(
-                                                                            'meta[name="csrf-token"]',
-                                                                        )
-                                                                        ?.getAttribute(
-                                                                            'content',
-                                                                        ) || ''
-                                                                }
-                                                            />
+                                                            
                                                             <input
                                                                 type="hidden"
                                                                 name="bulan"
