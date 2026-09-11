@@ -863,7 +863,6 @@ export default function ShowByMonth({
                             </div>
                         </ContentCard>
                     )}
-
                 </div>
 
                 {/* Main Content - SPK Details */}
@@ -1558,11 +1557,10 @@ export default function ShowByMonth({
                                 : 'Re-generate PK'}
                         </DialogTitle>
                         <DialogDescription>
-                            Dokumen yang sudah ditandatangani akan dibatalkan
-                            dan wajib diupload ulang untuk perbaikan dokumen.
-                            Proses ini hanya akan memperbarui dokumen yang
-                            dipilih tanpa membuat record baru atau merusak file
-                            dokumen lain dalam keluarga PK.
+                            Dokumen yang sudah ditandatangani akan dibuat ulang
+                            untuk diperbarui. Perubahan ini hanya berupa konteks
+                            perjanjian di dalam dokumen tanpa mengubah nomor
+                            kontrak.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
