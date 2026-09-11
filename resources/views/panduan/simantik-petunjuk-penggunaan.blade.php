@@ -328,7 +328,7 @@
         @endif
         <h1>PETUNJUK PENGGUNAAN SIMANTIK</h1>
         <div class="subtitle">Panduan fitur utama SIMANTIK berdasarkan tampilan yang ada di project ini</div>
-        <div class="meta">Laman: simantik.sawahlunto.io</div>
+        <div class="meta">Laman: simantik.bpskotasawahlunto.cloud</div>
     </div>
 
     <div class="intro">
@@ -610,7 +610,7 @@
         </div>
 
         <div class="footer">
-            SIMANTIK | Panduan resmi penggunaan aplikasi | simantik.sawahlunto.io
+            SIMANTIK | Panduan resmi penggunaan aplikasi | simantik.bpskotasawahlunto.cloud
         </div>
     </div>
 </body>
