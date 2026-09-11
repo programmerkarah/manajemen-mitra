@@ -806,7 +806,7 @@ export default function ShowByMonth({
                                                     </div>
                                                     <div className="flex-shrink-0">
                                                         <form
-                                                            method="POST"
+                                                            method="GET"
                                                             action={`/spk/month/kegiatan/${kegiatan.hashed_id}/download`}
                                                             className="inline-block"
                                                             onSubmit={() => {
