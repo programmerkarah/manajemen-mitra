@@ -536,7 +536,7 @@ class SpkController extends Controller
             ->values();
 
         // Get all SPKs in this month
-        $allSpks = Spk::with(['alokasiPetugas.petugas'])
+        $allSpks = Spk::with(['petugas', 'alokasiPetugas.petugas'])
             ->where(function ($query) use ($alokasiIdsInScope) {
                 $query->whereIn('alokasi_petugas_id', $alokasiIdsInScope->all());
 
@@ -871,7 +871,7 @@ class SpkController extends Controller
             ->map(fn ($id): int => (int) $id)
             ->values();
 
-        $mainSpks = Spk::with(['alokasiPetugas.petugas'])
+        $mainSpks = Spk::with(['petugas', 'alokasiPetugas.petugas'])
             ->where('addendum_number', 0)
             ->where(function ($query) {
                 $query->whereNotNull('file_path')
@@ -884,7 +884,7 @@ class SpkController extends Controller
             ->orderBy('nomor_spk')
             ->get();
 
-        $addendumSpks = Spk::with(['alokasiPetugas.petugas'])
+        $addendumSpks = Spk::with(['petugas', 'alokasiPetugas.petugas'])
             ->where('addendum_number', '>', 0)
             ->where(function ($query) {
                 $query->whereNotNull('signed_file_path')
@@ -1054,7 +1054,7 @@ class SpkController extends Controller
             ->values();
 
         // Ambil semua SPK utama (addendum_number = 0)
-        $mainSpks = Spk::with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
+        $mainSpks = Spk::with(['petugas', 'alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
             ->where('addendum_number', 0)
             ->where(function ($query) {
                 $query->whereNotNull('file_path')
@@ -1069,7 +1069,7 @@ class SpkController extends Controller
             ->get();
 
         // Ambil semua addendum (addendum_number > 0) yang memiliki file
-        $addendumSpks = Spk::with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
+        $addendumSpks = Spk::with(['petugas', 'alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
             ->where('addendum_number', '>', 0)
             ->where(function ($query) {
                 $query->whereNotNull('signed_file_path')
@@ -1233,7 +1233,7 @@ class SpkController extends Controller
             ->values();
 
         // Get ALL SPKs for these petugas in this month/year, regardless of which kegiatan the SPK was created for
-        $allSpks = Spk::with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
+        $allSpks = Spk::with(['petugas', 'alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
             ->where(function ($q) {
                 $q->whereNotNull('file_path')
                     ->orWhereNotNull('signed_file_path');
@@ -1980,7 +1980,7 @@ class SpkController extends Controller
 
     private function resolvePreferredSpkFilePathForZip(Spk $spk): ?string
     {
-        $candidates = collect([$spk->signed_file_path, $spk->file_path])
+        $candidates = collect([$spk->signed_file_path, $spk->file_path, $spk->previous_file_path])
             ->filter(fn ($path) => is_string($path) && trim($path) !== '')
             ->values();
 
@@ -2024,7 +2024,12 @@ class SpkController extends Controller
 
     private function buildZipFilenameForSpk(Spk $spk, string $sourcePath): string
     {
-        $petugasName = preg_replace('/[\/\\:*?"<>|]/', '_', $spk->alokasiPetugas->petugas->nama);
+        // Some historical SPKs point to an allocation that has since been replaced
+        // or deleted. Keep ZIP generation working even when that relation is absent.
+        $petugasName = $spk->petugas?->nama
+            ?? $spk->alokasiPetugas?->petugas?->nama
+            ?? 'Petugas_'.($spk->petugas_id ?: $spk->id);
+        $petugasName = preg_replace('/[\/\\:*?"<>|]/', '_', $petugasName);
         $safeNomor = preg_replace('/[^A-Za-z0-9._-]+/', '_', (string) ($spk->nomor_spk ?: basename($sourcePath)));
 
         if ((int) ($spk->addendum_number ?? 0) > 0) {
