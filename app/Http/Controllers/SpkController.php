@@ -680,7 +680,7 @@ class SpkController extends Controller
                     ->where('periode_alokasi.kegiatan_id', $kegiatan->id)
                     ->where('periode_alokasi.bulan', $bulanFormatted)
                     ->where('periode_alokasi.tahun', $tahun)
-                    ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan', 'direvisi'])
+                    ->whereIn('periode_alokasi.status', ['dikirim', 'disetujui', 'perubahan', 'direvisi'])
                     ->distinct()
                     ->pluck('alokasi_petugas.petugas_id');
 
@@ -691,9 +691,10 @@ class SpkController extends Controller
 
                 $spkCount = $spksForKegiatan->count();
 
-                // Check if ALL petugas have signed SPKs and the files exist physically
-                $allSigned = $spksForKegiatan->every(function ($spk) {
-                    return ! empty($spk->signed_file_path) && file_exists(public_path($spk->signed_file_path));
+                $hasDownloadableFile = $spksForKegiatan->contains(function ($spk) {
+                    $fileToUse = $this->resolvePreferredSpkFilePathForZip($spk);
+
+                    return ! empty($fileToUse) && file_exists(public_path($fileToUse));
                 });
 
                 return [
@@ -702,11 +703,10 @@ class SpkController extends Controller
                     'kode_kegiatan' => $kegiatan->kode_kegiatan,
                     'nama_kegiatan' => $kegiatan->nama_kegiatan,
                     'jumlah_spk' => $spkCount,
-                    'all_signed' => $allSigned,
+                    'all_signed' => $hasDownloadableFile,
                 ];
             })
             ->filter(function ($kegiatan) {
-                // Only show kegiatan where jumlah_spk > 0 AND all SPKs are signed
                 return $kegiatan['jumlah_spk'] > 0 && $kegiatan['all_signed'];
             })
             ->values()
@@ -831,38 +831,68 @@ class SpkController extends Controller
             return redirect()->route('spk.index')->with('error', 'Bulan dan tahun harus diisi');
         }
 
+        $downloadScope = $this->resolveDownloadScopeContext($request);
+
         // Format bulan with leading zero
         $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
 
-        // Get all periodes in this month
-        $allPeriodeInMonth = PeriodeAlokasi::where('bulan', $bulanFormatted)
+        $scopeQuery = PeriodeAlokasi::query()
+            ->where('bulan', $bulanFormatted)
             ->where('tahun', $tahun)
-            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi'])
-            ->whereHas('kegiatan', function ($q) {
-                $q->where('jenis_kegiatan', 'survei'); // Only survei activities
-            })
-            ->pluck('id');
+            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan', 'draft', 'diajukan', 'selesai']);
 
-        // Ambil semua SPK utama (addendum_number = 0)
+        if ($downloadScope === 'sensus') {
+            $scopeQuery->whereHas('kegiatan', function ($query) {
+                $query->where('jenis_kegiatan', 'sensus');
+            });
+        } else {
+            $scopeQuery->whereHas('kegiatan', function ($query) {
+                $query->where('jenis_kegiatan', 'survei');
+            });
+        }
+
+        $periodeHashedId = $request->input('periode_hashed_id');
+        if (filled($periodeHashedId)) {
+            $periodeId = Hashids::decode((string) $periodeHashedId)[0] ?? null;
+            if ($periodeId) {
+                $selectedPeriode = PeriodeAlokasi::with('kegiatan')->find($periodeId);
+                if ($selectedPeriode && $this->usesPeriodBasedSpkFlow($selectedPeriode)) {
+                    $scopeQuery->whereKey($selectedPeriode->id);
+                }
+            }
+        }
+
+        // Get all periodes in this month
+        $allPeriodeInMonth = $scopeQuery->pluck('id');
+
+        $matchingAlokasiIds = AlokasiPetugas::query()
+            ->whereIn('periode_alokasi_id', $allPeriodeInMonth)
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->values();
+
         $mainSpks = Spk::with(['alokasiPetugas.petugas'])
             ->where('addendum_number', 0)
-            ->whereNotNull('file_path')
-            ->whereIn('alokasi_petugas_id', function ($query) use ($allPeriodeInMonth) {
-                $query->select('id')
-                    ->from('alokasi_petugas')
-                    ->whereIn('periode_alokasi_id', $allPeriodeInMonth);
+            ->where(function ($query) {
+                $query->whereNotNull('file_path')
+                    ->orWhereNotNull('signed_file_path')
+                    ->orWhereNotNull('previous_file_path');
+            })
+            ->where(function ($query) use ($matchingAlokasiIds) {
+                $this->applyAlokasiScopeToSpkQuery($query, $matchingAlokasiIds);
             })
             ->orderBy('nomor_spk')
             ->get();
 
-        // Ambil semua addendum yang sudah signed (addendum_number > 0 dan signed_file_path != null)
         $addendumSpks = Spk::with(['alokasiPetugas.petugas'])
             ->where('addendum_number', '>', 0)
-            ->whereNotNull('signed_file_path')
-            ->whereIn('alokasi_petugas_id', function ($query) use ($allPeriodeInMonth) {
-                $query->select('id')
-                    ->from('alokasi_petugas')
-                    ->whereIn('periode_alokasi_id', $allPeriodeInMonth);
+            ->where(function ($query) {
+                $query->whereNotNull('signed_file_path')
+                    ->orWhereNotNull('file_path')
+                    ->orWhereNotNull('previous_file_path');
+            })
+            ->where(function ($query) use ($matchingAlokasiIds) {
+                $this->applyAlokasiScopeToSpkQuery($query, $matchingAlokasiIds);
             })
             ->orderBy('nomor_spk')
             ->get();
@@ -923,24 +953,34 @@ class SpkController extends Controller
         }
 
         $filesAdded = 0;
+        $usedZipEntryNames = [];
         // Masukkan SPK utama
         foreach ($mainSpks as $spk) {
-            $fileToUse = $spk->signed_file_path ?? $spk->file_path;
+            $fileToUse = $this->resolvePreferredSpkFilePathForZip($spk);
+            if (! $fileToUse) {
+                continue;
+            }
+
             $filePath = public_path($fileToUse);
             if (file_exists($filePath)) {
-                $fileName = basename($fileToUse);
-                $zip->addFile($filePath, $fileName);
+                $zipFileNameInArchive = $this->buildZipFilenameForSpk($spk, $fileToUse);
+                $zipFileNameInArchive = $this->makeUniqueZipEntryName($zipFileNameInArchive, $usedZipEntryNames);
+                $zip->addFile($filePath, $zipFileNameInArchive);
                 $filesAdded++;
             }
         }
 
-        // Masukkan addendum yang sudah signed
+        // Masukkan addendum yang valid
         foreach ($addendumSpks as $spk) {
-            $filePath = public_path($spk->signed_file_path);
+            $fileToUse = $this->resolvePreferredSpkFilePathForZip($spk);
+            if (! $fileToUse) {
+                continue;
+            }
+
+            $filePath = public_path($fileToUse);
             if (file_exists($filePath)) {
-                $fileName = basename($spk->signed_file_path);
-                // Tambahkan keterangan addendum pada nama file
-                $zipFileNameInArchive = preg_replace('/\.pdf$/i', '', $fileName).'_ADDENDUM.pdf';
+                $zipFileNameInArchive = $this->buildZipFilenameForSpk($spk, $fileToUse);
+                $zipFileNameInArchive = $this->makeUniqueZipEntryName($zipFileNameInArchive, $usedZipEntryNames);
                 $zip->addFile($filePath, $zipFileNameInArchive);
                 $filesAdded++;
             }
@@ -997,7 +1037,7 @@ class SpkController extends Controller
             ->where('periode_alokasi.kegiatan_id', $kegiatanId)
             ->where('periode_alokasi.bulan', $periode->bulan)
             ->where('periode_alokasi.tahun', $periode->tahun)
-            ->whereIn('periode_alokasi.status', ['dikirim', 'perubahan', 'direvisi'])
+            ->whereIn('periode_alokasi.status', ['dikirim', 'disetujui', 'perubahan', 'direvisi'])
             ->distinct()
             ->pluck('alokasi_petugas.petugas_id');
 
@@ -1007,15 +1047,23 @@ class SpkController extends Controller
             ->whereIn('status', ['dikirim', 'disetujui', 'perubahan', 'direvisi'])
             ->pluck('id');
 
+        $matchingAlokasiIds = AlokasiPetugas::query()
+            ->whereIn('periode_alokasi_id', $allPeriodeInMonth)
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->values();
+
         // Ambil semua SPK utama (addendum_number = 0)
         $mainSpks = Spk::with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
             ->where('addendum_number', 0)
-            ->whereNotNull('file_path')
+            ->where(function ($query) {
+                $query->whereNotNull('file_path')
+                    ->orWhereNotNull('signed_file_path')
+                    ->orWhereNotNull('previous_file_path');
+            })
             ->whereIn('petugas_id', $petugasIdsInKegiatan)
-            ->whereIn('alokasi_petugas_id', function ($query) use ($allPeriodeInMonth) {
-                $query->select('id')
-                    ->from('alokasi_petugas')
-                    ->whereIn('periode_alokasi_id', $allPeriodeInMonth);
+            ->where(function ($query) use ($matchingAlokasiIds) {
+                $this->applyAlokasiScopeToSpkQuery($query, $matchingAlokasiIds);
             })
             ->orderBy('nomor_spk')
             ->get();
@@ -1024,15 +1072,13 @@ class SpkController extends Controller
         $addendumSpks = Spk::with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
             ->where('addendum_number', '>', 0)
             ->where(function ($query) {
-                // Ambil addendum yang memiliki signed_file_path ATAU file_path
                 $query->whereNotNull('signed_file_path')
-                    ->orWhereNotNull('file_path');
+                    ->orWhereNotNull('file_path')
+                    ->orWhereNotNull('previous_file_path');
             })
             ->whereIn('petugas_id', $petugasIdsInKegiatan)
-            ->whereIn('alokasi_petugas_id', function ($query) use ($allPeriodeInMonth) {
-                $query->select('id')
-                    ->from('alokasi_petugas')
-                    ->whereIn('periode_alokasi_id', $allPeriodeInMonth);
+            ->where(function ($query) use ($matchingAlokasiIds) {
+                $this->applyAlokasiScopeToSpkQuery($query, $matchingAlokasiIds);
             })
             ->orderBy('nomor_spk')
             ->orderBy('addendum_number')
@@ -1107,6 +1153,7 @@ class SpkController extends Controller
         }
 
         $filesAdded = 0;
+        $usedZipEntryNames = [];
         foreach ($allSpks as $spk) {
             $fileToUse = $this->resolvePreferredSpkFilePathForZip($spk);
             if (! $fileToUse) {
@@ -1119,6 +1166,7 @@ class SpkController extends Controller
             }
 
             $zipFileNameInArchive = $this->buildZipFilenameForSpk($spk, $fileToUse);
+            $zipFileNameInArchive = $this->makeUniqueZipEntryName($zipFileNameInArchive, $usedZipEntryNames);
             $zip->addFile($filePath, $zipFileNameInArchive);
             $filesAdded++;
         }
@@ -1178,6 +1226,12 @@ class SpkController extends Controller
             ->whereIn('status', ['dikirim', 'disetujui', 'perubahan', 'direvisi'])
             ->pluck('id');
 
+        $matchingAlokasiIds = AlokasiPetugas::query()
+            ->whereIn('periode_alokasi_id', $allPeriodeInMonth)
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->values();
+
         // Get ALL SPKs for these petugas in this month/year, regardless of which kegiatan the SPK was created for
         $allSpks = Spk::with(['alokasiPetugas.petugas', 'alokasiPetugas.periodeAlokasi.kegiatan'])
             ->where(function ($q) {
@@ -1185,10 +1239,8 @@ class SpkController extends Controller
                     ->orWhereNotNull('signed_file_path');
             })
             ->whereIn('petugas_id', $petugasIdsInKegiatan)
-            ->whereIn('alokasi_petugas_id', function ($query) use ($allPeriodeInMonth) {
-                $query->select('id')
-                    ->from('alokasi_petugas')
-                    ->whereIn('periode_alokasi_id', $allPeriodeInMonth);
+            ->where(function ($query) use ($matchingAlokasiIds) {
+                $this->applyAlokasiScopeToSpkQuery($query, $matchingAlokasiIds);
             })
             ->orderBy('nomor_spk')
             ->orderBy('addendum_number')
@@ -1198,16 +1250,15 @@ class SpkController extends Controller
             return redirect()->back()->with('error', 'Tidak ada SPK untuk kegiatan ini di periode tersebut.');
         }
 
-        // Check if all SPKs have files that exist physically
+        // Check if SPKs have at least one valid physical file available to download.
         $missingFiles = $allSpks->filter(function ($spk) {
-            // Check either signed_file_path or file_path
-            $fileToUse = $spk->signed_file_path ?? $spk->file_path;
+            $fileToUse = $this->resolvePreferredSpkFilePathForZip($spk);
 
             if (empty($fileToUse)) {
-                return true; // Missing file
+                return true;
             }
 
-            return ! file_exists(public_path($fileToUse)); // File path exists but file doesn't
+            return ! file_exists(public_path($fileToUse));
         });
 
         if ($missingFiles->isNotEmpty()) {
@@ -1264,6 +1315,7 @@ class SpkController extends Controller
         }
 
         $filesAdded = 0;
+        $usedZipEntryNames = [];
         // Add each SPK file to ZIP with organized folder structure
         foreach ($allSpks as $spk) {
             // Resolve file path by addendum number first to avoid cross-document mismatches.
@@ -1276,6 +1328,7 @@ class SpkController extends Controller
 
             if (file_exists($filePath)) {
                 $zipFileNameInArchive = $this->buildZipFilenameForSpk($spk, $fileToUse);
+                $zipFileNameInArchive = $this->makeUniqueZipEntryName($zipFileNameInArchive, $usedZipEntryNames);
 
                 $zip->addFile($filePath, $zipFileNameInArchive);
                 $filesAdded++;
@@ -1520,8 +1573,10 @@ class SpkController extends Controller
             mkdir($publicDir, 0755, true);
         }
 
-        $previousGeneratedPath = $spk->file_path;
         $previousSignedPath = $spk->signed_file_path;
+        $previousGeneratedPath = $spk->file_path;
+        $previousDocumentPath = $previousSignedPath ?: $previousGeneratedPath;
+
         if ($previousSignedPath && file_exists(public_path($previousSignedPath))) {
             @unlink(public_path($previousSignedPath));
         }
@@ -1537,8 +1592,8 @@ class SpkController extends Controller
             'status' => 'draft',
         ];
 
-        if ($previousGeneratedPath) {
-            $updates['previous_file_path'] = $previousGeneratedPath;
+        if ($previousDocumentPath) {
+            $updates['previous_file_path'] = $previousDocumentPath;
         }
 
         if ($previousSignedPath) {
@@ -1877,6 +1932,52 @@ class SpkController extends Controller
         return '/downloads/'.rawurlencode($filename);
     }
 
+    private function applyAlokasiScopeToSpkQuery($query, Collection $matchingAlokasiIds): void
+    {
+        if ($matchingAlokasiIds->isEmpty()) {
+            $query->whereRaw('0 = 1');
+
+            return;
+        }
+
+        $query->where(function ($scopeQuery) use ($matchingAlokasiIds): void {
+            $scopeQuery->whereIn('alokasi_petugas_id', $matchingAlokasiIds->all());
+
+            foreach ($matchingAlokasiIds as $alokasiId) {
+                $scopeQuery->orWhereJsonContains('alokasi_petugas_ids', (int) $alokasiId)
+                    ->orWhereJsonContains('alokasi_petugas_ids', (string) $alokasiId);
+            }
+        });
+    }
+
+    private function resolveDownloadScopeContext(Request $request): string
+    {
+        $context = strtolower((string) $request->input('context', 'regular'));
+        if (in_array($context, ['sensus', 'sensus-ekonomi', 'period-based', 'period_based'], true)) {
+            return 'sensus';
+        }
+
+        if ($request->filled('mode') && strtolower((string) $request->input('mode')) === 'sensus-ekonomi') {
+            return 'sensus';
+        }
+
+        if ($request->filled('periode_hashed_id')) {
+            $periodeId = Hashids::decode((string) $request->input('periode_hashed_id'))[0] ?? null;
+            if ($periodeId) {
+                $periode = PeriodeAlokasi::with('kegiatan')->find($periodeId);
+                if ($periode && $this->usesPeriodBasedSpkFlow($periode)) {
+                    return 'sensus';
+                }
+            }
+        }
+
+        if ($request->filled('jenis_kegiatan')) {
+            return strtolower((string) $request->input('jenis_kegiatan')) === 'sensus' ? 'sensus' : 'survei';
+        }
+
+        return 'survei';
+    }
+
     private function resolvePreferredSpkFilePathForZip(Spk $spk): ?string
     {
         $candidates = collect([$spk->signed_file_path, $spk->file_path])
@@ -1924,16 +2025,39 @@ class SpkController extends Controller
     private function buildZipFilenameForSpk(Spk $spk, string $sourcePath): string
     {
         $petugasName = preg_replace('/[\/\\:*?"<>|]/', '_', $spk->alokasiPetugas->petugas->nama);
-        $fileName = basename($sourcePath);
+        $safeNomor = preg_replace('/[^A-Za-z0-9._-]+/', '_', (string) ($spk->nomor_spk ?: basename($sourcePath)));
 
         if ((int) ($spk->addendum_number ?? 0) > 0) {
-            $baseFileName = preg_replace('/\.pdf$/i', '', $fileName);
+            $baseFileName = preg_replace('/\.pdf$/i', '', basename($sourcePath));
             $baseFileName = preg_replace('/(?:_ADDENDUM_\d+|_ADD-\d+)$/i', '', (string) $baseFileName);
 
-            return "{$petugasName}_{$baseFileName}_ADDENDUM_{$spk->addendum_number}.pdf";
+            return sprintf('%s_%s_ADDENDUM_%s.pdf', $petugasName, $safeNomor, $spk->addendum_number);
         }
 
-        return "{$petugasName}_{$fileName}";
+        return sprintf('%s_%s.pdf', $petugasName, $safeNomor);
+    }
+
+    private function makeUniqueZipEntryName(string $candidate, array &$usedNames): string
+    {
+        if (! isset($usedNames[$candidate])) {
+            $usedNames[$candidate] = true;
+
+            return $candidate;
+        }
+
+        $info = pathinfo($candidate);
+        $baseName = $info['filename'] ?? basename($candidate, '.'.$info['extension'] ?? '');
+        $extension = isset($info['extension']) && $info['extension'] !== '' ? '.'.$info['extension'] : '';
+        $suffix = 2;
+
+        do {
+            $candidate = $baseName.'_'.$suffix.$extension;
+            $suffix++;
+        } while (isset($usedNames[$candidate]));
+
+        $usedNames[$candidate] = true;
+
+        return $candidate;
     }
 
     /**
@@ -7627,6 +7751,8 @@ class SpkController extends Controller
                 if ($existingSpkRecord) {
                     // Update existing SPK with new data
                     // Save previous file_path and signed_file_path before updating
+                    $previousDocumentPath = $existingSpkRecord->signed_file_path ?: $existingSpkRecord->file_path;
+
                     $updateData = [
                         'nomor_urut_base' => $noUrut, // Populate base number if NULL
                         'alokasi_petugas_ids' => $allAlokasiPetugas->pluck('id')->toArray(),
@@ -7642,9 +7768,12 @@ class SpkController extends Controller
                         'regeneration_count' => ($existingSpkRecord->regeneration_count ?? 0) + 1, // Increment count
                     ];
 
+                    if ($previousDocumentPath) {
+                        $updateData['previous_file_path'] = $previousDocumentPath;
+                    }
+
                     // If there was a signed file, move it to previous_file_path and reset signed_file_path
                     if ($existingSpkRecord->signed_file_path) {
-                        $updateData['previous_file_path'] = $existingSpkRecord->signed_file_path;
                         $updateData['signed_file_path'] = null; // Reset signed file for new regenerated SPK
                     }
 

@@ -237,4 +237,160 @@ class SpkShowByMonthPeriodContextTest extends TestCase
             ->where('tahun', $tahun)
         );
     }
+
+    public function test_download_all_by_periode_accepts_disetujui_periods_for_selected_kegiatan(): void
+    {
+        $approverRole = Role::firstOrCreate(
+            ['name' => 'approver'],
+            ['display_name' => 'Approver', 'description' => 'Role approver']
+        );
+
+        $user = User::factory()->create();
+        $user->roles()->attach($approverRole->id);
+
+        $this->actingAs($user)
+            ->withSession(['active_role_id' => $approverRole->id, 'active_role_user_id' => $user->id]);
+
+        $tahun = ActiveYearService::get();
+        $kegiatan = Kegiatan::factory()->create([
+            'nama_kegiatan' => 'Survei Kebutuhan',
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '05',
+            'tahun' => $tahun,
+            'status' => 'disetujui',
+            'jenis_kegiatan' => 'survei',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Unduhan',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $alokasi = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 1,
+            'total_honor' => 120000,
+        ]);
+
+        $filePath = '/downloads/test-pk-unduhan.pdf';
+        $fullPath = public_path($filePath);
+        $directory = dirname($fullPath);
+        if (! is_dir($directory)) {
+            mkdir($directory, 0777, true);
+        }
+        file_put_contents($fullPath, '%PDF-1.4 test file');
+
+        Spk::query()->create([
+            'nomor_spk' => 'PPIS/13730/1/K/'.$tahun,
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasi->id,
+            'alokasi_petugas_ids' => [$alokasi->id],
+            'addendum_number' => 0,
+            'nomor_urut_base' => 1,
+            'tanggal_spk' => "{$tahun}-05-01",
+            'tanggal_mulai_kerja' => "{$tahun}-05-01",
+            'tanggal_selesai_kerja' => "{$tahun}-05-31",
+            'uraian_pekerjaan' => 'Perjanjian kerja unduhan',
+            'nilai_kontrak' => 120000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'file_path' => $filePath,
+            'signed_file_path' => $filePath,
+            'created_by' => $user->id,
+        ]);
+
+        $response = $this->get('/spk/periode/'.$periode->hashed_id.'/kegiatan/'.$kegiatan->hashed_id.'/download-all');
+
+        $response->assertOk();
+        $response->assertHeader('content-disposition', fn (string $header) => str_contains($header, 'attachment; filename="SPK_'));
+    }
+
+    public function test_download_all_for_month_includes_non_survey_activities(): void
+    {
+        $approverRole = Role::firstOrCreate(
+            ['name' => 'approver'],
+            ['display_name' => 'Approver', 'description' => 'Role approver']
+        );
+
+        $user = User::factory()->create();
+        $user->roles()->attach($approverRole->id);
+
+        $this->actingAs($user)
+            ->withSession(['active_role_id' => $approverRole->id, 'active_role_user_id' => $user->id]);
+
+        $tahun = ActiveYearService::get();
+        $kegiatan = Kegiatan::factory()->create([
+            'nama_kegiatan' => 'Sensus Ekonomi',
+            'tahun_anggaran' => $tahun,
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'sensus',
+        ]);
+
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '05',
+            'tahun' => $tahun,
+            'status' => 'disetujui',
+            'jenis_kegiatan' => 'sensus',
+        ]);
+
+        $petugas = Petugas::factory()->create([
+            'nama' => 'Petugas Sensus Unduhan',
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+
+        $alokasi = AlokasiPetugas::factory()->create([
+            'periode_alokasi_id' => $periode->id,
+            'petugas_id' => $petugas->id,
+            'peran' => 'pcl_ppl',
+            'status_kepegawaian' => 'non_organik',
+            'jumlah_satuan' => 1,
+            'total_honor' => 120000,
+        ]);
+
+        $filePath = '/downloads/test-pk-sensus.pdf';
+        $fullPath = public_path($filePath);
+        $directory = dirname($fullPath);
+        if (! is_dir($directory)) {
+            mkdir($directory, 0777, true);
+        }
+        file_put_contents($fullPath, '%PDF-1.4 test file');
+
+        Spk::query()->create([
+            'nomor_spk' => 'B-001/SPK-SE2026/1373/PL.200/'.$tahun,
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasi->id,
+            'alokasi_petugas_ids' => [$alokasi->id],
+            'addendum_number' => 0,
+            'nomor_urut_base' => 1,
+            'tanggal_spk' => "{$tahun}-05-01",
+            'tanggal_mulai_kerja' => "{$tahun}-05-01",
+            'tanggal_selesai_kerja' => "{$tahun}-05-31",
+            'uraian_pekerjaan' => 'Perjanjian kerja sensus',
+            'nilai_kontrak' => 120000,
+            'nama_ppk' => 'PPK Test',
+            'nip_ppk' => '198001012010011001',
+            'status' => 'diterbitkan',
+            'file_path' => $filePath,
+            'signed_file_path' => $filePath,
+            'created_by' => $user->id,
+        ]);
+
+        $response = $this->get('/spk/download-all?bulan=5&tahun='.$tahun);
+
+        $response->assertOk();
+        $response->assertHeader('content-disposition', fn (string $header) => str_contains($header, 'attachment; filename="SPK_'));
+    }
 }

@@ -98,7 +98,7 @@ class SpkRegenerateDocumentTest extends TestCase
         $spk->refresh();
         $this->assertNull($spk->signed_file_path);
         $this->assertSame('draft', $spk->status);
-        $this->assertSame('spk-export/2026/05/SPK_137_John_Doe_Mei.pdf', $spk->previous_file_path);
+        $this->assertSame('spk-export/2026/05/SPK_137_John_Doe_Mei_signed.pdf', $spk->previous_file_path);
         $this->assertStringContainsString('SPK_137_John_Doe_Mei.pdf', $spk->file_path);
         $this->assertFileDoesNotExist($signedFile);
     }

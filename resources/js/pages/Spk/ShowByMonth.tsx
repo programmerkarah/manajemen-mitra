@@ -460,7 +460,19 @@ export default function ShowByMonth({
     const handleDownloadAll = async () => {
         // Construct deterministic filename
         const filename = constructDownloadAllFilename(bulan, tahun);
-        const fallbackUrl = `/spk/download-all?bulan=${bulan}&tahun=${tahun}`;
+        const query = new URLSearchParams({
+            bulan: String(bulan),
+            tahun: String(tahun),
+        });
+
+        if (isSensusEkonomiContext) {
+            query.set('periode_hashed_id', periode.hashed_id);
+            query.set('context', 'sensus-ekonomi');
+        } else {
+            query.set('context', 'regular');
+        }
+
+        const fallbackUrl = `/spk/download-all?${query.toString()}`;
 
         // Try direct download first, fallback to Laravel route if not exists
         await tryDirectDownload(filename, fallbackUrl);
@@ -669,7 +681,7 @@ export default function ShowByMonth({
                             <Button
                                 variant="outline"
                                 onClick={handleDownloadAll}
-                                className="w-full"
+                                className="w-full cursor-pointer"
                                 size="sm"
                             >
                                 <Archive className="mr-2 h-4 w-4" />
@@ -760,11 +772,8 @@ export default function ShowByMonth({
                                 )}
                             </div>
                         </div>
-                    </ContentCard>
-
-                    {/* Download SPK per Kegiatan */}
-                    {decryptedUniqueKegiatanList.length > 0 && (
-                        <ContentCard>
+                        {/* Download SPK per Kegiatan */}
+                        {decryptedUniqueKegiatanList.length > 0 && (
                             <div className="space-y-4">
                                 <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
                                     Download {documentLabel} per Kegiatan
@@ -862,8 +871,8 @@ export default function ShowByMonth({
                                     )}
                                 </div>
                             </div>
-                        </ContentCard>
-                    )}
+                        )}
+                    </ContentCard>
                 </div>
 
                 {/* Main Content - SPK Details */}
@@ -937,6 +946,7 @@ export default function ShowByMonth({
                                                                 <Button
                                                                     size="sm"
                                                                     variant="regenerate"
+                                                                    className="cursor-pointer"
                                                                     onClick={() =>
                                                                         handleRegenerateDocument(
                                                                             doc,
@@ -972,6 +982,7 @@ export default function ShowByMonth({
                                                                     <Button
                                                                         size="sm"
                                                                         variant="outline"
+                                                                        className="cursor-pointer"
                                                                         onClick={() =>
                                                                             setUploadingDocId(
                                                                                 doc.hashed_id,
@@ -1001,9 +1012,9 @@ export default function ShowByMonth({
                                                                                 doc.previous_file_path!,
                                                                             )
                                                                         }
-                                                                        className="w-full"
+                                                                        className="w-full cursor-pointer"
                                                                     >
-                                                                        <Download className="mr-2 h-4 w-4" />
+                                                                        <Download className="mr-2 h-3.5 w-3.5" />
                                                                         Unduh
                                                                         Versi
                                                                         Sebelumnya
