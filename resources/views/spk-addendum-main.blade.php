@@ -38,7 +38,7 @@
 
         html,
         body {
-            margin: 0;
+            margin: 2cm 2.5cm 2cm 2.5cm;
             padding: 0;
         }
 
@@ -236,47 +236,6 @@
             background-color: #f0f0f0;
             font-weight: bold;
         }
-
-        /*
-         * DomPDF: use one source of page margins and table layout for party columns.
-         * This prevents double margins, incorrect font metrics and clipped/overlapping text.
-         */
-        body {
-            margin: 0;
-            letter-spacing: normal;
-            word-spacing: normal;
-        }
-
-        .content,
-        .party-detail,
-        .pasal-content,
-        .pasal-item-content,
-        .sub-item-content {
-            letter-spacing: normal;
-            word-spacing: normal;
-        }
-
-        .party {
-            display: table;
-            width: 100%;
-            table-layout: fixed;
-            overflow: visible;
-        }
-
-        .party-number,
-        .party-name,
-        .party-colon,
-        .party-detail {
-            display: table-cell;
-            float: none;
-            margin-left: 0;
-            vertical-align: top;
-        }
-
-        .party-number { width: 30px; }
-        .party-name { width: 185px; }
-        .party-colon { width: 20px; }
-        .party-detail { width: auto; }
     </style>
 </head>
 <body>
