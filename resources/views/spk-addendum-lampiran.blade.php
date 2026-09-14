@@ -12,20 +12,20 @@
 
         @font-face {
             font-family: 'Bookman Old Style';
-            src: url('/fonts/Bookman Old Style Bold.TTF') format('truetype');
+            src: url('{{ storage_path("fonts/Bookman Old Style.ttf") }}') format('truetype');
             font-weight: normal;
             font-style: normal;
         }
         @font-face {
-			font-family: 'Bookman Old Style';
-			src: url('/fonts/Bookman Old Style Bold.TTF') format('truetype');
-			font-weight: normal;
-			font-style: italic;
-		}
+            font-family: 'Bookman Old Style';
+            src: url('{{ storage_path("fonts/Bookman Old Style Italic.ttf") }}') format('truetype');
+            font-weight: normal;
+            font-style: italic;
+        }
 
         @font-face {
             font-family: 'Bookman Old Style';
-            src: url('/fonts/Bookman Old Style Bold.TTF') format('truetype');
+            src: url('{{ storage_path("fonts/Bookman Old Style Bold.ttf") }}') format('truetype');
             font-weight: bold;
             font-style: normal;
         }
