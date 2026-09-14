@@ -12,23 +12,23 @@
 
         @font-face {
             font-family: 'Bookman Old Style';
-            src: url('/fonts/Bookman Old Style Bold.TTF') format('truetype');
+            src: url('{{ public_path("/Bookman Old Style Normal.ttf") }}') format('truetype');
             font-weight: normal;
             font-style: normal;
         }
 
         @font-face {
             font-family: 'Bookman Old Style';
-            src: url('/fonts/Bookman Old Style Bold.TTF') format('truetype');
+            src: url('{{ public_path("/Bookman Old Style Bold.ttf") }}') format('truetype');
             font-weight: bold;
             font-style: normal;
         }
         @font-face {
-			font-family: 'Bookman Old Style';
-			src: url('/fonts/Bookman Old Style Bold.TTF') format('truetype');
-			font-weight: normal;
-			font-style: italic;
-		}
+            font-family: 'Bookman Old Style';
+            src: url('{{ public_path("/Bookman Old Style Italic.ttf") }}') format('truetype');
+            font-weight: normal;
+            font-style: italic;
+        }
 
         * {
             margin: 0;
@@ -46,9 +46,9 @@
             font-family: 'Bookman Old Style', 'Times New Roman', serif;
             font-size: 11pt;
             line-height: 1.15;
-            letter-spacing: -0.02em;
+            letter-spacing: normal;
             color: #000;
-              margin: 2cm 2.5cm 2cm 2.5cm;
+              margin: 0;
         }
 
         .header {
@@ -236,6 +236,47 @@
             background-color: #f0f0f0;
             font-weight: bold;
         }
+
+        /*
+         * DomPDF: use one source of page margins and table layout for party columns.
+         * This prevents double margins, incorrect font metrics and clipped/overlapping text.
+         */
+        body {
+            margin: 0;
+            letter-spacing: normal;
+            word-spacing: normal;
+        }
+
+        .content,
+        .party-detail,
+        .pasal-content,
+        .pasal-item-content,
+        .sub-item-content {
+            letter-spacing: normal;
+            word-spacing: normal;
+        }
+
+        .party {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+            overflow: visible;
+        }
+
+        .party-number,
+        .party-name,
+        .party-colon,
+        .party-detail {
+            display: table-cell;
+            float: none;
+            margin-left: 0;
+            vertical-align: top;
+        }
+
+        .party-number { width: 30px; }
+        .party-name { width: 185px; }
+        .party-colon { width: 20px; }
+        .party-detail { width: auto; }
     </style>
 </head>
 <body>
