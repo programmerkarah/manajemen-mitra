@@ -148,6 +148,38 @@ const PREVIEW_INLINE_ERROR_LIMIT = 6;
 const NO_CHANGE_MESSAGE =
     'Tidak ada perubahan data, baris ini akan dilewati saat import.';
 
+const maskNikNip = (value: string | null | undefined): string => {
+    const text = value?.trim() ?? '';
+
+    if (!text) return '-';
+    if (text.length <= 8) return '*'.repeat(text.length);
+
+    return `${text.slice(0, 4)}${'*'.repeat(text.length - 8)}${text.slice(-4)}`;
+};
+
+const maskMiddlePhoneDigits = (
+    value: string | null | undefined,
+): string => {
+    const text = value?.trim() ?? '';
+
+    if (!text) return '-';
+
+    const digitIndexes = Array.from(text)
+        .map((character, index) => (/\d/.test(character) ? index : -1))
+        .filter((index) => index >= 0);
+    const maskCount = Math.min(4, digitIndexes.length);
+    const maskStart = Math.floor((digitIndexes.length - maskCount) / 2);
+    const indexesToMask = new Set(
+        digitIndexes.slice(maskStart, maskStart + maskCount),
+    );
+
+    return Array.from(text)
+        .map((character, index) =>
+            indexesToMask.has(index) ? '*' : character,
+        )
+        .join('');
+};
+
 const PREVIEW_COLUMNS: Array<{ key: string; label: string }> = [
     { key: 'nama', label: 'Nama' },
     { key: 'nik', label: 'NIK' },
@@ -231,7 +263,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
             result = result.filter(
                 (item: Petugas) =>
                     item.nama?.toLowerCase().includes(query) ||
-                    item.nik_masked?.toLowerCase().includes(query) ||
+                    item.nik?.toLowerCase().includes(query) ||
                     item.email?.toLowerCase().includes(query),
             );
         }
@@ -799,7 +831,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                                 </div>
                                             </td>
                                             <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                                {Petugas.nik}
+                                                {maskNikNip(Petugas.nik)}
                                             </td>
                                             <td className="px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                                                 <div
@@ -815,7 +847,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                                 ) ?? '-'}
                                             </td>
                                             <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                                {Petugas.telepon}
+                                                {maskMiddlePhoneDigits(Petugas.telepon)}
                                             </td>
                                             <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                 {Petugas.pendidikan}
