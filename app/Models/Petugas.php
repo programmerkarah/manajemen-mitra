@@ -72,6 +72,7 @@ class Petugas extends Model
     protected $appends = [
         'hashed_id',
         'nik_masked',
+        'telepon_masked',
         'npwp_masked',
         'no_rekening_masked',
     ];
@@ -82,14 +83,51 @@ class Petugas extends Model
     }
 
     /**
-     * Keep the raw numeric NIK visible for display.
-     * The application should not mask or hash the identifier in the UI.
+     * Show only the first and last four characters of NIK/NIP.
      */
     public function getNikMaskedAttribute(): string
     {
-        $nik = $this->nik;
+        $nik = trim((string) ($this->nik ?? ''));
 
-        return $nik ? (string) $nik : '';
+        if ($nik === '') {
+            return '';
+        }
+
+        if (mb_strlen($nik) <= 8) {
+            return str_repeat('*', mb_strlen($nik));
+        }
+
+        return mb_substr($nik, 0, 4)
+            .str_repeat('*', mb_strlen($nik) - 8)
+            .mb_substr($nik, -4);
+    }
+
+    /**
+     * Mask exactly four digits in the middle of the phone number while
+     * preserving prefixes and separators.
+     */
+    public function getTeleponMaskedAttribute(): string
+    {
+        $telepon = trim((string) ($this->telepon ?? ''));
+
+        if ($telepon === '') {
+            return '';
+        }
+
+        preg_match_all('/\d/', $telepon, $matches, PREG_OFFSET_CAPTURE);
+        $digitPositions = $matches[0] ?? [];
+        $maskCount = min(4, count($digitPositions));
+        $maskStart = (int) floor((count($digitPositions) - $maskCount) / 2);
+        $positionsToMask = array_column(
+            array_slice($digitPositions, $maskStart, $maskCount),
+            1
+        );
+
+        foreach (array_reverse($positionsToMask) as $position) {
+            $telepon = substr_replace($telepon, '*', $position, 1);
+        }
+
+        return $telepon;
     }
 
     /**
