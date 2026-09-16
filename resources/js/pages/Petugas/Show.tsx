@@ -35,9 +35,10 @@ interface Petugas {
     id: number;
     hashed_id: string;
     nama: string;
-    nik: string;
+    nik_masked: string;
     email: string;
     telepon: string;
+    telepon_masked: string;
     alamat: string;
     pendidikan: string;
     tahun_bergabung: number;
@@ -218,7 +219,7 @@ export default function Show({
             <div className="space-y-6">
                 <PageHeader
                     title={petugas.nama}
-                    description={`NIK/nip: ${petugas.nik} • ${petugas.pendidikan} • ${petugas.jenis_petugas === 'organik' ? 'Organik' : 'Non-Organik'}`}
+                    description={`NIK/nip: ${petugas.nik_masked || '-'} • ${petugas.pendidikan} • ${petugas.jenis_petugas === 'organik' ? 'Organik' : 'Non-Organik'}`}
                 >
                     <Button
                         variant="outline"
@@ -268,7 +269,7 @@ export default function Show({
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
                                 NIK
                             </p>
-                            <p className="font-medium">{petugas.nik}</p>
+                            <p className="font-medium">{petugas.nik_masked || '-'}</p>
                         </div>
                         <div>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
@@ -280,7 +281,7 @@ export default function Show({
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
                                 Telepon
                             </p>
-                            <p className="font-medium">{petugas.telepon}</p>
+                            <p className="font-medium">{petugas.telepon_masked || '-'}</p>
                         </div>
                         <div>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
