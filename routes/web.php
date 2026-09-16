@@ -800,6 +800,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::get('pengajuan-pulsa/template', [PengajuanPulsaController::class, 'downloadTemplate'])->name('pengajuan-pulsa.template');
         Route::post('pengajuan-pulsa/import-preview', [PengajuanPulsaController::class, 'importPreview'])->name('pengajuan-pulsa.import-preview');
         Route::get('pengajuan-pulsa/detail', [PengajuanPulsaController::class, 'detail'])->name('pengajuan-pulsa.detail');
+        Route::get('pengajuan-pulsa/detail/filter', [PengajuanPulsaController::class, 'detail'])->name('pengajuan-pulsa.detail.filter.refresh');
         Route::post('pengajuan-pulsa/detail/filter', [PengajuanPulsaController::class, 'detail'])->name('pengajuan-pulsa.detail.filter');
         Route::post('pengajuan-pulsa/detail', [PengajuanPulsaController::class, 'detail'])->name('pengajuan-pulsa.detail.post');
         Route::post('pengajuan-pulsa', [PengajuanPulsaController::class, 'store'])->name('pengajuan-pulsa.store');
