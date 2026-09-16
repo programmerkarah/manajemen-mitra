@@ -198,12 +198,18 @@ class MonitoringPulsaTest extends TestCase
     {
         [$user, $role] = $this->makeUserWithRole('admin');
 
-        $kegiatan = Kegiatan::factory()->create([
+        $kegiatanA = Kegiatan::factory()->create([
+            'nama_kegiatan' => 'Survei A',
+            'metode_pendataan_pencacahan' => 'CAPI',
+        ]);
+        $kegiatanB = Kegiatan::factory()->create([
+            'nama_kegiatan' => 'Survei B',
             'metode_pendataan_pencacahan' => 'CAPI',
         ]);
 
         $petugasApproved = Petugas::factory()->create([
             'nama' => 'Petugas Disetujui',
+            'telepon' => '081244445555',
         ]);
 
         $petugasPending = Petugas::factory()->create([
@@ -214,13 +220,13 @@ class MonitoringPulsaTest extends TestCase
         $tahun = ActiveYearService::get();
 
         PengajuanPulsa::create([
-            'kegiatan_id' => $kegiatan->id,
+            'kegiatan_id' => $kegiatanA->id,
             'petugas_id' => $petugasApproved->id,
             'bulan' => $bulan,
             'tahun' => $tahun,
             'jenis_pulsa' => 'pendataan',
-            'nominal' => 100000,
-            'nominal_disetujui' => 75000,
+            'nominal' => 60000,
+            'nominal_disetujui' => 50000,
             'status' => 'diterima',
             'submitted_by' => $user->id,
             'submitted_at' => now(),
@@ -229,7 +235,22 @@ class MonitoringPulsaTest extends TestCase
         ]);
 
         PengajuanPulsa::create([
-            'kegiatan_id' => $kegiatan->id,
+            'kegiatan_id' => $kegiatanB->id,
+            'petugas_id' => $petugasApproved->id,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'jenis_pulsa' => 'pelatihan',
+            'nominal' => 25000,
+            'nominal_disetujui' => 25000,
+            'status' => 'diterima',
+            'submitted_by' => $user->id,
+            'submitted_at' => now(),
+            'reviewed_by' => $user->id,
+            'reviewed_at' => now(),
+        ]);
+
+        PengajuanPulsa::create([
+            'kegiatan_id' => $kegiatanA->id,
             'petugas_id' => $petugasPending->id,
             'bulan' => $bulan,
             'tahun' => $tahun,
@@ -248,7 +269,14 @@ class MonitoringPulsaTest extends TestCase
                 $this->assertSame($bulan, $data['bulan']);
                 $this->assertCount(1, $data['rows']);
                 $this->assertSame($petugasApproved->nama, $data['rows'][0]['nama_petugas']);
+                $this->assertSame('081244445555', $data['rows'][0]['nomor_hp']);
+                $this->assertSame('Telkomsel', $data['rows'][0]['provider']);
                 $this->assertSame(75000.0, (float) $data['rows'][0]['jumlah_pulsa']);
+                $this->assertCount(2, $data['rows'][0]['rincian']);
+                $this->assertSame('Survei A', $data['rows'][0]['rincian'][0]['nama_kegiatan']);
+                $this->assertSame(50000.0, (float) $data['rows'][0]['rincian'][0]['nominal']);
+                $this->assertSame('Survei B', $data['rows'][0]['rincian'][1]['nama_kegiatan']);
+                $this->assertSame(25000.0, (float) $data['rows'][0]['rincian'][1]['nominal']);
 
                 return true;
             })
@@ -271,4 +299,5 @@ class MonitoringPulsaTest extends TestCase
         $response->assertStatus(200);
         $response->assertHeader('content-type', 'application/pdf');
     }
+
 }
