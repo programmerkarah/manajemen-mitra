@@ -101,6 +101,37 @@ class PengajuanPulsaTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_detail_filter_can_be_refreshed_with_get_using_saved_session_state(): void
+    {
+        [$user, $role] = $this->makeUserWithRole('admin');
+
+        $kegiatan = Kegiatan::factory()->create([
+            'metode_pendataan_pencacahan' => 'CAPI',
+            'tahun_anggaran' => date('Y'),
+        ]);
+
+        $postResponse = $this->actingAs($user)
+            ->withSession(['active_role_id' => $role->id])
+            ->post('/pengajuan-pulsa/detail/filter', [
+                'state' => encryptFilters(['kegiatan_id' => $kegiatan->id, 'bulan' => '06']),
+            ]);
+
+        $postResponse->assertOk();
+        $postResponse->assertSessionHas('pengajuan_pulsa.detail_filter', [
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '06',
+        ]);
+
+        $refreshResponse = $this->get('/pengajuan-pulsa/detail/filter');
+
+        $refreshResponse->assertOk();
+        $refreshResponse->assertInertia(fn ($page) => $page
+            ->component('PengajuanPulsa/Detail')
+            ->where('kegiatan.id', $kegiatan->id)
+            ->where('filters.bulan', '06')
+        );
+    }
+
     public function test_create_page_is_accessible_by_ketua_tim(): void
     {
         [$user, $role] = $this->makeUserWithRole('ketua_tim');
