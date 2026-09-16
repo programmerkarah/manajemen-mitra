@@ -267,6 +267,10 @@ class MonitoringPulsaTest extends TestCase
                 $this->assertSame('monitoring-pulsa-rekap-pdf', $view);
                 $this->assertSame((string) $tahun, (string) $data['tahun']);
                 $this->assertSame($bulan, $data['bulan']);
+                $this->assertSame(
+                    now()->locale('id')->translatedFormat('F Y'),
+                    $data['periode_label']
+                );
                 $this->assertCount(1, $data['rows']);
                 $this->assertSame($petugasApproved->nama, $data['rows'][0]['nama_petugas']);
                 $this->assertSame('081244445555', $data['rows'][0]['nomor_hp']);
