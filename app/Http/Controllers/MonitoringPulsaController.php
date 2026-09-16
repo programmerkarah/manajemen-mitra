@@ -156,6 +156,9 @@ class MonitoringPulsaController extends Controller
             ->values();
 
         $judul = 'Rekapitulasi Usulan Pengisian Pulsa/Paket Data Pelatihan/Pendataan Survei/Sensus di Lingkungan Badan Pusat Statistik Kota Sawahlunto hingga Tanggal '.now()->locale('id')->translatedFormat('d F Y');
+        $periodeLabel = Carbon::create((int) $tahun, (int) $bulan, 1)
+            ->locale('id')
+            ->translatedFormat('F Y');
         $timezone = config('app.timezone', 'Asia/Jakarta');
         $tanggalCetak = now()->timezone($timezone)->locale('id')->translatedFormat('d F Y H:i');
 
@@ -164,6 +167,7 @@ class MonitoringPulsaController extends Controller
             'tanggal_cetak' => $tanggalCetak,
             'bulan' => $bulan,
             'tahun' => $tahun,
+            'periode_label' => $periodeLabel,
             'rows' => $rows,
             'disclaimer' => 'Dokumen ini di-generate secara otomatis oleh SIMANTIK. Data yang ditampilkan sudah diverifikasi oleh PPK dan bisa digunakan sebagai dasar pengajuan pengadaan pulsa/paket data.',
         ])->setPaper('a4', 'portrait');
