@@ -157,9 +157,7 @@ const maskNikNip = (value: string | null | undefined): string => {
     return `${text.slice(0, 4)}${'*'.repeat(text.length - 8)}${text.slice(-4)}`;
 };
 
-const maskMiddlePhoneDigits = (
-    value: string | null | undefined,
-): string => {
+const maskMiddlePhoneDigits = (value: string | null | undefined): string => {
     const text = value?.trim() ?? '';
 
     if (!text) return '-';
@@ -174,9 +172,7 @@ const maskMiddlePhoneDigits = (
     );
 
     return Array.from(text)
-        .map((character, index) =>
-            indexesToMask.has(index) ? '*' : character,
-        )
+        .map((character, index) => (indexesToMask.has(index) ? '*' : character))
         .join('');
 };
 
@@ -847,7 +843,9 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                                 ) ?? '-'}
                                             </td>
                                             <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                                {maskMiddlePhoneDigits(Petugas.telepon)}
+                                                {maskMiddlePhoneDigits(
+                                                    Petugas.telepon,
+                                                )}
                                             </td>
                                             <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                 {Petugas.pendidikan}
