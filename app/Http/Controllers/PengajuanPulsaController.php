@@ -33,6 +33,8 @@ class PengajuanPulsaController extends Controller
 
     private const PENGOLAHAN_ROLES = ['pengolahan', 'pengawas_pengolahan', 'pemeriksa_pengolahan'];
 
+    private const DETAIL_FILTER_SESSION_KEY = 'pengajuan_pulsa.detail_filter';
+
     private function applyEncryptedState(Request $request): void
     {
         $state = $request->input('state', $request->query('state'));
@@ -1015,6 +1017,26 @@ class PengajuanPulsaController extends Controller
         $effectiveUser = effectiveUser($request);
 
         $this->applyEncryptedState($request);
+
+        // The detail page is initially rendered from a POST request containing
+        // encrypted filter state. Persist only the resolved server-side values
+        // so refreshing the URL (GET) and redirect()->back() after review can
+        // reconstruct the same page without exposing filter parameters.
+        if ($request->filled('kegiatan_id')) {
+            $request->session()->put(self::DETAIL_FILTER_SESSION_KEY, [
+                'kegiatan_id' => (int) $request->input('kegiatan_id'),
+                'bulan' => (string) $request->input('bulan', now()->format('m')),
+            ]);
+        } else {
+            $savedFilter = $request->session()->get(self::DETAIL_FILTER_SESSION_KEY);
+
+            if (is_array($savedFilter)) {
+                $request->merge([
+                    'kegiatan_id' => $savedFilter['kegiatan_id'] ?? null,
+                    'bulan' => $savedFilter['bulan'] ?? now()->format('m'),
+                ]);
+            }
+        }
 
         $kegiatanId = (int) $request->input('kegiatan_id');
         $bulan = $request->input('bulan', now()->format('m'));
