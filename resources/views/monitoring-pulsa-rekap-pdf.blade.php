@@ -29,6 +29,8 @@
         }
         table {
             width: 100%;
+            font-family: DejaVu Sans, sans-serif;
+            font-weight: normal;
             border-collapse: collapse;
             margin-top: 8px;
             table-layout: fixed;
@@ -41,6 +43,8 @@
         }
         th,
         td {
+            font-family: DejaVu Sans, sans-serif;
+            font-weight: normal;
             border: 1px solid #1f2937;
             padding: 5px 6px;
             vertical-align: top;
@@ -79,9 +83,6 @@
             text-align: right;
             white-space: nowrap;
         }
-        tr.petugas-row td {
-            font-weight: 600;
-        }
         tr.detail-row td {
             background: #fafafa;
         }
@@ -104,7 +105,7 @@
     <h1>{{ $judul }}</h1>
 
     <p class="meta">Tanggal dicetak: {{ $tanggal_cetak }}</p>
-    <p class="periode">Periode: {{ $bulan }}/{{ $tahun }}</p>
+    <p class="periode">Periode: {{ $periode_label }}</p>
 
     <table>
         <thead>
