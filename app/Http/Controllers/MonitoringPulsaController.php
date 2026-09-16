@@ -109,7 +109,10 @@ class MonitoringPulsaController extends Controller
         $tahun = ActiveYearService::get();
 
         $approvedItems = PengajuanPulsa::query()
-            ->with('petugas:id,nama')
+            ->with([
+                'petugas:id,nama,telepon',
+                'kegiatan:id,nama_kegiatan',
+            ])
             ->where('bulan', $bulan)
             ->where('tahun', $tahun)
             ->where('status', 'diterima')
@@ -120,13 +123,33 @@ class MonitoringPulsaController extends Controller
         $rows = $approvedItems
             ->groupBy('petugas_id')
             ->map(function ($items) {
+                /** @var PengajuanPulsa|null $first */
                 $first = $items->first();
+                $nomorHp = trim((string) ($first?->petugas?->telepon ?? ''));
+
+                $rincian = $items
+                    ->groupBy('kegiatan_id')
+                    ->map(function ($kegiatanItems) {
+                        /** @var PengajuanPulsa|null $firstKegiatan */
+                        $firstKegiatan = $kegiatanItems->first();
+
+                        return [
+                            'nama_kegiatan' => $firstKegiatan?->kegiatan?->nama_kegiatan ?? '-',
+                            'nominal' => (float) $kegiatanItems->sum(function (PengajuanPulsa $item) {
+                                return $item->nominal_disetujui ?? $item->nominal;
+                            }),
+                        ];
+                    })
+                    ->sortBy('nama_kegiatan')
+                    ->values()
+                    ->all();
 
                 return [
                     'nama_petugas' => $first?->petugas?->nama ?? '-',
-                    'jumlah_pulsa' => (float) $items->sum(function (PengajuanPulsa $item) {
-                        return $item->nominal_disetujui ?? $item->nominal;
-                    }),
+                    'nomor_hp' => $nomorHp !== '' ? $nomorHp : '-',
+                    'provider' => $this->detectProvider($nomorHp),
+                    'jumlah_pulsa' => (float) collect($rincian)->sum('nominal'),
+                    'rincian' => $rincian,
                 ];
             })
             ->sortBy('nama_petugas')
@@ -154,5 +177,57 @@ class MonitoringPulsaController extends Controller
         );
 
         return $pdf->download($filename);
+    }
+
+    /**
+     * Determine the Indonesian mobile provider from the first four digits.
+     * Numbers using +62/62 or omitting the leading zero are normalized first.
+     */
+    private function detectProvider(?string $phoneNumber): string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phoneNumber) ?? '';
+
+        if (str_starts_with($digits, '62')) {
+            $digits = '0'.substr($digits, 2);
+        } elseif (str_starts_with($digits, '8')) {
+            $digits = '0'.$digits;
+        }
+
+        $prefix = substr($digits, 0, 4);
+
+        $providers = [
+            'Telkomsel' => [
+                '0811', '0812', '0813',
+                '0821', '0822', '0823',
+                '0851', '0852', '0853',
+            ],
+            'Indosat' => [
+                '0814', '0815', '0816',
+                '0855', '0856', '0857', '0858',
+            ],
+            'XL' => [
+                '0817', '0818', '0819',
+                '0859', '0877', '0878',
+            ],
+            'AXIS' => [
+                '0831', '0832', '0833', '0838',
+            ],
+            'Tri' => [
+                '0895', '0896', '0897', '0898', '0899',
+            ],
+            'Smartfren' => [
+                '0880', '0881', '0882', '0883', '0884',
+                '0885', '0886', '0887', '0888', '0889',
+            ],
+            'Ceria' => ['0828'],
+        ];
+
+        foreach ($providers as $provider => $prefixes) {
+            if (in_array($prefix, $prefixes, true)) {
+                return $provider;
+            }
+        }
+
+        return 'Tidak diketahui';
     }
 }
