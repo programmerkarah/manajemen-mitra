@@ -269,7 +269,9 @@ export default function Show({
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
                                 NIK
                             </p>
-                            <p className="font-medium">{petugas.nik_masked || '-'}</p>
+                            <p className="font-medium">
+                                {petugas.nik_masked || '-'}
+                            </p>
                         </div>
                         <div>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
@@ -281,7 +283,9 @@ export default function Show({
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
                                 Telepon
                             </p>
-                            <p className="font-medium">{petugas.telepon_masked || '-'}</p>
+                            <p className="font-medium">
+                                {petugas.telepon_masked || '-'}
+                            </p>
                         </div>
                         <div>
                             <p className="text-sm text-neutral-600 dark:text-neutral-400">
