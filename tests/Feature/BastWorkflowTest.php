@@ -427,6 +427,7 @@ class BastWorkflowTest extends TestCase
         $bast->refresh();
         $this->assertNotNull($bast->main_signed_file_path);
         $this->assertNull($bast->signed_file_path);
+        $this->assertSame('draft', $bast->status);
 
         $firstLampiran = $bast->bastKegiatan()->orderBy('id')->firstOrFail();
         $secondLampiran = $bast->bastKegiatan()->orderBy('id')->skip(1)->firstOrFail();
@@ -455,6 +456,7 @@ class BastWorkflowTest extends TestCase
 
         $this->assertNotNull($bast->signed_file_path);
         $this->assertFileExists(public_path($bast->signed_file_path));
+        $this->assertSame('diterbitkan', $bast->status);
     }
 
     public function test_preview_petugas_without_bast_keeps_existing_bast_list_visible(): void
