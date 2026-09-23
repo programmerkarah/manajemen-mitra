@@ -6938,6 +6938,17 @@ class BastController extends Controller
             ]);
 
             $this->syncCompiledBastFiles($bast->fresh('bastKegiatan'));
+            $bast->refresh()->load('bastKegiatan');
+
+            $allSignedSourcesReady = $bast->bastKegiatan->isNotEmpty()
+                && $bast->bastKegiatan->every(fn (BastKegiatan $item) => filled($item->signed_file_path));
+
+            if ($allSignedSourcesReady && blank($bast->signed_file_path)) {
+                return redirect()->back()->with(
+                    'error',
+                    'BAST utama dan seluruh lampiran signed sudah tersedia, tetapi PDF gabungan gagal dibuat. Periksa laravel.log untuk detail engine PDF.'
+                );
+            }
 
             return redirect()->back()->with('success', 'BAST main bertanda tangan berhasil diunggah');
         } catch (\Exception $e) {
