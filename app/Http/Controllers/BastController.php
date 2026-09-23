@@ -1012,7 +1012,7 @@ class BastController extends Controller
                     $this->deleteStoredDocument($bast->signed_file_path);
                     $bast->forceFill([
                         'signed_file_path' => $bast->main_signed_file_path,
-                        'status' => 'diterbitkan',
+                        'status' => 'diserahkan',
                     ])->save();
                 }
             } elseif (filled($bast->signed_file_path)) {
@@ -1057,7 +1057,7 @@ class BastController extends Controller
 
             if ($compiledSignedPath) {
                 $updates['signed_file_path'] = $compiledSignedPath;
-                $updates['status'] = 'diterbitkan';
+                $updates['status'] = 'diserahkan';
             } else {
                 $updates['signed_file_path'] = null;
                 $updates['status'] = 'draft';
@@ -6856,7 +6856,7 @@ class BastController extends Controller
                 if (! $isLegacyMode
                     && filled($bast->main_signed_file_path)
                     && $allLampiranSigned
-                    && (blank($bast->signed_file_path) || $bast->status !== 'diterbitkan')) {
+                    && (blank($bast->signed_file_path) || $bast->status !== 'diserahkan')) {
                     $this->syncCompiledBastFiles($bast);
                     $bast->refresh();
                 }
@@ -6913,7 +6913,7 @@ class BastController extends Controller
                 $bast->update([
                     'main_signed_file_path' => $mainSignedPath,
                     'signed_file_path' => $mainSignedPath,
-                    'status' => 'diterbitkan',
+                    'status' => 'diserahkan',
                 ]);
 
                 return redirect()->back()->with('success', 'BAST bertanda tangan berhasil diunggah');
@@ -6924,7 +6924,7 @@ class BastController extends Controller
                 $bast->update([
                     'main_signed_file_path' => $mainSignedPath,
                     'signed_file_path' => $mainSignedPath,
-                    'status' => 'diterbitkan',
+                    'status' => 'diserahkan',
                 ]);
 
                 return redirect()->back()->with('success', 'BAST bertanda tangan berhasil diunggah');
