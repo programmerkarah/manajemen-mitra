@@ -771,6 +771,13 @@ class BastController extends Controller
             ->all();
 
         if (count($absolutePaths) !== count($paths)) {
+            Log::error('Merge BAST dibatalkan karena file sumber tidak ditemukan.', [
+                'requested_paths' => $paths,
+                'resolved_count' => count($absolutePaths),
+                'requested_count' => count($paths),
+                'output_filename' => $filename,
+            ]);
+
             return null;
         }
 
@@ -784,6 +791,12 @@ class BastController extends Controller
         );
 
         if (! $merged || ! file_exists($absoluteOutputPath)) {
+            Log::error('Service PDF gagal membuat file gabungan BAST.', [
+                'output_path' => $absoluteOutputPath,
+                'source_files' => array_map('basename', $absolutePaths),
+                'subdirectory' => $subdirectory,
+            ]);
+
             return null;
         }
 
@@ -5721,8 +5734,18 @@ class BastController extends Controller
         ]);
 
         $this->syncCompiledBastFiles($bast->fresh('bastKegiatan'));
+        $bast->refresh()->load('bastKegiatan');
 
         $this->rememberOpenDetailFiltersFromBast($request, $bast);
+
+        $allSignedSourcesReady = filled($bast->main_signed_file_path)
+            && $bast->bastKegiatan->isNotEmpty()
+            && $bast->bastKegiatan->every(fn (BastKegiatan $item) => filled($item->signed_file_path));
+
+        if ($allSignedSourcesReady && blank($bast->signed_file_path)) {
+            return $this->redirectToLocalPath($request, route('bast.open-detail-by-petugas', absolute: false))
+                ->with('error', 'Semua file signed sudah diunggah, tetapi PDF gabungan gagal dibuat. Periksa laravel.log untuk detail engine PDF.');
+        }
 
         return $this->redirectToLocalPath($request, route('bast.open-detail-by-petugas', absolute: false))
             ->with('success', 'Lampiran bertanda tangan berhasil diunggah.');
