@@ -137,10 +137,14 @@ class PdfMergerService
         $commands = [];
 
         if ($qpdf = self::findBinary('qpdf')) {
+            $qpdfPages = implode(' ', array_map(
+                static fn (string $path): string => escapeshellarg($path).' 1-z',
+                $pdfPaths
+            ));
             $commands['qpdf'] = sprintf(
                 '%s --empty --pages %s -- %s',
                 escapeshellarg($qpdf),
-                $inputFiles,
+                $qpdfPages,
                 escapeshellarg($outputPath)
             );
         }
