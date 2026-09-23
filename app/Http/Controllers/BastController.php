@@ -5776,25 +5776,25 @@ class BastController extends Controller
             ->orderBy('nomor_bast')
             ->get();
 
-        // Abort 403 if not all files ready for download
-        if ($isLegacyMode) {
-            abort_unless(
-                $allBast->isNotEmpty() && $allBast->every(fn (Bast $b) => filled($b->signed_file_path)),
-                403
-            );
-        } else {
-            abort_unless(
-                $allBast->isNotEmpty() && $allBast->every(fn (Bast $b) => filled($b->compiled_file_path)),
-                403
-            );
+        // Newer periods store the signed main BAST and signed attachments
+        // separately. Rebuild the final signed bundle before validating the ZIP.
+        if (! $isLegacyMode) {
+            $allBast = $allBast->map(function (Bast $bast) {
+                $this->syncCompiledBastFiles($bast);
+
+                return $bast->fresh();
+            });
         }
 
-        $documents = $allBast->map(function (Bast $bast) use ($isLegacyMode) {
-            $path = $isLegacyMode ? $bast->signed_file_path : $bast->compiled_file_path;
+        abort_unless(
+            $allBast->isNotEmpty() && $allBast->every(fn (Bast $b) => filled($b->signed_file_path)),
+            403
+        );
 
+        $documents = $allBast->map(function (Bast $bast) {
             return [
                 'bast' => $bast,
-                'path' => $path,
+                'path' => $bast->signed_file_path,
             ];
         })->filter(fn (array $item) => filled($item['path']))->values();
 
@@ -5806,9 +5806,7 @@ class BastController extends Controller
         $zip = new \ZipArchive;
         $bulanLabel = $this->getBulanLabel((int) $bulan);
         $userSuffix = $isKetuaTim ? "_{$user->id}" : '';
-        $zipFileName = $isLegacyMode
-            ? "BAST_Signed_{$bulanLabel}_{$tahun}{$userSuffix}.zip"
-            : "BAST_{$bulanLabel}_{$tahun}{$userSuffix}.zip";
+        $zipFileName = "BAST_Signed_{$bulanLabel}_{$tahun}{$userSuffix}.zip";
 
         // Ensure downloads directory exists
         $downloadsDir = public_path('downloads');
