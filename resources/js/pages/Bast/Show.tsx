@@ -15,10 +15,8 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import {
-    constructBastDownloadFilename,
     openFastDownload,
     previewFileFromPost,
-    tryDirectDownload,
 } from '@/utils/downloadUtils';
 import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
@@ -486,21 +484,10 @@ export default function Show({
         showModalAlert('Preview Lampiran Gagal', message);
     };
 
-    const handleDownloadAll = async () => {
-        const fallbackUrl = `/berita-acara/download-all?bulan=${bulan}&tahun=${tahun}`;
-
-        if (permissions.is_ketua_tim) {
-            // Ketua tim: always hit backend (user-specific filtered ZIP, no static cache)
-            window.location.href = fallbackUrl;
-            return;
-        }
-
-        const filename = constructBastDownloadFilename(
-            bulan,
-            tahun,
-            bast.is_legacy_mode,
-        );
-        await tryDirectDownload(filename, fallbackUrl);
+    const handleDownloadAll = () => {
+        // Always let the backend validate and rebuild the signed bundle.
+        // A direct static download can serve an outdated unsigned ZIP.
+        window.location.href = `/berita-acara/download-all?bulan=${bulan}&tahun=${tahun}`;
     };
 
     const handleUploadMainSigned = (
