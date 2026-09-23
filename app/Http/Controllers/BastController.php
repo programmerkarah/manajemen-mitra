@@ -999,12 +999,14 @@ class BastController extends Controller
                     $this->deleteStoredDocument($bast->signed_file_path);
                     $bast->forceFill([
                         'signed_file_path' => $bast->main_signed_file_path,
+                        'status' => 'diterbitkan',
                     ])->save();
                 }
             } elseif (filled($bast->signed_file_path)) {
                 $this->deleteStoredDocument($bast->signed_file_path);
                 $bast->forceFill([
                     'signed_file_path' => null,
+                    'status' => 'draft',
                 ])->save();
             }
 
@@ -1042,10 +1044,15 @@ class BastController extends Controller
 
             if ($compiledSignedPath) {
                 $updates['signed_file_path'] = $compiledSignedPath;
+                $updates['status'] = 'diterbitkan';
+            } else {
+                $updates['signed_file_path'] = null;
+                $updates['status'] = 'draft';
             }
         } else {
             $this->deleteStoredDocument($bast->signed_file_path);
             $updates['signed_file_path'] = null;
+            $updates['status'] = 'draft';
         }
 
         if (! empty($updates)) {
@@ -6813,15 +6820,25 @@ class BastController extends Controller
 
                 return $this->userCanAccessBast($request, $item);
             })
-            ->map(function (Bast $bast) use ($currentBast) {
+            ->map(function (Bast $bast) use ($currentBast, $periode) {
                 $petugasNama = $bast->spk?->alokasiPetugas?->petugas?->nama ?? 'Unknown';
                 $petugasId = $bast->spk?->alokasiPetugas?->petugas?->id;
                 $allLampiranSigned = $bast->bastKegiatan->isNotEmpty()
                     && $bast->bastKegiatan->every(
                         fn (BastKegiatan $item) => filled($item->signed_file_path)
                     );
-                $finalSignedReady = filled($bast->signed_file_path)
-                    || (filled($bast->main_signed_file_path) && $allLampiranSigned);
+                $isLegacyMode = (int) $periode->tahun < 2026
+                    || ((int) $periode->tahun === 2026 && (int) $periode->bulan < 4);
+
+                if (! $isLegacyMode
+                    && filled($bast->main_signed_file_path)
+                    && $allLampiranSigned
+                    && (blank($bast->signed_file_path) || $bast->status !== 'diterbitkan')) {
+                    $this->syncCompiledBastFiles($bast);
+                    $bast->refresh();
+                }
+
+                $finalSignedReady = filled($bast->signed_file_path);
 
                 return [
                     'id' => $bast->id,
@@ -6833,6 +6850,7 @@ class BastController extends Controller
                     'compiled_file_path' => $bast->compiled_file_path,
                     'main_signed_file_path' => $bast->main_signed_file_path,
                     'signed_file_path' => $bast->signed_file_path,
+                    'status' => $bast->status,
                     'final_signed_ready' => $finalSignedReady,
                     'is_current' => $currentBast?->id === $bast->id,
                 ];
@@ -6872,6 +6890,7 @@ class BastController extends Controller
                 $bast->update([
                     'main_signed_file_path' => $mainSignedPath,
                     'signed_file_path' => $mainSignedPath,
+                    'status' => 'diterbitkan',
                 ]);
 
                 return redirect()->back()->with('success', 'BAST bertanda tangan berhasil diunggah');
@@ -6882,6 +6901,7 @@ class BastController extends Controller
                 $bast->update([
                     'main_signed_file_path' => $mainSignedPath,
                     'signed_file_path' => $mainSignedPath,
+                    'status' => 'diterbitkan',
                 ]);
 
                 return redirect()->back()->with('success', 'BAST bertanda tangan berhasil diunggah');
@@ -6891,6 +6911,7 @@ class BastController extends Controller
 
             $bast->update([
                 'main_signed_file_path' => $mainSignedPath,
+                'status' => 'draft',
             ]);
 
             $this->syncCompiledBastFiles($bast->fresh('bastKegiatan'));
