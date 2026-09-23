@@ -6818,6 +6818,12 @@ class BastController extends Controller
             ->map(function (Bast $bast) use ($currentBast) {
                 $petugasNama = $bast->spk?->alokasiPetugas?->petugas?->nama ?? 'Unknown';
                 $petugasId = $bast->spk?->alokasiPetugas?->petugas?->id;
+                $allLampiranSigned = $bast->bastKegiatan->isNotEmpty()
+                    && $bast->bastKegiatan->every(
+                        fn (BastKegiatan $item) => filled($item->signed_file_path)
+                    );
+                $finalSignedReady = filled($bast->signed_file_path)
+                    || (filled($bast->main_signed_file_path) && $allLampiranSigned);
 
                 return [
                     'id' => $bast->id,
@@ -6829,6 +6835,7 @@ class BastController extends Controller
                     'compiled_file_path' => $bast->compiled_file_path,
                     'main_signed_file_path' => $bast->main_signed_file_path,
                     'signed_file_path' => $bast->signed_file_path,
+                    'final_signed_ready' => $finalSignedReady,
                     'is_current' => $currentBast?->id === $bast->id,
                 ];
             });
