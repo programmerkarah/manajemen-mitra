@@ -441,10 +441,7 @@ export default function Show({
 
     const allSignedInList =
         sortedBastList.length > 0 &&
-        sortedBastList.every((item) => item.signed_file_path);
-    const allCompiledInList =
-        sortedBastList.length > 0 &&
-        sortedBastList.every((item) => item.compiled_file_path);
+        sortedBastList.every((item) => item.final_signed_ready);
     const activePetugasId = petugas?.id ?? null;
     const bastBelumGenerateCount = eligible_without_bast.length;
     const bastSudahGenerateCount = sortedBastList.filter((item) =>
@@ -466,9 +463,7 @@ export default function Show({
         totalPetugasPeriod - lampiranSudahLengkapCount,
         0,
     );
-    const canDownloadAll = bast.is_legacy_mode
-        ? allSignedInList
-        : allCompiledInList;
+    const canDownloadAll = allSignedInList;
     const isSensusEkonomi = Boolean(bast.is_sensus_ekonomi);
     const sensusTitle = `Sensus Ekonomi ${kegiatan.tahun_anggaran}`;
     const pageTitle = isSensusEkonomi
@@ -889,9 +884,9 @@ export default function Show({
                                                     {item.nomor_bast}
                                                 </div>
                                                 <div className="flex flex-wrap gap-2 pt-1">
-                                                    {item.signed_file_path ? (
+                                                    {item.final_signed_ready ? (
                                                         <Badge variant="default">
-                                                            Dokumen Lengkap
+                                                            Signed
                                                         </Badge>
                                                     ) : item.main_signed_file_path ? (
                                                         <Badge variant="secondary">
