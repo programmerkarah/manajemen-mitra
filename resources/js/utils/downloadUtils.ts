@@ -666,12 +666,10 @@ export const constructDownloadAllFilename = (
 export const constructBastDownloadFilename = (
     bulan: number,
     tahun: number,
-    isLegacy = false,
+    _isLegacy = false,
 ): string => {
     const bulanLabel = getBulanLabel(bulan);
-    return isLegacy
-        ? `BAST_Signed_${bulanLabel}_${tahun}.zip`
-        : `BAST_${bulanLabel}_${tahun}.zip`;
+    return `BAST_Signed_${bulanLabel}_${tahun}.zip`;
 };
 
 /**
