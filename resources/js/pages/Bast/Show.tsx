@@ -51,7 +51,7 @@ interface Bast {
     main_signed_file_path: string | null;
     signed_file_path: string | null;
     lokasi_kegiatan: string | null;
-    status: 'draft' | 'diterbitkan' | 'dibatalkan';
+    status: 'draft' | 'diserahkan' | 'diterima' | 'ditolak';
     catatan: string | null;
     is_sensus_ekonomi: boolean;
     muatan_input: number | null;
