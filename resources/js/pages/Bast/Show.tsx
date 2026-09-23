@@ -428,12 +428,16 @@ export default function Show({
         left.petugas_nama.localeCompare(right.petugas_nama),
     );
 
-    const finalSignedCount = sortedBastList.filter(
-        (item) => item.signed_file_path,
+    const totalPetugasPeriod =
+        sortedBastList.length + eligible_without_bast.length;
+    const finalSignedCount = sortedBastList.filter((item) =>
+        bast.is_legacy_mode
+            ? Boolean(item.signed_file_path)
+            : Boolean(item.main_signed_file_path),
     ).length;
     const overallProgress =
-        sortedBastList.length > 0
-            ? Math.round((finalSignedCount / sortedBastList.length) * 100)
+        totalPetugasPeriod > 0
+            ? Math.round((finalSignedCount / totalPetugasPeriod) * 100)
             : 0;
 
     const allSignedInList =
@@ -443,19 +447,13 @@ export default function Show({
         sortedBastList.length > 0 &&
         sortedBastList.every((item) => item.compiled_file_path);
     const activePetugasId = petugas?.id ?? null;
-    const totalPetugasPeriod =
-        sortedBastList.length + eligible_without_bast.length;
     const bastBelumGenerateCount = eligible_without_bast.length;
     const bastSudahGenerateCount = sortedBastList.filter((item) =>
         bast.is_legacy_mode
             ? Boolean(item.file_path || item.signed_file_path)
             : Boolean(item.file_path),
     ).length;
-    const bastSudahTtdCount = sortedBastList.filter((item) =>
-        bast.is_legacy_mode
-            ? Boolean(item.signed_file_path)
-            : Boolean(item.main_signed_file_path),
-    ).length;
+    const bastSudahTtdCount = finalSignedCount;
     const lampiranSudahLengkapCount = sortedBastList.filter((item) =>
         bast.is_legacy_mode
             ? Boolean(item.file_path)
