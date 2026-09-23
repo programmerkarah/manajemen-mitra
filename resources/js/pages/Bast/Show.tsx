@@ -132,6 +132,7 @@ interface BastListItem {
     compiled_file_path: string | null;
     main_signed_file_path: string | null;
     signed_file_path: string | null;
+    final_signed_ready: boolean;
     is_current: boolean;
 }
 
@@ -431,9 +432,7 @@ export default function Show({
     const totalPetugasPeriod =
         sortedBastList.length + eligible_without_bast.length;
     const finalSignedCount = sortedBastList.filter((item) =>
-        bast.is_legacy_mode
-            ? Boolean(item.signed_file_path)
-            : Boolean(item.main_signed_file_path),
+        Boolean(item.final_signed_ready),
     ).length;
     const overallProgress =
         totalPetugasPeriod > 0
@@ -453,7 +452,11 @@ export default function Show({
             ? Boolean(item.file_path || item.signed_file_path)
             : Boolean(item.file_path),
     ).length;
-    const bastSudahTtdCount = finalSignedCount;
+    const bastSudahTtdCount = sortedBastList.filter((item) =>
+        bast.is_legacy_mode
+            ? Boolean(item.signed_file_path)
+            : Boolean(item.main_signed_file_path),
+    ).length;
     const lampiranSudahLengkapCount = sortedBastList.filter((item) =>
         bast.is_legacy_mode
             ? Boolean(item.file_path)
