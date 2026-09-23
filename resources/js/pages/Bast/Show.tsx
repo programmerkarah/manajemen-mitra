@@ -1095,6 +1095,7 @@ export default function Show({
                                     )}
 
                                     {!bast.is_legacy_mode &&
+                                        !summary.final_signed_ready &&
                                         bast.compiled_file_path &&
                                         summary.all_lampiran_generated && (
                                             <Button
