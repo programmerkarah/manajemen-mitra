@@ -456,7 +456,7 @@ class BastWorkflowTest extends TestCase
 
         $this->assertNotNull($bast->signed_file_path);
         $this->assertFileExists(public_path($bast->signed_file_path));
-        $this->assertSame('diterbitkan', $bast->status);
+        $this->assertSame('diserahkan', $bast->status);
     }
 
     public function test_preview_petugas_without_bast_keeps_existing_bast_list_visible(): void
