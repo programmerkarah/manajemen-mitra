@@ -14,10 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import {
-    openFastDownload,
-    previewFileFromPost,
-} from '@/utils/downloadUtils';
+import { openFastDownload, previewFileFromPost } from '@/utils/downloadUtils';
 import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
