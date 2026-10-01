@@ -718,7 +718,7 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         return $columns;
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         $hasListing = $this->hasListing();
         $hasParsial = $this->hasParsial();
