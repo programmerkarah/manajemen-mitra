@@ -68,6 +68,9 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         return $this->kegiatan->jenis_kegiatan === 'survei';
     }
 
+    /**
+     * Last worksheet data row, including the heading row at row 1.
+     */
     private function templateLastRow(): int
     {
         if ($this->type === 'edit' && $this->periodeAlokasiId) {
@@ -90,18 +93,18 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                     : 1;
             }
 
-            return max(1, $rowCount);
+            return 1 + max(1, $rowCount);
         }
 
         if ($this->hasFrameSampelColumn()) {
             $frameCount = $this->frameSampelRows()->count();
 
             if ($frameCount > 0) {
-                return $frameCount;
+                return 1 + $frameCount;
             }
         }
 
-        return 6;
+        return 7;
     }
 
     /**
@@ -1133,7 +1136,7 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
                     $mainTargetStartColumn = 3 + $frameMetadataColumns->count() + ($hasListing ? 1 : 0);
                     $templateLastRow = $this->templateLastRow();
 
-                    foreach (range(2, $templateLastRow) as $rowNumber) {
+                    for ($rowNumber = 2; $rowNumber <= $templateLastRow; $rowNumber++) {
                         foreach ($frameTargetColumns as $targetIndex => $_targetColumn) {
                             $formula = $this->buildFrameTargetFormula(
                                 $rowNumber,
