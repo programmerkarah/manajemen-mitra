@@ -173,6 +173,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
     const allPetugas = useDecryptedData<Petugas>(petugas.encrypted);
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState('all');
+    const [jenisPetugas, setJenisPetugas] = useState('all');
     const [sortField, setSortField] = useState<'nama' | 'email'>('nama');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [currentPage, setCurrentPage] = useState(1);
@@ -224,9 +225,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
 
     // Client-side filtering and sorting
     const filteredAndSortedPetugas = useMemo(() => {
-        let result: Petugas[] = allPetugas.filter(
-            (item: Petugas) => item.jenis_petugas === 'non-organik',
-        );
+        let result: Petugas[] = [...allPetugas];
 
         // Filter by search
         if (search) {
@@ -242,6 +241,13 @@ export default function Index({ petugas }: PetugasIndexProps) {
         // Filter by status
         if (status && status !== 'all') {
             result = result.filter((item: Petugas) => item.status === status);
+        }
+
+        // Filter by jenis petugas
+        if (jenisPetugas !== 'all') {
+            result = result.filter(
+                (item: Petugas) => item.jenis_petugas === jenisPetugas,
+            );
         }
 
         // Sort
@@ -265,7 +271,14 @@ export default function Index({ petugas }: PetugasIndexProps) {
         });
 
         return result;
-    }, [allPetugas, search, status, sortField, sortDirection]);
+    }, [
+        allPetugas,
+        search,
+        status,
+        jenisPetugas,
+        sortField,
+        sortDirection,
+    ]);
 
     // Client-side pagination
     const totalPages = Math.ceil(filteredAndSortedPetugas.length / perPage);
@@ -486,18 +499,12 @@ export default function Index({ petugas }: PetugasIndexProps) {
 
     const petugasSummary = useMemo(
         () => ({
-            total: allPetugas.filter(
+            total: allPetugas.length,
+            organik: allPetugas.filter(
+                (item) => item.jenis_petugas === 'organik',
+            ).length,
+            nonOrganik: allPetugas.filter(
                 (item) => item.jenis_petugas === 'non-organik',
-            ).length,
-            active: allPetugas.filter(
-                (item) =>
-                    item.jenis_petugas === 'non-organik' &&
-                    item.status === 'aktif',
-            ).length,
-            inactive: allPetugas.filter(
-                (item) =>
-                    item.jenis_petugas === 'non-organik' &&
-                    item.status === 'nonaktif',
             ).length,
         }),
         [allPetugas],
@@ -505,13 +512,13 @@ export default function Index({ petugas }: PetugasIndexProps) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Data Mitra" />
+            <Head title="Data Petugas" />
 
             <div className="space-y-6">
                 {/* Header */}
                 <PageHeader
-                    title="Data Mitra"
-                    description="Kelola data mitra statistik non-organik yang terlibat dalam kegiatan"
+                    title="Data Petugas"
+                    description="Lihat dan cari seluruh petugas organik maupun mitra statistik non-organik"
                 >
                     <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
                         <Button
@@ -588,7 +595,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                 <div className="grid gap-3 sm:grid-cols-3">
                     <ContentCard>
                         <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                            Total mitra
+                            Total petugas
                         </p>
                         <p className="mt-1 text-2xl font-semibold">
                             {petugasSummary.total}
@@ -598,21 +605,21 @@ export default function Index({ petugas }: PetugasIndexProps) {
                         <div className="flex items-center justify-between gap-3">
                             <div>
                                 <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                    Aktif
+                                    Organik
                                 </p>
                                 <p className="mt-1 text-2xl font-semibold">
-                                    {petugasSummary.active}
+                                    {petugasSummary.organik}
                                 </p>
                             </div>
-                            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                            <UserIcon className="h-5 w-5 text-blue-600" />
                         </div>
                     </ContentCard>
                     <ContentCard>
                         <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                            Nonaktif
+                            Non-organik
                         </p>
                         <p className="mt-1 text-2xl font-semibold">
-                            {petugasSummary.inactive}
+                            {petugasSummary.nonOrganik}
                         </p>
                     </ContentCard>
                 </div>
@@ -622,8 +629,8 @@ export default function Index({ petugas }: PetugasIndexProps) {
                     <div className="mb-4">
                         <h2 className="font-semibold">Cari & Filter Mitra</h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Pencarian hanya mencakup mitra statistik non-organik
-                            berdasarkan identitas atau status.
+                            Cari petugas organik maupun non-organik berdasarkan
+                            identitas, jenis petugas, atau status.
                         </p>
                     </div>
                     <div className="mb-4 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-muted-foreground dark:bg-neutral-900/60">
@@ -640,24 +647,40 @@ export default function Index({ petugas }: PetugasIndexProps) {
                             {filteredAndSortedPetugas.length}
                         </span>{' '}
                         petugas{' '}
-                        {search || status !== 'all'
+                        {search || status !== 'all' || jenisPetugas !== 'all'
                             ? `(difilter dari ${allPetugas.length} total petugas)`
                             : ''}
                     </div>
 
-                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_180px]">
+                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_190px_180px]">
                         <div className="flex-1">
                             <div className="relative">
                                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-400" />
                                 <Input
                                     type="text"
-                                    placeholder="Cari nama, NIK, atau email mitra..."
+                                    placeholder="Cari nama, NIK/NIP, atau email petugas..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     className="h-10 pl-10"
                                 />
                             </div>
                         </div>
+                        <Select
+                            value={jenisPetugas}
+                            onValueChange={(value) => setJenisPetugas(value)}
+                        >
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Semua Jenis" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Jenis</SelectItem>
+                                <SelectItem value="organik">Organik</SelectItem>
+                                <SelectItem value="non-organik">
+                                    Non-organik
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+
                         <Select
                             value={status}
                             onValueChange={(value) => setStatus(value)}
@@ -688,7 +711,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                 filteredAndSortedPetugas.length,
                             )}{' '}
                             dari {filteredAndSortedPetugas.length} data
-                            {(search || status !== 'all') &&
+                            {(search || status !== 'all' || jenisPetugas !== 'all') &&
                                 ` (difilter dari ${allPetugas.length} total)`}
                         </p>
                     </div>
@@ -801,18 +824,21 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                         >
                                             {!isPJ && (
                                                 <td className="w-10 px-3 py-3">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedIds.has(
-                                                            Petugas.id,
-                                                        )}
-                                                        onChange={() =>
-                                                            toggleSelectPetugas(
+                                                    {Petugas.jenis_petugas ===
+                                                        'non-organik' && (
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedIds.has(
                                                                 Petugas.id,
-                                                            )
-                                                        }
-                                                        className="h-4 w-4 rounded border-neutral-300"
-                                                    />
+                                                            )}
+                                                            onChange={() =>
+                                                                toggleSelectPetugas(
+                                                                    Petugas.id,
+                                                                )
+                                                            }
+                                                            className="h-4 w-4 rounded border-neutral-300"
+                                                        />
+                                                    )}
                                                 </td>
                                             )}
                                             <td className="px-3 py-3 text-sm">
@@ -872,20 +898,22 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                                             <Eye className="h-4 w-4" />
                                                         </Link>
                                                     </Button>
-                                                    {!isPJ && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            asChild
-                                                            className="h-8 w-8 p-0"
-                                                        >
-                                                            <Link
-                                                                href={`/petugas/${Petugas.hashed_id}/edit`}
+                                                    {!isPJ &&
+                                                        Petugas.jenis_petugas ===
+                                                            'non-organik' && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                asChild
+                                                                className="h-8 w-8 p-0"
                                                             >
-                                                                <Pencil className="h-4 w-4" />
-                                                            </Link>
-                                                        </Button>
-                                                    )}
+                                                                <Link
+                                                                    href={`/petugas/${Petugas.hashed_id}/edit`}
+                                                                >
+                                                                    <Pencil className="h-4 w-4" />
+                                                                </Link>
+                                                            </Button>
+                                                        )}
                                                 </div>
                                             </td>
                                         </tr>
