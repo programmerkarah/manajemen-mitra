@@ -755,13 +755,13 @@ export default function PublicPreview({
                 </header>
 
                 <div className="mx-auto max-w-5xl space-y-5 px-5 py-8 sm:px-8 sm:py-10">
-                    <div className="mb-2">
+                    <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white px-6 py-6 shadow-[0_10px_28px_rgba(15,23,42,0.05)] dark:border-slate-800 dark:bg-slate-900">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-blue-600 via-emerald-500 to-orange-500" />
                         <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
                             Akses Dokumen Mitra
                         </h1>
                         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
-                            Verifikasi identitas, pilih kegiatan, lalu buka atau
-                            unduh dokumen penugasan Anda.
+                            Verifikasi identitas, pilih kegiatan, lalu buka atau unduh dokumen penugasan Anda.
                         </p>
                     </div>
                     {/* Error banner */}
@@ -773,7 +773,7 @@ export default function PublicPreview({
                     )}
 
                     {/* ── Step 1 · Identitas ──────────────────────────────────── */}
-                    <div className="overflow-hidden overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_14px_32px_rgba(0,0,0,0.24)]">
+                    <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_14px_32px_rgba(0,0,0,0.24)]">
                         <button
                             type="button"
                             onClick={() =>
@@ -916,7 +916,7 @@ export default function PublicPreview({
 
                     {/* ── Step 2 · Pilih Kegiatan ─────────────────────────────── */}
                     {isOptionsLoaded && (
-                        <div className="overflow-hidden overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_14px_32px_rgba(0,0,0,0.24)]">
+                        <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_14px_32px_rgba(0,0,0,0.24)]">
                             <button
                                 type="button"
                                 onClick={() =>
@@ -1111,7 +1111,7 @@ export default function PublicPreview({
 
                     {/* ── Step 3 · Penugasan & Dokumen ────────────────────────── */}
                     {canSubmit && selectedPenugasanList.length > 0 && (
-                        <div className="overflow-hidden overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_14px_32px_rgba(0,0,0,0.24)]">
+                        <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_14px_32px_rgba(0,0,0,0.24)]">
                             {/* Step 3 header */}
                             <button
                                 type="button"
