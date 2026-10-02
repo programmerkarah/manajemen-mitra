@@ -74,9 +74,9 @@ export default function Welcome({
                             </h1>
 
                             <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 dark:text-slate-300">
-                                SIMANTIK menyatukan pengelolaan kegiatan, petugas,
-                                alokasi, dokumen, honor, dan monitoring dalam satu
-                                ruang kerja yang konsisten.
+                                SIMANTIK menyatukan pengelolaan kegiatan,
+                                petugas, alokasi, dokumen, honor, dan monitoring
+                                dalam satu ruang kerja yang konsisten.
                             </p>
 
                             <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -132,7 +132,8 @@ export default function Welcome({
                                                 Ringkasan SIMANTIK
                                             </p>
                                             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                                                Satu alur untuk pekerjaan operasional
+                                                Satu alur untuk pekerjaan
+                                                operasional
                                             </p>
                                         </div>
                                     </div>
@@ -168,33 +169,39 @@ export default function Welcome({
                                             text: 'Honor, realisasi, dan tindak lanjut pekerjaan.',
                                             tone: 'violet',
                                         },
-                                    ].map(({ icon: Icon, title, text, tone }) => {
-                                        const toneClasses: Record<string, string> = {
-                                            blue: 'border-blue-100 bg-blue-50/70 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-300',
-                                            emerald: 'border-emerald-100 bg-emerald-50/70 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-300',
-                                            orange: 'border-orange-100 bg-orange-50/70 text-orange-700 dark:border-orange-900/50 dark:bg-orange-950/20 dark:text-orange-300',
-                                            violet: 'border-violet-100 bg-violet-50/70 text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/20 dark:text-violet-300',
-                                        };
+                                    ].map(
+                                        ({ icon: Icon, title, text, tone }) => {
+                                            const toneClasses: Record<
+                                                string,
+                                                string
+                                            > = {
+                                                blue: 'border-blue-100 bg-blue-50/70 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-300',
+                                                emerald:
+                                                    'border-emerald-100 bg-emerald-50/70 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-300',
+                                                orange: 'border-orange-100 bg-orange-50/70 text-orange-700 dark:border-orange-900/50 dark:bg-orange-950/20 dark:text-orange-300',
+                                                violet: 'border-violet-100 bg-violet-50/70 text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/20 dark:text-violet-300',
+                                            };
 
-                                        return (
-                                            <div
-                                                key={title}
-                                                className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/40"
-                                            >
+                                            return (
                                                 <div
-                                                    className={`mb-4 flex size-9 items-center justify-center rounded-lg border ${toneClasses[tone]}`}
+                                                    key={title}
+                                                    className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/40"
                                                 >
-                                                    <Icon className="size-4" />
+                                                    <div
+                                                        className={`mb-4 flex size-9 items-center justify-center rounded-lg border ${toneClasses[tone]}`}
+                                                    >
+                                                        <Icon className="size-4" />
+                                                    </div>
+                                                    <p className="text-sm font-semibold">
+                                                        {title}
+                                                    </p>
+                                                    <p className="mt-1.5 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                                                        {text}
+                                                    </p>
                                                 </div>
-                                                <p className="text-sm font-semibold">
-                                                    {title}
-                                                </p>
-                                                <p className="mt-1.5 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                                                    {text}
-                                                </p>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        },
+                                    )}
                                 </div>
 
                                 <div className="border-t border-slate-200 bg-slate-50/70 px-5 py-4 dark:border-slate-800 dark:bg-slate-950/40">
@@ -226,9 +233,12 @@ export default function Welcome({
                 <footer className="border-t border-slate-200/80 bg-white/50 py-5 dark:border-slate-800 dark:bg-slate-950/40">
                     <div className="mx-auto flex max-w-7xl flex-col gap-1 px-5 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-8">
                         <span>
-                            © {new Date().getFullYear()} Badan Pusat Statistik Kota Sawahlunto
+                            © {new Date().getFullYear()} Badan Pusat Statistik
+                            Kota Sawahlunto
                         </span>
-                        <span>SIMANTIK · Sistem Manajemen Tugas &amp; Kegiatan</span>
+                        <span>
+                            SIMANTIK · Sistem Manajemen Tugas &amp; Kegiatan
+                        </span>
                     </div>
                 </footer>
             </div>
