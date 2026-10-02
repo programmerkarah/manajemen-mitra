@@ -78,15 +78,12 @@ export default function Register({
     };
 
     const headerAction = (
-        <div className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex sm:text-sm">
-            <span>Sudah punya akun?</span>
-            <Link
-                href="/login"
-                className="font-semibold text-primary hover:underline"
-            >
-                Masuk
-            </Link>
-        </div>
+        <Link
+            href="/login"
+            className="hidden h-9 items-center rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex"
+        >
+            Masuk
+        </Link>
     );
 
     return (
