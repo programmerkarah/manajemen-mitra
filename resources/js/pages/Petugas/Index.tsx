@@ -493,6 +493,20 @@ export default function Index({ petugas }: PetugasIndexProps) {
         );
     };
 
+    const petugasSummary = useMemo(
+        () => ({
+            total: allPetugas.length,
+            active: allPetugas.filter((item) => item.status === 'aktif').length,
+            mitra: allPetugas.filter(
+                (item) => item.jenis_petugas === 'non-organik',
+            ).length,
+            organik: allPetugas.filter(
+                (item) => item.jenis_petugas === 'organik',
+            ).length,
+        }),
+        [allPetugas],
+    );
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Data Petugas" />
@@ -575,10 +589,55 @@ export default function Index({ petugas }: PetugasIndexProps) {
                     </div>
                 </PageHeader>
 
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <ContentCard>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Total petugas
+                        </p>
+                        <p className="mt-1 text-2xl font-semibold">
+                            {petugasSummary.total}
+                        </p>
+                    </ContentCard>
+                    <ContentCard>
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Aktif
+                                </p>
+                                <p className="mt-1 text-2xl font-semibold">
+                                    {petugasSummary.active}
+                                </p>
+                            </div>
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                        </div>
+                    </ContentCard>
+                    <ContentCard>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Mitra non-organik
+                        </p>
+                        <p className="mt-1 text-2xl font-semibold">
+                            {petugasSummary.mitra}
+                        </p>
+                    </ContentCard>
+                    <ContentCard>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Petugas organik
+                        </p>
+                        <p className="mt-1 text-2xl font-semibold">
+                            {petugasSummary.organik}
+                        </p>
+                    </ContentCard>
+                </div>
+
                 {/* Filters */}
                 <ContentCard>
-                    {/* Results Counter */}
-                    <div className="mb-4 text-sm text-muted-foreground">
+                    <div className="mb-4">
+                        <h2 className="font-semibold">Cari & Filter Petugas</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Temukan petugas berdasarkan identitas, jenis petugas, atau status.
+                        </p>
+                    </div>
+                    <div className="mb-4 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-muted-foreground dark:bg-neutral-900/60">
                         Menampilkan{' '}
                         <span className="font-semibold text-foreground">
                             {(currentPage - 1) * perPage + 1}-
@@ -597,7 +656,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                             : ''}
                     </div>
 
-                    <div className="flex flex-col gap-4 sm:flex-row">
+                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_180px_180px_auto]">
                         <div className="flex-1">
                             <div className="relative">
                                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-400" />
@@ -614,7 +673,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                             value={jenisPetugas}
                             onValueChange={(value) => setJenisPetugas(value)}
                         >
-                            <SelectTrigger className="w-[180px]">
+                            <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Jenis Petugas" />
                             </SelectTrigger>
                             <SelectContent>
@@ -629,7 +688,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                             value={status}
                             onValueChange={(value) => setStatus(value)}
                         >
-                            <SelectTrigger className="w-[180px]">
+                            <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Semua Status" />
                             </SelectTrigger>
                             <SelectContent>
