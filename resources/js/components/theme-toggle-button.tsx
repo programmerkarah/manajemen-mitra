@@ -48,7 +48,7 @@ export function ThemeToggleButton() {
                         className={cn(
                             'cursor-pointer',
                             appearance === value &&
-                                'bg-gray-100 dark:bg-zinc-800',
+                                'bg-muted text-foreground',
                         )}
                     >
                         <Icon className="mr-2 size-4" />
