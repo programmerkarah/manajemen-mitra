@@ -1,6 +1,6 @@
+import Mail from 'lucide-react/icons/mail';
 // Components
 // (duplikat di bawah, hapus baris ini)
-import { Mail } from 'lucide-react';
 
 import { store } from '@/actions/Laravel/Fortify/Http/Controllers/PasswordResetLinkController';
 import AppLogo from '@/components/app-logo';
