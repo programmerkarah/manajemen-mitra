@@ -1,4 +1,5 @@
 import AppLogo from '@/components/app-logo';
+import { ThemeToggleButton } from '@/components/theme-toggle-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -737,17 +738,17 @@ export default function PublicPreview({
         <>
             <Head title={`Portal Dokumen Mitra ${active_year}`} />
 
-            <div className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#f4f7fb_100%)] dark:bg-[linear-gradient(180deg,#020617_0%,#0f172a_100%)]">
-                <header className="border-b border-slate-200/80 bg-white/90 shadow-[0_1px_0_rgba(15,23,42,0.02)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
+            <div className="min-h-screen bg-background text-foreground">
+                <header className="border-b border-border bg-card/95 backdrop-blur">
                     <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
-                        <div className="flex items-center">
+                        <div className="flex min-w-0 items-center">
                             <AppLogo />
                         </div>
                         <div className="text-right">
-                            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                            <p className="text-xs font-medium text-muted-foreground ">
                                 Layanan Mitra Statistik
                             </p>
-                            <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                            <p className="text-sm font-semibold text-foreground ">
                                 Dokumen {active_year}
                             </p>
                         </div>
@@ -755,53 +756,53 @@ export default function PublicPreview({
                 </header>
 
                 <div className="mx-auto max-w-6xl space-y-6 px-5 py-8 sm:px-8 sm:py-10">
-                    <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white px-6 py-7 shadow-[0_14px_36px_rgba(15,23,42,0.07)] sm:px-8 dark:border-slate-800 dark:bg-slate-900">
-                        <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-blue-600 via-emerald-500 to-orange-500" />
-                        <h1 className="text-3xl font-semibold tracking-[-0.03em] text-slate-900 dark:text-white">
+                    <div className="rounded-xl border border-border bg-card px-5 py-5 shadow-sm sm:px-6 sm:py-6">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-primary" />
+                        <h1 className="text-2xl font-semibold tracking-[-0.025em] text-foreground sm:text-3xl">
                             Akses Dokumen Mitra
                         </h1>
-                        <p className="mt-2 max-w-3xl text-base leading-7 text-slate-500 dark:text-slate-400">
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">
                             Verifikasi identitas, pilih kegiatan, lalu buka atau
                             unduh dokumen penugasan Anda.
                         </p>
                     </div>
                     {/* Error banner */}
                     {errorMessage && (
-                        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+                        <div className="flex items-start gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                             <span>{errorMessage}</span>
                         </div>
                     )}
 
                     {/* ── Step 1 · Identitas ──────────────────────────────────── */}
-                    <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_14px_32px_rgba(0,0,0,0.24)]">
+                    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                         <button
                             type="button"
                             onClick={() =>
                                 setExpandedStep((v) => (v === 1 ? null : 1))
                             }
-                            className="flex w-full cursor-pointer items-center gap-3 border-b border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-6 py-4 text-left transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)] dark:hover:bg-slate-800"
+                            className="flex w-full cursor-pointer items-center gap-3 border-b border-border bg-muted/45 px-6 py-4 text-left transition-colors hover:bg-muted hover:bg-muted"
                         >
                             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white shadow-sm shadow-blue-600/25">
                                 1
                             </span>
-                            <span className="text-sm font-semibold text-neutral-800 dark:text-white">
+                            <span className="text-sm font-semibold text-foreground">
                                 Verifikasi Identitas
                             </span>
                             {expandedStep !== 1 && loadedPetugasName && (
-                                <span className="ml-2 flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                <span className="ml-2 flex items-center gap-1.5 rounded-md border border-[var(--pastel-green)]/70 bg-[var(--pastel-green)]/15 px-2 py-1 text-xs font-medium text-foreground   ">
                                     <CheckCircle2 className="h-3 w-3" />
                                     {loadedPetugasName}
                                 </span>
                             )}
                             {isOptionsLoaded ? (
                                 <ChevronDown
-                                    className={`ml-auto h-4 w-4 shrink-0 text-neutral-500 transition-transform duration-200 dark:text-neutral-300 ${
+                                    className={`ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
                                         expandedStep !== 1 ? '' : 'rotate-180'
                                     }`}
                                 />
                             ) : (
-                                <ChevronDown className="ml-auto h-4 w-4 shrink-0 rotate-180 text-neutral-500 dark:text-neutral-300" />
+                                <ChevronDown className="ml-auto h-4 w-4 shrink-0 rotate-180 text-muted-foreground" />
                             )}
                         </button>
 
@@ -811,7 +812,7 @@ export default function PublicPreview({
                                     <div className="space-y-2">
                                         <Label
                                             htmlFor="nama"
-                                            className="text-sm font-semibold text-slate-700 dark:text-slate-100"
+                                            className="text-sm font-medium text-foreground"
                                         >
                                             Nama Lengkap
                                         </Label>
@@ -823,14 +824,14 @@ export default function PublicPreview({
                                             }
                                             placeholder="Contoh: Sena Susanto"
                                             autoComplete="name"
-                                            className="h-12 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
+                                            className="h-11 bg-card text-sm"
                                         />
                                     </div>
 
                                     <div className="space-y-2">
                                         <Label
                                             htmlFor="nik"
-                                            className="text-sm font-semibold text-slate-700 dark:text-slate-100"
+                                            className="text-sm font-medium text-foreground"
                                         >
                                             NIK
                                         </Label>
@@ -843,14 +844,14 @@ export default function PublicPreview({
                                             placeholder="16 digit NIK"
                                             inputMode="numeric"
                                             autoComplete="off"
-                                            className="h-12 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
+                                            className="h-11 bg-card text-sm"
                                         />
                                     </div>
 
                                     <div className="space-y-2">
                                         <Label
                                             htmlFor="telepon-4-digit"
-                                            className="text-sm font-semibold text-slate-700 dark:text-slate-100"
+                                            className="text-sm font-medium text-foreground"
                                         >
                                             4 Digit Terakhir HP
                                         </Label>
@@ -868,12 +869,12 @@ export default function PublicPreview({
                                             inputMode="numeric"
                                             maxLength={4}
                                             autoComplete="off"
-                                            className="h-12 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
+                                            className="h-11 bg-card text-sm"
                                         />
                                     </div>
                                 </div>
 
-                                <p className="mt-3 text-sm text-neutral-500 dark:text-neutral-300">
+                                <p className="mt-3 text-sm text-muted-foreground">
                                     Nomor HP yang terdaftar di SOBAT/sistem BPS.
                                 </p>
 
@@ -889,7 +890,7 @@ export default function PublicPreview({
                                             (!recaptchaReady &&
                                                 !!recaptcha_site_key)
                                         }
-                                        className="h-11 gap-2 rounded-lg shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
+                                        className="h-11 gap-2 rounded-lg shadow-sm transition-all  "
                                     >
                                         {loadingOptions ? (
                                             <>
@@ -905,7 +906,7 @@ export default function PublicPreview({
                                     </Button>
 
                                     {isOptionsLoaded && loadedPetugasName && (
-                                        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                        <div className="flex items-center gap-2 rounded-lg border border-[var(--pastel-green)]/70 bg-[var(--pastel-green)]/15 px-3 py-2 text-sm font-medium text-emerald-800   ">
                                             <CheckCircle2 className="h-4 w-4 shrink-0" />
                                             <span>{loadedPetugasName}</span>
                                         </div>
@@ -917,7 +918,7 @@ export default function PublicPreview({
 
                     {/* ── Step 2 · Pilih Kegiatan ─────────────────────────────── */}
                     {isOptionsLoaded && (
-                        <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_14px_32px_rgba(0,0,0,0.24)]">
+                        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                             <button
                                 type="button"
                                 onClick={() =>
@@ -927,7 +928,7 @@ export default function PublicPreview({
                                           )
                                         : undefined
                                 }
-                                className={`flex w-full items-center gap-3 bg-slate-50/70 px-6 py-4 text-left dark:bg-slate-900 ${
+                                className={`flex w-full items-center gap-3 bg-muted/70 px-6 py-4 text-left  ${
                                     canSubmit
                                         ? 'cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800'
                                         : 'cursor-default'
@@ -940,7 +941,7 @@ export default function PublicPreview({
                                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white shadow-sm shadow-blue-600/25">
                                     2
                                 </span>
-                                <span className="text-sm font-semibold text-neutral-800 dark:text-white">
+                                <span className="text-sm font-semibold text-foreground">
                                     Pilih Kegiatan
                                 </span>
                                 {expandedStep !== 2 && canSubmit && (
@@ -964,7 +965,7 @@ export default function PublicPreview({
                                 )}
                                 {canSubmit && (
                                     <ChevronDown
-                                        className={`ml-auto h-4 w-4 shrink-0 text-neutral-500 transition-transform duration-200 dark:text-neutral-300 ${
+                                        className={`ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
                                             expandedStep !== 2
                                                 ? ''
                                                 : 'rotate-180'
@@ -979,7 +980,7 @@ export default function PublicPreview({
                                         <div className="space-y-2">
                                             <Label
                                                 htmlFor="jenis-kegiatan"
-                                                className="text-sm font-semibold text-slate-700 dark:text-slate-100"
+                                                className="text-sm font-medium text-foreground"
                                             >
                                                 Jenis Kegiatan
                                             </Label>
@@ -995,7 +996,7 @@ export default function PublicPreview({
                                             >
                                                 <SelectTrigger
                                                     id="jenis-kegiatan"
-                                                    className="h-12 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
+                                                    className="h-11 bg-card text-sm"
                                                 >
                                                     <SelectValue placeholder="Pilih jenis kegiatan" />
                                                 </SelectTrigger>
@@ -1022,7 +1023,7 @@ export default function PublicPreview({
                                             <div className="space-y-2">
                                                 <Label
                                                     htmlFor="opsi-kegiatan"
-                                                    className="text-sm font-semibold text-slate-700 dark:text-slate-100"
+                                                    className="text-sm font-medium text-foreground"
                                                 >
                                                     {jenisKegiatan === 'survei'
                                                         ? 'Periode Bulan Survei'
@@ -1042,7 +1043,7 @@ export default function PublicPreview({
                                                     >
                                                         <SelectTrigger
                                                             id="opsi-kegiatan"
-                                                            className="h-12 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
+                                                            className="h-11 bg-card text-sm"
                                                         >
                                                             <SelectValue placeholder="Pilih periode survei" />
                                                         </SelectTrigger>
@@ -1078,7 +1079,7 @@ export default function PublicPreview({
                                                     >
                                                         <SelectTrigger
                                                             id="opsi-kegiatan"
-                                                            className="h-12 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
+                                                            className="h-11 bg-card text-sm"
                                                         >
                                                             <SelectValue placeholder="Pilih kegiatan sensus" />
                                                         </SelectTrigger>
@@ -1112,14 +1113,14 @@ export default function PublicPreview({
 
                     {/* ── Step 3 · Penugasan & Dokumen ────────────────────────── */}
                     {canSubmit && selectedPenugasanList.length > 0 && (
-                        <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_14px_32px_rgba(0,0,0,0.24)]">
+                        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                             {/* Step 3 header */}
                             <button
                                 type="button"
                                 onClick={() =>
                                     setExpandedStep((v) => (v === 3 ? null : 3))
                                 }
-                                className={`flex w-full cursor-pointer items-center gap-3 bg-slate-50/70 px-6 py-4 text-left hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 ${
+                                className={`flex w-full cursor-pointer items-center gap-3 bg-muted/70 px-6 py-4 text-left hover:bg-slate-100  dark:hover:bg-slate-800 ${
                                     expandedStep === 3
                                         ? 'border-b border-neutral-200/60 dark:border-white/10'
                                         : ''
@@ -1128,7 +1129,7 @@ export default function PublicPreview({
                                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white shadow-sm shadow-blue-600/25">
                                     3
                                 </span>
-                                <span className="text-sm font-semibold text-neutral-800 dark:text-white">
+                                <span className="text-sm font-semibold text-foreground">
                                     Penugasan &amp; Dokumen
                                 </span>
                                 {expandedStep !== 3 && (
@@ -1138,7 +1139,7 @@ export default function PublicPreview({
                                     </span>
                                 )}
                                 <ChevronDown
-                                    className={`ml-auto h-4 w-4 shrink-0 text-neutral-500 transition-transform duration-200 dark:text-neutral-300 ${
+                                    className={`ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
                                         expandedStep !== 3 ? '' : 'rotate-180'
                                     }`}
                                 />
@@ -1148,16 +1149,16 @@ export default function PublicPreview({
                                 <div className="space-y-0 divide-y divide-neutral-200/60 dark:divide-white/10">
                                     {/* Penugasan section */}
                                     <div>
-                                        <div className="border-b border-slate-200 bg-slate-50/70 px-6 py-5 dark:border-white/10 dark:bg-slate-900">
+                                        <div className="border-b border-border bg-muted/70 px-6 py-5 dark:border-white/10 ">
                                             <div className="flex flex-wrap items-start justify-between gap-4">
                                                 <div>
-                                                    <h2 className="text-lg font-bold text-neutral-900 dark:text-white">
+                                                    <h2 className="text-lg font-bold text-foreground ">
                                                         {
                                                             selectedPenugasanCardTitle
                                                         }
                                                     </h2>
                                                     {selectedPenugasanPeriodLabel && (
-                                                        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                                                        <p className="mt-1 text-sm text-muted-foreground">
                                                             {jenisKegiatan ===
                                                             'sensus'
                                                                 ? `Periode: ${selectedPenugasanPeriodLabel}`
@@ -1167,7 +1168,7 @@ export default function PublicPreview({
                                                 </div>
 
                                                 <div className="flex flex-wrap gap-2">
-                                                    <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
+                                                    <span className="inline-flex items-center rounded-full border border-[var(--pastel-green)]/70 bg-[var(--pastel-green)]/15 px-3 py-1 text-xs font-semibold text-foreground dark:border-emerald-900/50 dark:bg-emerald-950/30 ">
                                                         PK:{' '}
                                                         {
                                                             selectedPenugasanList[0]
@@ -1207,17 +1208,17 @@ export default function PublicPreview({
                                             </div>
                                         </div>
 
-                                        <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm dark:border-slate-800">
+                                        <div className="overflow-x-auto rounded-xl border border-border shadow-sm ">
                                             <table className="min-w-full divide-y divide-neutral-100 dark:divide-neutral-800">
                                                 <thead>
-                                                    <tr className="bg-slate-50/80 dark:bg-slate-950/50">
-                                                        <th className="px-6 py-3 text-left text-xs font-bold tracking-wide text-neutral-500 uppercase dark:text-neutral-300">
+                                                    <tr className="bg-muted/50 ">
+                                                        <th className="px-6 py-3 text-left text-xs font-bold tracking-wide text-neutral-500 uppercase ">
                                                             Kegiatan
                                                         </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-bold tracking-wide text-neutral-500 uppercase dark:text-neutral-300">
+                                                        <th className="px-6 py-3 text-left text-xs font-bold tracking-wide text-neutral-500 uppercase ">
                                                             Target Pekerjaan
                                                         </th>
-                                                        <th className="px-6 py-3 text-right text-xs font-bold tracking-wide text-neutral-500 uppercase dark:text-neutral-300">
+                                                        <th className="px-6 py-3 text-right text-xs font-bold tracking-wide text-neutral-500 uppercase ">
                                                             Honor
                                                         </th>
                                                     </tr>
@@ -1227,21 +1228,21 @@ export default function PublicPreview({
                                                         (item) => (
                                                             <tr
                                                                 key={item.id}
-                                                                className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                                                                className="transition-colors hover:bg-muted dark:hover:bg-slate-800/60"
                                                             >
                                                                 <td className="px-6 py-4">
-                                                                    <div className="font-semibold text-neutral-900 dark:text-white">
+                                                                    <div className="font-semibold text-foreground ">
                                                                         {
                                                                             item.nama_kegiatan
                                                                         }
                                                                     </div>
                                                                 </td>
-                                                                <td className="px-6 py-4 text-neutral-700 dark:text-neutral-200">
+                                                                <td className="px-6 py-4 text-foreground ">
                                                                     {
                                                                         item.target_pekerjaan
                                                                     }
                                                                 </td>
-                                                                <td className="px-6 py-4 text-right font-bold text-neutral-900 dark:text-white">
+                                                                <td className="px-6 py-4 text-right font-bold text-foreground ">
                                                                     {
                                                                         item.honor_label
                                                                     }
@@ -1251,10 +1252,10 @@ export default function PublicPreview({
                                                     )}
                                                 </tbody>
                                                 <tfoot>
-                                                    <tr className="border-t border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/50">
+                                                    <tr className="border-t border-border bg-muted/50  ">
                                                         <td
                                                             colSpan={2}
-                                                            className="px-6 py-4 text-sm font-medium text-neutral-600 dark:text-neutral-300"
+                                                            className="px-6 py-4 text-sm font-medium text-muted-foreground "
                                                         >
                                                             Total{' '}
                                                             {
@@ -1262,7 +1263,7 @@ export default function PublicPreview({
                                                             }{' '}
                                                             penugasan
                                                         </td>
-                                                        <td className="px-6 py-4 text-right text-base font-bold text-neutral-900 dark:text-white">
+                                                        <td className="px-6 py-4 text-right text-base font-bold text-foreground ">
                                                             {`Rp ${new Intl.NumberFormat('id-ID').format(selectedPenugasanTotalHonor)}`}
                                                         </td>
                                                     </tr>
@@ -1286,23 +1287,23 @@ export default function PublicPreview({
                                                 onClick={() =>
                                                     setDokumenTipe('pk')
                                                 }
-                                                className={`rounded-xl border p-4 text-left shadow-sm transition-all hover:-translate-y-px hover:shadow-md ${
+                                                className={`rounded-xl border p-4 text-left shadow-sm transition-all   ${
                                                     dokumenTipe === 'pk'
-                                                        ? 'border-blue-300 bg-[linear-gradient(180deg,#eff6ff_0%,#ffffff_100%)] shadow-md ring-1 shadow-blue-600/10 ring-blue-200 dark:border-blue-800 dark:bg-[linear-gradient(180deg,rgba(30,58,138,.22)_0%,rgba(15,23,42,.9)_100%)] dark:ring-blue-900'
-                                                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600 dark:hover:bg-slate-800'
+                                                        ? 'border-blue-300 bg-[linear-gradient(180deg,#eff6ff_0%,#ffffff_100%)] shadow-sm ring-1 shadow-blue-600/10 ring-blue-200 dark:border-blue-800 dark:bg-[linear-gradient(180deg,rgba(30,58,138,.22)_0%,rgba(15,23,42,.9)_100%)] dark:ring-blue-900'
+                                                        : 'border-border bg-card hover:bg-muted'
                                                 }`}
                                             >
-                                                <div className="text-[11px] font-bold tracking-widest text-neutral-500 uppercase dark:text-neutral-300"></div>
+                                                <div className="text-[11px] font-bold tracking-widest text-neutral-500 uppercase "></div>
                                                 <div
                                                     className={`mt-2 text-sm font-semibold ${
                                                         dokumenTipe === 'pk'
                                                             ? 'text-indigo-700 dark:text-indigo-300'
-                                                            : 'text-neutral-700 dark:text-neutral-100'
+                                                            : 'text-foreground '
                                                     }`}
                                                 >
                                                     Perjanjian Kerja
                                                 </div>
-                                                <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-300">
+                                                <div className="mt-1 text-xs text-muted-foreground">
                                                     Kontrak penugasan resmi
                                                 </div>
                                             </button>
@@ -1314,10 +1315,10 @@ export default function PublicPreview({
                                                     onClick={() =>
                                                         setDokumenTipe('bapp_i')
                                                     }
-                                                    className={`rounded-xl border p-4 text-left shadow-sm transition-all hover:-translate-y-px hover:shadow-md ${
+                                                    className={`rounded-xl border p-4 text-left shadow-sm transition-all   ${
                                                         dokumenTipe === 'bapp_i'
-                                                            ? 'border-violet-300 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] shadow-md ring-1 shadow-violet-500/10 ring-violet-200 dark:border-violet-700 dark:bg-[linear-gradient(180deg,rgba(76,29,149,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-violet-900'
-                                                            : 'border-neutral-200 bg-white hover:border-violet-200 hover:bg-violet-50/40 dark:border-neutral-700 dark:bg-neutral-800/40 dark:hover:border-violet-800'
+                                                            ? 'border-violet-300 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] shadow-sm ring-1 shadow-violet-500/10 ring-violet-200 dark:border-violet-700 dark:bg-[linear-gradient(180deg,rgba(76,29,149,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-violet-900'
+                                                            : 'border-border bg-card hover:bg-muted'
                                                     }`}
                                                 >
                                                     <div
@@ -1325,12 +1326,12 @@ export default function PublicPreview({
                                                             dokumenTipe ===
                                                             'bapp_i'
                                                                 ? 'text-violet-700 dark:text-violet-300'
-                                                                : 'text-neutral-700 dark:text-neutral-100'
+                                                                : 'text-foreground '
                                                         }`}
                                                     >
                                                         Pemeriksaan Tahap I
                                                     </div>
-                                                    <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-300">
+                                                    <div className="mt-1 text-xs text-muted-foreground">
                                                         Realisasi 40%
                                                     </div>
                                                 </button>
@@ -1345,11 +1346,11 @@ export default function PublicPreview({
                                                             'bapp_ii',
                                                         )
                                                     }
-                                                    className={`rounded-xl border p-4 text-left shadow-sm transition-all hover:-translate-y-px hover:shadow-md ${
+                                                    className={`rounded-xl border p-4 text-left shadow-sm transition-all   ${
                                                         dokumenTipe ===
                                                         'bapp_ii'
-                                                            ? 'border-violet-300 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] shadow-md ring-1 shadow-violet-500/10 ring-violet-200 dark:border-violet-700 dark:bg-[linear-gradient(180deg,rgba(76,29,149,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-violet-900'
-                                                            : 'border-neutral-200 bg-white hover:border-violet-200 hover:bg-violet-50/40 dark:border-neutral-700 dark:bg-neutral-800/40 dark:hover:border-violet-800'
+                                                            ? 'border-violet-300 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] shadow-sm ring-1 shadow-violet-500/10 ring-violet-200 dark:border-violet-700 dark:bg-[linear-gradient(180deg,rgba(76,29,149,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-violet-900'
+                                                            : 'border-border bg-card hover:bg-muted'
                                                     }`}
                                                 >
                                                     <div
@@ -1357,12 +1358,12 @@ export default function PublicPreview({
                                                             dokumenTipe ===
                                                             'bapp_ii'
                                                                 ? 'text-violet-700 dark:text-violet-300'
-                                                                : 'text-neutral-700 dark:text-neutral-100'
+                                                                : 'text-foreground '
                                                         }`}
                                                     >
                                                         Pemeriksaan Tahap II
                                                     </div>
-                                                    <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-300">
+                                                    <div className="mt-1 text-xs text-muted-foreground">
                                                         Realisasi 60%
                                                     </div>
                                                 </button>
@@ -1374,22 +1375,22 @@ export default function PublicPreview({
                                                 onClick={() =>
                                                     setDokumenTipe('bast')
                                                 }
-                                                className={`rounded-xl border p-4 text-left shadow-sm transition-all hover:-translate-y-px hover:shadow-md ${
+                                                className={`rounded-xl border p-4 text-left shadow-sm transition-all   ${
                                                     dokumenTipe === 'bast'
-                                                        ? 'border-sky-300 bg-[linear-gradient(180deg,#f0f9ff_0%,#ffffff_100%)] shadow-md ring-1 shadow-sky-500/10 ring-sky-200 dark:border-sky-700 dark:bg-[linear-gradient(180deg,rgba(12,74,110,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-sky-900'
-                                                        : 'border-neutral-200 bg-white hover:border-sky-200 hover:bg-sky-50/40 dark:border-neutral-700 dark:bg-neutral-800/40 dark:hover:border-sky-800'
+                                                        ? 'border-sky-300 bg-[linear-gradient(180deg,#f0f9ff_0%,#ffffff_100%)] shadow-sm ring-1 shadow-sky-500/10 ring-sky-200 dark:border-sky-700 dark:bg-[linear-gradient(180deg,rgba(12,74,110,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-sky-900'
+                                                        : 'border-border bg-card hover:bg-muted'
                                                 }`}
                                             >
                                                 <div
                                                     className={`mt-2 text-sm font-semibold ${
                                                         dokumenTipe === 'bast'
                                                             ? 'text-sky-700 dark:text-sky-300'
-                                                            : 'text-neutral-700 dark:text-neutral-100'
+                                                            : 'text-foreground '
                                                     }`}
                                                 >
                                                     Serah Terima
                                                 </div>
-                                                <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-300">
+                                                <div className="mt-1 text-xs text-muted-foreground">
                                                     Penyelesaian pekerjaan
                                                 </div>
                                             </button>
@@ -1404,7 +1405,7 @@ export default function PublicPreview({
                                                 disabled={
                                                     processing || !canSubmit
                                                 }
-                                                className="h-11 gap-2 rounded-lg shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
+                                                className="h-11 gap-2 rounded-lg shadow-sm transition-all  "
                                             >
                                                 <Eye className="h-4 w-4" />
                                                 {processing
@@ -1420,7 +1421,7 @@ export default function PublicPreview({
                                                 disabled={
                                                     processing || !canSubmit
                                                 }
-                                                className="h-11 gap-2 rounded-lg shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
+                                                className="h-11 gap-2 rounded-lg shadow-sm transition-all  "
                                             >
                                                 <Download className="h-4 w-4" />
                                                 {processing
@@ -1434,8 +1435,8 @@ export default function PublicPreview({
                         </div>
                     )}
 
-                    <div className="rounded-xl border border-slate-200 bg-white/70 px-5 py-4 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-                        <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
+                    <div className="rounded-xl border border-border bg-muted/35 px-5 py-4 text-center">
+                        <p className="text-sm leading-6 text-muted-foreground">
                             Data dan dokumen hanya ditampilkan setelah identitas
                             petugas berhasil diverifikasi.
                         </p>
@@ -1446,11 +1447,11 @@ export default function PublicPreview({
             {/* Progress overlay */}
             {documentProgressOpen && (
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/55 px-4">
-                    <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-6 shadow-2xl dark:border-neutral-700 dark:bg-neutral-900">
-                        <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
+                    <div className="modal-surface w-full max-w-md p-5 sm:p-6">
+                        <h3 className="text-base font-semibold text-foreground">
                             {documentProgressTitle}
                         </h3>
-                        <p className="mt-1.5 text-sm text-neutral-500 dark:text-neutral-400">
+                        <p className="mt-1.5 text-sm text-muted-foreground">
                             {documentProgressStatus}
                         </p>
                         <div className="mt-5 flex justify-center">
@@ -1467,7 +1468,7 @@ export default function PublicPreview({
                                         stroke="currentColor"
                                         strokeWidth="10"
                                         fill="none"
-                                        className="text-neutral-200 dark:text-neutral-700"
+                                        className="text-border"
                                     />
                                     <circle
                                         cx="70"
@@ -1477,7 +1478,7 @@ export default function PublicPreview({
                                         strokeWidth="10"
                                         fill="none"
                                         strokeLinecap="round"
-                                        className="text-emerald-500 transition-all duration-300 ease-out"
+                                        className="text-primary transition-all duration-300 ease-out"
                                         style={{
                                             strokeDasharray:
                                                 DOCUMENT_PROGRESS_CIRCUMFERENCE,
@@ -1490,16 +1491,16 @@ export default function PublicPreview({
                                     />
                                 </svg>
                                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                    <span className="text-3xl font-bold text-neutral-900 dark:text-neutral-100">
+                                    <span className="text-3xl font-semibold text-foreground">
                                         {documentProgressPercent}%
                                     </span>
-                                    <span className="mt-1 text-[11px] font-medium tracking-[0.2em] text-neutral-500 uppercase dark:text-neutral-400">
+                                    <span className="mt-1 text-[11px] font-medium tracking-[0.2em] text-muted-foreground uppercase">
                                         Progress
                                     </span>
                                 </div>
                             </div>
                         </div>
-                        <p className="mt-4 text-xs text-neutral-400 dark:text-neutral-500">
+                        <p className="mt-4 text-xs text-muted-foreground">
                             Mohon tunggu. Browser akan membuka tab preview atau
                             memulai unduh PDF sesuai aksi yang dipilih.
                         </p>
