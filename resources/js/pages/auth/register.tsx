@@ -115,7 +115,8 @@ export default function Register({
                             </a>
                         ) : (
                             <div className="rounded-lg border border-[var(--pastel-orange)]/70 bg-[var(--pastel-orange)]/15 p-3.5 text-sm text-foreground">
-                                Konfigurasi SSO belum lengkap. Hubungi administrator.
+                                Konfigurasi SSO belum lengkap. Hubungi
+                                administrator.
                             </div>
                         )}
 
@@ -147,7 +148,10 @@ export default function Register({
                                 className="h-11"
                                 value={registerForm.data.name}
                                 onChange={(event) =>
-                                    registerForm.setData('name', event.target.value)
+                                    registerForm.setData(
+                                        'name',
+                                        event.target.value,
+                                    )
                                 }
                             />
                             <InputError message={registerForm.errors.name} />
@@ -171,7 +175,9 @@ export default function Register({
                                     )
                                 }
                             />
-                            <InputError message={registerForm.errors.username} />
+                            <InputError
+                                message={registerForm.errors.username}
+                            />
                         </div>
 
                         <div className="space-y-1.5">
@@ -186,7 +192,10 @@ export default function Register({
                                 className="h-11"
                                 value={registerForm.data.email}
                                 onChange={(event) =>
-                                    registerForm.setData('email', event.target.value)
+                                    registerForm.setData(
+                                        'email',
+                                        event.target.value,
+                                    )
                                 }
                             />
                             <InputError message={registerForm.errors.email} />
@@ -210,7 +219,9 @@ export default function Register({
                                     )
                                 }
                             />
-                            <InputError message={registerForm.errors.password} />
+                            <InputError
+                                message={registerForm.errors.password}
+                            />
                         </div>
 
                         <div className="space-y-1.5">
@@ -225,9 +236,7 @@ export default function Register({
                                 autoComplete="new-password"
                                 placeholder="Ulangi password"
                                 className="h-11"
-                                value={
-                                    registerForm.data.password_confirmation
-                                }
+                                value={registerForm.data.password_confirmation}
                                 onChange={(event) =>
                                     registerForm.setData(
                                         'password_confirmation',

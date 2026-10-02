@@ -124,7 +124,8 @@ export default function Login({
                                 Single Sign-On BPS
                             </p>
                             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                                Anda akan diarahkan ke layanan SSO untuk verifikasi akun.
+                                Anda akan diarahkan ke layanan SSO untuk
+                                verifikasi akun.
                             </p>
                         </div>
 
@@ -138,7 +139,8 @@ export default function Login({
                         </a>
 
                         <p className="text-center text-xs leading-5 text-muted-foreground">
-                            Autentikasi dan keamanan akun dikelola melalui SSO BPS.
+                            Autentikasi dan keamanan akun dikelola melalui SSO
+                            BPS.
                         </p>
 
                         <div className="border-t border-border pt-4 text-center text-sm text-muted-foreground sm:hidden">
@@ -175,7 +177,10 @@ export default function Login({
                                 className="h-11"
                                 value={loginForm.data.username}
                                 onChange={(e) =>
-                                    loginForm.setData('username', e.target.value)
+                                    loginForm.setData(
+                                        'username',
+                                        e.target.value,
+                                    )
                                 }
                             />
                             <InputError message={loginForm.errors.username} />
@@ -198,7 +203,9 @@ export default function Login({
                             <div className="relative">
                                 <Input
                                     id="password"
-                                    type={isPasswordVisible ? 'text' : 'password'}
+                                    type={
+                                        isPasswordVisible ? 'text' : 'password'
+                                    }
                                     name="password"
                                     required
                                     tabIndex={2}
@@ -207,13 +214,18 @@ export default function Login({
                                     className="h-11 pr-10"
                                     value={loginForm.data.password}
                                     onChange={(e) =>
-                                        loginForm.setData('password', e.target.value)
+                                        loginForm.setData(
+                                            'password',
+                                            e.target.value,
+                                        )
                                     }
                                 />
                                 <button
                                     type="button"
                                     onClick={() =>
-                                        setIsPasswordVisible((visible) => !visible)
+                                        setIsPasswordVisible(
+                                            (visible) => !visible,
+                                        )
                                     }
                                     className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
                                     aria-label={
@@ -236,7 +248,10 @@ export default function Login({
                             <Checkbox
                                 checked={loginForm.data.remember}
                                 onCheckedChange={(checked) =>
-                                    loginForm.setData('remember', checked === true)
+                                    loginForm.setData(
+                                        'remember',
+                                        checked === true,
+                                    )
                                 }
                             />
                             Ingat saya

@@ -75,7 +75,11 @@ export function AuthPublicShell({
                 </aside>
 
                 <section className="flex items-center justify-center px-4 py-7 sm:px-6 sm:py-10 lg:px-10 xl:px-14">
-                    <div className={compact ? 'w-full max-w-md' : 'w-full max-w-xl'}>
+                    <div
+                        className={
+                            compact ? 'w-full max-w-md' : 'w-full max-w-xl'
+                        }
+                    >
                         <div className="mb-5 sm:mb-6">
                             <h2 className="text-2xl font-semibold tracking-[-0.025em] sm:text-3xl">
                                 {title}
