@@ -160,6 +160,39 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+const MONTH_LABELS: Record<string, string> = {
+    '01': 'Jan',
+    '02': 'Feb',
+    '03': 'Mar',
+    '04': 'Apr',
+    '05': 'Mei',
+    '06': 'Jun',
+    '07': 'Jul',
+    '08': 'Agu',
+    '09': 'Sep',
+    '10': 'Okt',
+    '11': 'Nov',
+    '12': 'Des',
+};
+
+function formatEpisodeLabel(row: ReviewRow): string {
+    const start = MONTH_LABELS[row.periode_mulai_bulan] ?? row.periode_mulai_bulan;
+    const end = MONTH_LABELS[row.periode_selesai_bulan] ?? row.periode_selesai_bulan;
+
+    if (
+        row.periode_mulai_bulan === row.periode_selesai_bulan &&
+        row.periode_mulai_tahun === row.periode_selesai_tahun
+    ) {
+        return `${start} ${row.periode_mulai_tahun}`;
+    }
+
+    if (row.periode_mulai_tahun === row.periode_selesai_tahun) {
+        return `${start}–${end} ${row.periode_mulai_tahun}`;
+    }
+
+    return `${start} ${row.periode_mulai_tahun}–${end} ${row.periode_selesai_tahun}`;
+}
+
 const MONTH_OPTIONS = [
     { value: 'all', label: 'Semua Bulan' },
     { value: '01', label: 'Januari' },
@@ -1228,6 +1261,9 @@ export default function PenilaianMitraStatistik({
                                             Rating{getSortLabel('rating')}
                                         </button>
                                     </th>
+                                    <th className="px-3 py-2">
+                                        Periode Penugasan
+                                    </th>
                                     <th className="px-3 py-2">Ulasan</th>
                                     <th className="px-3 py-2">
                                         <button
@@ -1247,7 +1283,7 @@ export default function PenilaianMitraStatistik({
                                 {sortedRows.length === 0 && (
                                     <tr>
                                         <td
-                                            colSpan={5}
+                                            colSpan={6}
                                             className="px-3 py-6 text-center text-neutral-500"
                                         >
                                             Tidak ada data review untuk filter
@@ -1270,6 +1306,9 @@ export default function PenilaianMitraStatistik({
                                             <Badge variant="outline">
                                                 {row.rating}/5
                                             </Badge>
+                                        </td>
+                                        <td className="px-3 py-2 text-xs whitespace-nowrap text-neutral-600 dark:text-neutral-300">
+                                            {formatEpisodeLabel(row)}
                                         </td>
                                         <td className="max-w-sm px-3 py-2 text-xs text-neutral-600 dark:text-neutral-300">
                                             {row.ulasan ? row.ulasan : '-'}
