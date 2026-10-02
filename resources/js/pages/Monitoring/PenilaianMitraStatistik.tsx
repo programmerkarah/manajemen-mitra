@@ -74,7 +74,6 @@ interface Props {
     active_year: number;
     generated_at: string;
     filters: {
-        bulan: string;
         kegiatan_id: string;
         petugas_id: string;
     };
@@ -320,14 +319,12 @@ export default function PenilaianMitraStatistik({
     }, [reviewRows]);
 
     const handleFilterChange = (
-        bulan: string,
         kegiatanId: string,
         petugasId: string,
     ) => {
         router.post(
             '/monitoring-penilaian-mitra',
             {
-                bulan,
                 kegiatan_id: kegiatanId,
                 petugas_id: petugasId,
             },
@@ -565,8 +562,8 @@ export default function PenilaianMitraStatistik({
                                 Mitra Terbaik Saat Ini
                             </h3>
                             <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                                Menggunakan filter aktif (bulan/kegiatan),
-                                filter petugas diabaikan untuk objektivitas.
+                                Menggunakan filter kegiatan aktif; filter
+                                petugas diabaikan untuk objektivitas.
                             </p>
                         </div>
                         <Badge variant="outline">Balanced</Badge>
@@ -651,7 +648,7 @@ export default function PenilaianMitraStatistik({
                         Tabel Review Mitra (Balanced)
                     </h3>
                     <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                        Berdasarkan filter aktif bulan/kegiatan, filter petugas
+                        Berdasarkan filter kegiatan aktif; filter petugas
                         tidak digunakan.
                     </p>
 
@@ -851,41 +848,16 @@ export default function PenilaianMitraStatistik({
                     </div>
                 </ContentCard>
                 <ContentCard className="relative z-30">
-                    <div className="grid gap-4 md:grid-cols-4">
-                        <div className="space-y-1">
-                            <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                                Bulan
-                            </p>
-                            <Select
-                                value={filters.bulan}
-                                onValueChange={(value) =>
-                                    handleFilterChange(
-                                        value,
-                                        filters.kegiatan_id,
-                                        filters.petugas_id,
-                                    )
-                                }
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {MONTH_OPTIONS.map((option) => (
-                                        <SelectItem
-                                            key={option.value}
-                                            value={option.value}
-                                        >
-                                            {option.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <p className="text-[11px] leading-relaxed text-muted-foreground">
-                                Memfilter berdasarkan bulan periode alokasi yang
-                                dinilai, bukan tanggal saat review dikirim.
-                            </p>
-                        </div>
-
+                    <div className="mb-4">
+                        <h3 className="text-sm font-semibold">
+                            Filter Monitoring
+                        </h3>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Penilaian tidak dibatasi per bulan. Gunakan kegiatan
+                            atau petugas untuk mempersempit data bila diperlukan.
+                        </p>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-1">
                             <p className="text-sm text-neutral-500 dark:text-neutral-400">
                                 Kegiatan
@@ -894,7 +866,6 @@ export default function PenilaianMitraStatistik({
                                 value={filters.kegiatan_id}
                                 onValueChange={(value) =>
                                     handleFilterChange(
-                                        filters.bulan,
                                         value,
                                         filters.petugas_id,
                                     )
@@ -927,7 +898,6 @@ export default function PenilaianMitraStatistik({
                                 value={filters.petugas_id}
                                 onValueChange={(value) =>
                                     handleFilterChange(
-                                        filters.bulan,
                                         filters.kegiatan_id,
                                         value,
                                     )
