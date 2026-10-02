@@ -760,7 +760,8 @@ export default function PublicPreview({
                             Akses Dokumen Mitra
                         </h1>
                         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
-                            Verifikasi identitas, pilih kegiatan, lalu buka atau unduh dokumen penugasan Anda.
+                            Verifikasi identitas, pilih kegiatan, lalu buka atau
+                            unduh dokumen penugasan Anda.
                         </p>
                     </div>
                     {/* Error banner */}
@@ -1434,7 +1435,8 @@ export default function PublicPreview({
 
                     <div className="border-t border-slate-200 pt-5 text-center dark:border-slate-800">
                         <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                            Data dan dokumen hanya ditampilkan setelah identitas petugas berhasil diverifikasi.
+                            Data dan dokumen hanya ditampilkan setelah identitas
+                            petugas berhasil diverifikasi.
                         </p>
                     </div>
                 </div>

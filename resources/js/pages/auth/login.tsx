@@ -138,13 +138,19 @@ export default function Login({
                                         <ArrowRight className="size-4" />
                                     </a>
                                     <p className="mt-4 text-center text-xs leading-5 text-slate-500 dark:text-slate-400">
-                                        Autentikasi akun dikelola melalui layanan SSO BPS.
+                                        Autentikasi akun dikelola melalui
+                                        layanan SSO BPS.
                                     </p>
                                 </div>
                             ) : (
-                                <form onSubmit={submitLoginForm} className="space-y-5">
+                                <form
+                                    onSubmit={submitLoginForm}
+                                    className="space-y-5"
+                                >
                                     <div className="space-y-2">
-                                        <Label htmlFor="username">Username</Label>
+                                        <Label htmlFor="username">
+                                            Username
+                                        </Label>
                                         <Input
                                             id="username"
                                             name="username"
@@ -162,12 +168,16 @@ export default function Login({
                                                 )
                                             }
                                         />
-                                        <InputError message={loginForm.errors.username} />
+                                        <InputError
+                                            message={loginForm.errors.username}
+                                        />
                                     </div>
 
                                     <div className="space-y-2">
                                         <div className="flex items-center justify-between">
-                                            <Label htmlFor="password">Password</Label>
+                                            <Label htmlFor="password">
+                                                Password
+                                            </Label>
                                             {canResetPassword && (
                                                 <TextLink
                                                     href={request()}
@@ -204,7 +214,9 @@ export default function Login({
                                             <button
                                                 type="button"
                                                 onClick={() =>
-                                                    setIsPasswordVisible((v) => !v)
+                                                    setIsPasswordVisible(
+                                                        (v) => !v,
+                                                    )
                                                 }
                                                 className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                                                 aria-label={
@@ -220,7 +232,9 @@ export default function Login({
                                                 )}
                                             </button>
                                         </div>
-                                        <InputError message={loginForm.errors.password} />
+                                        <InputError
+                                            message={loginForm.errors.password}
+                                        />
                                     </div>
 
                                     <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
