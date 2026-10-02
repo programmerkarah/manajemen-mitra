@@ -23,8 +23,8 @@ export default function Welcome({
         <>
             <Head title="SIMANTIK" />
 
-            <div className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#eef3f8_100%)] text-slate-950 dark:bg-[linear-gradient(180deg,#020617_0%,#0b1220_100%)] dark:text-slate-50">
-                <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
+            <div className="min-h-screen bg-background text-foreground">
+                <header className="border-b border-border bg-card/95 backdrop-blur">
                     <div className="mx-auto flex h-18 max-w-[1480px] items-center justify-between px-6 sm:px-10">
                         <Link href="/" className="flex items-center">
                             <AppLogo />
@@ -50,7 +50,7 @@ export default function Welcome({
                                     {canRegister && (
                                         <Link
                                             href={register()}
-                                            className="hidden h-11 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:inline-flex dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                                            className="hidden h-11 items-center rounded-xl border border-border bg-card px-4 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:inline-flex "
                                         >
                                             Daftar
                                         </Link>
@@ -73,7 +73,7 @@ export default function Welcome({
                                 Pekerjaan kegiatan statistik, lebih tertata.
                             </h1>
 
-                            <p className="mt-7 max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300">
+                            <p className="mt-7 max-w-2xl text-lg leading-8 text-muted-foreground">
                                 SIMANTIK menyatukan pengelolaan kegiatan,
                                 petugas, alokasi, dokumen, honor, dan monitoring
                                 dalam satu ruang kerja yang konsisten.
@@ -93,14 +93,14 @@ export default function Welcome({
                                 {!auth.user && canRegister && (
                                     <Link
                                         href={register()}
-                                        className="inline-flex h-12 items-center rounded-xl border border-slate-200 bg-white px-6 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                                        className="inline-flex h-12 items-center rounded-xl border border-border bg-card px-6 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 "
                                     >
                                         Buat akun
                                     </Link>
                                 )}
                             </div>
 
-                            <div className="mt-10 flex flex-wrap gap-x-7 gap-y-3 border-t border-slate-200 pt-6 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                            <div className="mt-10 flex flex-wrap gap-x-7 gap-y-3 border-t border-border pt-6 text-sm text-muted-foreground">
                                 <span className="flex items-center gap-2">
                                     <CheckCircle2 className="size-4 text-emerald-600" />
                                     Data terpusat
@@ -119,10 +119,10 @@ export default function Welcome({
                         <div className="relative w-full">
                             <div className="absolute inset-x-8 top-10 bottom-10 rounded-[2.5rem] bg-blue-500/10 blur-3xl" />
 
-                            <div className="relative overflow-hidden rounded-[1.75rem] border border-slate-200/90 bg-white shadow-[0_24px_64px_rgba(15,23,42,0.12)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_24px_64px_rgba(0,0,0,0.34)]">
+                            <div className="relative overflow-hidden rounded-[1.75rem] border border-border bg-card shadow-[0_24px_64px_rgba(15,23,42,0.12)] ">
                                 <div className="h-1.5 bg-gradient-to-r from-blue-600 via-emerald-500 to-orange-500" />
 
-                                <div className="flex items-center justify-between border-b border-slate-200 px-7 py-6 dark:border-slate-800">
+                                <div className="flex items-center justify-between border-b border-border px-5 py-5 sm:px-7 sm:py-6">
                                     <div className="flex items-center gap-4">
                                         <div className="flex size-14 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 shadow-sm dark:border-slate-700 dark:bg-slate-800">
                                             <AppLogoIcon className="size-11" />
@@ -131,7 +131,7 @@ export default function Welcome({
                                             <p className="text-base font-semibold">
                                                 Ringkasan SIMANTIK
                                             </p>
-                                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                                            <p className="mt-1 text-sm text-muted-foreground">
                                                 Satu alur untuk pekerjaan
                                                 operasional
                                             </p>
@@ -185,7 +185,7 @@ export default function Welcome({
                                             return (
                                                 <div
                                                     key={title}
-                                                    className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/40"
+                                                    className="rounded-2xl border border-border bg-muted p-4 shadow-sm sm:p-5"
                                                 >
                                                     <div
                                                         className={`mb-5 flex size-11 items-center justify-center rounded-xl border ${toneClasses[tone]}`}
@@ -195,7 +195,7 @@ export default function Welcome({
                                                     <p className="text-base font-semibold">
                                                         {title}
                                                     </p>
-                                                    <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                                                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
                                                         {text}
                                                     </p>
                                                 </div>
@@ -204,7 +204,7 @@ export default function Welcome({
                                     )}
                                 </div>
 
-                                <div className="border-t border-slate-200 bg-slate-50/70 px-7 py-5 dark:border-slate-800 dark:bg-slate-950/40">
+                                <div className="border-t border-border bg-muted px-5 py-4 sm:px-7 sm:py-5">
                                     <div className="grid gap-4 sm:grid-cols-3">
                                         {[
                                             ['01', 'Rencanakan'],
@@ -218,7 +218,7 @@ export default function Welcome({
                                                 <span className="flex size-8 items-center justify-center rounded-full bg-slate-900 text-[11px] font-semibold text-white dark:bg-white dark:text-slate-950">
                                                     {no}
                                                 </span>
-                                                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                                                <span className="text-sm font-medium text-muted-foreground">
                                                     {label}
                                                 </span>
                                             </div>
@@ -230,7 +230,7 @@ export default function Welcome({
                     </section>
                 </main>
 
-                <footer className="border-t border-slate-200/80 bg-white/60 py-5 dark:border-slate-800 dark:bg-slate-950/40">
+                <footer className="border-t border-border bg-card/80 py-5">
                     <div className="mx-auto flex max-w-[1480px] flex-col gap-1 px-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-10">
                         <span>
                             © {new Date().getFullYear()} Badan Pusat Statistik
