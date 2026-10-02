@@ -132,12 +132,21 @@ function initializeReturnNavigation(): void {
         }
 
         const method = String(visit.method ?? 'get').toLowerCase();
+        const destination = String(visit.url ?? '');
+        const destinationPath = normalizeInternalPath(destination);
+        const destinationIsEditor = Boolean(
+            destinationPath &&
+                /\/(?:create|edit)(?:\/|\?|$)/i.test(destinationPath),
+        );
 
-        if (method === 'get') {
+        if (method === 'get' || destinationIsEditor) {
             if (!isReturnNavigation) {
-                rememberReturnTarget(String(visit.url ?? ''));
+                rememberReturnTarget(destination);
             }
-            return;
+
+            if (method === 'get') {
+                return;
+            }
         }
 
         if (
