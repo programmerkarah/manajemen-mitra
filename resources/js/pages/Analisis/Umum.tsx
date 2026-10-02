@@ -1,15 +1,14 @@
+import Activity from 'lucide-react/icons/activity';
+import Banknote from 'lucide-react/icons/banknote';
+import BarChart2 from 'lucide-react/icons/bar-chart2';
+import Download from 'lucide-react/icons/download';
+import TrendingDown from 'lucide-react/icons/trending-down';
+import TrendingUp from 'lucide-react/icons/trending-up';
+import Users from 'lucide-react/icons/users';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import {
-    Activity,
-    Banknote,
-    BarChart2,
-    Download,
-    TrendingDown,
-    TrendingUp,
-    Users,
-} from 'lucide-react';
+
 import { useState } from 'react';
 import {
     CartesianGrid,
