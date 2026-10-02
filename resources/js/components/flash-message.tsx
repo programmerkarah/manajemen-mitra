@@ -7,74 +7,56 @@ import {
     Info,
     X,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type FlashType = 'success' | 'error' | 'warning' | 'info';
 
 export function FlashMessage() {
     const { flash } = usePage<SharedData>().props;
-    const [visible, setVisible] = useState(false);
-    const [message, setMessage] = useState<{
-        type: FlashType;
-        text: string;
-        title: string;
-    } | null>(null);
-    const previousFlashRef = useRef<string>('');
-    const previousUrlRef = useRef<string>('');
+    const [dismissedKey, setDismissedKey] = useState('');
+
+    const message = flash.success
+        ? {
+              type: 'success' as const,
+              text: flash.success,
+              title: 'Berhasil',
+          }
+        : flash.error
+          ? {
+                type: 'error' as const,
+                text: flash.error,
+                title: 'Perhatian',
+            }
+          : flash.warning
+            ? {
+                  type: 'warning' as const,
+                  text: flash.warning,
+                  title: 'Peringatan',
+              }
+            : flash.info
+              ? {
+                    type: 'info' as const,
+                    text: flash.info,
+                    title: 'Informasi',
+                }
+              : null;
+
+    const messageKey = message
+        ? `${message.type}:${message.text}`
+        : '';
+    const visible = Boolean(message && dismissedKey !== messageKey);
 
     useEffect(() => {
-        const currentUrl = window.location.href;
-        if (currentUrl !== previousUrlRef.current) {
-            previousFlashRef.current = '';
-            previousUrlRef.current = currentUrl;
-        }
-
-        const currentFlashKey = JSON.stringify(flash);
-        if (
-            currentFlashKey === previousFlashRef.current ||
-            currentFlashKey === '{}'
-        ) {
+        if (!visible || !messageKey) {
             return;
         }
 
-        const nextMessage = flash.success
-            ? {
-                  type: 'success' as const,
-                  text: flash.success,
-                  title: 'Berhasil',
-              }
-            : flash.error
-              ? {
-                    type: 'error' as const,
-                    text: flash.error,
-                    title: 'Perhatian',
-                }
-              : flash.warning
-                ? {
-                      type: 'warning' as const,
-                      text: flash.warning,
-                      title: 'Peringatan',
-                  }
-                : flash.info
-                  ? {
-                        type: 'info' as const,
-                        text: flash.info,
-                        title: 'Informasi',
-                    }
-                  : null;
+        const timer = window.setTimeout(() => {
+            setDismissedKey(messageKey);
+        }, 6000);
 
-        if (nextMessage) {
-            setMessage(nextMessage);
-            setVisible(true);
-            previousFlashRef.current = currentFlashKey;
-        }
-    }, [flash]);
-
-    useEffect(() => {
-        if (!visible) return;
-        const timer = setTimeout(() => setVisible(false), 6000);
-        return () => clearTimeout(timer);
-    }, [visible]);
+        return () => window.clearTimeout(timer);
+    }, [messageKey, visible]);
 
     if (!visible || !message) return null;
 
@@ -131,7 +113,7 @@ export function FlashMessage() {
                     </div>
 
                     <button
-                        onClick={() => setVisible(false)}
+                        onClick={() => setDismissedKey(messageKey)}
                         className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         aria-label="Tutup"
                         type="button"
