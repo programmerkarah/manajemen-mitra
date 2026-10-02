@@ -38,6 +38,11 @@ interface ReviewRow {
     kegiatan_kode: string;
     kegiatan_nama: string;
     periode_bulan: string;
+    periode_mulai_tahun: number;
+    periode_mulai_bulan: string;
+    periode_selesai_tahun: number;
+    periode_selesai_bulan: string;
+    periode_bulan_terlibat: string[];
     reviewer_name: string;
 }
 
