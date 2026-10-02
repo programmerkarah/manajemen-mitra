@@ -195,6 +195,14 @@ export default function DeadlineManagement() {
     const [deadlineBypassRequests, setDeadlineBypassRequests] = React.useState(
         initialDeadlineBypassRequests,
     );
+
+    React.useEffect(() => {
+        setDeadlineBypasses(initialDeadlineBypasses);
+    }, [initialDeadlineBypasses]);
+
+    React.useEffect(() => {
+        setDeadlineBypassRequests(initialDeadlineBypassRequests);
+    }, [initialDeadlineBypassRequests]);
     const [deadlineSavingKey, setDeadlineSavingKey] = React.useState<
         string | null
     >(null);
@@ -487,6 +495,12 @@ export default function DeadlineManagement() {
                         : item,
                 ),
             );
+
+            router.reload({
+                only: ['deadline_bypasses', 'deadline_bypass_requests'],
+                preserveScroll: true,
+                preserveState: true,
+            });
 
             showModalAlert(
                 'Request Disetujui',
@@ -850,40 +864,122 @@ export default function DeadlineManagement() {
             {
                 key: string;
                 userName: string;
-                reason: string | null;
+                year: number | null;
+                month: number | null;
                 items: DeadlineBypassItem[];
-                expanded: boolean;
             }
         >();
 
         requestBackedBypasses.forEach((item) => {
             const userName = item.granted_for || 'User tidak diketahui';
-            const createdAt = item.created_at || '';
-            const key = `${userName}::${createdAt}`;
+            const userIdentity =
+                item.granted_for_user_id != null
+                    ? String(item.granted_for_user_id)
+                    : userName;
+            const key = `${userIdentity}::${item.year ?? 'na'}::${item.month ?? 'na'}`;
 
             if (!entries.has(key)) {
                 entries.set(key, {
                     key,
                     userName,
-                    reason: item.reason,
+                    year: item.year,
+                    month: item.month,
                     items: [],
-                    expanded: false,
                 });
             }
 
             entries.get(key)!.items.push(item);
         });
 
-        return Array.from(entries.values()).map((entry) => ({
-            ...entry,
-            items: entry.items.sort((left, right) => {
-                if (left.is_active !== right.is_active) {
-                    return Number(right.is_active) - Number(left.is_active);
+        return Array.from(entries.values())
+            .map((entry) => {
+                const requestEntries = new Map<
+                    string,
+                    {
+                        key: string;
+                        requestId: string | null;
+                        createdAt: string | null;
+                        reason: string | null;
+                        items: DeadlineBypassItem[];
+                    }
+                >();
+
+                entry.items.forEach((item) => {
+                    const rawRequestId = item.metadata?.request_id;
+                    const requestId =
+                        typeof rawRequestId === 'number' ||
+                        typeof rawRequestId === 'string'
+                            ? String(rawRequestId)
+                            : null;
+                    const requestKey = requestId
+                        ? `request:${requestId}`
+                        : `created:${item.created_at ?? item.id}`;
+
+                    if (!requestEntries.has(requestKey)) {
+                        requestEntries.set(requestKey, {
+                            key: requestKey,
+                            requestId,
+                            createdAt: item.created_at,
+                            reason: item.reason,
+                            items: [],
+                        });
+                    }
+
+                    requestEntries.get(requestKey)!.items.push(item);
+                });
+
+                const requestGroups = Array.from(requestEntries.values())
+                    .map((requestGroup) => ({
+                        ...requestGroup,
+                        items: requestGroup.items.sort((left, right) => {
+                            if (left.is_active !== right.is_active) {
+                                return (
+                                    Number(right.is_active) -
+                                    Number(left.is_active)
+                                );
+                            }
+
+                            return (right.id ?? 0) - (left.id ?? 0);
+                        }),
+                    }))
+                    .sort((left, right) => {
+                        const leftTime = left.createdAt
+                            ? new Date(left.createdAt).getTime()
+                            : 0;
+                        const rightTime = right.createdAt
+                            ? new Date(right.createdAt).getTime()
+                            : 0;
+
+                        return rightTime - leftTime;
+                    });
+
+                return {
+                    ...entry,
+                    items: entry.items.sort((left, right) => {
+                        if (left.is_active !== right.is_active) {
+                            return (
+                                Number(right.is_active) -
+                                Number(left.is_active)
+                            );
+                        }
+
+                        return (right.id ?? 0) - (left.id ?? 0);
+                    }),
+                    requestGroups,
+                };
+            })
+            .sort((left, right) => {
+                const leftPeriod =
+                    (left.year ?? 0) * 100 + (left.month ?? 0);
+                const rightPeriod =
+                    (right.year ?? 0) * 100 + (right.month ?? 0);
+
+                if (leftPeriod !== rightPeriod) {
+                    return rightPeriod - leftPeriod;
                 }
 
-                return (right.id ?? 0) - (left.id ?? 0);
-            }),
-        }));
+                return left.userName.localeCompare(right.userName, 'id');
+            });
     }, [deadlineBypasses, isRequestBackedBypass, matchesBypassFilters]);
 
     const getBypassStatus = (item: DeadlineBypassItem) => {
@@ -1471,91 +1567,111 @@ export default function DeadlineManagement() {
                                 </div>
                             </div>
 
-                            {approvedRequests.length === 0 && (
+                            {groupApprovedBypasses.length === 0 && (
                                 <div className="rounded-2xl border border-dashed border-neutral-300 p-6 text-sm text-muted-foreground dark:border-neutral-700">
-                                    Belum ada request bypass yang disetujui.
+                                    {approvedRequests.length === 0
+                                        ? 'Belum ada request bypass yang disetujui.'
+                                        : 'Tidak ada akses yang sesuai dengan filter saat ini.'}
                                 </div>
                             )}
 
                             {groupApprovedBypasses.length > 0 && (
-                                <div className="space-y-4 pt-2">
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
-                                            Akses yang sudah disetujui
-                                        </h3>
-                                        <Badge variant="outline">
-                                            {groupApprovedBypasses.length} user
-                                        </Badge>
+                                <div className="space-y-3 pt-2">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
+                                                Akses yang sudah disetujui
+                                            </h3>
+                                            <Badge variant="outline">
+                                                {
+                                                    new Set(
+                                                        groupApprovedBypasses.map(
+                                                            (group) =>
+                                                                group.userName,
+                                                        ),
+                                                    ).size
+                                                }{' '}
+                                                user ·{' '}
+                                                {groupApprovedBypasses.length}{' '}
+                                                periode
+                                            </Badge>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                            User yang sama pada periode yang sama
+                                            digabung, setiap request tetap
+                                            dipisahkan di detail.
+                                        </p>
                                     </div>
 
                                     {groupApprovedBypasses.map((group) => {
                                         const isExpanded = Boolean(
                                             expandedApprovedGroups[group.key],
                                         );
-                                        const allActive = group.items.some(
+                                        const hasActive = group.items.some(
                                             (item) => item.is_active,
                                         );
                                         const totalActive = group.items.filter(
                                             (item) => item.is_active,
                                         ).length;
-                                        const overallRevokeDisabled =
-                                            totalActive === 0;
+                                        const requestCount =
+                                            group.requestGroups.length;
+                                        const latestCreatedAt =
+                                            group.requestGroups[0]?.createdAt ??
+                                            group.items[0]?.created_at ??
+                                            null;
 
                                         return (
                                             <div
                                                 key={group.key}
-                                                className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm dark:border-emerald-800 dark:bg-neutral-900/60"
+                                                className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm transition-colors hover:border-emerald-300 dark:border-neutral-800 dark:bg-neutral-900/60 dark:hover:border-emerald-700"
                                             >
-                                                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                                                    <div className="space-y-2">
+                                                <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
+                                                    <div className="min-w-0 space-y-2">
                                                         <div className="flex flex-wrap items-center gap-2">
-                                                            <p className="font-semibold text-neutral-900 dark:text-white">
+                                                            <p className="truncate font-semibold text-neutral-900 dark:text-white">
                                                                 {group.userName}
                                                             </p>
+                                                            <Badge variant="outline">
+                                                                {formatMonthYearLabel(
+                                                                    group.month,
+                                                                    group.year,
+                                                                )}
+                                                            </Badge>
                                                             <Badge
                                                                 className={
-                                                                    allActive
+                                                                    hasActive
                                                                         ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
                                                                         : 'bg-neutral-200 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200'
                                                                 }
                                                             >
-                                                                {allActive
-                                                                    ? 'Masih aktif'
+                                                                {hasActive
+                                                                    ? `${totalActive} aktif`
                                                                     : 'Tidak aktif'}
                                                             </Badge>
                                                         </div>
 
-                                                        <div className="grid gap-1 text-sm text-muted-foreground sm:grid-cols-2">
+                                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                                                             <span>
-                                                                Jumlah akses:{' '}
+                                                                {requestCount}{' '}
+                                                                request
+                                                            </span>
+                                                            <span>
                                                                 {
                                                                     group.items
                                                                         .length
-                                                                }
+                                                                }{' '}
+                                                                akses
                                                             </span>
                                                             <span>
-                                                                Periode: Bulan{' '}
-                                                                {formatMonthYearLabel(
-                                                                    group
-                                                                        .items[0]
-                                                                        ?.month,
-                                                                    group
-                                                                        .items[0]
-                                                                        ?.year,
-                                                                )}
-                                                            </span>
-                                                            <span className="sm:col-span-2">
-                                                                Tanggal dibuat:{' '}
+                                                                Terbaru:{' '}
                                                                 {formatCreatedAtLabel(
-                                                                    group
-                                                                        .items[0]
-                                                                        ?.created_at,
+                                                                    latestCreatedAt,
                                                                 )}
                                                             </span>
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex flex-wrap items-center gap-2">
+                                                    <div className="flex shrink-0 flex-wrap items-center gap-2">
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
@@ -1566,10 +1682,10 @@ export default function DeadlineManagement() {
                                                             }
                                                         >
                                                             {isExpanded
-                                                                ? 'Sembunyikan'
-                                                                : 'Lihat fitur'}
+                                                                ? 'Tutup detail'
+                                                                : `Detail (${requestCount})`}
                                                         </Button>
-                                                        {!overallRevokeDisabled && (
+                                                        {totalActive > 0 && (
                                                             <Button
                                                                 size="sm"
                                                                 variant="destructive"
@@ -1589,99 +1705,154 @@ export default function DeadlineManagement() {
                                                                                     item.id,
                                                                             ),
                                                                         group.userName,
-                                                                        `Cabut semua akses aktif untuk ${group.userName}?`,
+                                                                        `Cabut semua akses aktif untuk ${group.userName} pada ${formatMonthYearLabel(group.month, group.year)}?`,
                                                                     )
                                                                 }
                                                             >
-                                                                Cabut semua
+                                                                Cabut aktif
                                                             </Button>
                                                         )}
                                                     </div>
                                                 </div>
 
                                                 {isExpanded && (
-                                                    <div className="mt-4 space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-950/40">
-                                                        {group.items.map(
-                                                            (item) => (
-                                                                <div
-                                                                    key={
-                                                                        item.id
-                                                                    }
-                                                                    className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-neutral-800 dark:bg-neutral-950/60"
-                                                                >
-                                                                    <div className="space-y-1">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <p className="font-medium text-neutral-900 dark:text-white">
-                                                                                {item.rule_label ||
-                                                                                    item.rule_key ||
-                                                                                    'Akses'}
-                                                                            </p>
-                                                                            <span
-                                                                                className={[
-                                                                                    'rounded-full px-2 py-1 text-[11px] font-semibold',
-                                                                                    getBypassStatusTone(
-                                                                                        item,
-                                                                                    ),
-                                                                                ].join(
-                                                                                    ' ',
-                                                                                )}
-                                                                            >
-                                                                                {getBypassStatus(
-                                                                                    item,
-                                                                                )}
-                                                                            </span>
-                                                                        </div>
-                                                                        <p className="text-xs text-muted-foreground">
-                                                                            {item.reason ||
-                                                                                'Tidak ada alasan'}
-                                                                        </p>
-                                                                    </div>
+                                                    <div className="border-t border-neutral-200 bg-neutral-50/70 p-3 dark:border-neutral-800 dark:bg-neutral-950/30">
+                                                        <div className="space-y-3">
+                                                            {group.requestGroups.map(
+                                                                (
+                                                                    requestGroup,
+                                                                    requestIndex,
+                                                                ) => {
+                                                                    const requestActive =
+                                                                        requestGroup.items.filter(
+                                                                            (
+                                                                                item,
+                                                                            ) =>
+                                                                                item.is_active,
+                                                                        )
+                                                                            .length;
+                                                                    const requestLabel =
+                                                                        requestGroup.requestId
+                                                                            ? `Request #${requestGroup.requestId}`
+                                                                            : `Request ${requestIndex + 1}`;
 
-                                                                    <div className="flex items-center gap-2">
-                                                                        {!item.is_active && (
-                                                                            <span className="text-xs text-muted-foreground">
-                                                                                {item.reason
-                                                                                    ?.toLowerCase()
-                                                                                    .includes(
-                                                                                        'dicabut',
-                                                                                    ) ||
-                                                                                item.reason
-                                                                                    ?.toLowerCase()
-                                                                                    .includes(
-                                                                                        'cabut',
-                                                                                    )
-                                                                                    ? 'Akses dicabut'
-                                                                                    : 'Sudah digunakan'}
-                                                                            </span>
-                                                                        )}
-                                                                        {item.is_active && (
-                                                                            <Button
-                                                                                size="sm"
-                                                                                variant="destructive"
-                                                                                onClick={() =>
-                                                                                    requestRevokeBypass(
-                                                                                        item.id,
-                                                                                        item.rule_label ||
-                                                                                            item.rule_key ||
-                                                                                            'Akses',
-                                                                                        `Cabut akses ${item.rule_label || item.rule_key || 'Akses'} untuk ${group.userName}?`,
-                                                                                    )
-                                                                                }
-                                                                                disabled={
-                                                                                    revokeBypassId ===
-                                                                                    item.id
-                                                                                }
-                                                                            >
-                                                                                {revokeBypassId ===
-                                                                                item.id
-                                                                                    ? 'Mencabut...'
-                                                                                    : 'Cabut akses'}
-                                                                            </Button>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            ),
-                                                        )}
+                                                                    return (
+                                                                        <div
+                                                                            key={
+                                                                                requestGroup.key
+                                                                            }
+                                                                            className="rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900/70"
+                                                                        >
+                                                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                                                                <div className="min-w-0">
+                                                                                    <div className="flex flex-wrap items-center gap-2">
+                                                                                        <p className="text-sm font-semibold text-neutral-900 dark:text-white">
+                                                                                            {
+                                                                                                requestLabel
+                                                                                            }
+                                                                                        </p>
+                                                                                        <Badge variant="secondary">
+                                                                                            {
+                                                                                                requestGroup
+                                                                                                    .items
+                                                                                                    .length
+                                                                                            }{' '}
+                                                                                            fitur
+                                                                                        </Badge>
+                                                                                        {requestActive >
+                                                                                            0 && (
+                                                                                            <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                                                                                {
+                                                                                                    requestActive
+                                                                                                }{' '}
+                                                                                                aktif
+                                                                                            </Badge>
+                                                                                        )}
+                                                                                    </div>
+                                                                                    <p className="mt-1 text-xs text-muted-foreground">
+                                                                                        Disetujui/dibuat:{' '}
+                                                                                        {formatCreatedAtLabel(
+                                                                                            requestGroup.createdAt,
+                                                                                        )}
+                                                                                    </p>
+                                                                                    {requestGroup.reason && (
+                                                                                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                                                                            Alasan:{' '}
+                                                                                            {
+                                                                                                requestGroup.reason
+                                                                                            }
+                                                                                        </p>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div className="mt-3 divide-y divide-neutral-200 rounded-lg border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
+                                                                                {requestGroup.items.map(
+                                                                                    (
+                                                                                        item,
+                                                                                    ) => (
+                                                                                        <div
+                                                                                            key={
+                                                                                                item.id
+                                                                                            }
+                                                                                            className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                                                                                        >
+                                                                                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                                                                                <span className="truncate text-sm font-medium text-neutral-900 dark:text-white">
+                                                                                                    {item.rule_label ||
+                                                                                                        item.rule_key ||
+                                                                                                        'Akses'}
+                                                                                                </span>
+                                                                                                <span
+                                                                                                    className={[
+                                                                                                        'rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                                                                                                        getBypassStatusTone(
+                                                                                                            item,
+                                                                                                        ),
+                                                                                                    ].join(
+                                                                                                        ' ',
+                                                                                                    )}
+                                                                                                >
+                                                                                                    {getBypassStatus(
+                                                                                                        item,
+                                                                                                    )}
+                                                                                                </span>
+                                                                                            </div>
+
+                                                                                            {item.is_active && (
+                                                                                                <Button
+                                                                                                    size="sm"
+                                                                                                    variant="ghost"
+                                                                                                    className="h-8 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
+                                                                                                    onClick={() =>
+                                                                                                        requestRevokeBypass(
+                                                                                                            item.id,
+                                                                                                            item.rule_label ||
+                                                                                                                item.rule_key ||
+                                                                                                                'Akses',
+                                                                                                            `Cabut akses ${item.rule_label || item.rule_key || 'Akses'} untuk ${group.userName}?`,
+                                                                                                        )
+                                                                                                    }
+                                                                                                    disabled={
+                                                                                                        revokeBypassId ===
+                                                                                                        item.id
+                                                                                                    }
+                                                                                                >
+                                                                                                    {revokeBypassId ===
+                                                                                                    item.id
+                                                                                                        ? 'Mencabut...'
+                                                                                                        : 'Cabut'}
+                                                                                                </Button>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    ),
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                },
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
