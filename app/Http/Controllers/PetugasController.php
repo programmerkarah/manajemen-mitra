@@ -34,8 +34,7 @@ class PetugasController extends Controller
     {
         $validated = $request->validated();
         $query = Petugas::query()
-            ->select('petugas.*')
-            ->where('jenis_petugas', 'non-organik');
+            ->select('petugas.*');
 
         // Search
         if (! empty($validated['search'])) {
@@ -174,7 +173,6 @@ class PetugasController extends Controller
         }
 
         $petugas = Petugas::query()
-            ->where('jenis_petugas', 'non-organik')
             ->findOrFail($id);
         $petugas->load(['alokasi.periodeAlokasi.kegiatan.rateHonors.satuan']);
 
