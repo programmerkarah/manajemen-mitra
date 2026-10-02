@@ -744,19 +744,23 @@ export default function PublicPreview({
                         <div className="flex min-w-0 items-center">
                             <AppLogo />
                         </div>
-                        <div className="text-right">
-                            <p className="text-xs font-medium text-muted-foreground ">
-                                Layanan Mitra Statistik
-                            </p>
-                            <p className="text-sm font-semibold text-foreground ">
-                                Dokumen {active_year}
-                            </p>
+                        <div className="flex items-center gap-3">
+                            <div className="hidden text-right sm:block">
+                                <p className="text-xs font-medium text-muted-foreground">
+                                    Layanan Mitra Statistik
+                                </p>
+                                <p className="text-sm font-semibold text-foreground">
+                                    Dokumen {active_year}
+                                </p>
+                            </div>
+                            <span className="hidden h-5 w-px bg-border sm:block" aria-hidden="true" />
+                            <ThemeToggleButton />
                         </div>
                     </div>
                 </header>
 
                 <div className="mx-auto max-w-6xl space-y-6 px-5 py-8 sm:px-8 sm:py-10">
-                    <div className="rounded-xl border border-border bg-card px-5 py-5 shadow-sm sm:px-6 sm:py-6">
+                    <div className="relative overflow-hidden rounded-xl border border-border bg-card px-5 py-5 shadow-sm sm:px-6 sm:py-6">
                         <div className="absolute inset-y-0 left-0 w-1 bg-primary" />
                         <h1 className="text-2xl font-semibold tracking-[-0.025em] text-foreground sm:text-3xl">
                             Akses Dokumen Mitra
@@ -781,9 +785,9 @@ export default function PublicPreview({
                             onClick={() =>
                                 setExpandedStep((v) => (v === 1 ? null : 1))
                             }
-                            className="flex w-full cursor-pointer items-center gap-3 border-b border-border bg-muted/45 px-6 py-4 text-left transition-colors hover:bg-muted hover:bg-muted"
+                            className="flex w-full cursor-pointer items-center gap-3 border-b border-border bg-muted/45 px-6 py-4 text-left transition-colors hover:bg-muted"
                         >
-                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white shadow-sm shadow-blue-600/25">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground shadow-sm ">
                                 1
                             </span>
                             <span className="text-sm font-semibold text-foreground">
@@ -807,8 +811,8 @@ export default function PublicPreview({
                         </button>
 
                         {expandedStep === 1 && (
-                            <div className="p-6 sm:p-8 lg:p-9">
-                                <div className="grid gap-5 sm:grid-cols-[1fr_1fr_190px]">
+                            <div className="p-4 sm:p-6 lg:p-7">
+                                <div className="grid gap-4 md:grid-cols-[1fr_1fr_180px]">
                                     <div className="space-y-2">
                                         <Label
                                             htmlFor="nama"
@@ -938,7 +942,7 @@ export default function PublicPreview({
                                         : ''
                                 }`}
                             >
-                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white shadow-sm shadow-blue-600/25">
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground shadow-sm ">
                                     2
                                 </span>
                                 <span className="text-sm font-semibold text-foreground">
@@ -975,7 +979,7 @@ export default function PublicPreview({
                             </button>
 
                             {expandedStep === 2 && (
-                                <div className="p-6 sm:p-8 lg:p-9">
+                                <div className="p-4 sm:p-6 lg:p-7">
                                     <div className="grid gap-5 sm:grid-cols-2">
                                         <div className="space-y-2">
                                             <Label
@@ -1126,7 +1130,7 @@ export default function PublicPreview({
                                         : ''
                                 }`}
                             >
-                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white shadow-sm shadow-blue-600/25">
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground shadow-sm ">
                                     3
                                 </span>
                                 <span className="text-sm font-semibold text-foreground">
@@ -1273,7 +1277,7 @@ export default function PublicPreview({
                                     </div>
 
                                     {/* Dokumen section */}
-                                    <div className="p-6 sm:p-8 lg:p-9">
+                                    <div className="p-4 sm:p-6 lg:p-7">
                                         <div
                                             className={`grid gap-3 ${
                                                 jenisKegiatan === 'sensus'
