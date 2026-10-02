@@ -1,194 +1,117 @@
 import AppLogo from '@/components/app-logo';
+import AppLogoIcon from '@/components/app-logo-icon';
 import { dashboard, login, register } from '@/routes';
 import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Activity, CheckCircle2, Shield, Users } from 'lucide-react';
+import { ArrowRight, BarChart3, CheckCircle2, ClipboardList, Users } from 'lucide-react';
 
-export default function Welcome({
-    canRegister = true,
-}: {
-    canRegister?: boolean;
-}) {
+export default function Welcome({ canRegister = true }: { canRegister?: boolean }) {
     const { auth } = usePage<SharedData>().props;
 
     return (
         <>
-            <Head title="Selamat Datang" />
-            <div className="flex min-h-screen flex-col bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-blue-950">
-                <header className="border-b border-neutral-200/50 backdrop-blur-sm dark:border-neutral-800">
-                    <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-                        <div className="flex items-center gap-3">
+            <Head title="SIMANTIK" />
+            <div className="relative min-h-screen overflow-hidden bg-[#f7f9fc] text-slate-950 dark:bg-slate-950 dark:text-white">
+                <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                    <div className="absolute -top-40 right-[-10rem] size-[34rem] rounded-full bg-blue-500/10 blur-3xl" />
+                    <div className="absolute bottom-[-15rem] left-[-8rem] size-[30rem] rounded-full bg-emerald-400/10 blur-3xl" />
+                </div>
+
+                <header className="relative z-10 border-b border-slate-200/70 bg-white/75 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
+                    <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 sm:px-8">
+                        <Link href="/" className="flex items-center">
                             <AppLogo />
-                        </div>
-                        <nav className="flex items-center gap-3">
+                        </Link>
+                        <div className="flex items-center gap-2">
                             {auth.user ? (
-                                <Link
-                                    href={dashboard()}
-                                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                                >
-                                    Dashboard
+                                <Link href={dashboard()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950">
+                                    Dashboard <ArrowRight className="size-4" />
                                 </Link>
                             ) : (
                                 <>
-                                    <Link
-                                        href={login()}
-                                        className="rounded-lg px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                    >
+                                    <Link href={login()} className="inline-flex h-10 items-center rounded-xl px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white">
                                         Masuk
                                     </Link>
                                     {canRegister && (
-                                        <Link
-                                            href={register()}
-                                            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                                        >
+                                        <Link href={register()} className="hidden h-10 items-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 sm:inline-flex dark:bg-white dark:text-slate-950">
                                             Daftar
                                         </Link>
                                     )}
                                 </>
                             )}
-                        </nav>
+                        </div>
                     </div>
                 </header>
 
-                <main className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-                    <div className="mx-auto w-full max-w-6xl">
-                        <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
-                            <div className="flex flex-col justify-center">
-                                <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-2 text-sm font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                                    <Activity className="h-4 w-4" />
-                                    <span>SIMANTIK</span>
-                                </div>
-                                <h1 className="mb-4 text-4xl font-bold tracking-tight text-neutral-900 sm:text-5xl lg:text-6xl dark:text-white">
-                                    Sistem Manajemen Petugas dan{' '}
-                                    <span className="text-blue-600 dark:text-blue-400">
-                                        Administrasi Kegiatan Statistik
-                                    </span>
-                                </h1>
-                                <p className="mb-8 text-lg text-neutral-600 dark:text-neutral-400">
-                                    Platform terintegrasi untuk mengelola data
-                                    petugas, kegiatan, alokasi, dan kelengkapan
-                                    administrasi dengan mudah dan efisien.
-                                </p>
-
-                                <div className="flex flex-wrap gap-4">
-                                    {auth.user ? (
-                                        <Link
-                                            href={dashboard()}
-                                            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-base font-medium text-white transition-all hover:bg-blue-700 hover:shadow-lg dark:bg-blue-500 dark:hover:bg-blue-600"
-                                        >
-                                            Buka Dashboard
-                                            <svg
-                                                className="h-5 w-5"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M13 7l5 5m0 0l-5 5m5-5H6"
-                                                />
-                                            </svg>
-                                        </Link>
-                                    ) : (
-                                        <>
-                                            <Link
-                                                href={login()}
-                                                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-base font-medium text-white transition-all hover:bg-blue-700 hover:shadow-lg dark:bg-blue-500 dark:hover:bg-blue-600"
-                                            >
-                                                Masuk
-                                                <svg
-                                                    className="h-5 w-5"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                        strokeWidth={2}
-                                                        d="M13 7l5 5m0 0l-5 5m5-5H6"
-                                                    />
-                                                </svg>
-                                            </Link>
-                                            {canRegister && (
-                                                <Link
-                                                    href={register()}
-                                                    className="inline-flex items-center gap-2 rounded-lg border-2 border-neutral-300 bg-white px-6 py-3 text-base font-medium text-neutral-700 transition-all hover:border-neutral-400 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:border-neutral-600 dark:hover:bg-neutral-700"
-                                                >
-                                                    Daftar Akun
-                                                </Link>
-                                            )}
-                                        </>
-                                    )}
-                                </div>
+                <main className="relative z-10">
+                    <section className="mx-auto grid min-h-[calc(100vh-8.5rem)] max-w-7xl items-center gap-14 px-5 py-16 sm:px-8 lg:grid-cols-[1.05fr_.95fr] lg:py-20">
+                        <div className="max-w-3xl">
+                            <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold tracking-wide text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+                                <span className="size-2 rounded-full bg-emerald-500" />
+                                Sistem Manajemen Tugas & Kegiatan
                             </div>
+                            <h1 className="text-5xl leading-[1.03] font-bold tracking-[-0.045em] text-balance sm:text-6xl lg:text-7xl">
+                                Administrasi kegiatan statistik,{' '}
+                                <span className="text-blue-600 dark:text-blue-400">dalam satu ruang kerja.</span>
+                            </h1>
+                            <p className="mt-7 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg dark:text-slate-300">
+                                SIMANTIK membantu BPS Kota Sawahlunto mengelola petugas, alokasi, dokumen, honor, dan monitoring kegiatan secara terintegrasi.
+                            </p>
+                            <div className="mt-9 flex flex-wrap gap-3">
+                                <Link href={auth.user ? dashboard() : login()} className="inline-flex h-12 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-600/15 transition hover:bg-blue-700">
+                                    {auth.user ? 'Buka Dashboard' : 'Masuk ke SIMANTIK'} <ArrowRight className="size-4" />
+                                </Link>
+                                {!auth.user && canRegister && (
+                                    <Link href={register()} className="inline-flex h-12 items-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10">
+                                        Daftar akun
+                                    </Link>
+                                )}
+                            </div>
+                        </div>
 
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="rounded-xl border border-neutral-200 bg-white p-6 transition-all hover:shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
-                                    <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                                        <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                        <div className="relative mx-auto w-full max-w-xl">
+                            <div className="absolute inset-10 rounded-[3rem] bg-blue-500/15 blur-3xl" />
+                            <div className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-2xl shadow-slate-900/10 backdrop-blur-xl sm:p-8 dark:border-white/10 dark:bg-white/[0.06]">
+                                <div className="flex items-center justify-between border-b border-slate-100 pb-6 dark:border-white/10">
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex size-16 items-center justify-center rounded-2xl bg-slate-50 shadow-inner dark:bg-white/10">
+                                            <AppLogoIcon className="size-14" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold tracking-[0.18em] text-slate-400">SIMANTIK</p>
+                                            <p className="mt-1 font-semibold">Ruang kerja terintegrasi</p>
+                                        </div>
                                     </div>
-                                    <h3 className="mb-2 text-lg font-semibold text-neutral-900 dark:text-white">
-                                        Manajemen Petugas
-                                    </h3>
-                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                        Kelola data petugas dan alokasi tugas
-                                        dengan sistem yang terorganisir
-                                    </p>
+                                    <div className="flex gap-1.5"><span className="size-2 rounded-full bg-blue-500" /><span className="size-2 rounded-full bg-emerald-500" /><span className="size-2 rounded-full bg-orange-500" /></div>
                                 </div>
-
-                                <div className="rounded-xl border border-neutral-200 bg-white p-6 transition-all hover:shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
-                                    <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-                                        <Activity className="h-6 w-6 text-green-600 dark:text-green-400" />
-                                    </div>
-                                    <h3 className="mb-2 text-lg font-semibold text-neutral-900 dark:text-white">
-                                        Tracking Kegiatan
-                                    </h3>
-                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                        Monitor dan kelola kegiatan survei
-                                        secara real-time dan efisien
-                                    </p>
+                                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                                    {[
+                                        [Users, 'Petugas', 'Data & penugasan'],
+                                        [ClipboardList, 'Kegiatan', 'Rencana & realisasi'],
+                                        [CheckCircle2, 'Administrasi', 'Dokumen & approval'],
+                                        [BarChart3, 'Monitoring', 'Progres & rekap'],
+                                    ].map(([Icon, title, desc]) => {
+                                        const FeatureIcon = Icon as typeof Users;
+                                        return (
+                                            <div key={String(title)} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/5">
+                                                <FeatureIcon className="mb-5 size-5 text-blue-600 dark:text-blue-400" />
+                                                <p className="text-sm font-semibold">{String(title)}</p>
+                                                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{String(desc)}</p>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-
-                                <div className="rounded-xl border border-neutral-200 bg-white p-6 transition-all hover:shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
-                                    <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
-                                        <CheckCircle2 className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                                    </div>
-                                    <h3 className="mb-2 text-lg font-semibold text-neutral-900 dark:text-white">
-                                        Sistem Approval
-                                    </h3>
-                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                        Workflow approval yang jelas untuk
-                                        setiap proses dan dokumentasi
-                                    </p>
-                                </div>
-
-                                <div className="rounded-xl border border-neutral-200 bg-white p-6 transition-all hover:shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
-                                    <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                                        <Shield className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                                    </div>
-                                    <h3 className="mb-2 text-lg font-semibold text-neutral-900 dark:text-white">
-                                        Keamanan Data
-                                    </h3>
-                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                        Autentikasi berlapis dengan 2FA dan
-                                        enkripsi data untuk keamanan maksimal
-                                    </p>
+                                <div className="mt-6 flex items-center gap-3 rounded-2xl bg-slate-950 p-4 text-white dark:bg-white dark:text-slate-950">
+                                    <span className="flex size-8 items-center justify-center rounded-full bg-emerald-500/20"><CheckCircle2 className="size-4 text-emerald-400 dark:text-emerald-600" /></span>
+                                    <div><p className="text-xs font-semibold">Terintegrasi</p><p className="text-[11px] opacity-60">Satu sumber data untuk proses kerja yang konsisten.</p></div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </main>
 
-                <footer className="border-t border-neutral-200/50 py-6 dark:border-neutral-800">
-                    <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            © {new Date().getFullYear()} Badan Pusat Statistik
-                            Kota Sawahlunto. All rights reserved.
-                        </p>
-                    </div>
+                <footer className="relative z-10 border-t border-slate-200/70 px-5 py-5 text-center text-xs text-slate-500 dark:border-white/10 dark:text-slate-400">
+                    © {new Date().getFullYear()} Badan Pusat Statistik Kota Sawahlunto
                 </footer>
             </div>
         </>
