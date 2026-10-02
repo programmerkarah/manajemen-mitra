@@ -36,52 +36,6 @@ export default defineConfig({
         chunkSizeWarningLimit: 800,
         rollupOptions: {
             output: {
-                manualChunks(id) {
-                    if (!id.includes('node_modules')) {
-                        return undefined;
-                    }
-
-                    if (
-                        id.includes('/react/') ||
-                        id.includes('/react-dom/') ||
-                        id.includes('/scheduler/')
-                    ) {
-                        return 'vendor-react';
-                    }
-
-                    if (id.includes('/@inertiajs/')) {
-                        return 'vendor-inertia';
-                    }
-
-                    if (
-                        id.includes('/@radix-ui/') ||
-                        id.includes('/cmdk/') ||
-                        id.includes('/input-otp/')
-                    ) {
-                        return 'vendor-ui';
-                    }
-
-                    if (id.includes('/lucide-react/')) {
-                        return 'vendor-icons';
-                    }
-
-                    if (id.includes('/recharts/')) {
-                        return 'vendor-charts';
-                    }
-
-                    if (id.includes('/crypto-js/')) {
-                        return 'vendor-crypto';
-                    }
-
-                    if (
-                        id.includes('/laravel-echo/') ||
-                        id.includes('/pusher-js/')
-                    ) {
-                        return 'vendor-realtime';
-                    }
-
-                    return undefined;
-                },
                 assetFileNames: (assetInfo) => {
                     const info = assetInfo.name?.split('.');
                     const ext = info?.[info.length - 1];
