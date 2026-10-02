@@ -318,10 +318,7 @@ export default function PenilaianMitraStatistik({
             .sort((a, b) => a.month.localeCompare(b.month));
     }, [reviewRows]);
 
-    const handleFilterChange = (
-        kegiatanId: string,
-        petugasId: string,
-    ) => {
+    const handleFilterChange = (kegiatanId: string, petugasId: string) => {
         router.post(
             '/monitoring-penilaian-mitra',
             {
@@ -648,8 +645,8 @@ export default function PenilaianMitraStatistik({
                         Tabel Review Mitra (Balanced)
                     </h3>
                     <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                        Berdasarkan filter kegiatan aktif; filter petugas
-                        tidak digunakan.
+                        Berdasarkan filter kegiatan aktif; filter petugas tidak
+                        digunakan.
                     </p>
 
                     <div className="mt-4 overflow-x-auto">
@@ -854,7 +851,8 @@ export default function PenilaianMitraStatistik({
                         </h3>
                         <p className="mt-1 text-xs text-muted-foreground">
                             Penilaian tidak dibatasi per bulan. Gunakan kegiatan
-                            atau petugas untuk mempersempit data bila diperlukan.
+                            atau petugas untuk mempersempit data bila
+                            diperlukan.
                         </p>
                     </div>
                     <div className="grid gap-4 md:grid-cols-2">
