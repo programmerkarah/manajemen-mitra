@@ -108,10 +108,18 @@ export default function Index({ kegiatan, summary }: IndexProps) {
     const [search, setSearch] = useState('');
     const [jenisKegiatan, setJenisKegiatan] = useState('all');
     const [skStatusFilter, setSkStatusFilter] = useState<
-        'all' | 'not_created' | 'needs_revision'
+        | 'all'
+        | 'not_created'
+        | 'draft'
+        | 'signed'
+        | 'cancelled'
+        | 'needs_revision'
     >(() => {
         const hash = window.location.hash;
         if (hash === '#filter=not_created') return 'not_created';
+        if (hash === '#filter=draft') return 'draft';
+        if (hash === '#filter=signed') return 'signed';
+        if (hash === '#filter=cancelled') return 'cancelled';
         if (hash === '#filter=needs_revision') return 'needs_revision';
         return 'all';
     });
@@ -194,6 +202,24 @@ export default function Index({ kegiatan, summary }: IndexProps) {
         // Filter by SK status (from dashboard attention item)
         if (skStatusFilter === 'not_created') {
             result = result.filter((item: KegiatanItem) => item.sk_count === 0);
+        } else if (skStatusFilter === 'draft') {
+            result = result.filter(
+                (item: KegiatanItem) =>
+                    item.sk_count > 0 &&
+                    item.latest_sk !== null &&
+                    item.latest_sk.status !== 'dibatalkan' &&
+                    !item.latest_sk.signed_file_path,
+            );
+        } else if (skStatusFilter === 'signed') {
+            result = result.filter(
+                (item: KegiatanItem) =>
+                    Boolean(item.latest_sk?.signed_file_path),
+            );
+        } else if (skStatusFilter === 'cancelled') {
+            result = result.filter(
+                (item: KegiatanItem) =>
+                    item.latest_sk?.status === 'dibatalkan',
+            );
         } else if (skStatusFilter === 'needs_revision') {
             result = result.filter(
                 (item: KegiatanItem) =>
@@ -464,7 +490,7 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                 {/* Filter & Search */}
                 <ContentCard>
                     <div className="space-y-3">
-                        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,0.95fr)_minmax(0,0.8fr)]">
+                        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.8fr)_minmax(0,0.9fr)_minmax(0,0.55fr)]">
                             <div>
                                 <label
                                     htmlFor="search"
@@ -511,6 +537,51 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                         </SelectItem>
                                         <SelectItem value="survei">
                                             Survei
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div>
+                                <label
+                                    htmlFor="status_sk"
+                                    className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+                                >
+                                    Status SK
+                                </label>
+                                <Select
+                                    value={skStatusFilter}
+                                    onValueChange={(value) => {
+                                        setSkStatusFilter(
+                                            value as typeof skStatusFilter,
+                                        );
+                                        setCurrentPage(1);
+                                    }}
+                                >
+                                    <SelectTrigger
+                                        id="status_sk"
+                                        className="w-full"
+                                    >
+                                        <SelectValue placeholder="Semua Status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            Semua Status
+                                        </SelectItem>
+                                        <SelectItem value="not_created">
+                                            Belum Dibuat
+                                        </SelectItem>
+                                        <SelectItem value="draft">
+                                            Draft / Belum Ditandatangani
+                                        </SelectItem>
+                                        <SelectItem value="signed">
+                                            Ditandatangani
+                                        </SelectItem>
+                                        <SelectItem value="cancelled">
+                                            Dibatalkan
+                                        </SelectItem>
+                                        <SelectItem value="needs_revision">
+                                            Perlu Perubahan
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
@@ -566,9 +637,18 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                     <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm dark:border-amber-800/50 dark:bg-amber-900/20">
                         <FileText className="size-4 text-amber-600 dark:text-amber-400" />
                         <span className="text-amber-800 dark:text-amber-300">
-                            {skStatusFilter === 'not_created'
-                                ? 'Menampilkan kegiatan yang belum memiliki SK KPA'
-                                : 'Menampilkan kegiatan yang perlu pembaruan SK KPA'}
+                            {{
+                                not_created:
+                                    'Menampilkan kegiatan yang belum memiliki SK KPA',
+                                draft:
+                                    'Menampilkan SK yang belum ditandatangani',
+                                signed:
+                                    'Menampilkan SK yang sudah ditandatangani',
+                                cancelled:
+                                    'Menampilkan SK yang dibatalkan',
+                                needs_revision:
+                                    'Menampilkan kegiatan yang perlu pembaruan SK KPA',
+                            }[skStatusFilter]}
                         </span>
                         <button
                             type="button"
