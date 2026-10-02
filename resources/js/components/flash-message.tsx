@@ -9,11 +9,13 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+type FlashType = 'success' | 'error' | 'warning' | 'info';
+
 export function FlashMessage() {
     const { flash } = usePage<SharedData>().props;
     const [visible, setVisible] = useState(false);
     const [message, setMessage] = useState<{
-        type: 'success' | 'error' | 'warning' | 'info';
+        type: FlashType;
         text: string;
         title: string;
     } | null>(null);
@@ -21,131 +23,105 @@ export function FlashMessage() {
     const previousUrlRef = useRef<string>('');
 
     useEffect(() => {
-        // Reset tracking when URL changes (navigation)
         const currentUrl = window.location.href;
         if (currentUrl !== previousUrlRef.current) {
             previousFlashRef.current = '';
             previousUrlRef.current = currentUrl;
         }
 
-        // Create a unique key from the current flash message
         const currentFlashKey = JSON.stringify(flash);
-
-        // Only show if flash message is different from the previous one
         if (
-            currentFlashKey !== previousFlashRef.current &&
-            currentFlashKey !== '{}'
+            currentFlashKey === previousFlashRef.current ||
+            currentFlashKey === '{}'
         ) {
-            if (flash.success) {
-                // eslint-disable-next-line react-hooks/set-state-in-effect -- Setting state in response to flash message prop change is intentional
-                setMessage({
-                    type: 'success',
-                    text: flash.success,
-                    title: 'Berhasil!',
-                });
+            return;
+        }
 
-                setVisible(true);
-                previousFlashRef.current = currentFlashKey;
-            } else if (flash.error) {
-                setMessage({
-                    type: 'error',
-                    text: flash.error,
-                    title: 'Perhatian!',
-                });
+        const nextMessage =
+            flash.success
+                ? { type: 'success' as const, text: flash.success, title: 'Berhasil' }
+                : flash.error
+                  ? { type: 'error' as const, text: flash.error, title: 'Perhatian' }
+                  : flash.warning
+                    ? { type: 'warning' as const, text: flash.warning, title: 'Peringatan' }
+                    : flash.info
+                      ? { type: 'info' as const, text: flash.info, title: 'Informasi' }
+                      : null;
 
-                setVisible(true);
-                previousFlashRef.current = currentFlashKey;
-            } else if (flash.warning) {
-                setMessage({
-                    type: 'warning',
-                    text: flash.warning,
-                    title: 'Peringatan!',
-                });
-
-                setVisible(true);
-                previousFlashRef.current = currentFlashKey;
-            } else if (flash.info) {
-                setMessage({
-                    type: 'info',
-                    text: flash.info,
-                    title: 'Informasi',
-                });
-
-                setVisible(true);
-                previousFlashRef.current = currentFlashKey;
-            }
+        if (nextMessage) {
+            setMessage(nextMessage);
+            setVisible(true);
+            previousFlashRef.current = currentFlashKey;
         }
     }, [flash]);
 
     useEffect(() => {
-        if (visible) {
-            // Durasi 6 detik - cukup untuk dibaca tapi tidak terlalu lama
-            const timer = setTimeout(() => {
-                setVisible(false);
-            }, 6000);
-
-            return () => clearTimeout(timer);
-        }
+        if (!visible) return;
+        const timer = setTimeout(() => setVisible(false), 6000);
+        return () => clearTimeout(timer);
     }, [visible]);
 
-    if (!visible || !message) {
-        return null;
-    }
+    if (!visible || !message) return null;
 
-    const variants = {
+    const variants: Record<
+        FlashType,
+        { icon: typeof Info; surface: string; iconClass: string }
+    > = {
         success: {
-            className:
-                'border border-green-400/30 bg-gradient-to-br from-green-500/10 via-green-400/5 to-green-300/10 backdrop-blur-xl text-green-900 shadow-2xl dark:text-green-50 dark:border-green-500/20 dark:from-green-600/10 dark:via-green-500/5 dark:to-green-400/10',
             icon: CheckCircle2,
-            iconColor: 'text-green-600 dark:text-green-400',
+            surface: 'border-[var(--pastel-green)]/70 bg-card',
+            iconClass: 'bg-[var(--pastel-green)]/35 text-foreground',
         },
         error: {
-            className:
-                'border border-red-400/30 bg-gradient-to-br from-red-500/10 via-red-400/5 to-red-300/10 backdrop-blur-xl text-red-900 shadow-2xl dark:text-red-50 dark:border-red-500/20 dark:from-red-600/10 dark:via-red-500/5 dark:to-red-400/10',
             icon: AlertCircle,
-            iconColor: 'text-red-600 dark:text-red-400',
+            surface: 'border-destructive/40 bg-card',
+            iconClass: 'bg-destructive/10 text-destructive',
         },
         warning: {
-            className:
-                'border border-amber-400/30 bg-gradient-to-br from-amber-500/10 via-amber-400/5 to-amber-300/10 backdrop-blur-xl text-amber-900 shadow-2xl dark:text-amber-50 dark:border-amber-500/20 dark:from-amber-600/10 dark:via-amber-500/5 dark:to-amber-400/10',
             icon: AlertTriangle,
-            iconColor: 'text-amber-600 dark:text-amber-400',
+            surface: 'border-[var(--pastel-orange)]/70 bg-card',
+            iconClass: 'bg-[var(--pastel-orange)]/35 text-foreground',
         },
         info: {
-            className:
-                'border border-blue-400/30 bg-gradient-to-br from-blue-500/10 via-blue-400/5 to-blue-300/10 backdrop-blur-xl text-blue-900 shadow-2xl dark:text-blue-50 dark:border-blue-500/20 dark:from-blue-600/10 dark:via-blue-500/5 dark:to-blue-400/10',
             icon: Info,
-            iconColor: 'text-blue-600 dark:text-blue-400',
+            surface: 'border-[var(--pastel-blue)]/70 bg-card',
+            iconClass: 'bg-[var(--pastel-blue)]/35 text-foreground',
         },
     };
 
-    const { className, icon: Icon, iconColor } = variants[message.type];
+    const variant = variants[message.type];
+    const Icon = variant.icon;
 
     return (
-        <div className="fixed top-4 right-4 left-4 z-[9999] w-full animate-in duration-300 slide-in-from-top-4 sm:left-auto sm:max-w-md">
-            <div className={`relative rounded-2xl p-4 shadow-2xl ${className}`}>
+        <div className="fixed right-3 top-3 z-[9999] w-[calc(100%-1.5rem)] animate-in slide-in-from-top-2 duration-200 sm:right-4 sm:top-4 sm:w-full sm:max-w-sm">
+            <div
+                className={`relative rounded-xl border p-3 shadow-lg sm:p-4 ${variant.surface}`}
+                role="status"
+                aria-live="polite"
+            >
                 <div className="flex items-start gap-3">
-                    {/* Icon */}
-                    <div className={`shrink-0 ${iconColor}`}>
-                        <Icon className="h-6 w-6" strokeWidth={2.5} />
+                    <div
+                        className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${variant.iconClass}`}
+                    >
+                        <Icon className="size-5" strokeWidth={2.2} />
                     </div>
 
-                    {/* Content */}
-                    <div className="min-w-0 flex-1 pr-2">
-                        <div className="mb-1 text-base font-bold">
+                    <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold text-foreground">
                             {message.title}
                         </div>
-                        <div className="text-sm">{message.text}</div>
+                        <div className="mt-0.5 text-sm leading-5 text-muted-foreground">
+                            {message.text}
+                        </div>
                     </div>
 
-                    {/* Tombol tutup */}
                     <button
                         onClick={() => setVisible(false)}
-                        className="shrink-0 rounded-md p-1 transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                        className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         aria-label="Tutup"
                         type="button"
                     >
-                        <X className="h-5 w-5" strokeWidth={2.5} />
+                        <X className="size-4" />
                     </button>
                 </div>
             </div>
