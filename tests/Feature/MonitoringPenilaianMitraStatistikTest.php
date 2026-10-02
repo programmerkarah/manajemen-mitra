@@ -136,7 +136,6 @@ class MonitoringPenilaianMitraStatistikTest extends TestCase
                 'active_year' => now()->year,
             ])
             ->post('/monitoring-penilaian-mitra', [
-                'bulan' => 'all',
                 'kegiatan_id' => 'all',
                 'petugas_id' => 'all',
             ]);
@@ -144,7 +143,6 @@ class MonitoringPenilaianMitraStatistikTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->component('Monitoring/PenilaianMitraStatistik')
-            ->where('filters.bulan', 'all')
             ->where('filters.kegiatan_id', 'all')
             ->where('filters.petugas_id', 'all')
             ->where('summary.total_reviews', 1)
