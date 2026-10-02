@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AlokasiPetugas;
 use App\Models\ReviewPetugas;
 use App\Services\ActiveYearService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,7 +20,7 @@ class MonitoringPenilaianMitraController extends Controller
         $selectedKegiatanId = (string) $request->input('kegiatan_id', 'all');
         $selectedPetugasId = (string) $request->input('petugas_id', 'all');
 
-        $baseQuery = ReviewPetugas::query()
+        $allReviews = ReviewPetugas::query()
             ->with([
                 'petugas:id,nama',
                 'kegiatan:id,kode_kegiatan,nama_kegiatan,ketua_tim_user_id,pj_lainnya_id',
@@ -27,24 +29,45 @@ class MonitoringPenilaianMitraController extends Controller
             ])
             ->whereHas('periodeAlokasi', function ($periodeQuery) use ($activeYear) {
                 $periodeQuery->where('tahun', $activeYear);
-            });
+            })
+            ->orderByDesc('reviewed_at')
+            ->orderByDesc('id')
+            ->get();
+
+        $episodeMeta = $this->buildEpisodeMeta($allReviews, $activeYear);
+
+        $withEpisode = $allReviews->map(function (ReviewPetugas $review) use ($episodeMeta) {
+            $meta = $episodeMeta->get($review->id, [
+                'start_year' => (int) ($review->periodeAlokasi?->tahun ?? 0),
+                'start_month' => (int) ($review->periodeAlokasi?->bulan ?? 0),
+                'end_year' => (int) ($review->periodeAlokasi?->tahun ?? 0),
+                'end_month' => (int) ($review->periodeAlokasi?->bulan ?? 0),
+                'months' => [str_pad((string) ($review->periodeAlokasi?->bulan ?? ''), 2, '0', STR_PAD_LEFT)],
+            ]);
+
+            return [
+                'review' => $review,
+                'episode' => $meta,
+            ];
+        });
 
         if ($selectedMonth !== 'all') {
-            $baseQuery->whereHas('periodeAlokasi', function ($periodeQuery) use ($selectedMonth) {
-                $periodeQuery->where('bulan', $selectedMonth);
-            });
+            $withEpisode = $withEpisode
+                ->filter(fn (array $item) => in_array($selectedMonth, $item['episode']['months'], true))
+                ->values();
         }
 
-        $kegiatanOptionsQuery = clone $baseQuery;
+        $kegiatanSource = $withEpisode;
         if ($selectedPetugasId !== 'all') {
-            $kegiatanOptionsQuery->where('petugas_id', (int) $selectedPetugasId);
+            $kegiatanSource = $kegiatanSource
+                ->filter(fn (array $item) => (int) $item['review']->petugas_id === (int) $selectedPetugasId)
+                ->values();
         }
 
-        $kegiatanOptions = $kegiatanOptionsQuery
-            ->get()
-            ->groupBy('kegiatan_id')
-            ->map(function ($groupRows) {
-                $first = $groupRows->first();
+        $kegiatanOptions = $kegiatanSource
+            ->groupBy(fn (array $item) => $item['review']->kegiatan_id)
+            ->map(function (Collection $groupRows) {
+                $first = $groupRows->first()['review'];
 
                 return [
                     'value' => (string) $first->kegiatan_id,
@@ -54,22 +77,20 @@ class MonitoringPenilaianMitraController extends Controller
             ->sortBy('label')
             ->values();
 
-        $query = clone $baseQuery;
+        $querySource = $withEpisode;
 
         if ($selectedKegiatanId !== 'all') {
-            $query->where('kegiatan_id', (int) $selectedKegiatanId);
+            $querySource = $querySource
+                ->filter(fn (array $item) => (int) $item['review']->kegiatan_id === (int) $selectedKegiatanId)
+                ->values();
         }
 
-        $hallOfFameReviews = (clone $query)
-            ->orderByDesc('reviewed_at')
-            ->orderByDesc('id')
-            ->get();
+        $hallOfFameReviews = $querySource;
 
-        $petugasOptions = (clone $query)
-            ->get()
-            ->groupBy('petugas_id')
-            ->map(function ($groupReviews) {
-                $first = $groupReviews->first();
+        $petugasOptions = $querySource
+            ->groupBy(fn (array $item) => $item['review']->petugas_id)
+            ->map(function (Collection $groupReviews) {
+                $first = $groupReviews->first()['review'];
 
                 return [
                     'value' => (string) $first->petugas_id,
@@ -80,15 +101,15 @@ class MonitoringPenilaianMitraController extends Controller
             ->values();
 
         if ($selectedPetugasId !== 'all') {
-            $query->where('petugas_id', (int) $selectedPetugasId);
+            $querySource = $querySource
+                ->filter(fn (array $item) => (int) $item['review']->petugas_id === (int) $selectedPetugasId)
+                ->values();
         }
 
-        $reviews = $query
-            ->orderByDesc('reviewed_at')
-            ->orderByDesc('id')
-            ->get();
-
-        $rows = $reviews->map(function (ReviewPetugas $review) {
+        $rows = $querySource->map(function (array $item) {
+            /** @var ReviewPetugas $review */
+            $review = $item['review'];
+            $episode = $item['episode'];
             $reviewedAt = $review->reviewed_at ?? $review->created_at;
 
             return [
@@ -102,12 +123,20 @@ class MonitoringPenilaianMitraController extends Controller
                 'kegiatan_id' => $review->kegiatan_id,
                 'kegiatan_kode' => $review->kegiatan?->kode_kegiatan ?? '-',
                 'kegiatan_nama' => $review->kegiatan?->nama_kegiatan ?? '-',
-                'periode_bulan' => str_pad((string) ($review->periodeAlokasi?->bulan ?? ''), 2, '0', STR_PAD_LEFT),
+                'periode_bulan' => str_pad((string) $episode['end_month'], 2, '0', STR_PAD_LEFT),
+                'periode_mulai_tahun' => $episode['start_year'],
+                'periode_mulai_bulan' => str_pad((string) $episode['start_month'], 2, '0', STR_PAD_LEFT),
+                'periode_selesai_tahun' => $episode['end_year'],
+                'periode_selesai_bulan' => str_pad((string) $episode['end_month'], 2, '0', STR_PAD_LEFT),
+                'periode_bulan_terlibat' => $episode['months'],
                 'reviewer_name' => $review->reviewer?->name ?? '-',
             ];
         })->values();
 
-        $hallOfFameRows = $hallOfFameReviews->map(function (ReviewPetugas $review) {
+        $hallOfFameRows = $hallOfFameReviews->map(function (array $item) {
+            /** @var ReviewPetugas $review */
+            $review = $item['review'];
+
             return [
                 'rating' => (int) $review->rating,
                 'petugas_id' => $review->petugas_id,
@@ -280,5 +309,120 @@ class MonitoringPenilaianMitraController extends Controller
                 'encrypted' => encryptData($rows->toArray()),
             ],
         ]);
+    }
+
+    private function buildEpisodeMeta(Collection $reviews, int $activeYear): Collection
+    {
+        if ($reviews->isEmpty()) {
+            return collect();
+        }
+
+        $kegiatanIds = $reviews->pluck('kegiatan_id')->unique()->values();
+        $petugasIds = $reviews->pluck('petugas_id')->unique()->values();
+
+        $assignments = AlokasiPetugas::query()
+            ->join('periode_alokasi as pa', 'pa.id', '=', 'alokasi_petugas.periode_alokasi_id')
+            ->where('pa.tahun', $activeYear)
+            ->whereIn('pa.status', ['dikirim', 'direvisi', 'perubahan'])
+            ->whereIn('pa.kegiatan_id', $kegiatanIds)
+            ->whereIn('alokasi_petugas.petugas_id', $petugasIds)
+            ->where('alokasi_petugas.status_kepegawaian', 'non_organik')
+            ->where(function ($query) {
+                $query->where('alokasi_petugas.total_honor', '>', 0)
+                    ->orWhere('alokasi_petugas.total_honor_listing', '>', 0);
+            })
+            ->select([
+                'pa.id as periode_alokasi_id',
+                'pa.kegiatan_id',
+                'pa.bulan',
+                'pa.tahun',
+                'pa.status',
+                'alokasi_petugas.petugas_id',
+                'alokasi_petugas.peran',
+            ])
+            ->get()
+            ->groupBy(fn ($row) => (int) $row->kegiatan_id.'-'.(int) $row->petugas_id.'-'.$row->peran)
+            ->map(function (Collection $rows) {
+                return $rows
+                    ->groupBy(fn ($row) => ((int) $row->tahun * 12) + (int) $row->bulan)
+                    ->map(function (Collection $monthRows) {
+                        return $monthRows
+                            ->sortByDesc(fn ($row) => ($this->statusRank((string) $row->status) * 1000000) + (int) $row->periode_alokasi_id)
+                            ->first();
+                    })
+                    ->sortBy(fn ($row) => [ (int) $row->tahun, (int) $row->bulan ])
+                    ->values();
+            });
+
+        return $reviews->mapWithKeys(function (ReviewPetugas $review) use ($assignments) {
+            $targetPeriodId = (int) $review->periode_alokasi_id;
+
+            foreach ($assignments as $groupRows) {
+                $targetIndex = $groupRows->search(
+                    fn ($row) => (int) $row->periode_alokasi_id === $targetPeriodId
+                );
+
+                if ($targetIndex === false) {
+                    continue;
+                }
+
+                $episode = collect([$groupRows[$targetIndex]]);
+                $cursor = $targetIndex - 1;
+                $expectedMonthIndex =
+                    ((int) $groupRows[$targetIndex]->tahun * 12) +
+                    (int) $groupRows[$targetIndex]->bulan - 1;
+
+                while ($cursor >= 0) {
+                    $candidate = $groupRows[$cursor];
+                    $candidateIndex =
+                        ((int) $candidate->tahun * 12) + (int) $candidate->bulan;
+
+                    if ($candidateIndex !== $expectedMonthIndex) {
+                        break;
+                    }
+
+                    $episode->prepend($candidate);
+                    $expectedMonthIndex--;
+                    $cursor--;
+                }
+
+                $first = $episode->first();
+                $last = $episode->last();
+
+                return [
+                    $review->id => [
+                        'start_year' => (int) $first->tahun,
+                        'start_month' => (int) $first->bulan,
+                        'end_year' => (int) $last->tahun,
+                        'end_month' => (int) $last->bulan,
+                        'months' => $episode
+                            ->map(fn ($row) => str_pad((string) $row->bulan, 2, '0', STR_PAD_LEFT))
+                            ->unique()
+                            ->values()
+                            ->all(),
+                    ],
+                ];
+            }
+
+            return [
+                $review->id => [
+                    'start_year' => (int) ($review->periodeAlokasi?->tahun ?? 0),
+                    'start_month' => (int) ($review->periodeAlokasi?->bulan ?? 0),
+                    'end_year' => (int) ($review->periodeAlokasi?->tahun ?? 0),
+                    'end_month' => (int) ($review->periodeAlokasi?->bulan ?? 0),
+                    'months' => [str_pad((string) ($review->periodeAlokasi?->bulan ?? ''), 2, '0', STR_PAD_LEFT)],
+                ],
+            ];
+        });
+    }
+
+    private function statusRank(string $status): int
+    {
+        return match ($status) {
+            'perubahan' => 3,
+            'direvisi' => 2,
+            'dikirim' => 1,
+            default => 0,
+        };
     }
 }
