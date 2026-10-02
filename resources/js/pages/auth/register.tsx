@@ -163,7 +163,7 @@ export default function Register({
                                             autoFocus
                                             autoComplete="name"
                                             placeholder="Masukkan nama lengkap"
-                                            className="h-12 rounded-xl bg-white dark:bg-white\/5"
+                                            className="dark:bg-white\/5 h-12 rounded-xl bg-white"
                                             value={registerForm.data.name}
                                             onChange={(event) =>
                                                 registerForm.setData(
@@ -191,7 +191,7 @@ export default function Register({
                                             required
                                             autoComplete="username"
                                             placeholder="Masukkan username"
-                                            className="h-12 rounded-xl bg-white dark:bg-white\/5"
+                                            className="dark:bg-white\/5 h-12 rounded-xl bg-white"
                                             value={registerForm.data.username}
                                             onChange={(event) =>
                                                 registerForm.setData(
@@ -221,7 +221,7 @@ export default function Register({
                                             required
                                             autoComplete="email"
                                             placeholder="Masukkan email"
-                                            className="h-12 rounded-xl bg-white dark:bg-white\/5"
+                                            className="dark:bg-white\/5 h-12 rounded-xl bg-white"
                                             value={registerForm.data.email}
                                             onChange={(event) =>
                                                 registerForm.setData(
@@ -249,7 +249,7 @@ export default function Register({
                                             required
                                             autoComplete="new-password"
                                             placeholder="Minimal 8 karakter"
-                                            className="h-12 rounded-xl bg-white dark:bg-white\/5"
+                                            className="dark:bg-white\/5 h-12 rounded-xl bg-white"
                                             value={registerForm.data.password}
                                             onChange={(event) =>
                                                 registerForm.setData(
@@ -279,7 +279,7 @@ export default function Register({
                                             required
                                             autoComplete="new-password"
                                             placeholder="Ulangi password"
-                                            className="h-12 rounded-xl bg-white dark:bg-white\/5"
+                                            className="dark:bg-white\/5 h-12 rounded-xl bg-white"
                                             value={
                                                 registerForm.data
                                                     .password_confirmation
