@@ -62,7 +62,9 @@ export default function Register({
 
         try {
             csrfToken = await refreshCsrfToken();
-        } catch {}
+        } catch {
+            // Fall back to the CSRF token already present in the page.
+        }
 
         registerForm.transform((data) => ({
             ...data,
