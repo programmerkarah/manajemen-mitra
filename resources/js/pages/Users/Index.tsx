@@ -272,7 +272,7 @@ export default function Index({ users }: UsersIndexProps) {
                     </Button>
                 </PageHeader>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="summary-grid">
                     <ContentCard className="border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900/60">
                         <div className="flex items-start justify-between gap-3">
                             <div>
