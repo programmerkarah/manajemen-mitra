@@ -193,9 +193,6 @@ class PetugasReviewController extends Controller
             ->where('alokasi_petugas.petugas_id', $validated['petugas_id'])
             ->where('alokasi_petugas.status_kepegawaian', 'non_organik')
             ->where('p.jenis_petugas', 'non-organik')
-            ->where('p.jenis_petugas', 'non-organik')
-            ->where('p.jenis_petugas', 'non-organik')
-            ->where('p.jenis_petugas', 'non-organik')
             ->where(fn (Builder $query) => $this->applyReviewableHonorFilter($query))
             ->select([
                 'pa.id as periode_alokasi_id',
@@ -346,6 +343,7 @@ class PetugasReviewController extends Controller
             }
 
             foreach ($episodes as $episodeRows) {
+                $firstRow = $episodeRows->first();
                 $lastRow = $episodeRows->last();
                 $existingReview = $existingReviews->get($lastRow->periode_alokasi_id.'-'.$lastRow->petugas_id);
 
@@ -378,6 +376,15 @@ class PetugasReviewController extends Controller
                     'periode_alokasi_id' => (int) $lastRow->periode_alokasi_id,
                     'periode_tahun' => (int) $lastRow->periode_tahun,
                     'periode_bulan' => (int) $lastRow->periode_bulan,
+                    'periode_mulai_tahun' => (int) $firstRow->periode_tahun,
+                    'periode_mulai_bulan' => (int) $firstRow->periode_bulan,
+                    'periode_selesai_tahun' => (int) $lastRow->periode_tahun,
+                    'periode_selesai_bulan' => (int) $lastRow->periode_bulan,
+                    'periode_bulan_terlibat' => $episodeRows
+                        ->map(fn ($episodeRow) => str_pad((string) $episodeRow->periode_bulan, 2, '0', STR_PAD_LEFT))
+                        ->unique()
+                        ->values()
+                        ->all(),
                     'tanggal_selesai' => $lastRow->tanggal_selesai,
                     'can_review_now' => $canReviewNow,
                     'user_can_submit' => $userCanSubmit,
