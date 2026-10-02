@@ -302,7 +302,7 @@ export default function Index({ PenandatanganList }: PenandatanganIndexProps) {
                     </div>
                 </PageHeader>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="summary-grid">
                     <ContentCard>
                         <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Total penandatangan
