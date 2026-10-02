@@ -741,8 +741,8 @@ export default function Dashboard({
                 </div>
 
                 {/* Kondisi Ekuitas Mitra — replaces decorative SK/SPK + proportion cards */}
-                <div className="min-w-0 rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
-                    <div className="mb-5 border-b border-neutral-200 pb-4 dark:border-neutral-800">
+                <div className="app-surface min-w-0 p-4 sm:p-5 md:p-6">
+                    <div className="mb-5 border-b border-border pb-4">
                         <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
                             Kondisi Ekuitas Mitra —{' '}
                             {monthNames[currentMonth - 1]} {currentYear}
@@ -1108,7 +1108,7 @@ export default function Dashboard({
                 </div>
 
                 {/* Ringkasan Penilaian Mitra */}
-                <div className="min-w-0 rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
+                <div className="app-surface min-w-0 p-4 sm:p-5 md:p-6">
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 pb-4 dark:border-neutral-800">
                         <div>
                             <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
@@ -1267,8 +1267,8 @@ export default function Dashboard({
                 {/* Monthly Charts */}
                 <div className="grid min-w-0 gap-4">
                     {/* Combined Chart: Petugas & Kegiatan */}
-                    <div className="min-w-0 rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
-                        <div className="mb-4 border-b border-neutral-200 pb-4 dark:border-neutral-800">
+                    <div className="app-surface min-w-0 p-4 sm:p-5 md:p-6">
+                        <div className="mb-4 border-b border-border pb-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
                                     Tren Alokasi Bulanan {currentYear}
@@ -1374,8 +1374,8 @@ export default function Dashboard({
                     </div>
 
                     {/* Petugas Monitoring Chart */}
-                    <div className="min-w-0 rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
-                        <div className="mb-4 border-b border-neutral-200 pb-4 dark:border-neutral-800">
+                    <div className="app-surface min-w-0 p-4 sm:p-5 md:p-6">
+                        <div className="mb-4 border-b border-border pb-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
                                     Distribusi Beban Kerja Petugas {currentYear}
@@ -1470,7 +1470,7 @@ export default function Dashboard({
                         </div>
 
                         {/* Summary Cards */}
-                        <div className="mt-4 grid grid-cols-2 gap-3 border-t border-neutral-200 pt-4 md:grid-cols-4 dark:border-neutral-800">
+                        <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4 md:grid-cols-4">
                             <div className="rounded-lg bg-red-50 p-3 dark:bg-red-900/20">
                                 <div className="mb-1 flex items-center gap-2">
                                     <AlertCircle className="size-3.5 text-red-600 dark:text-red-400" />
@@ -1539,7 +1539,7 @@ export default function Dashboard({
 
                         {/* Workload Inequality Analysis */}
                         {workloadInequalitySummary.has_data && (
-                            <div className="mt-6 border-t border-neutral-200 pt-4 dark:border-neutral-800">
+                            <div className="mt-6 border-t border-border pt-4">
                                 <div className="mb-3 flex items-center gap-2">
                                     <AlertTriangle className="size-3.5 text-amber-500 dark:text-amber-400" />
                                     <h4 className="text-xs font-semibold tracking-wide text-neutral-700 uppercase dark:text-neutral-300">
@@ -1946,8 +1946,8 @@ export default function Dashboard({
                                 currentHonorPage * honorPerPetugasPageSize,
                             );
                             return (
-                                <div className="min-w-0 rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
-                                    <div className="mb-4 border-b border-neutral-200 pb-4 dark:border-neutral-800">
+                                <div className="app-surface min-w-0 p-4 sm:p-5 md:p-6">
+                                    <div className="mb-4 border-b border-border pb-4">
                                         <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
                                             Honor Per Petugas Per Bulan{' '}
                                             {currentYear}
@@ -2081,7 +2081,7 @@ export default function Dashboard({
                                     </div>
                                     {honorPerPetugas.length >
                                         honorPerPetugasPageSize && (
-                                        <div className="mt-4 flex items-center justify-between border-t border-neutral-200 pt-3 text-xs dark:border-neutral-800">
+                                        <div className="mt-4 flex items-center justify-between border-t border-border pt-3 text-xs">
                                             <span className="text-neutral-500 dark:text-neutral-400">
                                                 Halaman {currentHonorPage} dari{' '}
                                                 {totalHonorPages} &middot;{' '}
@@ -2135,8 +2135,8 @@ export default function Dashboard({
                         })()}
 
                     {/* Honor Inequality Chart */}
-                    <div className="min-w-0 rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
-                        <div className="mb-4 border-b border-neutral-200 pb-4 dark:border-neutral-800">
+                    <div className="app-surface min-w-0 p-4 sm:p-5 md:p-6">
+                        <div className="mb-4 border-b border-border pb-4">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
@@ -2417,7 +2417,7 @@ export default function Dashboard({
 
                         {/* Key Metrics */}
                         {honorInequalitySummary.has_data ? (
-                            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-neutral-200 pt-4 md:grid-cols-4 dark:border-neutral-800">
+                            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4 md:grid-cols-4">
                                 <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
                                     <div className="mb-1 flex items-center gap-2">
                                         <TrendingUp className="size-3.5 text-blue-600 dark:text-blue-400" />
@@ -2596,8 +2596,8 @@ export default function Dashboard({
                 </div>
 
                 {/* Kegiatan Bulan Ini */}
-                <div className="flex min-w-0 flex-col rounded-2xl border border-neutral-200/70 bg-white p-6 shadow-md dark:border-neutral-800 dark:bg-neutral-900">
-                    <div className="mb-4 border-b border-neutral-200 pb-4 dark:border-neutral-800">
+                <div className="app-surface flex min-w-0 flex-col p-4 sm:p-5 md:p-6">
+                    <div className="mb-4 border-b border-border pb-4">
                         <div className="flex min-w-0 items-center justify-between gap-2">
                             <div className="flex min-w-0 flex-1 items-center gap-2">
                                 <Calendar className="size-4 flex-shrink-0 text-green-600 dark:text-green-400" />
