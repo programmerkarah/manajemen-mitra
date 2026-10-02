@@ -82,14 +82,14 @@ export default function ViewAsUserSwitcher() {
     return (
         <div className="flex items-center gap-2">
             {auth.isViewingAsUser && (
-                <div className="hidden items-center gap-2 rounded-md bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-900 sm:flex dark:bg-amber-900/30 dark:text-amber-400">
+                <div className="hidden items-center gap-2 rounded-lg border border-[var(--pastel-orange)]/70 bg-[var(--pastel-orange)]/15 px-3 py-1.5 text-xs font-medium text-foreground sm:flex">
                     <Eye className="h-3.5 w-3.5" />
                     <span>Viewing as: {auth.user?.name}</span>
                     <Button
                         variant="ghost"
                         size="sm"
                         onClick={handleClearViewAs}
-                        className="h-5 w-5 p-0 hover:bg-amber-200 dark:hover:bg-amber-800"
+                        className="h-5 w-5 p-0 hover:bg-muted"
                     >
                         <EyeOff className="h-3 w-3" />
                     </Button>
@@ -101,7 +101,7 @@ export default function ViewAsUserSwitcher() {
                     <Button
                         variant="outline"
                         size="sm"
-                        className="h-9 w-9 rounded-full px-0 sm:w-auto sm:gap-2 sm:rounded-md sm:px-3"
+                        className="header-control w-9 px-0 sm:w-auto sm:gap-2 sm:px-3"
                         title="View as another user (rhmtzikri only)"
                     >
                         <User className="h-3.5 w-3.5" />
