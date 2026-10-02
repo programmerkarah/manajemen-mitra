@@ -16,7 +16,6 @@ import {
     ChevronDown,
     Download,
     Eye,
-    FileText,
     Loader2,
     Search,
 } from 'lucide-react';
