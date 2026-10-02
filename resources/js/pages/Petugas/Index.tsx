@@ -622,7 +622,8 @@ export default function Index({ petugas }: PetugasIndexProps) {
                     <div className="mb-4">
                         <h2 className="font-semibold">Cari & Filter Mitra</h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Pencarian hanya mencakup mitra statistik non-organik berdasarkan identitas atau status.
+                            Pencarian hanya mencakup mitra statistik non-organik
+                            berdasarkan identitas atau status.
                         </p>
                     </div>
                     <div className="mb-4 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-muted-foreground dark:bg-neutral-900/60">
