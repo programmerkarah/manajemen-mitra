@@ -1,3 +1,9 @@
+import ChevronLeft from 'lucide-react/icons/chevron-left';
+import ChevronRight from 'lucide-react/icons/chevron-right';
+import Pencil from 'lucide-react/icons/pencil';
+import Plus from 'lucide-react/icons/plus';
+import Search from 'lucide-react/icons/search';
+import Trash2 from 'lucide-react/icons/trash2';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
@@ -19,14 +25,7 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import {
-    ChevronLeft,
-    ChevronRight,
-    Pencil,
-    Plus,
-    Search,
-    Trash2,
-} from 'lucide-react';
+
 import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
