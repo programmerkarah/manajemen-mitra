@@ -29,11 +29,19 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
         }
     };
 
-    const isSubItemActive = (
-        href: NonNullable<import('@inertiajs/react').InertiaLinkProps['href']>,
-    ) => {
-        const resolved = resolveUrl(href);
+    const routeMatches = (item: NavItem) => {
+        const resolved = resolveUrl(item.href);
         const url = page.url;
+
+        if (item.activeWhen?.length) {
+            return item.activeWhen.some(
+                (prefix) =>
+                    url === prefix ||
+                    url.startsWith(prefix + '/') ||
+                    url.startsWith(prefix + '?'),
+            );
+        }
+
         return (
             url === resolved ||
             url.startsWith(resolved + '/') ||
@@ -41,9 +49,30 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
         );
     };
 
+    const isSubItemActive = (item: NavItem, siblings: NavItem[]) => {
+        if (!routeMatches(item)) {
+            return false;
+        }
+
+        const currentResolved = resolveUrl(item.href);
+        const moreSpecificSibling = siblings.find((sibling) => {
+            if (sibling === item || !routeMatches(sibling)) {
+                return false;
+            }
+
+            return resolveUrl(sibling.href).length > currentResolved.length;
+        });
+
+        return !moreSpecificSibling;
+    };
+
     const getInitialOpenItem = () => {
         for (const item of items) {
-            if (item.items?.some((sub) => isSubItemActive(sub.href))) {
+            if (
+                item.items?.some((sub) =>
+                    isSubItemActive(sub, item.items ?? []),
+                )
+            ) {
                 return item.title;
             }
         }
@@ -88,7 +117,8 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                                     <SidebarMenuSubButton
                                                         asChild
                                                         isActive={isSubItemActive(
-                                                            subItem.href,
+                                                            subItem,
+                                                            item.items ?? [],
                                                         )}
                                                     >
                                                         <Link
