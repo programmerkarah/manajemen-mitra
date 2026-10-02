@@ -1,3 +1,10 @@
+import Calendar from 'lucide-react/icons/calendar';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import DollarSign from 'lucide-react/icons/dollar-sign';
+import Eye from 'lucide-react/icons/eye';
+import Pencil from 'lucide-react/icons/pencil';
+import Plus from 'lucide-react/icons/plus';
+import Trash2 from 'lucide-react/icons/trash2';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -6,15 +13,7 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import {
-    Calendar,
-    CheckCircle2,
-    DollarSign,
-    Eye,
-    Pencil,
-    Plus,
-    Trash2,
-} from 'lucide-react';
+
 import { useMemo } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'SBML', href: '/sbml' }];
