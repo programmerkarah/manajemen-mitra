@@ -668,6 +668,7 @@ export const constructBastDownloadFilename = (
     tahun: number,
     _isLegacy = false,
 ): string => {
+    void _isLegacy;
     const bulanLabel = getBulanLabel(bulan);
     return `BAST_Signed_${bulanLabel}_${tahun}.zip`;
 };
