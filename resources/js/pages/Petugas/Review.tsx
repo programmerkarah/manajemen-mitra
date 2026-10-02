@@ -495,9 +495,12 @@ export default function Review({
                                                         </Badge>
                                                     </div>
                                                     <p className="mt-1 text-sm text-muted-foreground">
-                                                        {peranLabel(row.peran)} · Periode penugasan{' '}
+                                                        {peranLabel(row.peran)}{' '}
+                                                        · Periode penugasan{' '}
                                                         <span className="font-medium text-foreground">
-                                                            {formatEpisodePeriod(row)}
+                                                            {formatEpisodePeriod(
+                                                                row,
+                                                            )}
                                                         </span>
                                                     </p>
                                                 </div>

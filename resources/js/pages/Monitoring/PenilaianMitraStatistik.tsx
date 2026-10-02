@@ -176,8 +176,10 @@ const MONTH_LABELS: Record<string, string> = {
 };
 
 function formatEpisodeLabel(row: ReviewRow): string {
-    const start = MONTH_LABELS[row.periode_mulai_bulan] ?? row.periode_mulai_bulan;
-    const end = MONTH_LABELS[row.periode_selesai_bulan] ?? row.periode_selesai_bulan;
+    const start =
+        MONTH_LABELS[row.periode_mulai_bulan] ?? row.periode_mulai_bulan;
+    const end =
+        MONTH_LABELS[row.periode_selesai_bulan] ?? row.periode_selesai_bulan;
 
     if (
         row.periode_mulai_bulan === row.periode_selesai_bulan &&
