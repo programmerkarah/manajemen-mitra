@@ -1,3 +1,4 @@
+import AppLogo from '@/components/app-logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -737,26 +738,32 @@ export default function PublicPreview({
         <>
             <Head title={`Portal Dokumen Mitra ${active_year}`} />
 
-            {/* Page shell */}
-            <div className="min-h-screen bg-slate-50/70 dark:bg-[radial-gradient(ellipse_at_top_left,_#0a1f3d_0%,_#0d1e2e_40%,_#061a1a_80%,_#031212_100%)]">
-                {/* Top bar */}
-                <div className="fixed top-0 right-0 left-0 z-50 border-b border-neutral-200/70 bg-white/90 backdrop-blur-md dark:border-white/10 dark:bg-slate-900/85">
-                    <div className="mx-auto flex max-w-6xl items-center gap-4 px-6 py-5 sm:px-10">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 shadow-sm shadow-indigo-500/20">
-                            <FileText className="h-5 w-5 text-white" />
+            <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+                <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+                    <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
+                        <div className="flex items-center">
+                            <AppLogo />
                         </div>
-                        <div>
-                            <p className="text-[11px] font-bold tracking-[0.18em] text-indigo-500 uppercase dark:text-indigo-400">
-                                BPS · Layanan Mitra
+                        <div className="text-right">
+                            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                                Layanan Mitra Statistik
                             </p>
-                            <h1 className="text-lg leading-tight font-bold text-neutral-900 dark:text-white">
-                                Portal Dokumen Mitra {active_year}
-                            </h1>
+                            <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                                Dokumen {active_year}
+                            </p>
                         </div>
                     </div>
-                </div>
+                </header>
 
-                <div className="mx-auto max-w-6xl space-y-5 px-6 pt-[88px] pb-8 sm:px-10 sm:pb-10">
+                <div className="mx-auto max-w-5xl space-y-5 px-5 py-8 sm:px-8 sm:py-10">
+                    <div className="mb-2">
+                        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                            Akses Dokumen Mitra
+                        </h1>
+                        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
+                            Verifikasi identitas, pilih kegiatan, lalu buka atau unduh dokumen penugasan Anda.
+                        </p>
+                    </div>
                     {/* Error banner */}
                     {errorMessage && (
                         <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
@@ -766,22 +773,22 @@ export default function PublicPreview({
                     )}
 
                     {/* ── Step 1 · Identitas ──────────────────────────────────── */}
-                    <div className="overflow-hidden rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:backdrop-blur-md">
+                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
                         <button
                             type="button"
                             onClick={() =>
                                 setExpandedStep((v) => (v === 1 ? null : 1))
                             }
-                            className="flex w-full cursor-pointer items-center gap-3 border-b border-neutral-200/60 bg-white/50 px-6 py-4 text-left hover:bg-white/70 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
+                            className="flex w-full cursor-pointer items-center gap-3 border-b border-slate-200 bg-slate-50/70 px-6 py-4 text-left hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800"
                         >
-                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
                                 1
                             </span>
                             <span className="text-sm font-semibold text-neutral-800 dark:text-white">
                                 Verifikasi Identitas
                             </span>
                             {expandedStep !== 1 && loadedPetugasName && (
-                                <span className="ml-2 flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-0.5 text-xs font-semibold text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                <span className="ml-2 flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300">
                                     <CheckCircle2 className="h-3 w-3" />
                                     {loadedPetugasName}
                                 </span>
@@ -897,7 +904,7 @@ export default function PublicPreview({
                                     </Button>
 
                                     {isOptionsLoaded && loadedPetugasName && (
-                                        <div className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300">
                                             <CheckCircle2 className="h-4 w-4 shrink-0" />
                                             <span>{loadedPetugasName}</span>
                                         </div>
@@ -909,7 +916,7 @@ export default function PublicPreview({
 
                     {/* ── Step 2 · Pilih Kegiatan ─────────────────────────────── */}
                     {isOptionsLoaded && (
-                        <div className="overflow-hidden rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:backdrop-blur-md">
+                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
                             <button
                                 type="button"
                                 onClick={() =>
@@ -919,9 +926,9 @@ export default function PublicPreview({
                                           )
                                         : undefined
                                 }
-                                className={`flex w-full items-center gap-3 bg-white/50 px-6 py-4 text-left dark:bg-white/5 ${
+                                className={`flex w-full items-center gap-3 bg-slate-50/70 px-6 py-4 text-left dark:bg-slate-900 ${
                                     canSubmit
-                                        ? 'cursor-pointer hover:bg-white/70 dark:hover:bg-white/10'
+                                        ? 'cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800'
                                         : 'cursor-default'
                                 } ${
                                     expandedStep === 2
@@ -929,14 +936,14 @@ export default function PublicPreview({
                                         : ''
                                 }`}
                             >
-                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
                                     2
                                 </span>
                                 <span className="text-sm font-semibold text-neutral-800 dark:text-white">
                                     Pilih Kegiatan
                                 </span>
                                 {expandedStep !== 2 && canSubmit && (
-                                    <span className="ml-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-0.5 text-xs font-semibold text-indigo-700 dark:border-indigo-800/60 dark:bg-indigo-950/40 dark:text-indigo-300">
+                                    <span className="ml-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-0.5 text-xs font-semibold text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-300">
                                         {jenisKegiatan === 'survei'
                                             ? `Survei · ${
                                                   filteredSurveiPeriods.find(
@@ -1104,27 +1111,27 @@ export default function PublicPreview({
 
                     {/* ── Step 3 · Penugasan & Dokumen ────────────────────────── */}
                     {canSubmit && selectedPenugasanList.length > 0 && (
-                        <div className="overflow-hidden rounded-2xl border border-white/70 bg-white/75 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:backdrop-blur-md">
+                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
                             {/* Step 3 header */}
                             <button
                                 type="button"
                                 onClick={() =>
                                     setExpandedStep((v) => (v === 3 ? null : 3))
                                 }
-                                className={`flex w-full cursor-pointer items-center gap-3 bg-white/50 px-6 py-4 text-left hover:bg-white/70 dark:bg-white/5 dark:hover:bg-white/10 ${
+                                className={`flex w-full cursor-pointer items-center gap-3 bg-slate-50/70 px-6 py-4 text-left hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 ${
                                     expandedStep === 3
                                         ? 'border-b border-neutral-200/60 dark:border-white/10'
                                         : ''
                                 }`}
                             >
-                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
                                     3
                                 </span>
                                 <span className="text-sm font-semibold text-neutral-800 dark:text-white">
                                     Penugasan &amp; Dokumen
                                 </span>
                                 {expandedStep !== 3 && (
-                                    <span className="ml-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-0.5 text-xs font-semibold text-indigo-700 dark:border-indigo-800/60 dark:bg-indigo-950/40 dark:text-indigo-300">
+                                    <span className="ml-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-0.5 text-xs font-semibold text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-300">
                                         {selectedPenugasanCardTitle} &middot;{' '}
                                         {`Rp ${new Intl.NumberFormat('id-ID').format(selectedPenugasanTotalHonor)}`}
                                     </span>
@@ -1140,7 +1147,7 @@ export default function PublicPreview({
                                 <div className="space-y-0 divide-y divide-neutral-200/60 dark:divide-white/10">
                                     {/* Penugasan section */}
                                     <div>
-                                        <div className="border-b border-neutral-200/60 bg-white/50 px-6 py-5 dark:border-white/10 dark:bg-white/5">
+                                        <div className="border-b border-slate-200 bg-slate-50/70 px-6 py-5 dark:border-white/10 dark:bg-slate-900">
                                             <div className="flex flex-wrap items-start justify-between gap-4">
                                                 <div>
                                                     <h2 className="text-lg font-bold text-neutral-900 dark:text-white">
@@ -1219,7 +1226,7 @@ export default function PublicPreview({
                                                         (item) => (
                                                             <tr
                                                                 key={item.id}
-                                                                className="transition-colors hover:bg-indigo-50/30 dark:hover:bg-white/5"
+                                                                className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60"
                                                             >
                                                                 <td className="px-6 py-4">
                                                                     <div className="font-semibold text-neutral-900 dark:text-white">
@@ -1278,10 +1285,10 @@ export default function PublicPreview({
                                                 onClick={() =>
                                                     setDokumenTipe('pk')
                                                 }
-                                                className={`rounded-xl border p-5 text-left transition-all ${
+                                                className={`rounded-lg border p-4 text-left transition-colors ${
                                                     dokumenTipe === 'pk'
-                                                        ? 'border-indigo-300 bg-indigo-50 ring-2 ring-indigo-200 dark:border-indigo-700 dark:bg-indigo-950/30 dark:ring-indigo-800'
-                                                        : 'border-neutral-200 bg-white hover:border-indigo-200 hover:bg-indigo-50/40 dark:border-neutral-700 dark:bg-neutral-800/40 dark:hover:border-indigo-800'
+                                                        ? 'border-blue-300 bg-blue-50 ring-1 ring-blue-200 dark:border-blue-800 dark:bg-blue-950/20 dark:ring-blue-900'
+                                                        : 'border-neutral-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800/40 dark:hover:border-slate-700'
                                                 }`}
                                             >
                                                 <div className="text-[11px] font-bold tracking-widest text-neutral-500 uppercase dark:text-neutral-300"></div>
@@ -1306,7 +1313,7 @@ export default function PublicPreview({
                                                     onClick={() =>
                                                         setDokumenTipe('bapp_i')
                                                     }
-                                                    className={`rounded-xl border p-5 text-left transition-all ${
+                                                    className={`rounded-lg border p-4 text-left transition-colors ${
                                                         dokumenTipe === 'bapp_i'
                                                             ? 'border-violet-300 bg-violet-50 ring-2 ring-violet-200 dark:border-violet-700 dark:bg-violet-950/30 dark:ring-violet-800'
                                                             : 'border-neutral-200 bg-white hover:border-violet-200 hover:bg-violet-50/40 dark:border-neutral-700 dark:bg-neutral-800/40 dark:hover:border-violet-800'
@@ -1337,7 +1344,7 @@ export default function PublicPreview({
                                                             'bapp_ii',
                                                         )
                                                     }
-                                                    className={`rounded-xl border p-5 text-left transition-all ${
+                                                    className={`rounded-lg border p-4 text-left transition-colors ${
                                                         dokumenTipe ===
                                                         'bapp_ii'
                                                             ? 'border-violet-300 bg-violet-50 ring-2 ring-violet-200 dark:border-violet-700 dark:bg-violet-950/30 dark:ring-violet-800'
@@ -1366,7 +1373,7 @@ export default function PublicPreview({
                                                 onClick={() =>
                                                     setDokumenTipe('bast')
                                                 }
-                                                className={`rounded-xl border p-5 text-left transition-all ${
+                                                className={`rounded-lg border p-4 text-left transition-colors ${
                                                     dokumenTipe === 'bast'
                                                         ? 'border-sky-300 bg-sky-50 ring-2 ring-sky-200 dark:border-sky-700 dark:bg-sky-950/30 dark:ring-sky-800'
                                                         : 'border-neutral-200 bg-white hover:border-sky-200 hover:bg-sky-50/40 dark:border-neutral-700 dark:bg-neutral-800/40 dark:hover:border-sky-800'
@@ -1426,11 +1433,11 @@ export default function PublicPreview({
                         </div>
                     )}
 
-                    {/* Privacy note */}
-                    <p className="text-center text-sm text-neutral-500 dark:text-neutral-400">
-                        Data yang ditampilkan hanya milik petugas yang
-                        bersangkutan.
-                    </p>
+                    <div className="border-t border-slate-200 pt-5 text-center dark:border-slate-800">
+                        <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                            Data dan dokumen hanya ditampilkan setelah identitas petugas berhasil diverifikasi.
+                        </p>
+                    </div>
                 </div>
             </div>
 
