@@ -1,17 +1,15 @@
+import ArrowRight from 'lucide-react/icons/arrow-right';
+import BarChart3 from 'lucide-react/icons/bar-chart3';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import ClipboardCheck from 'lucide-react/icons/clipboard-check';
+import FileText from 'lucide-react/icons/file-text';
+import Users from 'lucide-react/icons/users';
 import AppLogo from '@/components/app-logo';
 import AppLogoIcon from '@/components/app-logo-icon';
 import { ThemeToggleButton } from '@/components/theme-toggle-button';
 import { dashboard, login, register } from '@/routes';
 import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import {
-    ArrowRight,
-    BarChart3,
-    CheckCircle2,
-    ClipboardCheck,
-    FileText,
-    Users,
-} from 'lucide-react';
 
 export default function Welcome({
     canRegister = true,
