@@ -1,24 +1,22 @@
+import ActivitySquare from 'lucide-react/icons/activity-square';
+import AlertCircle from 'lucide-react/icons/alert-circle';
+import AlertTriangle from 'lucide-react/icons/alert-triangle';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import ChevronRight from 'lucide-react/icons/chevron-right';
+import Clock from 'lucide-react/icons/clock';
+import Clock3 from 'lucide-react/icons/clock3';
+import Database from 'lucide-react/icons/database';
+import FolderKanban from 'lucide-react/icons/folder-kanban';
+import HardDrive from 'lucide-react/icons/hard-drive';
+import Settings from 'lucide-react/icons/settings';
+import UserCheck from 'lucide-react/icons/user-check';
+import Users from 'lucide-react/icons/users';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import {
-    ActivitySquare,
-    AlertCircle,
-    AlertTriangle,
-    CheckCircle2,
-    ChevronRight,
-    Clock,
-    Clock3,
-    Database,
-    FolderKanban,
-    HardDrive,
-    Settings,
-    UserCheck,
-    Users,
-} from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Administrasi', href: '#' }];
 
