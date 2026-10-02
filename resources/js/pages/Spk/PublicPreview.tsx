@@ -737,8 +737,8 @@ export default function PublicPreview({
         <>
             <Head title={`Portal Dokumen Mitra ${active_year}`} />
 
-            <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-                <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+            <div className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#f4f7fb_100%)] dark:bg-[linear-gradient(180deg,#020617_0%,#0f172a_100%)]">
+                <header className="border-b border-slate-200/80 bg-white/90 shadow-[0_1px_0_rgba(15,23,42,0.02)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
                     <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
                         <div className="flex items-center">
                             <AppLogo />
@@ -755,7 +755,8 @@ export default function PublicPreview({
                 </header>
 
                 <div className="mx-auto max-w-5xl space-y-5 px-5 py-8 sm:px-8 sm:py-10">
-                    <div className="mb-2">
+                    <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white px-6 py-6 shadow-[0_10px_28px_rgba(15,23,42,0.05)] dark:border-slate-800 dark:bg-slate-900">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-blue-600 via-emerald-500 to-orange-500" />
                         <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
                             Akses Dokumen Mitra
                         </h1>
@@ -773,15 +774,15 @@ export default function PublicPreview({
                     )}
 
                     {/* ── Step 1 · Identitas ──────────────────────────────────── */}
-                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                    <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_14px_32px_rgba(0,0,0,0.24)]">
                         <button
                             type="button"
                             onClick={() =>
                                 setExpandedStep((v) => (v === 1 ? null : 1))
                             }
-                            className="flex w-full cursor-pointer items-center gap-3 border-b border-slate-200 bg-slate-50/70 px-6 py-4 text-left hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800"
+                            className="flex w-full cursor-pointer items-center gap-3 border-b border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-6 py-4 text-left transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-[linear-gradient(180deg,#111827_0%,#0f172a_100%)] dark:hover:bg-slate-800"
                         >
-                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white shadow-sm shadow-blue-600/25">
                                 1
                             </span>
                             <span className="text-sm font-semibold text-neutral-800 dark:text-white">
@@ -822,7 +823,7 @@ export default function PublicPreview({
                                             }
                                             placeholder="Contoh: Sena Susanto"
                                             autoComplete="name"
-                                            className="h-11 text-base"
+                                            className="h-11 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
                                         />
                                     </div>
 
@@ -842,7 +843,7 @@ export default function PublicPreview({
                                             placeholder="16 digit NIK"
                                             inputMode="numeric"
                                             autoComplete="off"
-                                            className="h-11 text-base"
+                                            className="h-11 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
                                         />
                                     </div>
 
@@ -867,7 +868,7 @@ export default function PublicPreview({
                                             inputMode="numeric"
                                             maxLength={4}
                                             autoComplete="off"
-                                            className="h-11 text-base"
+                                            className="h-11 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
                                         />
                                     </div>
                                 </div>
@@ -888,7 +889,7 @@ export default function PublicPreview({
                                             (!recaptchaReady &&
                                                 !!recaptcha_site_key)
                                         }
-                                        className="gap-2"
+                                        className="gap-2 shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
                                     >
                                         {loadingOptions ? (
                                             <>
@@ -916,7 +917,7 @@ export default function PublicPreview({
 
                     {/* ── Step 2 · Pilih Kegiatan ─────────────────────────────── */}
                     {isOptionsLoaded && (
-                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                        <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_14px_32px_rgba(0,0,0,0.24)]">
                             <button
                                 type="button"
                                 onClick={() =>
@@ -936,7 +937,7 @@ export default function PublicPreview({
                                         : ''
                                 }`}
                             >
-                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white shadow-sm shadow-blue-600/25">
                                     2
                                 </span>
                                 <span className="text-sm font-semibold text-neutral-800 dark:text-white">
@@ -994,7 +995,7 @@ export default function PublicPreview({
                                             >
                                                 <SelectTrigger
                                                     id="jenis-kegiatan"
-                                                    className="h-11 text-base"
+                                                    className="h-11 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
                                                 >
                                                     <SelectValue placeholder="Pilih jenis kegiatan" />
                                                 </SelectTrigger>
@@ -1041,7 +1042,7 @@ export default function PublicPreview({
                                                     >
                                                         <SelectTrigger
                                                             id="opsi-kegiatan"
-                                                            className="h-11 text-base"
+                                                            className="h-11 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
                                                         >
                                                             <SelectValue placeholder="Pilih periode survei" />
                                                         </SelectTrigger>
@@ -1077,7 +1078,7 @@ export default function PublicPreview({
                                                     >
                                                         <SelectTrigger
                                                             id="opsi-kegiatan"
-                                                            className="h-11 text-base"
+                                                            className="h-11 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
                                                         >
                                                             <SelectValue placeholder="Pilih kegiatan sensus" />
                                                         </SelectTrigger>
@@ -1111,7 +1112,7 @@ export default function PublicPreview({
 
                     {/* ── Step 3 · Penugasan & Dokumen ────────────────────────── */}
                     {canSubmit && selectedPenugasanList.length > 0 && (
-                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                        <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_14px_32px_rgba(0,0,0,0.24)]">
                             {/* Step 3 header */}
                             <button
                                 type="button"
@@ -1124,7 +1125,7 @@ export default function PublicPreview({
                                         : ''
                                 }`}
                             >
-                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white shadow-sm shadow-blue-600/25">
                                     3
                                 </span>
                                 <span className="text-sm font-semibold text-neutral-800 dark:text-white">
@@ -1206,10 +1207,10 @@ export default function PublicPreview({
                                             </div>
                                         </div>
 
-                                        <div className="overflow-x-auto">
+                                        <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm dark:border-slate-800">
                                             <table className="min-w-full divide-y divide-neutral-100 dark:divide-neutral-800">
                                                 <thead>
-                                                    <tr className="bg-neutral-50/50 dark:bg-neutral-950/40">
+                                                    <tr className="bg-slate-50/80 dark:bg-slate-950/50">
                                                         <th className="px-6 py-3 text-left text-xs font-bold tracking-wide text-neutral-500 uppercase dark:text-neutral-300">
                                                             Kegiatan
                                                         </th>
@@ -1250,7 +1251,7 @@ export default function PublicPreview({
                                                     )}
                                                 </tbody>
                                                 <tfoot>
-                                                    <tr className="border-t border-neutral-200 bg-neutral-50/60 dark:border-neutral-800 dark:bg-neutral-950/40">
+                                                    <tr className="border-t border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/50">
                                                         <td
                                                             colSpan={2}
                                                             className="px-6 py-4 text-sm font-medium text-neutral-600 dark:text-neutral-300"
@@ -1285,10 +1286,10 @@ export default function PublicPreview({
                                                 onClick={() =>
                                                     setDokumenTipe('pk')
                                                 }
-                                                className={`rounded-lg border p-4 text-left transition-colors ${
+                                                className={`rounded-xl border p-4 text-left shadow-sm transition-all hover:-translate-y-px hover:shadow-md ${
                                                     dokumenTipe === 'pk'
-                                                        ? 'border-blue-300 bg-blue-50 ring-1 ring-blue-200 dark:border-blue-800 dark:bg-blue-950/20 dark:ring-blue-900'
-                                                        : 'border-neutral-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800/40 dark:hover:border-slate-700'
+                                                        ? 'border-blue-300 bg-[linear-gradient(180deg,#eff6ff_0%,#ffffff_100%)] shadow-md ring-1 shadow-blue-600/10 ring-blue-200 dark:border-blue-800 dark:bg-[linear-gradient(180deg,rgba(30,58,138,.22)_0%,rgba(15,23,42,.9)_100%)] dark:ring-blue-900'
+                                                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600 dark:hover:bg-slate-800'
                                                 }`}
                                             >
                                                 <div className="text-[11px] font-bold tracking-widest text-neutral-500 uppercase dark:text-neutral-300"></div>
@@ -1313,9 +1314,9 @@ export default function PublicPreview({
                                                     onClick={() =>
                                                         setDokumenTipe('bapp_i')
                                                     }
-                                                    className={`rounded-lg border p-4 text-left transition-colors ${
+                                                    className={`rounded-xl border p-4 text-left shadow-sm transition-all hover:-translate-y-px hover:shadow-md ${
                                                         dokumenTipe === 'bapp_i'
-                                                            ? 'border-violet-300 bg-violet-50 ring-2 ring-violet-200 dark:border-violet-700 dark:bg-violet-950/30 dark:ring-violet-800'
+                                                            ? 'border-violet-300 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] shadow-md ring-1 shadow-violet-500/10 ring-violet-200 dark:border-violet-700 dark:bg-[linear-gradient(180deg,rgba(76,29,149,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-violet-900'
                                                             : 'border-neutral-200 bg-white hover:border-violet-200 hover:bg-violet-50/40 dark:border-neutral-700 dark:bg-neutral-800/40 dark:hover:border-violet-800'
                                                     }`}
                                                 >
@@ -1344,10 +1345,10 @@ export default function PublicPreview({
                                                             'bapp_ii',
                                                         )
                                                     }
-                                                    className={`rounded-lg border p-4 text-left transition-colors ${
+                                                    className={`rounded-xl border p-4 text-left shadow-sm transition-all hover:-translate-y-px hover:shadow-md ${
                                                         dokumenTipe ===
                                                         'bapp_ii'
-                                                            ? 'border-violet-300 bg-violet-50 ring-2 ring-violet-200 dark:border-violet-700 dark:bg-violet-950/30 dark:ring-violet-800'
+                                                            ? 'border-violet-300 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] shadow-md ring-1 shadow-violet-500/10 ring-violet-200 dark:border-violet-700 dark:bg-[linear-gradient(180deg,rgba(76,29,149,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-violet-900'
                                                             : 'border-neutral-200 bg-white hover:border-violet-200 hover:bg-violet-50/40 dark:border-neutral-700 dark:bg-neutral-800/40 dark:hover:border-violet-800'
                                                     }`}
                                                 >
@@ -1373,9 +1374,9 @@ export default function PublicPreview({
                                                 onClick={() =>
                                                     setDokumenTipe('bast')
                                                 }
-                                                className={`rounded-lg border p-4 text-left transition-colors ${
+                                                className={`rounded-xl border p-4 text-left shadow-sm transition-all hover:-translate-y-px hover:shadow-md ${
                                                     dokumenTipe === 'bast'
-                                                        ? 'border-sky-300 bg-sky-50 ring-2 ring-sky-200 dark:border-sky-700 dark:bg-sky-950/30 dark:ring-sky-800'
+                                                        ? 'border-sky-300 bg-[linear-gradient(180deg,#f0f9ff_0%,#ffffff_100%)] shadow-md ring-1 shadow-sky-500/10 ring-sky-200 dark:border-sky-700 dark:bg-[linear-gradient(180deg,rgba(12,74,110,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-sky-900'
                                                         : 'border-neutral-200 bg-white hover:border-sky-200 hover:bg-sky-50/40 dark:border-neutral-700 dark:bg-neutral-800/40 dark:hover:border-sky-800'
                                                 }`}
                                             >
@@ -1403,7 +1404,7 @@ export default function PublicPreview({
                                                 disabled={
                                                     processing || !canSubmit
                                                 }
-                                                className="gap-2"
+                                                className="gap-2 shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
                                             >
                                                 <Eye className="h-4 w-4" />
                                                 {processing
@@ -1419,7 +1420,7 @@ export default function PublicPreview({
                                                 disabled={
                                                     processing || !canSubmit
                                                 }
-                                                className="gap-2"
+                                                className="gap-2 shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
                                             >
                                                 <Download className="h-4 w-4" />
                                                 {processing
