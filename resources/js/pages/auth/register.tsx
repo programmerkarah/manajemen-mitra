@@ -101,10 +101,10 @@ export default function Register({
                 {/* Main Content */}
                 <main className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
                     <div className="w-full max-w-lg">
-                        <div className="rounded-[2rem] border border-slate-200/80 bg-white p-7 shadow-xl shadow-slate-900/5 sm:p-9 dark:border-white/10 dark:bg-white/[0.04]">
+                        <div className="rounded-[2rem] border border-slate-200/80 bg-white p-7 shadow-sm shadow-slate-900/5 sm:p-9 dark:border-white/10 dark:bg-white/[0.04]">
                             {/* Icon & Title */}
                             <div className="mb-8 text-center">
-                                <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
+                                <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
                                     <UserPlus className="h-6 w-6 text-white" />
                                 </div>
                                 <h2 className="text-3xl font-bold tracking-[-0.03em] text-slate-950 dark:text-white">
@@ -122,7 +122,7 @@ export default function Register({
                                     {ssoRegisterUrl ? (
                                         <a
                                             href={ssoRegisterUrl}
-                                            className="flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 text-base font-semibold text-white shadow-lg shadow-blue-600/15 transition hover:bg-blue-700"
+                                            className="flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 text-base font-semibold text-white  transition hover:bg-blue-700"
                                         >
                                             Lanjutkan Daftar via SSO
                                         </a>
@@ -163,7 +163,7 @@ export default function Register({
                                             autoFocus
                                             autoComplete="name"
                                             placeholder="Masukkan nama lengkap"
-                                            className="dark:bg-white\/5 h-12 rounded-xl bg-white"
+                                            className="dark:bg-white\/5 h-11 rounded-lg bg-white"
                                             value={registerForm.data.name}
                                             onChange={(event) =>
                                                 registerForm.setData(
@@ -191,7 +191,7 @@ export default function Register({
                                             required
                                             autoComplete="username"
                                             placeholder="Masukkan username"
-                                            className="dark:bg-white\/5 h-12 rounded-xl bg-white"
+                                            className="dark:bg-white\/5 h-11 rounded-lg bg-white"
                                             value={registerForm.data.username}
                                             onChange={(event) =>
                                                 registerForm.setData(
@@ -221,7 +221,7 @@ export default function Register({
                                             required
                                             autoComplete="email"
                                             placeholder="Masukkan email"
-                                            className="dark:bg-white\/5 h-12 rounded-xl bg-white"
+                                            className="dark:bg-white\/5 h-11 rounded-lg bg-white"
                                             value={registerForm.data.email}
                                             onChange={(event) =>
                                                 registerForm.setData(
@@ -249,7 +249,7 @@ export default function Register({
                                             required
                                             autoComplete="new-password"
                                             placeholder="Minimal 8 karakter"
-                                            className="dark:bg-white\/5 h-12 rounded-xl bg-white"
+                                            className="dark:bg-white\/5 h-11 rounded-lg bg-white"
                                             value={registerForm.data.password}
                                             onChange={(event) =>
                                                 registerForm.setData(
@@ -279,7 +279,7 @@ export default function Register({
                                             required
                                             autoComplete="new-password"
                                             placeholder="Ulangi password"
-                                            className="dark:bg-white\/5 h-12 rounded-xl bg-white"
+                                            className="dark:bg-white\/5 h-11 rounded-lg bg-white"
                                             value={
                                                 registerForm.data
                                                     .password_confirmation
@@ -301,7 +301,7 @@ export default function Register({
 
                                     <Button
                                         type="submit"
-                                        className="h-12 w-full rounded-xl bg-blue-600 text-base font-semibold shadow-lg shadow-blue-600/15 hover:bg-blue-700"
+                                        className="h-11 w-full rounded-lg bg-blue-600 text-base font-semibold  hover:bg-blue-700"
                                         disabled={registerForm.processing}
                                     >
                                         {registerForm.processing && <Spinner />}
