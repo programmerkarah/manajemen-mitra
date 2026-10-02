@@ -1,0 +1,37 @@
+name: one-time-format-fix
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/format-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: npm run format
+      - name: Commit formatting
+        run: |
+          if git diff --quiet -- resources/js resources/css; then
+            echo "No formatting changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add resources/js resources/css
+          git commit -m "style: normalize frontend formatting after refactor"
+          git push origin HEAD:main
