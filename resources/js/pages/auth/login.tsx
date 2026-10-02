@@ -118,8 +118,9 @@ export default function Login({
                                 Akses ruang kerja kegiatan statistik.
                             </h1>
                             <p className="mt-5 max-w-lg text-base leading-7 text-slate-600 dark:text-slate-300">
-                                Gunakan akun BPS Anda untuk melanjutkan pengelolaan kegiatan,
-                                petugas, dokumen, honor, dan monitoring.
+                                Gunakan akun BPS Anda untuk melanjutkan
+                                pengelolaan kegiatan, petugas, dokumen, honor,
+                                dan monitoring.
                             </p>
 
                             <div className="mt-9 grid gap-3">
@@ -183,7 +184,8 @@ export default function Login({
                                                 Single Sign-On BPS
                                             </p>
                                             <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                                                Anda akan diarahkan ke layanan SSO untuk verifikasi akun.
+                                                Anda akan diarahkan ke layanan
+                                                SSO untuk verifikasi akun.
                                             </p>
                                         </div>
 
@@ -197,13 +199,19 @@ export default function Login({
                                         </a>
 
                                         <p className="mt-4 text-center text-xs leading-5 text-slate-500 dark:text-slate-400">
-                                            Autentikasi dan keamanan akun dikelola melalui SSO BPS.
+                                            Autentikasi dan keamanan akun
+                                            dikelola melalui SSO BPS.
                                         </p>
                                     </div>
                                 ) : (
-                                    <form onSubmit={submitLoginForm} className="space-y-5">
+                                    <form
+                                        onSubmit={submitLoginForm}
+                                        className="space-y-5"
+                                    >
                                         <div className="space-y-2">
-                                            <Label htmlFor="username">Username</Label>
+                                            <Label htmlFor="username">
+                                                Username
+                                            </Label>
                                             <Input
                                                 id="username"
                                                 name="username"
@@ -221,12 +229,18 @@ export default function Login({
                                                     )
                                                 }
                                             />
-                                            <InputError message={loginForm.errors.username} />
+                                            <InputError
+                                                message={
+                                                    loginForm.errors.username
+                                                }
+                                            />
                                         </div>
 
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-between">
-                                                <Label htmlFor="password">Password</Label>
+                                                <Label htmlFor="password">
+                                                    Password
+                                                </Label>
                                                 {canResetPassword && (
                                                     <TextLink
                                                         href={request()}
@@ -252,7 +266,9 @@ export default function Login({
                                                     autoComplete="current-password"
                                                     placeholder="Masukkan password"
                                                     className="h-12 border-slate-200 bg-slate-50/70 pr-11 dark:border-slate-700 dark:bg-slate-950/40"
-                                                    value={loginForm.data.password}
+                                                    value={
+                                                        loginForm.data.password
+                                                    }
                                                     onChange={(e) =>
                                                         loginForm.setData(
                                                             'password',
@@ -263,7 +279,9 @@ export default function Login({
                                                 <button
                                                     type="button"
                                                     onClick={() =>
-                                                        setIsPasswordVisible((v) => !v)
+                                                        setIsPasswordVisible(
+                                                            (v) => !v,
+                                                        )
                                                     }
                                                     className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                                                     aria-label={
@@ -279,13 +297,19 @@ export default function Login({
                                                     )}
                                                 </button>
                                             </div>
-                                            <InputError message={loginForm.errors.password} />
+                                            <InputError
+                                                message={
+                                                    loginForm.errors.password
+                                                }
+                                            />
                                         </div>
 
                                         <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                                             <input
                                                 type="checkbox"
-                                                checked={loginForm.data.remember}
+                                                checked={
+                                                    loginForm.data.remember
+                                                }
                                                 onChange={(e) =>
                                                     loginForm.setData(
                                                         'remember',
@@ -303,7 +327,9 @@ export default function Login({
                                             disabled={loginForm.processing}
                                             data-test="login-button"
                                         >
-                                            {loginForm.processing && <Spinner />}
+                                            {loginForm.processing && (
+                                                <Spinner />
+                                            )}
                                             Masuk
                                         </Button>
                                     </form>

@@ -1436,7 +1436,8 @@ export default function PublicPreview({
 
                     <div className="rounded-xl border border-slate-200 bg-white/70 px-5 py-4 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
                         <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
-                            Data dan dokumen hanya ditampilkan setelah identitas petugas berhasil diverifikasi.
+                            Data dan dokumen hanya ditampilkan setelah identitas
+                            petugas berhasil diverifikasi.
                         </p>
                     </div>
                 </div>
