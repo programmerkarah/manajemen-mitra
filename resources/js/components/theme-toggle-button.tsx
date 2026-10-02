@@ -26,7 +26,7 @@ export function ThemeToggleButton() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-9 w-9 rounded-full px-0 sm:w-auto sm:gap-2 sm:px-3"
+                    className="header-control w-9 px-0 sm:w-auto sm:gap-2 sm:px-3"
                     aria-label="Toggle theme"
                 >
                     <CurrentIcon className="size-4" />
