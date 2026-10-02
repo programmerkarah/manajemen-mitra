@@ -1,10 +1,12 @@
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import LogOut from 'lucide-react/icons/log-out';
+import Mail from 'lucide-react/icons/mail';
 import AppLogo from '@/components/app-logo';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { logout } from '@/routes';
 import { send } from '@/routes/verification';
 import { Form, Head, Link } from '@inertiajs/react';
-import { CheckCircle2, LogOut, Mail } from 'lucide-react';
 
 export default function VerifyEmail({ status }: { status?: string }) {
     return (
