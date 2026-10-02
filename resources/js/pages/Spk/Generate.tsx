@@ -82,7 +82,6 @@ export default function Generate({
     is_regenerate,
     default_tanggal_spk,
     existing_spk_map,
-    last_nomor_urut_in_month,
     uses_suffix_for_new_petugas,
 }: GenerateProps) {
     const [formData, setFormData] = useState({
