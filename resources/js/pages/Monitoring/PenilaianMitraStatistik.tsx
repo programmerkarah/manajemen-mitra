@@ -840,6 +840,11 @@ export default function PenilaianMitraStatistik({
                                     ))}
                                 </SelectContent>
                             </Select>
+                            <p className="text-[11px] leading-relaxed text-muted-foreground">
+                                Memfilter berdasarkan bulan periode alokasi
+                                yang dinilai, bukan tanggal saat review
+                                dikirim.
+                            </p>
                         </div>
 
                         <div className="space-y-1">
