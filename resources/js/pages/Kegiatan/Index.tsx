@@ -1,5 +1,6 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
+import { SummaryCard } from '@/components/summary-card';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -504,94 +505,35 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                     )}
                 </PageHeader>
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <button
-                        type="button"
-                        className="cursor-pointer text-left"
+                <div className="summary-grid">
+                    <SummaryCard
+                        label="Total kegiatan"
+                        value={kegiatanSummary.total}
+                        icon={<Search className="size-4" />}
+                        accent="blue"
                         onClick={() => handleOpenSummaryModal('all')}
-                    >
-                        <ContentCard className="border border-blue-200/60 bg-gradient-to-br from-blue-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-blue-900/40 dark:from-blue-950/30 dark:to-neutral-900">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-sm text-blue-700 dark:text-blue-300">
-                                        Total Kegiatan
-                                    </p>
-                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                                        {kegiatanSummary.total}
-                                    </p>
-                                </div>
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
-                                    <Search className="h-5 w-5" />
-                                </span>
-                            </div>
-                        </ContentCard>
-                    </button>
-
-                    <button
-                        type="button"
-                        className="cursor-pointer text-left"
+                    />
+                    <SummaryCard
+                        label="Draft"
+                        value={kegiatanSummary.draft}
+                        icon={<Pencil className="size-4" />}
+                        accent="orange"
                         onClick={() => handleOpenSummaryModal('draft')}
-                    >
-                        <ContentCard className="border border-amber-200/60 bg-gradient-to-br from-amber-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-amber-900/40 dark:from-amber-950/30 dark:to-neutral-900">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-sm text-amber-700 dark:text-amber-300">
-                                        Draft
-                                    </p>
-                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                                        {kegiatanSummary.draft}
-                                    </p>
-                                </div>
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
-                                    <Pencil className="h-5 w-5" />
-                                </span>
-                            </div>
-                        </ContentCard>
-                    </button>
-
-                    <button
-                        type="button"
-                        className="cursor-pointer text-left"
+                    />
+                    <SummaryCard
+                        label="Diajukan"
+                        value={kegiatanSummary.diajukan}
+                        icon={<Send className="size-4" />}
+                        accent="violet"
                         onClick={() => handleOpenSummaryModal('diajukan')}
-                    >
-                        <ContentCard className="border border-indigo-200/60 bg-gradient-to-br from-indigo-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-indigo-900/40 dark:from-indigo-950/30 dark:to-neutral-900">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-sm text-indigo-700 dark:text-indigo-300">
-                                        Diajukan
-                                    </p>
-                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                                        {kegiatanSummary.diajukan}
-                                    </p>
-                                </div>
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
-                                    <Send className="h-5 w-5" />
-                                </span>
-                            </div>
-                        </ContentCard>
-                    </button>
-
-                    <button
-                        type="button"
-                        className="cursor-pointer text-left"
+                    />
+                    <SummaryCard
+                        label="Aktif / Divalidasi"
+                        value={kegiatanSummary.aktif}
+                        icon={<Check className="size-4" />}
+                        accent="green"
                         onClick={() => handleOpenSummaryModal('aktif')}
-                    >
-                        <ContentCard className="border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                                        Aktif / Divalidasi
-                                    </p>
-                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                                        {kegiatanSummary.aktif}
-                                    </p>
-                                </div>
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
-                                    <Check className="h-5 w-5" />
-                                </span>
-                            </div>
-                        </ContentCard>
-                    </button>
+                    />
                 </div>
 
                 {/* Filters */}
