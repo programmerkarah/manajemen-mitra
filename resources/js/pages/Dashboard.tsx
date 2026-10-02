@@ -516,22 +516,20 @@ export default function Dashboard({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
             <div className="flex flex-1 flex-col gap-6 overflow-x-hidden">
-                {/* Welcome Section */}
-                <div className="rounded-2xl border border-neutral-200/70 bg-white/80 p-6 shadow-lg dark:border-neutral-800 dark:bg-neutral-900/80">
+                <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/70">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div className="min-w-0">
                             <h1 className="text-xl font-bold break-words text-neutral-900 dark:text-white">
-                                Selamat Datang, {auth.user.name}! 👋🏻
+                                Ringkasan Operasional
                             </h1>
                             <p className="mt-1 text-sm break-words text-neutral-500 dark:text-neutral-400">
+                                {auth.user.name} ·{' '}
                                 {new Date().toLocaleDateString('id-ID', {
                                     weekday: 'long',
                                     year: 'numeric',
                                     month: 'long',
                                     day: 'numeric',
-                                })}{' '}
-                                · SIMANTIK — Kelola petugas, kegiatan, dan
-                                alokasi dengan mudah
+                                })}
                             </p>
                         </div>
                         <div className="flex flex-shrink-0 items-center gap-2 rounded-lg bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
@@ -575,12 +573,19 @@ export default function Dashboard({
                     )}
                 </div>
 
-                {/* Stats Cards */}
-                <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="flex items-end justify-between gap-3">
+                    <div>
+                        <h2 className="font-semibold">Ikhtisar</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Kondisi utama pada tahun dan periode aktif.
+                        </p>
+                    </div>
+                </div>
+                <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     {canViewPetugas ? (
                         <Link
                             href={petugasIndex().url}
-                            className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-blue-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-blue-700/30"
+                            className="group flex min-w-0 flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all hover:border-blue-200/60 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900/60 dark:hover:border-blue-700/30"
                         >
                             <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0 flex-1">
@@ -600,7 +605,7 @@ export default function Dashboard({
                             </div>
                         </Link>
                     ) : (
-                        <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
+                        <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/60">
                             <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0 flex-1">
                                     <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
@@ -619,7 +624,7 @@ export default function Dashboard({
                     {canViewKegiatan ? (
                         <Link
                             href={kegiatanIndex().url}
-                            className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-green-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-green-700/30"
+                            className="group flex min-w-0 flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all hover:border-green-200/60 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900/60 dark:hover:border-green-700/30"
                         >
                             <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0 flex-1">
@@ -639,7 +644,7 @@ export default function Dashboard({
                             </div>
                         </Link>
                     ) : (
-                        <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
+                        <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/60">
                             <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0 flex-1">
                                     <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
@@ -658,7 +663,7 @@ export default function Dashboard({
                     {canViewKegiatan ? (
                         <Link
                             href={kegiatanIndex().url}
-                            className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-amber-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-amber-700/30"
+                            className="group flex min-w-0 flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all hover:border-amber-200/60 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900/60 dark:hover:border-amber-700/30"
                         >
                             <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0 flex-1">
@@ -678,7 +683,7 @@ export default function Dashboard({
                             </div>
                         </Link>
                     ) : (
-                        <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
+                        <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/60">
                             <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0 flex-1">
                                     <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
@@ -697,7 +702,7 @@ export default function Dashboard({
                     {canViewBast ? (
                         <Link
                             href={bastIndex().url}
-                            className="group flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl transition-all hover:border-purple-200/60 hover:shadow-lg dark:border-neutral-700/30 dark:bg-neutral-800/50 dark:hover:border-purple-700/30"
+                            className="group flex min-w-0 flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all hover:border-purple-200/60 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900/60 dark:hover:border-purple-700/30"
                         >
                             <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0 flex-1">
@@ -717,7 +722,7 @@ export default function Dashboard({
                             </div>
                         </Link>
                     ) : (
-                        <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-white/20 bg-white/40 p-6 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
+                        <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/60">
                             <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0 flex-1">
                                     <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
