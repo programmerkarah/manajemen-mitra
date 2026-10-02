@@ -345,7 +345,9 @@ class PetugasController extends Controller
             abort(404);
         }
 
-        $petugas = Petugas::findOrFail($id);
+        $petugas = Petugas::query()
+            ->where('jenis_petugas', 'non-organik')
+            ->findOrFail($id);
 
         $data = $petugas->toEditArray();
 
@@ -365,7 +367,9 @@ class PetugasController extends Controller
             abort(404);
         }
 
-        $petugas = Petugas::findOrFail($id);
+        $petugas = Petugas::query()
+            ->where('jenis_petugas', 'non-organik')
+            ->findOrFail($id);
         $petugas->update($request->validated());
 
         try {
@@ -395,7 +399,9 @@ class PetugasController extends Controller
             abort(404);
         }
 
-        $petugas = Petugas::findOrFail($id);
+        $petugas = Petugas::query()
+            ->where('jenis_petugas', 'non-organik')
+            ->findOrFail($id);
         $petugasNama = $petugas->nama;
         $petugasNik = $petugas->nik;
         $petugasId = $petugas->id;
