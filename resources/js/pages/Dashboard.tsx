@@ -1,3 +1,20 @@
+import AlertCircle from 'lucide-react/icons/alert-circle';
+import AlertTriangle from 'lucide-react/icons/alert-triangle';
+import ArrowRight from 'lucide-react/icons/arrow-right';
+import Briefcase from 'lucide-react/icons/briefcase';
+import Calendar from 'lucide-react/icons/calendar';
+import CheckCircle from 'lucide-react/icons/check-circle';
+import ChevronRight from 'lucide-react/icons/chevron-right';
+import Clock from 'lucide-react/icons/clock';
+import Eye from 'lucide-react/icons/eye';
+import FileText from 'lucide-react/icons/file-text';
+import Plus from 'lucide-react/icons/plus';
+import ScrollText from 'lucide-react/icons/scroll-text';
+import Search from 'lucide-react/icons/search';
+import Star from 'lucide-react/icons/star';
+import TrendingUp from 'lucide-react/icons/trending-up';
+import Users from 'lucide-react/icons/users';
+import XCircle from 'lucide-react/icons/x-circle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -13,25 +30,7 @@ import { index as kegiatanIndex } from '@/routes/kegiatan';
 import { index as petugasIndex } from '@/routes/petugas';
 import { SharedData, type BreadcrumbItem } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import {
-    AlertCircle,
-    AlertTriangle,
-    ArrowRight,
-    Briefcase,
-    Calendar,
-    CheckCircle,
-    ChevronRight,
-    Clock,
-    Eye,
-    FileText,
-    Plus,
-    ScrollText,
-    Search,
-    Star,
-    TrendingUp,
-    Users,
-    XCircle,
-} from 'lucide-react';
+
 import { useMemo, useState } from 'react';
 import {
     Area,
