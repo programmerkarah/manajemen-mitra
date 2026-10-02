@@ -761,7 +761,8 @@ export default function PublicPreview({
                             Akses Dokumen Mitra
                         </h1>
                         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
-                            Verifikasi identitas, pilih kegiatan, lalu buka atau unduh dokumen penugasan Anda.
+                            Verifikasi identitas, pilih kegiatan, lalu buka atau
+                            unduh dokumen penugasan Anda.
                         </p>
                     </div>
                     {/* Error banner */}
@@ -1287,7 +1288,7 @@ export default function PublicPreview({
                                                 }
                                                 className={`rounded-xl border p-4 text-left shadow-sm transition-all hover:-translate-y-px hover:shadow-md ${
                                                     dokumenTipe === 'pk'
-                                                        ? 'border-blue-300 bg-[linear-gradient(180deg,#eff6ff_0%,#ffffff_100%)] ring-1 ring-blue-200 shadow-md shadow-blue-600/10 dark:border-blue-800 dark:bg-[linear-gradient(180deg,rgba(30,58,138,.22)_0%,rgba(15,23,42,.9)_100%)] dark:ring-blue-900'
+                                                        ? 'border-blue-300 bg-[linear-gradient(180deg,#eff6ff_0%,#ffffff_100%)] shadow-md ring-1 shadow-blue-600/10 ring-blue-200 dark:border-blue-800 dark:bg-[linear-gradient(180deg,rgba(30,58,138,.22)_0%,rgba(15,23,42,.9)_100%)] dark:ring-blue-900'
                                                         : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600 dark:hover:bg-slate-800'
                                                 }`}
                                             >
@@ -1315,7 +1316,7 @@ export default function PublicPreview({
                                                     }
                                                     className={`rounded-xl border p-4 text-left shadow-sm transition-all hover:-translate-y-px hover:shadow-md ${
                                                         dokumenTipe === 'bapp_i'
-                                                            ? 'border-violet-300 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] ring-1 ring-violet-200 shadow-md shadow-violet-500/10 dark:border-violet-700 dark:bg-[linear-gradient(180deg,rgba(76,29,149,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-violet-900'
+                                                            ? 'border-violet-300 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] shadow-md ring-1 shadow-violet-500/10 ring-violet-200 dark:border-violet-700 dark:bg-[linear-gradient(180deg,rgba(76,29,149,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-violet-900'
                                                             : 'border-neutral-200 bg-white hover:border-violet-200 hover:bg-violet-50/40 dark:border-neutral-700 dark:bg-neutral-800/40 dark:hover:border-violet-800'
                                                     }`}
                                                 >
@@ -1347,7 +1348,7 @@ export default function PublicPreview({
                                                     className={`rounded-xl border p-4 text-left shadow-sm transition-all hover:-translate-y-px hover:shadow-md ${
                                                         dokumenTipe ===
                                                         'bapp_ii'
-                                                            ? 'border-violet-300 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] ring-1 ring-violet-200 shadow-md shadow-violet-500/10 dark:border-violet-700 dark:bg-[linear-gradient(180deg,rgba(76,29,149,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-violet-900'
+                                                            ? 'border-violet-300 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] shadow-md ring-1 shadow-violet-500/10 ring-violet-200 dark:border-violet-700 dark:bg-[linear-gradient(180deg,rgba(76,29,149,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-violet-900'
                                                             : 'border-neutral-200 bg-white hover:border-violet-200 hover:bg-violet-50/40 dark:border-neutral-700 dark:bg-neutral-800/40 dark:hover:border-violet-800'
                                                     }`}
                                                 >
@@ -1375,7 +1376,7 @@ export default function PublicPreview({
                                                 }
                                                 className={`rounded-xl border p-4 text-left shadow-sm transition-all hover:-translate-y-px hover:shadow-md ${
                                                     dokumenTipe === 'bast'
-                                                        ? 'border-sky-300 bg-[linear-gradient(180deg,#f0f9ff_0%,#ffffff_100%)] ring-1 ring-sky-200 shadow-md shadow-sky-500/10 dark:border-sky-700 dark:bg-[linear-gradient(180deg,rgba(12,74,110,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-sky-900'
+                                                        ? 'border-sky-300 bg-[linear-gradient(180deg,#f0f9ff_0%,#ffffff_100%)] shadow-md ring-1 shadow-sky-500/10 ring-sky-200 dark:border-sky-700 dark:bg-[linear-gradient(180deg,rgba(12,74,110,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-sky-900'
                                                         : 'border-neutral-200 bg-white hover:border-sky-200 hover:bg-sky-50/40 dark:border-neutral-700 dark:bg-neutral-800/40 dark:hover:border-sky-800'
                                                 }`}
                                             >
