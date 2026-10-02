@@ -47,7 +47,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Petugas', href: '/petugas' }];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Mitra', href: '/petugas' }];
 
 // SortIcon component declared outside to avoid recreation on each render
 const SortIcon = ({
@@ -173,7 +173,6 @@ export default function Index({ petugas }: PetugasIndexProps) {
     const allPetugas = useDecryptedData<Petugas>(petugas.encrypted);
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState('all');
-    const [jenisPetugas, setJenisPetugas] = useState('all');
     const [sortField, setSortField] = useState<'nama' | 'email'>('nama');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [currentPage, setCurrentPage] = useState(1);
@@ -225,7 +224,9 @@ export default function Index({ petugas }: PetugasIndexProps) {
 
     // Client-side filtering and sorting
     const filteredAndSortedPetugas = useMemo(() => {
-        let result: Petugas[] = [...allPetugas];
+        let result: Petugas[] = allPetugas.filter(
+            (item: Petugas) => item.jenis_petugas === 'non-organik',
+        );
 
         // Filter by search
         if (search) {
@@ -241,16 +242,6 @@ export default function Index({ petugas }: PetugasIndexProps) {
         // Filter by status
         if (status && status !== 'all') {
             result = result.filter((item: Petugas) => item.status === status);
-        }
-
-        // Filter by jenis_petugas
-        if (jenisPetugas && jenisPetugas !== 'all') {
-            result = result.filter((item: Petugas) => {
-                // Map display values to database values
-                const jenisValue =
-                    jenisPetugas === 'organik' ? 'organik' : 'non-organik';
-                return item.jenis_petugas === jenisValue;
-            });
         }
 
         // Sort
@@ -274,7 +265,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
         });
 
         return result;
-    }, [allPetugas, search, status, jenisPetugas, sortField, sortDirection]);
+    }, [allPetugas, search, status, sortField, sortDirection]);
 
     // Client-side pagination
     const totalPages = Math.ceil(filteredAndSortedPetugas.length / perPage);
@@ -495,13 +486,18 @@ export default function Index({ petugas }: PetugasIndexProps) {
 
     const petugasSummary = useMemo(
         () => ({
-            total: allPetugas.length,
-            active: allPetugas.filter((item) => item.status === 'aktif').length,
-            mitra: allPetugas.filter(
+            total: allPetugas.filter(
                 (item) => item.jenis_petugas === 'non-organik',
             ).length,
-            organik: allPetugas.filter(
-                (item) => item.jenis_petugas === 'organik',
+            active: allPetugas.filter(
+                (item) =>
+                    item.jenis_petugas === 'non-organik' &&
+                    item.status === 'aktif',
+            ).length,
+            inactive: allPetugas.filter(
+                (item) =>
+                    item.jenis_petugas === 'non-organik' &&
+                    item.status === 'nonaktif',
             ).length,
         }),
         [allPetugas],
@@ -509,13 +505,13 @@ export default function Index({ petugas }: PetugasIndexProps) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Data Petugas" />
+            <Head title="Data Mitra" />
 
             <div className="space-y-6">
                 {/* Header */}
                 <PageHeader
-                    title="Data Petugas"
-                    description="Kelola data petugas mitra yang terlibat dalam kegiatan"
+                    title="Data Mitra"
+                    description="Kelola data mitra statistik non-organik yang terlibat dalam kegiatan"
                 >
                     <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
                         <Button
@@ -581,7 +577,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                 >
                                     <Link href="/petugas/create">
                                         <Plus className="h-4 w-4" />
-                                        Tambah Petugas
+                                        Tambah Mitra
                                     </Link>
                                 </Button>
                             </>
@@ -589,10 +585,10 @@ export default function Index({ petugas }: PetugasIndexProps) {
                     </div>
                 </PageHeader>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-3">
                     <ContentCard>
                         <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                            Total petugas
+                            Total mitra
                         </p>
                         <p className="mt-1 text-2xl font-semibold">
                             {petugasSummary.total}
@@ -613,18 +609,10 @@ export default function Index({ petugas }: PetugasIndexProps) {
                     </ContentCard>
                     <ContentCard>
                         <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                            Mitra non-organik
+                            Nonaktif
                         </p>
                         <p className="mt-1 text-2xl font-semibold">
-                            {petugasSummary.mitra}
-                        </p>
-                    </ContentCard>
-                    <ContentCard>
-                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                            Petugas organik
-                        </p>
-                        <p className="mt-1 text-2xl font-semibold">
-                            {petugasSummary.organik}
+                            {petugasSummary.inactive}
                         </p>
                     </ContentCard>
                 </div>
@@ -632,10 +620,9 @@ export default function Index({ petugas }: PetugasIndexProps) {
                 {/* Filters */}
                 <ContentCard>
                     <div className="mb-4">
-                        <h2 className="font-semibold">Cari & Filter Petugas</h2>
+                        <h2 className="font-semibold">Cari & Filter Mitra</h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Temukan petugas berdasarkan identitas, jenis
-                            petugas, atau status.
+                            Pencarian hanya mencakup mitra statistik non-organik berdasarkan identitas atau status.
                         </p>
                     </div>
                     <div className="mb-4 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-muted-foreground dark:bg-neutral-900/60">
@@ -652,39 +639,24 @@ export default function Index({ petugas }: PetugasIndexProps) {
                             {filteredAndSortedPetugas.length}
                         </span>{' '}
                         petugas{' '}
-                        {search || status !== 'all' || jenisPetugas !== 'all'
+                        {search || status !== 'all'
                             ? `(difilter dari ${allPetugas.length} total petugas)`
                             : ''}
                     </div>
 
-                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_180px_180px_auto]">
+                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_180px]">
                         <div className="flex-1">
                             <div className="relative">
                                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-400" />
                                 <Input
                                     type="text"
-                                    placeholder="Cari nama, NIK/NIP, atau email..."
+                                    placeholder="Cari nama, NIK, atau email mitra..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     className="h-10 pl-10"
                                 />
                             </div>
                         </div>
-                        <Select
-                            value={jenisPetugas}
-                            onValueChange={(value) => setJenisPetugas(value)}
-                        >
-                            <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Jenis Petugas" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Semua Jenis</SelectItem>
-                                <SelectItem value="organik">Organik</SelectItem>
-                                <SelectItem value="non-organik">
-                                    Non-Organik
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
                         <Select
                             value={status}
                             onValueChange={(value) => setStatus(value)}
@@ -715,9 +687,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                 filteredAndSortedPetugas.length,
                             )}{' '}
                             dari {filteredAndSortedPetugas.length} data
-                            {(search ||
-                                status !== 'all' ||
-                                jenisPetugas !== 'all') &&
+                            {(search || status !== 'all') &&
                                 ` (difilter dari ${allPetugas.length} total)`}
                         </p>
                     </div>

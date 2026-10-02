@@ -33,7 +33,9 @@ class PetugasController extends Controller
     public function index(FilterRequest $request): Response
     {
         $validated = $request->validated();
-        $query = Petugas::query()->select('petugas.*');
+        $query = Petugas::query()
+            ->select('petugas.*')
+            ->where('jenis_petugas', 'non-organik');
 
         // Search
         if (! empty($validated['search'])) {
@@ -53,11 +55,6 @@ class PetugasController extends Controller
         // Filter by tahun bergabung
         if (! empty($validated['tahun'])) {
             $query->where('tahun_bergabung', (int) $validated['tahun']);
-        }
-
-        // Filter by jenis petugas - ignore if 'all'
-        if (! empty($validated['jenis_petugas']) && $validated['jenis_petugas'] !== 'all') {
-            $query->where('jenis_petugas', $validated['jenis_petugas']);
         }
 
         // Load ALL data for client-side filtering, sorting, and pagination
@@ -176,7 +173,9 @@ class PetugasController extends Controller
             abort(404);
         }
 
-        $petugas = Petugas::findOrFail($id);
+        $petugas = Petugas::query()
+            ->where('jenis_petugas', 'non-organik')
+            ->findOrFail($id);
         $petugas->load(['alokasi.periodeAlokasi.kegiatan.rateHonors.satuan']);
 
         // Priority order for picking the effective periode per kegiatan per bulan/tahun.
@@ -559,7 +558,9 @@ class PetugasController extends Controller
                 continue;
             }
 
-            $petugas = Petugas::find($id);
+            $petugas = Petugas::query()
+                ->where('jenis_petugas', 'non-organik')
+                ->find($id);
             if (! $petugas) {
                 continue;
             }
