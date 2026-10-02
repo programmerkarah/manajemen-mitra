@@ -8,6 +8,43 @@ import { defineConfig, type Plugin } from 'vite';
 
 const require = createRequire(import.meta.url);
 
+function buildModuleProfiler(): Plugin {
+    const counts = new Map<string, number>();
+
+    return {
+        name: 'simantik-build-module-profiler',
+        apply: 'build',
+        moduleParsed({ id }) {
+            if (!process.env.SIMANTIK_BUILD_PROFILE) return;
+
+            let bucket = 'app';
+            const marker = '/node_modules/';
+            const markerIndex = id.lastIndexOf(marker);
+
+            if (markerIndex >= 0) {
+                const relative = id.slice(markerIndex + marker.length);
+                const parts = relative.split('/');
+                bucket = parts[0]?.startsWith('@')
+                    ? parts.slice(0, 2).join('/')
+                    : parts[0] || 'node_modules';
+            }
+
+            counts.set(bucket, (counts.get(bucket) ?? 0) + 1);
+        },
+        buildEnd() {
+            if (!process.env.SIMANTIK_BUILD_PROFILE) return;
+
+            const rows = [...counts.entries()]
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 20)
+                .map(([name, count]) => `${name}: ${count}`)
+                .join('\n');
+
+            console.log(`\n[SIMANTIK build profile]\n${rows}\n`);
+        },
+    };
+}
+
 function toPascalCase(slug: string): string {
     return slug
         .split('-')
@@ -97,6 +134,7 @@ export default defineConfig(({ command }) => ({
         exclude: ['lucide-react'],
     },
     plugins: [
+        buildModuleProfiler(),
         lucidePerIconResolver(),
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],

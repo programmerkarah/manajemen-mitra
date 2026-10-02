@@ -18,6 +18,8 @@ jobs:
       - name: Install
         run: npm ci --prefer-offline --no-audit --no-fund
       - name: Timed production build
+        env:
+          SIMANTIK_BUILD_PROFILE: '1'
         run: |
           /usr/bin/time -v npm run build
           echo "BUILD_BYTES=$(du -sb public/build | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
