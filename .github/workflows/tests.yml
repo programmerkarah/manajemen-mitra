@@ -32,10 +32,10 @@ jobs:
           cache: 'npm'
 
       - name: Install Node Dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit --no-fund
 
-      - name: Install Dependencies
-        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+      - name: Install PHP Dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist --optimize-autoloader
 
       - name: Build Assets
         run: npm run build
