@@ -1,3 +1,6 @@
+import ArrowRight from 'lucide-react/icons/arrow-right';
+import Eye from 'lucide-react/icons/eye';
+import EyeOff from 'lucide-react/icons/eye-off';
 import { AuthPublicShell } from '@/components/auth-public-shell';
 import { FlashMessage } from '@/components/flash-message';
 import InputError from '@/components/input-error';
@@ -9,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { request } from '@/routes/password';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowRight, Eye, EyeOff } from 'lucide-react';
+
 import { FormEvent, useState } from 'react';
 
 interface LoginProps {
