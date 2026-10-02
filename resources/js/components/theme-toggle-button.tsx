@@ -1,5 +1,9 @@
+import Check from 'lucide-react/icons/check';
+import Monitor from 'lucide-react/icons/monitor';
+import Moon from 'lucide-react/icons/moon';
+import Sun from 'lucide-react/icons/sun';
 import { Appearance, useAppearance } from '@/hooks/use-appearance';
-import { Check, Monitor, Moon, Sun } from 'lucide-react';
+
 import { useRef } from 'react';
 
 const themeConfig = {
