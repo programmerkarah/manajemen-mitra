@@ -10,12 +10,17 @@ on:
       - develop
       - main
 
+concurrency:
+  group: lint-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
-  quality:
+  php-style:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v5
@@ -24,6 +29,32 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
+          tools: composer:v2
+
+      - name: Resolve Composer Cache
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer Downloads
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install PHP Dependencies
+        run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+
+      - name: Check PHP Formatting
+        run: vendor/bin/pint --test
+
+  frontend-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v5
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -31,14 +62,8 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: Install PHP Dependencies
-        run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
-
       - name: Install Node Dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
-
-      - name: Check PHP Formatting
-        run: vendor/bin/pint --test
 
       - name: Check Frontend Formatting
         run: npm run format:check
