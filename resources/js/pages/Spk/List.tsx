@@ -1,3 +1,6 @@
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import Download from 'lucide-react/icons/download';
+import Eye from 'lucide-react/icons/eye';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -6,7 +9,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { openFastDownload } from '@/utils/downloadUtils';
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Download, Eye } from 'lucide-react';
+
 import { useState } from 'react';
 
 interface Petugas {
