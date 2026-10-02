@@ -45,21 +45,13 @@ class KegiatanFrameSampelController extends Controller
         ]);
     }
 
-    public function index(Kegiatan $kegiatan): Response
+    public function index(Kegiatan $kegiatan): RedirectResponse
     {
         $this->authorizeKegiatanAccess($kegiatan);
 
-        $kegiatan->load([
-            'frameSampelListing:id,nama,kode',
-            'frameSampelPencacahan:id,nama,kode',
-            'kegiatanFrameSampel.frameSampel:id,nama,kode',
-        ]);
-
-        return Inertia::render('Kegiatan/FrameSampel', [
-            'kegiatan' => $kegiatan,
-            'frames' => $kegiatan->kegiatanFrameSampel,
-            'unitSampelPencacahanItems' => $kegiatan->unitSampelPencacahanItems(),
-            'unitSampelListingItems' => $kegiatan->unitSampelListingItems(),
+        return redirect()->route('kegiatan.edit', [
+            'kegiatan' => $kegiatan->getRouteKey(),
+            'step' => 'lapangan',
         ]);
     }
 
