@@ -1,3 +1,8 @@
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import Check from 'lucide-react/icons/check';
+import Download from 'lucide-react/icons/download';
+import FileText from 'lucide-react/icons/file-text';
+import Upload from 'lucide-react/icons/upload';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +21,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { openFastDownload } from '@/utils/downloadUtils';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Check, Download, FileText, Upload } from 'lucide-react';
+
 import { useState } from 'react';
 
 interface SkKpa {
