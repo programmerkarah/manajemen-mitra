@@ -73,7 +73,7 @@ export default function RoleSwitcher() {
                 <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 max-w-full gap-2 px-2 sm:h-auto sm:px-3"
+                    className="header-control max-w-full gap-2 px-2 sm:px-3"
                     disabled={switching}
                 >
                     {getRoleIcon(auth.activeRole?.name)}
