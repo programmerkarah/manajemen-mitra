@@ -1,3 +1,12 @@
+import AlertTriangle from 'lucide-react/icons/alert-triangle';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import BookOpen from 'lucide-react/icons/book-open';
+import ChevronDown from 'lucide-react/icons/chevron-down';
+import ExternalLink from 'lucide-react/icons/external-link';
+import FileText from 'lucide-react/icons/file-text';
+import Loader2 from 'lucide-react/icons/loader2';
+import Save from 'lucide-react/icons/save';
+import X from 'lucide-react/icons/x';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -22,17 +31,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { previewFileFromPost } from '@/utils/downloadUtils';
 import { Head, Link, usePage } from '@inertiajs/react';
-import {
-    AlertTriangle,
-    ArrowLeft,
-    BookOpen,
-    ChevronDown,
-    ExternalLink,
-    FileText,
-    Loader2,
-    Save,
-    X,
-} from 'lucide-react';
+
 import { useState } from 'react';
 
 interface DasarHukum {
