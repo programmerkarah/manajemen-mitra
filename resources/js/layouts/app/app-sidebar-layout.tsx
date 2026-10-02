@@ -2,7 +2,6 @@ import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
-import { DeadlineBypassRequestModal } from '@/components/deadline-bypass-request-modal';
 import { FlashMessage } from '@/components/flash-message';
 import { useSessionInvalidation } from '@/hooks/use-session-invalidation';
 import { useSessionKeepAlive } from '@/hooks/use-session-keepalive';
@@ -10,13 +9,21 @@ import { useSsoScrollRestore } from '@/hooks/use-sso-scroll-restore';
 import { useSsoSessionSync } from '@/hooks/use-sso-session-sync';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { usePage } from '@inertiajs/react';
-import { type PropsWithChildren } from 'react';
+import { lazy, Suspense, type PropsWithChildren } from 'react';
+
+const DeadlineBypassRequestModal = lazy(() =>
+    import('@/components/deadline-bypass-request-modal').then((module) => ({
+        default: module.DeadlineBypassRequestModal,
+    })),
+);
 
 export default function AppSidebarLayout({
     children,
     breadcrumbs = [],
 }: PropsWithChildren<{ breadcrumbs?: BreadcrumbItem[] }>) {
-    const { auth, ssoSync, sessionConfig } = usePage<SharedData>().props;
+    const { auth, flash, ssoSync, sessionConfig } =
+        usePage<SharedData>().props;
+    const hasDeadlineBypassRequest = Boolean(flash?.deadline_blocked);
 
     useSessionInvalidation(auth?.user?.id);
 
@@ -52,7 +59,11 @@ export default function AppSidebarLayout({
                         </div>
                     </AppContent>
                     <FlashMessage />
-                    <DeadlineBypassRequestModal />
+                    {hasDeadlineBypassRequest && (
+                        <Suspense fallback={null}>
+                            <DeadlineBypassRequestModal />
+                        </Suspense>
+                    )}
                 </div>
             </div>
         </AppShell>
