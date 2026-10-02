@@ -67,25 +67,20 @@ export default function Login({
         });
     };
 
-    const headerAction = (
-        <div className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex sm:text-sm">
-            <span>Belum punya akun?</span>
-            {ssoActive && ssoRegisterUrl ? (
-                <a
-                    href={ssoRegisterUrl}
-                    className="font-semibold text-primary hover:underline"
-                >
-                    Daftar
-                </a>
-            ) : (
-                <Link
-                    href="/register"
-                    className="font-semibold text-primary hover:underline"
-                >
-                    Daftar
-                </Link>
-            )}
-        </div>
+    const headerAction = ssoActive && ssoRegisterUrl ? (
+        <a
+            href={ssoRegisterUrl}
+            className="hidden h-9 items-center rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex"
+        >
+            Daftar
+        </a>
+    ) : (
+        <Link
+            href="/register"
+            className="hidden h-9 items-center rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex"
+        >
+            Daftar
+        </Link>
     );
 
     return (
