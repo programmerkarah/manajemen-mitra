@@ -1,60 +1,63 @@
-import { Button } from '@/components/ui/button';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Appearance, useAppearance } from '@/hooks/use-appearance';
-import { cn } from '@/lib/utils';
-import { Monitor, Moon, Sun } from 'lucide-react';
+import { Check, Monitor, Moon, Sun } from 'lucide-react';
+import { useRef } from 'react';
 
 const themeConfig = {
     light: { icon: Sun, label: 'Light' },
     dark: { icon: Moon, label: 'Dark' },
     system: { icon: Monitor, label: 'System' },
-};
+} satisfies Record<
+    Appearance,
+    { icon: typeof Sun; label: string }
+>;
 
 export function ThemeToggleButton() {
     const { appearance, updateAppearance } = useAppearance();
     const CurrentIcon = themeConfig[appearance].icon;
+    const detailsRef = useRef<HTMLDetailsElement>(null);
+
+    const selectAppearance = (mode: Appearance) => {
+        updateAppearance(mode);
+        detailsRef.current?.removeAttribute('open');
+    };
 
     return (
-        <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="header-control w-9 px-0 sm:w-auto sm:gap-2 sm:px-3"
-                    aria-label="Toggle theme"
-                >
-                    <CurrentIcon className="size-4" />
-                    <span className="hidden text-xs font-medium sm:inline">
-                        Tema
-                    </span>
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-                {(
-                    Object.entries(themeConfig) as [
-                        Appearance,
-                        typeof themeConfig.light,
-                    ][]
-                ).map(([value, { icon: Icon, label }]) => (
-                    <DropdownMenuItem
+        <details ref={detailsRef} className="relative">
+            <summary
+                className="header-control flex w-9 cursor-pointer list-none items-center justify-center gap-2 px-0 select-none sm:w-auto sm:px-3 [&::-webkit-details-marker]:hidden"
+                aria-label="Pilih tema"
+            >
+                <CurrentIcon className="size-4" />
+                <span className="hidden text-xs font-medium sm:inline">
+                    Tema
+                </span>
+            </summary>
+
+            <div
+                className="absolute right-0 z-50 mt-2 w-40 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg"
+                role="menu"
+                aria-label="Tema aplikasi"
+            >
+                {(Object.entries(themeConfig) as [
+                    Appearance,
+                    (typeof themeConfig)[Appearance],
+                ][]).map(([value, { icon: Icon, label }]) => (
+                    <button
                         key={value}
-                        onClick={() => updateAppearance(value)}
-                        className={cn(
-                            'cursor-pointer',
-                            appearance === value && 'bg-muted text-foreground',
-                        )}
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={appearance === value}
+                        onClick={() => selectAppearance(value)}
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                        <Icon className="mr-2 size-4" />
-                        <span>{label}</span>
-                    </DropdownMenuItem>
+                        <Icon className="size-4 text-muted-foreground" />
+                        <span className="flex-1">{label}</span>
+                        {appearance === value && (
+                            <Check className="size-4 text-primary" />
+                        )}
+                    </button>
                 ))}
-            </DropdownMenuContent>
-        </DropdownMenu>
+            </div>
+        </details>
     );
 }
