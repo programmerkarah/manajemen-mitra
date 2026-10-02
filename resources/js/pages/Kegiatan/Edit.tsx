@@ -375,12 +375,24 @@ export default function Edit({
     masterUnitSampel,
     kegiatanFrameSampel,
 }: KegiatanEditProps) {
-    const { auth, errors: pageErrors } = usePage<
+    const page = usePage<
         SharedData & { errors?: Record<string, string> }
-    >().props;
+    >();
+    const { auth, errors: pageErrors } = page.props;
     const errors = pageErrors ?? {};
     const isKetuaTim = auth.activeRole?.name === 'ketua_tim';
-    const [wizardStep, setWizardStep] = useState(0);
+    const requestedWizardStep = new URLSearchParams(
+        page.url.split('?')[1] ?? '',
+    ).get('step');
+    const initialWizardStep =
+        requestedWizardStep === 'lapangan'
+            ? 1
+            : requestedWizardStep === 'pelatihan'
+              ? 2
+              : requestedWizardStep === 'ketua'
+                ? 3
+                : 0;
+    const [wizardStep, setWizardStep] = useState(initialWizardStep);
 
     const wizardSteps = [
         {
