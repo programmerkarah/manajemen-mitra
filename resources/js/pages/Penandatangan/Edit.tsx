@@ -1,3 +1,7 @@
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import Loader2 from 'lucide-react/icons/loader2';
+import Save from 'lucide-react/icons/save';
+import X from 'lucide-react/icons/x';
 import { ContentCard } from '@/components/content-card';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
@@ -16,7 +20,6 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Penandatangan', href: '/penandatangan' },
