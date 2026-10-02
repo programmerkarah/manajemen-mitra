@@ -8,6 +8,7 @@ use App\Http\Middleware\EnsureSsoOrganizationAllowed;
 use App\Http\Middleware\EnsureTwoFactorEnabled;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\HonorReturnNavigation;
 use App\Http\Middleware\LogRequests;
 use App\Http\Middleware\PreserveSessionLastActivityForSsoSync;
 use App\Http\Middleware\PreventDisabledFeatureRequests;
@@ -74,6 +75,7 @@ return Application::configure(basePath: dirname(__DIR__))
             PreserveSessionLastActivityForSsoSync::class,
             HandleAppearance::class,
             ViewAsUserMiddleware::class,
+            HonorReturnNavigation::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
