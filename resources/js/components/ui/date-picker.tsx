@@ -370,8 +370,8 @@ export function DatePicker({
                         id={id}
                         disabled={disabled}
                         className={cn(
-                            'flex h-9 w-full items-center gap-2 rounded-lg border bg-white/50 px-3 text-sm backdrop-blur-md',
-                            'border-neutral-200 text-left dark:border-neutral-700 dark:bg-neutral-800/60',
+                            'flex h-9 w-full items-center gap-2 rounded-lg border bg-card px-3 text-sm backdrop-blur-md',
+                            'border-border text-left  ',
                             'shadow-sm transition-all duration-150 hover:border-neutral-300 hover:shadow-md',
                             'focus:outline-none focus:ring-2 focus:ring-neutral-400/30 dark:hover:border-neutral-600',
                             disabled &&
@@ -399,7 +399,7 @@ export function DatePicker({
                     {calView === 'days' && (
                         <>
                             {/* Month / Year Navigation */}
-                            <div className="flex items-center justify-between border-b border-neutral-200/40 px-3 py-2 dark:border-neutral-700/40">
+                            <div className="flex items-center justify-between border-b border-border/40 px-3 py-2 /40">
                                 <button
                                     type="button"
                                     onClick={prevMonth}
@@ -480,7 +480,7 @@ export function DatePicker({
                             </div>
 
                             {/* Footer: Go to today */}
-                            <div className="border-t border-neutral-200/40 px-3 py-2 dark:border-neutral-700/40">
+                            <div className="border-t border-border/40 px-3 py-2 /40">
                                 <div className="flex items-center gap-2">
                                     <button
                                         type="button"
@@ -507,7 +507,7 @@ export function DatePicker({
                     {/* ── MONTHS VIEW ── */}
                     {calView === 'months' && (
                         <>
-                            <div className="flex items-center justify-between border-b border-neutral-200/40 px-3 py-2 dark:border-neutral-700/40">
+                            <div className="flex items-center justify-between border-b border-border/40 px-3 py-2 /40">
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -551,7 +551,7 @@ export function DatePicker({
                     {/* ── YEARS VIEW ── */}
                     {calView === 'years' && (
                         <>
-                            <div className="flex items-center justify-between border-b border-neutral-200/40 px-3 py-2 dark:border-neutral-700/40">
+                            <div className="flex items-center justify-between border-b border-border/40 px-3 py-2 /40">
                                 <button
                                     type="button"
                                     onClick={prevYearRange}
