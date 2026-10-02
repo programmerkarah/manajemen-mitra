@@ -16,7 +16,6 @@ class MonitoringPenilaianMitraController extends Controller
     public function index(Request $request): Response
     {
         $activeYear = ActiveYearService::get();
-        $selectedMonth = (string) $request->input('bulan', 'all');
         $selectedKegiatanId = (string) $request->input('kegiatan_id', 'all');
         $selectedPetugasId = (string) $request->input('petugas_id', 'all');
 
@@ -50,12 +49,6 @@ class MonitoringPenilaianMitraController extends Controller
                 'episode' => $meta,
             ];
         });
-
-        if ($selectedMonth !== 'all') {
-            $withEpisode = $withEpisode
-                ->filter(fn (array $item) => in_array($selectedMonth, $item['episode']['months'], true))
-                ->values();
-        }
 
         $kegiatanSource = $withEpisode;
         if ($selectedPetugasId !== 'all') {
@@ -286,7 +279,6 @@ class MonitoringPenilaianMitraController extends Controller
             'active_year' => $activeYear,
             'generated_at' => Carbon::now()->format('Y-m-d H:i:s'),
             'filters' => [
-                'bulan' => $selectedMonth,
                 'kegiatan_id' => $selectedKegiatanId,
                 'petugas_id' => $selectedPetugasId,
             ],
