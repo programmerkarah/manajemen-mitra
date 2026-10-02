@@ -279,7 +279,7 @@ export default function Review({
                     description={`Nilai kinerja mitra non-organik berdasarkan penugasan yang sudah selesai pada tahun ${active_year}.`}
                 />
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="summary-grid">
                     <ContentCard>
                         <div className="flex items-center justify-between gap-3">
                             <div>
