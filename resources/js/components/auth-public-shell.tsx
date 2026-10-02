@@ -1,8 +1,9 @@
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
 import AppLogo from '@/components/app-logo';
 import AppLogoIcon from '@/components/app-logo-icon';
 import { ThemeToggleButton } from '@/components/theme-toggle-button';
 import { Link } from '@inertiajs/react';
-import { CheckCircle2 } from 'lucide-react';
+
 import { type ReactNode } from 'react';
 
 interface AuthPublicShellProps {
