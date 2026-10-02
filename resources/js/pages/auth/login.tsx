@@ -14,7 +14,6 @@ import {
     Eye,
     EyeOff,
     LockKeyhole,
-    ShieldCheck,
 } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 
@@ -75,36 +74,18 @@ export default function Login({
             <Head title="Masuk" />
             <FlashMessage />
             <div className="min-h-screen bg-[#f7f9fc] text-slate-950 dark:bg-slate-950 dark:text-white">
-                <div className="grid min-h-screen lg:grid-cols-[.92fr_1.08fr]">
-                    <aside className="relative hidden overflow-hidden border-r border-slate-200 bg-slate-950 p-10 text-white lg:flex lg:flex-col dark:border-white/10">
-                        <div className="absolute -top-24 -left-24 size-96 rounded-full bg-blue-600/25 blur-3xl" />
-                        <div className="absolute -right-28 bottom-[-6rem] size-96 rounded-full bg-emerald-500/15 blur-3xl" />
-                        <Link
-                            href="/"
-                            className="relative z-10 flex w-fit items-center text-white [&_*]:text-white [&_.text-muted-foreground]:!text-slate-400"
-                        >
-                            <AppLogo />
-                        </Link>
-                        <div className="relative z-10 my-auto max-w-xl">
-                            <div className="mb-8 flex size-24 items-center justify-center rounded-[2rem] border border-white/10 bg-white/5 backdrop-blur">
-                                <AppLogoIcon className="size-20" />
-                            </div>
-                            <p className="text-sm font-semibold tracking-[0.18em] text-blue-300">
-                                SIMANTIK
-                            </p>
-                            <h1 className="mt-4 text-4xl leading-tight font-bold tracking-[-0.035em]">
-                                Satu akses untuk seluruh proses kerja kegiatan
-                                statistik.
-                            </h1>
-                            <p className="mt-5 max-w-lg text-sm leading-6 text-slate-400">
-                                Kelola petugas, kegiatan, administrasi, dan
-                                monitoring dalam ruang kerja BPS Kota Sawahlunto
-                                yang terintegrasi.
-                            </p>
+                <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(460px,42%)]">
+                    <aside className="hidden border-r border-slate-200 bg-white lg:flex lg:flex-col dark:border-slate-800 dark:bg-slate-950">
+                        <div className="flex h-16 items-center border-b border-slate-200 px-10 dark:border-slate-800">
+                            <Link href="/" className="flex items-center"><AppLogo /></Link>
                         </div>
-                        <div className="relative z-10 flex items-center gap-2 text-xs text-slate-400">
-                            <ShieldCheck className="size-4 text-emerald-400" />{' '}
-                            Akses aman dan terkelola
+                        <div className="flex flex-1 items-center px-10 xl:px-16">
+                            <div className="max-w-xl">
+                                <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">Ruang kerja SIMANTIK</p>
+                                <h1 className="mt-4 text-4xl font-semibold leading-tight tracking-[-0.035em]">Masuk dan lanjutkan pekerjaan dari titik terakhir.</h1>
+                                <p className="mt-5 max-w-lg text-sm leading-7 text-slate-500 dark:text-slate-400">Kegiatan, petugas, dokumen, honor, dan monitoring tersedia dalam satu ruang kerja BPS Kota Sawahlunto.</p>
+                                <div className="mt-10 border-t border-slate-200 pt-5 text-xs text-slate-400 dark:border-slate-800">Badan Pusat Statistik Kota Sawahlunto</div>
+                            </div>
                         </div>
                     </aside>
 
@@ -139,10 +120,10 @@ export default function Login({
                         <div className="flex flex-1 items-center justify-center px-5 py-10 sm:px-8">
                             <div className="w-full max-w-[420px]">
                                 <div className="mb-8">
-                                    <div className="mb-5 flex size-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
-                                        <LockKeyhole className="size-5" />
+                                    <div className="mb-5 flex size-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                                        <LockKeyhole className="size-4" />
                                     </div>
-                                    <h2 className="text-3xl font-bold tracking-[-0.03em]">
+                                    <h2 className="text-2xl font-semibold tracking-[-0.025em]">
                                         Selamat datang kembali
                                     </h2>
                                     <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
@@ -168,7 +149,7 @@ export default function Login({
                                         <a
                                             href={ssoLoginUrl}
                                             data-test="login-sso-button"
-                                            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-600/15 transition hover:bg-blue-700"
+                                            className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white transition hover:bg-blue-700"
                                         >
                                             Masuk dengan SSO{' '}
                                             <ArrowRight className="size-4" />
@@ -201,7 +182,7 @@ export default function Login({
                                                 tabIndex={1}
                                                 autoComplete="username"
                                                 placeholder="Masukkan username"
-                                                className="h-12 rounded-xl bg-white dark:bg-white/5"
+                                                className="h-11 rounded-lg bg-white dark:bg-white/5"
                                                 value={loginForm.data.username}
                                                 onChange={(e) =>
                                                     loginForm.setData(
@@ -244,7 +225,7 @@ export default function Login({
                                                     tabIndex={2}
                                                     autoComplete="current-password"
                                                     placeholder="Masukkan password"
-                                                    className="h-12 rounded-xl bg-white pr-12 dark:bg-white/5"
+                                                    className="h-11 rounded-lg bg-white pr-12 dark:bg-white/5"
                                                     value={
                                                         loginForm.data.password
                                                     }
@@ -300,7 +281,7 @@ export default function Login({
                                         </label>
                                         <Button
                                             type="submit"
-                                            className="h-12 w-full rounded-xl bg-blue-600 font-semibold hover:bg-blue-700"
+                                            className="h-11 w-full rounded-lg bg-blue-600 font-semibold hover:bg-blue-700"
                                             disabled={loginForm.processing}
                                             data-test="login-button"
                                         >
