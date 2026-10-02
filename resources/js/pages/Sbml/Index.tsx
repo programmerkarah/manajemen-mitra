@@ -80,7 +80,7 @@ export default function Index({ year_groups }: Props) {
                     )}
                 </PageHeader>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="summary-grid">
                     <ContentCard>
                         <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Tahun tersedia
