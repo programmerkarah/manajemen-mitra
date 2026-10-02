@@ -174,7 +174,7 @@ export function SearchableSelect({
                 onClick={() => !disabled && setOpen(!open)}
                 disabled={disabled}
                 className={cn(
-                    'flex h-10 w-full items-center justify-between rounded-lg border border-neutral-200/70 bg-white/50 px-3 py-2 text-sm shadow-sm backdrop-blur-md transition-colors hover:border-neutral-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-800/60 dark:hover:border-neutral-700',
+                    'flex h-10 w-full items-center justify-between rounded-lg border border-border/70 bg-card px-3 py-2 text-sm shadow-sm backdrop-blur-md transition-colors hover:border-neutral-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800  dark:hover:border-neutral-700',
                     className,
                 )}
             >
@@ -197,7 +197,7 @@ export function SearchableSelect({
                 createPortal(
                     <div
                         ref={dropdownRef}
-                        className="fixed z-[9999] flex flex-col overflow-hidden rounded-xl border border-white/20 bg-white/95 shadow-2xl backdrop-blur-xl dark:border-neutral-700/30 dark:bg-neutral-800/95"
+                        className="fixed z-[9999] flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl backdrop-blur-xl /30 "
                         style={{
                             top: dropdownStyle.top,
                             left: dropdownStyle.left,
@@ -205,7 +205,7 @@ export function SearchableSelect({
                             maxHeight: dropdownStyle.maxHeight,
                         }}
                     >
-                        <div className="flex items-center border-b border-neutral-200 px-3 dark:border-neutral-800">
+                        <div className="flex items-center border-b border-border px-3 dark:border-neutral-800">
                             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                             <Input
                                 type="text"
@@ -274,7 +274,7 @@ export function SearchableSelect({
                             )}
                         </div>
                         {showClearAction && value && (
-                            <div className="shrink-0 border-t border-neutral-200 bg-white/95 p-2 dark:border-neutral-800 dark:bg-neutral-800/95">
+                            <div className="shrink-0 border-t border-border bg-card p-2 dark:border-neutral-800 ">
                                 <button
                                     type="button"
                                     onClick={handleClear}
