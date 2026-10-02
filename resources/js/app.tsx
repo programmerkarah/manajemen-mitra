@@ -10,7 +10,6 @@ const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 let csrfGuardInitialized = false;
 
-
 const RETURN_NAVIGATION_PREFIX = 'simantik:return-to:';
 let isReturnNavigation = false;
 
@@ -136,7 +135,7 @@ function initializeReturnNavigation(): void {
         const destinationPath = normalizeInternalPath(destination);
         const destinationIsEditor = Boolean(
             destinationPath &&
-                /\/(?:create|edit)(?:\/|\?|$)/i.test(destinationPath),
+            /\/(?:create|edit)(?:\/|\?|$)/i.test(destinationPath),
         );
 
         if (method === 'get' || destinationIsEditor) {
@@ -177,9 +176,7 @@ function initializeReturnNavigation(): void {
                 return;
             }
 
-            if (
-                !/^Kembali(?:\s|$)/i.test(action.textContent?.trim() ?? '')
-            ) {
+            if (!/^Kembali(?:\s|$)/i.test(action.textContent?.trim() ?? '')) {
                 return;
             }
 
