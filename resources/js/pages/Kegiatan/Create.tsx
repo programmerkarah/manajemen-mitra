@@ -1,4 +1,6 @@
-import { ContentCard } from '@/components/content-card';
+import { type SharedData } from '@/types';
+import {
+import ContentCard } from '@/components/content-card';
 import { FrameSampelTahapanSelect } from '@/components/frame-sampel-tahapan-select';
 import InputError from '@/components/input-error';
 import { MultiSelectCheckbox } from '@/components/multi-select-checkbox';
@@ -7,28 +9,51 @@ import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+    Dialog from 'lucide-react/dist/esm/icons/content-card } from '@/components/content-card';
+import { frame-sampel-tahapan-select } from '@/components/frame-sampel-tahapan-select';
+import input-error from '@/components/input-error';
+import { multi-select-checkbox } from '@/components/multi-select-checkbox';
+import { page-header } from '@/components/page-header';
+import { searchable-select } from '@/components/searchable-select';
+import { button } from '@/components/ui/button';
+import { date-picker } from '@/components/ui/date-picker';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+    dialog';
+import DialogContent from 'lucide-react/dist/esm/icons/dialog-content';
+import DialogDescription from 'lucide-react/dist/esm/icons/dialog-description';
+import DialogHeader from 'lucide-react/dist/esm/icons/dialog-header';
+import DialogTitle from 'lucide-react/dist/esm/icons/dialog-title';
+import } from '@/components/ui/dialog';
+import {
+    Select from 'lucide-react/dist/esm/icons/} from '@/components/ui/dialog';
+import {
+    select';
+import SelectContent from 'lucide-react/dist/esm/icons/select-content';
+import SelectItem from 'lucide-react/dist/esm/icons/select-item';
+import SelectTrigger from 'lucide-react/dist/esm/icons/select-trigger';
+import SelectValue from 'lucide-react/dist/esm/icons/select-value';
+import } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem, type SharedData } from '@/types';
-import {
-    downloadFrameSampelTemplate,
-    importFrameSampelPreview,
-} from '@/utils/frameSampelExcel';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { ArrowLeft, Copy, Loader2, Save, X } from 'lucide-react';
+import { type BreadcrumbItem from 'lucide-react/dist/esm/icons/} from '@/components/ui/select';
+import { textarea } from '@/components/ui/textarea';
+import app-layout from '@/layouts/app-layout';
+import { type breadcrumb-item';
+import importFrameSampelPreview from 'lucide-react/dist/esm/icons/import-frame-sampel-preview';
+import } from '@/utils/frameSampelExcel';
+import { Head from 'lucide-react/dist/esm/icons/} from '@/utils/frame-sampel-excel';
+import { head';
+import Link from 'lucide-react/dist/esm/icons/link';
+import router from 'lucide-react/dist/esm/icons/router';
+import useForm from 'lucide-react/dist/esm/icons/use-form';
+import usePage } from '@inertiajs/react';
+import { ArrowLeft from 'lucide-react/dist/esm/icons/use-page } from '@inertiajs/react';
+import { arrow-left';
+import Copy from 'lucide-react/dist/esm/icons/copy';
+import Loader2 from 'lucide-react/dist/esm/icons/loader2';
+import Save from 'lucide-react/dist/esm/icons/save';
+import X from 'lucide-react/dist/esm/icons/x';
+    downloadFrameSampelTemplate } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 const BULAN_OPTIONS = [
