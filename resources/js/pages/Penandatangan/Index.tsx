@@ -256,6 +256,20 @@ export default function Index({ PenandatanganList }: PenandatanganIndexProps) {
         });
     };
 
+    const summary = useMemo(
+        () => ({
+            total: allPenandatangan.length,
+            active: allPenandatangan.filter((item) => item.is_active).length,
+            kepala: allPenandatangan.filter(
+                (item) => item.jenis_penandatangan === 'kepala',
+            ).length,
+            ppk: allPenandatangan.filter(
+                (item) => item.jenis_penandatangan === 'ppk',
+            ).length,
+        }),
+        [allPenandatangan],
+    );
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Penandatangan" />
@@ -288,9 +302,45 @@ export default function Index({ PenandatanganList }: PenandatanganIndexProps) {
                     </div>
                 </PageHeader>
 
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <ContentCard>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Total penandatangan
+                        </p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.total}</p>
+                    </ContentCard>
+                    <ContentCard>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Aktif
+                        </p>
+                        <div className="mt-1 flex items-center gap-2">
+                            <p className="text-2xl font-semibold">{summary.active}</p>
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                        </div>
+                    </ContentCard>
+                    <ContentCard>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Kepala BPS
+                        </p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.kepala}</p>
+                    </ContentCard>
+                    <ContentCard>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            PPK
+                        </p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.ppk}</p>
+                    </ContentCard>
+                </div>
+
                 <ContentCard>
+                    <div className="mb-4">
+                        <h2 className="font-semibold">Cari & Filter Penandatangan</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Filter berdasarkan identitas, jenis penandatangan, dan status aktif.
+                        </p>
+                    </div>
                     {/* Search and Filter */}
-                    <div className="mb-4 flex flex-col gap-4 sm:flex-row">
+                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_180px_180px_auto]">
                         <div className="flex-1">
                             <div className="relative">
                                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -310,7 +360,7 @@ export default function Index({ PenandatanganList }: PenandatanganIndexProps) {
                                 setJenis(value === 'all' ? '' : value)
                             }
                         >
-                            <SelectTrigger className="h-10 w-full sm:w-[180px]">
+                            <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Semua Jenis" />
                             </SelectTrigger>
                             <SelectContent>
@@ -326,7 +376,7 @@ export default function Index({ PenandatanganList }: PenandatanganIndexProps) {
                                 setStatus(value === 'all' ? '' : value)
                             }
                         >
-                            <SelectTrigger className="h-10 w-full sm:w-[180px]">
+                            <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Semua Status" />
                             </SelectTrigger>
                             <SelectContent>
@@ -343,7 +393,7 @@ export default function Index({ PenandatanganList }: PenandatanganIndexProps) {
                         <Button
                             onClick={handleReset}
                             variant="outline"
-                            className="h-10"
+                            className="w-full"
                         >
                             <X className="mr-2 h-4 w-4" />
                             Reset
