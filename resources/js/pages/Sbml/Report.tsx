@@ -1,5 +1,6 @@
 import { ContentCard } from '@/components/content-card';
 import { MultiSelectCheckbox } from '@/components/multi-select-checkbox';
+import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -162,27 +163,38 @@ export default function Report({
         return filteredPetugas.slice(start, start + pageSize);
     }, [effectiveCurrentPage, filteredPetugas]);
 
+    const honorSummary = useMemo(
+        () => ({
+            total: filteredPetugas.reduce(
+                (sum, item) => sum + item.total_honor,
+                0,
+            ),
+            exceeds: filteredPetugas.filter((item) => item.exceeds).length,
+            nearLimit: filteredPetugas.filter(
+                (item) => !item.exceeds && item.percentage >= 90,
+            ).length,
+        }),
+        [filteredPetugas],
+    );
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Rekap Honor Petugas" />
 
             <div className="space-y-6">
-                {/* Header */}
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold tracking-tight">
-                            Rekap Honor Petugas
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            Rekap total honor yang diterima masing-masing
-                            petugas per bulan
+                <PageHeader
+                    title="Rekap Honor Petugas"
+                    description="Pantau honor bulanan terhadap batas SBML dan telusuri rincian per kegiatan."
+                />
+
+                <ContentCard>
+                    <div className="mb-4">
+                        <h2 className="font-semibold">Periode & Petugas</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Pilih periode terlebih dahulu, lalu persempit ke petugas tertentu bila diperlukan.
                         </p>
                     </div>
-                </div>
-
-                {/* Filters */}
-                <ContentCard>
-                    <div className="flex flex-col gap-4 md:flex-row md:items-end">
+                    <div className="grid gap-3 md:grid-cols-[180px_200px_minmax(260px,1fr)] md:items-end">
                         <div className="flex-1 space-y-2">
                             <label className="text-sm font-medium">Tahun</label>
                             <Select
@@ -255,49 +267,40 @@ export default function Report({
                     </div>
                 </ContentCard>
 
-                {/* Summary Info */}
-                {filteredPetugas && filteredPetugas.length > 0 && (
-                    <div className="grid gap-4 md:grid-cols-3">
-                        <ContentCard>
-                            <div className="space-y-1">
-                                <p className="text-sm text-muted-foreground">
-                                    Total Petugas
-                                </p>
-                                <p className="text-2xl font-bold">
-                                    {filteredPetugas.length}
-                                </p>
-                            </div>
-                        </ContentCard>
-                        <ContentCard>
-                            <div className="space-y-1">
-                                <p className="text-sm text-muted-foreground">
-                                    Total Honor
-                                </p>
-                                <p className="text-2xl font-bold">
-                                    {formatCurrency(
-                                        filteredPetugas.reduce(
-                                            (sum, p) => sum + p.total_honor,
-                                            0,
-                                        ),
-                                    )}
-                                </p>
-                            </div>
-                        </ContentCard>
-                        <ContentCard>
-                            <div className="space-y-1">
-                                <p className="text-sm text-muted-foreground">
-                                    Petugas Melebihi Batas
-                                </p>
-                                <p className="text-2xl font-bold text-destructive">
-                                    {
-                                        filteredPetugas.filter((p) => p.exceeds)
-                                            .length
-                                    }
-                                </p>
-                            </div>
-                        </ContentCard>
-                    </div>
-                )}
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <ContentCard>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Petugas
+                        </p>
+                        <p className="mt-1 text-2xl font-semibold">
+                            {filteredPetugas.length}
+                        </p>
+                    </ContentCard>
+                    <ContentCard>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Total honor
+                        </p>
+                        <p className="mt-1 text-xl font-semibold">
+                            {formatCurrency(honorSummary.total)}
+                        </p>
+                    </ContentCard>
+                    <ContentCard>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Mendekati batas
+                        </p>
+                        <p className="mt-1 text-2xl font-semibold text-amber-600">
+                            {honorSummary.nearLimit}
+                        </p>
+                    </ContentCard>
+                    <ContentCard>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Melebihi SBML
+                        </p>
+                        <p className="mt-1 text-2xl font-semibold text-destructive">
+                            {honorSummary.exceeds}
+                        </p>
+                    </ContentCard>
+                </div>
 
                 {/* Table */}
                 <ContentCard>
@@ -307,7 +310,7 @@ export default function Report({
                             {currentMonth?.label} {selectedTahun}
                         </div>
                     ) : (
-                        <div className="overflow-hidden rounded-md border">
+                        <div className="overflow-hidden rounded-2xl border border-neutral-200 dark:border-neutral-800">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <thead className="border-b bg-muted/50">
