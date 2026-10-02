@@ -1,5 +1,7 @@
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import Home from 'lucide-react/icons/home';
+import RefreshCw from 'lucide-react/icons/refresh-cw';
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Home, RefreshCw } from 'lucide-react';
 
 interface ErrorProps {
     status: number;
