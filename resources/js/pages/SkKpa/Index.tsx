@@ -211,14 +211,12 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                     !item.latest_sk.signed_file_path,
             );
         } else if (skStatusFilter === 'signed') {
-            result = result.filter(
-                (item: KegiatanItem) =>
-                    Boolean(item.latest_sk?.signed_file_path),
+            result = result.filter((item: KegiatanItem) =>
+                Boolean(item.latest_sk?.signed_file_path),
             );
         } else if (skStatusFilter === 'cancelled') {
             result = result.filter(
-                (item: KegiatanItem) =>
-                    item.latest_sk?.status === 'dibatalkan',
+                (item: KegiatanItem) => item.latest_sk?.status === 'dibatalkan',
             );
         } else if (skStatusFilter === 'needs_revision') {
             result = result.filter(
@@ -637,18 +635,17 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                     <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm dark:border-amber-800/50 dark:bg-amber-900/20">
                         <FileText className="size-4 text-amber-600 dark:text-amber-400" />
                         <span className="text-amber-800 dark:text-amber-300">
-                            {{
-                                not_created:
-                                    'Menampilkan kegiatan yang belum memiliki SK KPA',
-                                draft:
-                                    'Menampilkan SK yang belum ditandatangani',
-                                signed:
-                                    'Menampilkan SK yang sudah ditandatangani',
-                                cancelled:
-                                    'Menampilkan SK yang dibatalkan',
-                                needs_revision:
-                                    'Menampilkan kegiatan yang perlu pembaruan SK KPA',
-                            }[skStatusFilter]}
+                            {
+                                {
+                                    not_created:
+                                        'Menampilkan kegiatan yang belum memiliki SK KPA',
+                                    draft: 'Menampilkan SK yang belum ditandatangani',
+                                    signed: 'Menampilkan SK yang sudah ditandatangani',
+                                    cancelled: 'Menampilkan SK yang dibatalkan',
+                                    needs_revision:
+                                        'Menampilkan kegiatan yang perlu pembaruan SK KPA',
+                                }[skStatusFilter]
+                            }
                         </span>
                         <button
                             type="button"
