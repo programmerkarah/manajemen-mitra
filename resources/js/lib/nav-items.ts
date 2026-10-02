@@ -1,23 +1,21 @@
+import Airplay from 'lucide-react/icons/airplay';
+import BarChart3 from 'lucide-react/icons/bar-chart3';
+import ClipboardList from 'lucide-react/icons/clipboard-list';
+import Database from 'lucide-react/icons/database';
+import File from 'lucide-react/icons/file';
+import FileText from 'lucide-react/icons/file-text';
+import Gem from 'lucide-react/icons/gem';
+import Layers from 'lucide-react/icons/layers';
+import LayoutGrid from 'lucide-react/icons/layout-grid';
+import LineChart from 'lucide-react/icons/line-chart';
+import Package from 'lucide-react/icons/package';
+import Scale from 'lucide-react/icons/scale';
+import Signature from 'lucide-react/icons/signature';
+import Smartphone from 'lucide-react/icons/smartphone';
+import Users from 'lucide-react/icons/users';
+import Wrench from 'lucide-react/icons/wrench';
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
-import {
-    Airplay,
-    BarChart3,
-    ClipboardList,
-    Database,
-    File,
-    FileText,
-    Gem,
-    Layers,
-    LayoutGrid,
-    LineChart,
-    Package,
-    Scale,
-    Signature,
-    Smartphone,
-    Users,
-    Wrench,
-} from 'lucide-react';
 
 /**
  * Returns the sidebar navigation items for the given active role name.
