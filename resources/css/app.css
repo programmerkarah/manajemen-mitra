@@ -295,8 +295,11 @@
     .dark .dark\:bg-neutral-900\/50,
     .dark .dark\:bg-neutral-900\/45,
     .dark .dark\:bg-neutral-800,
+    .dark .dark\:bg-neutral-800\/80,
     .dark .dark\:bg-neutral-800\/60,
+    .dark .dark\:bg-neutral-800\/50,
     .dark .dark\:bg-neutral-800\/40,
+    .dark .dark\:bg-neutral-800\/30,
     .dark .dark\:bg-slate-900,
     .dark .dark\:bg-zinc-800 {
         background-color: var(--card) !important;
@@ -310,6 +313,8 @@
 
     .dark .dark\:border-neutral-800,
     .dark .dark\:border-neutral-700,
+    .dark .dark\:border-neutral-700\/70,
+    .dark .dark\:border-neutral-700\/50,
     .dark .dark\:border-neutral-700\/40,
     .dark .dark\:border-neutral-700\/30,
     .dark .dark\:border-slate-800,
