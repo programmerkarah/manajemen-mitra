@@ -1,6 +1,5 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
-import { StatusBadge } from '@/components/status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,21 +16,18 @@ import type { BreadcrumbItem, SharedData } from '@/types';
 import { encryptData } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
-    Calendar,
-    CheckCircle2,
+    BookOpenText,
     ChevronDown,
-    ChevronLeft,
     ChevronRight,
-    ChevronUp,
     FileText,
+    History,
     Pencil,
     Plus,
-    RefreshCw,
     Search,
-    Sparkles,
+    ShieldCheck,
     Trash2,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dasar Hukum SK', href: '/dasar-hukum' },
@@ -68,204 +64,157 @@ interface Props {
             active: boolean;
         }>;
     };
-    filters: {
-        encrypted?: string;
-        decrypted?: {
-            search: string;
-            status: string;
-        };
-    };
+}
+
+interface RegulationChain {
+    key: string;
+    root: DasarHukum;
+    amendments: DasarHukum[];
+    current: DasarHukum;
 }
 
 export default function Index({ dasarHukum }: Props) {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, flash } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
-
     const allDasarHukum = useDecryptedData<DasarHukum>(dasarHukum.encrypted);
 
     const [search, setSearch] = useState('');
-    const [status, setStatus] = useState('all');
-    const [jenis, setJenis] = useState<'all' | 'pertama' | 'perubahan'>('all');
-    const [sortField, setSortField] = useState<'nomor' | 'tahun' | 'tentang'>(
-        'tahun',
+    const [status, setStatus] = useState<'all' | 'aktif' | 'nonaktif'>('all');
+    const [expandedChains, setExpandedChains] = useState<Record<string, boolean>>(
+        {},
     );
-    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [perPage] = useState(15);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const prevFiltersRef = useRef({ search, status, jenis });
-
-    // Client-side filtering and sorting
-    const filteredAndSortedDasarHukum = useMemo(() => {
-        let result: DasarHukum[] = [...allDasarHukum];
-
-        // Filter by search
-        if (search) {
-            const query = search.toLowerCase();
-            result = result.filter(
-                (item: DasarHukum) =>
-                    item.nomor?.toLowerCase().includes(query) ||
-                    item.tentang?.toLowerCase().includes(query) ||
-                    item.kategori?.toLowerCase().includes(query),
-            );
-        }
-
-        // Filter by status
-        if (status && status !== 'all') {
-            result = result.filter(
-                (item: DasarHukum) => item.status === status,
-            );
-        }
-
-        if (jenis !== 'all') {
-            result = result.filter((item: DasarHukum) => item.jenis === jenis);
-        }
-
-        // Sort
-        result.sort((a: DasarHukum, b: DasarHukum) => {
-            let aVal: string | number = '';
-            let bVal: string | number = '';
-            switch (sortField) {
-                case 'nomor':
-                    aVal = a.nomor?.toLowerCase() || '';
-                    bVal = b.nomor?.toLowerCase() || '';
-                    break;
-                case 'tentang':
-                    aVal = a.tentang?.toLowerCase() || '';
-                    bVal = b.tentang?.toLowerCase() || '';
-                    break;
-                case 'tahun':
-                default:
-                    aVal = a.tahun || 0;
-                    bVal = b.tahun || 0;
-                    break;
-            }
-            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
-            return 0;
-        });
-
-        return result;
-    }, [allDasarHukum, search, status, jenis, sortField, sortDirection]);
-
-    // Client-side pagination
-    const totalPages = Math.ceil(filteredAndSortedDasarHukum.length / perPage);
-    const paginatedDasarHukum = useMemo(() => {
-        const start = (currentPage - 1) * perPage;
-        const end = start + perPage;
-        return filteredAndSortedDasarHukum.slice(start, end);
-    }, [filteredAndSortedDasarHukum, currentPage, perPage]);
-
-    // Reset to page 1 when filters change
-    useEffect(() => {
-        const prevFilters = prevFiltersRef.current;
-        if (
-            prevFilters.search !== search ||
-            prevFilters.status !== status ||
-            prevFilters.jenis !== jenis
-        ) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect -- Conditional reset based on filter change via ref
-            setCurrentPage(1);
-            prevFiltersRef.current = { search, status, jenis };
-        }
-    }, [search, status, jenis]);
-
-    const stats = useMemo(() => {
-        const total = allDasarHukum.length;
-        const aktif = allDasarHukum.filter(
-            (item) => item.status === 'aktif',
-        ).length;
-        const perubahan = allDasarHukum.filter(
-            (item) => item.jenis === 'perubahan',
-        ).length;
-        const kategori = new Set(allDasarHukum.map((item) => item.kategori))
-            .size;
-
-        return { total, aktif, perubahan, kategori };
-    }, [allDasarHukum]);
 
     const getKategoriLabel = (item: DasarHukum): string => {
-        if (item.kategori === 'undang_undang') {
-            return 'Undang-Undang';
+        switch (item.kategori) {
+            case 'undang_undang':
+                return 'Undang-Undang';
+            case 'peraturan_pemerintah':
+                return 'Peraturan Pemerintah';
+            case 'peraturan_presiden':
+                return 'Peraturan Presiden';
+            case 'peraturan_menteri_badan':
+                return item.instansi
+                    ? `Peraturan ${item.instansi}`
+                    : 'Peraturan Menteri/Badan';
+            case 'keputusan_menteri_kepala_badan':
+                return item.instansi
+                    ? `Keputusan ${item.instansi}`
+                    : 'Keputusan Menteri/Kepala Badan';
+            case 'peraturan_kepala_badan':
+                return 'Peraturan Kepala BPS';
+            default:
+                return item.kategori;
         }
-        if (item.kategori === 'peraturan_pemerintah') {
-            return 'Peraturan Pemerintah';
-        }
-        if (item.kategori === 'peraturan_presiden') {
-            return 'Peraturan Presiden';
-        }
-        if (item.kategori === 'peraturan_menteri_badan') {
-            return item.instansi?.toLowerCase().startsWith('badan')
-                ? `Peraturan ${item.instansi}`
-                : `Peraturan Menteri ${item.instansi}`;
-        }
-        if (item.kategori === 'keputusan_menteri_kepala_badan') {
-            return item.instansi?.toLowerCase().startsWith('badan')
-                ? `Keputusan Kepala ${item.instansi}`
-                : `Keputusan Menteri ${item.instansi}`;
-        }
-        if (item.kategori === 'peraturan_kepala_badan') {
-            return 'Peraturan Kepala Badan Pusat Statistik';
-        }
-
-        return item.kategori;
     };
 
-    const getKategoriBadgeClass = (kategori: string): string => {
-        if (kategori === 'undang_undang') {
-            return 'border-fuchsia-300 text-fuchsia-700 dark:border-fuchsia-700 dark:text-fuchsia-300';
-        }
-        if (kategori === 'peraturan_pemerintah') {
-            return 'border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-300';
-        }
-        if (kategori === 'peraturan_presiden') {
-            return 'border-indigo-300 text-indigo-700 dark:border-indigo-700 dark:text-indigo-300';
-        }
-        if (kategori === 'peraturan_menteri_badan') {
-            return 'border-teal-300 text-teal-700 dark:border-teal-700 dark:text-teal-300';
-        }
-        if (kategori === 'peraturan_kepala_badan') {
-            return 'border-cyan-300 text-cyan-700 dark:border-cyan-700 dark:text-cyan-300';
-        }
-        if (kategori === 'keputusan_menteri_kepala_badan') {
-            return 'border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-300';
-        }
+    const getShortLabel = (item: DasarHukum) =>
+        `${getKategoriLabel(item)} No. ${item.nomor} Tahun ${item.tahun}`;
 
-        return 'border-neutral-300 text-neutral-700 dark:border-neutral-700 dark:text-neutral-300';
+    const chains = useMemo<RegulationChain[]>(() => {
+        const roots = allDasarHukum.filter((item) => item.jenis === 'pertama');
+        const amendmentsByRoot = new Map<number, DasarHukum[]>();
+
+        allDasarHukum
+            .filter((item) => item.jenis === 'perubahan' && item.induk_id)
+            .forEach((item) => {
+                const rootId = Number(item.induk_id);
+                if (!amendmentsByRoot.has(rootId)) {
+                    amendmentsByRoot.set(rootId, []);
+                }
+                amendmentsByRoot.get(rootId)!.push(item);
+            });
+
+        return roots
+            .map((root) => {
+                const amendments = (amendmentsByRoot.get(root.id) ?? []).sort(
+                    (left, right) =>
+                        left.tahun - right.tahun ||
+                        left.id - right.id,
+                );
+                const activeItem =
+                    [...amendments]
+                        .reverse()
+                        .find((item) => item.status === 'aktif') ??
+                    (root.status === 'aktif' ? root : null);
+                const latest = amendments[amendments.length - 1] ?? root;
+
+                return {
+                    key: String(root.id),
+                    root,
+                    amendments,
+                    current: activeItem ?? latest,
+                };
+            })
+            .sort(
+                (left, right) =>
+                    right.current.tahun - left.current.tahun ||
+                    right.current.id - left.current.id,
+            );
+    }, [allDasarHukum]);
+
+    const filteredChains = useMemo(() => {
+        const query = search.trim().toLowerCase();
+
+        return chains.filter((chain) => {
+            const allItems = [chain.root, ...chain.amendments];
+            const matchesSearch =
+                !query ||
+                allItems.some((item) =>
+                    [
+                        item.nomor,
+                        item.tentang,
+                        item.instansi ?? '',
+                        getKategoriLabel(item),
+                        String(item.tahun),
+                    ]
+                        .join(' ')
+                        .toLowerCase()
+                        .includes(query),
+                );
+
+            if (!matchesSearch) return false;
+            if (status === 'all') return true;
+
+            return chain.current.status === status;
+        });
+    }, [chains, search, status]);
+
+    const stats = useMemo(() => {
+        const active = allDasarHukum.filter(
+            (item) => item.status === 'aktif',
+        ).length;
+        const amendments = allDasarHukum.filter(
+            (item) => item.jenis === 'perubahan',
+        ).length;
+
+        return {
+            references: chains.length,
+            active,
+            amendments,
+            total: allDasarHukum.length,
+        };
+    }, [allDasarHukum, chains]);
+
+    const toggleChain = (key: string) => {
+        setExpandedChains((current) => ({
+            ...current,
+            [key]: !current[key],
+        }));
     };
 
-    const handleRefresh = () => {
-        setIsRefreshing(true);
-        router.reload({
-            onFinish: () => {
-                setTimeout(() => setIsRefreshing(false), 500);
-            },
+    const editItem = (item: DasarHukum) => {
+        router.post('/dasar-hukum/edit', {
+            encrypted: encryptData({ id: item.id }),
         });
     };
 
-    const handleSort = (field: 'nomor' | 'tahun' | 'tentang') => {
-        if (sortField === field) {
-            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortField(field);
-            setSortDirection('asc');
-        }
-    };
-
-    const renderSortIcon = (field: 'nomor' | 'tahun' | 'tentang') => {
-        if (sortField !== field) return null;
-        return sortDirection === 'asc' ? (
-            <ChevronUp className="h-4 w-4" />
-        ) : (
-            <ChevronDown className="h-4 w-4" />
-        );
-    };
-
-    const handleDelete = (id: number, nomor: string) => {
+    const deleteItem = (item: DasarHukum) => {
         if (
-            confirm(`Apakah Anda yakin ingin menghapus dasar hukum "${nomor}"?`)
+            confirm(
+                `Apakah Anda yakin ingin menghapus "${getShortLabel(item)}"?`,
+            )
         ) {
-            router.delete(`/dasar-hukum/${id}`);
+            router.delete(`/dasar-hukum/${item.id}`);
         }
     };
 
@@ -274,464 +223,393 @@ export default function Index({ dasarHukum }: Props) {
             <Head title="Dasar Hukum SK" />
 
             <div className="space-y-6">
-                {/* Header */}
                 <PageHeader
                     title="Dasar Hukum SK"
-                    description="Kelola dasar hukum yang digunakan pada SK KPA"
+                    description="Kelola dasar peraturan dan seluruh riwayat perubahannya sebagai satu rangkaian referensi."
                 >
-                    <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleRefresh}
-                            disabled={isRefreshing}
-                            className="w-full sm:w-auto"
-                        >
-                            <RefreshCw
-                                className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
-                            />
-                            Refresh
+                    {!isPJ && (
+                        <Button asChild className="gap-2">
+                            <Link href="/dasar-hukum/create">
+                                <Plus className="h-4 w-4" />
+                                Tambah Peraturan
+                            </Link>
                         </Button>
-                        {!isPJ && (
-                            <Button
-                                size="sm"
-                                asChild
-                                className="w-full gap-2 sm:w-auto"
-                            >
-                                <Link href="/dasar-hukum/create">
-                                    <Plus className="h-4 w-4" />
-                                    Tambah Dasar Hukum
-                                </Link>
-                            </Button>
-                        )}
-                    </div>
+                    )}
                 </PageHeader>
 
-                {/* Filters */}
-                <ContentCard>
-                    <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setStatus('all');
-                                setJenis('all');
-                            }}
-                            className="rounded-xl border border-neutral-200 bg-neutral-50/70 p-3 text-left transition-all hover:border-neutral-300 hover:bg-white dark:border-neutral-800 dark:bg-neutral-900/40 dark:hover:border-neutral-700"
-                        >
-                            <p className="text-xs text-neutral-500">
-                                Total Dasar Hukum
-                            </p>
-                            <p className="mt-1 text-2xl font-bold text-neutral-900 dark:text-white">
-                                {stats.total}
-                            </p>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setStatus('aktif')}
-                            className="rounded-xl border border-green-200 bg-green-50/70 p-3 text-left transition-all hover:bg-green-50 dark:border-green-900 dark:bg-green-950/30"
-                        >
-                            <p className="text-xs text-green-700/80 dark:text-green-400">
-                                Status Aktif
-                            </p>
-                            <p className="mt-1 text-2xl font-bold text-green-700 dark:text-green-300">
-                                {stats.aktif}
-                            </p>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setJenis('perubahan')}
-                            className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-left transition-all hover:bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30"
-                        >
-                            <p className="text-xs text-amber-700/80 dark:text-amber-400">
-                                Peraturan Perubahan
-                            </p>
-                            <p className="mt-1 flex items-center gap-1 text-2xl font-bold text-amber-700 dark:text-amber-300">
-                                {stats.perubahan}
-                                <Sparkles className="h-4 w-4" />
-                            </p>
-                        </button>
-                        <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 dark:border-blue-900 dark:bg-blue-950/30">
-                            <p className="text-xs text-blue-700/80 dark:text-blue-400">
-                                Kategori Tersedia
-                            </p>
-                            <p className="mt-1 text-2xl font-bold text-blue-700 dark:text-blue-300">
-                                {stats.kategori}
-                            </p>
+                {(flash?.success || flash?.error) && (
+                    <div
+                        className={[
+                            'rounded-xl border px-4 py-3 text-sm',
+                            flash.success
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200'
+                                : 'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200',
+                        ].join(' ')}
+                    >
+                        {flash.success ?? flash.error}
+                    </div>
+                )}
+
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <ContentCard>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-muted-foreground">
+                                    Referensi utama
+                                </p>
+                                <p className="mt-1 text-2xl font-bold">
+                                    {stats.references}
+                                </p>
+                            </div>
+                            <BookOpenText className="h-5 w-5 text-muted-foreground" />
                         </div>
-                    </div>
+                    </ContentCard>
+                    <ContentCard>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-muted-foreground">
+                                    Peraturan aktif
+                                </p>
+                                <p className="mt-1 text-2xl font-bold">
+                                    {stats.active}
+                                </p>
+                            </div>
+                            <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                        </div>
+                    </ContentCard>
+                    <ContentCard>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-muted-foreground">
+                                    Riwayat perubahan
+                                </p>
+                                <p className="mt-1 text-2xl font-bold">
+                                    {stats.amendments}
+                                </p>
+                            </div>
+                            <History className="h-5 w-5 text-amber-600" />
+                        </div>
+                    </ContentCard>
+                    <ContentCard>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-muted-foreground">
+                                    Total dokumen
+                                </p>
+                                <p className="mt-1 text-2xl font-bold">
+                                    {stats.total}
+                                </p>
+                            </div>
+                            <FileText className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                    </ContentCard>
+                </div>
 
-                    {/* Results Counter */}
-                    <div className="mb-4 text-sm text-muted-foreground">
-                        Menampilkan{' '}
-                        <span className="font-semibold text-foreground">
-                            {(currentPage - 1) * perPage + 1}-
-                            {Math.min(
-                                currentPage * perPage,
-                                filteredAndSortedDasarHukum.length,
-                            )}
-                        </span>{' '}
-                        dari{' '}
-                        <span className="font-semibold text-foreground">
-                            {filteredAndSortedDasarHukum.length}
-                        </span>{' '}
-                        dasar hukum{' '}
-                        {search || status !== 'all'
-                            ? `(difilter dari ${allDasarHukum.length} total data)`
-                            : ''}
-                    </div>
+                <ContentCard>
+                    <div className="space-y-4">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold">
+                                    Rangkaian Peraturan
+                                </h2>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Setiap kartu mewakili satu referensi dasar.
+                                    Perubahan ditampilkan sebagai riwayat di
+                                    dalamnya.
+                                </p>
+                            </div>
 
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                        <div className="md:col-span-2">
-                            <div className="relative">
-                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-500" />
-                                <Input
-                                    type="text"
-                                    placeholder="Cari nomor atau tentang..."
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    className="pl-9"
-                                />
+                            <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                                <div className="relative min-w-0 sm:w-80">
+                                    <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        value={search}
+                                        onChange={(event) =>
+                                            setSearch(event.target.value)
+                                        }
+                                        placeholder="Cari nomor, tahun, tentang..."
+                                        className="pl-9"
+                                    />
+                                </div>
+                                <Select
+                                    value={status}
+                                    onValueChange={(value) =>
+                                        setStatus(
+                                            value as
+                                                | 'all'
+                                                | 'aktif'
+                                                | 'nonaktif',
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger className="sm:w-44">
+                                        <SelectValue placeholder="Semua status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            Semua status
+                                        </SelectItem>
+                                        <SelectItem value="aktif">
+                                            Aktif
+                                        </SelectItem>
+                                        <SelectItem value="nonaktif">
+                                            Nonaktif
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
-                        <div>
-                            <Select value={status} onValueChange={setStatus}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">
-                                        Semua Status
-                                    </SelectItem>
-                                    <SelectItem value="aktif">Aktif</SelectItem>
-                                    <SelectItem value="nonaktif">
-                                        Nonaktif
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <Select
-                                value={jenis}
-                                onValueChange={(
-                                    value: 'all' | 'pertama' | 'perubahan',
-                                ) => setJenis(value)}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Jenis" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">
-                                        Semua Jenis
-                                    </SelectItem>
-                                    <SelectItem value="pertama">
-                                        Peraturan Pertama
-                                    </SelectItem>
-                                    <SelectItem value="perubahan">
-                                        Peraturan Perubahan
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
 
-                    <div className="mt-4 flex flex-wrap gap-2">
-                        <Badge
-                            variant={jenis === 'all' ? 'default' : 'outline'}
-                            className="cursor-pointer"
-                            onClick={() => setJenis('all')}
-                        >
-                            Semua Jenis
-                        </Badge>
-                        <Badge
-                            variant={
-                                jenis === 'pertama' ? 'default' : 'outline'
-                            }
-                            className="cursor-pointer"
-                            onClick={() => setJenis('pertama')}
-                        >
-                            Pertama
-                        </Badge>
-                        <Badge
-                            variant={
-                                jenis === 'perubahan' ? 'default' : 'outline'
-                            }
-                            className="cursor-pointer"
-                            onClick={() => setJenis('perubahan')}
-                        >
-                            Perubahan
-                        </Badge>
-                    </div>
-                </ContentCard>
+                        {filteredChains.length === 0 ? (
+                            <div className="rounded-2xl border border-dashed border-neutral-300 py-12 text-center dark:border-neutral-700">
+                                <FileText className="mx-auto h-9 w-9 text-muted-foreground/40" />
+                                <p className="mt-3 font-medium">
+                                    Tidak ada dasar hukum yang sesuai
+                                </p>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Ubah kata kunci atau filter status.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {filteredChains.map((chain) => {
+                                    const expanded = Boolean(
+                                        expandedChains[chain.key],
+                                    );
+                                    const current = chain.current;
+                                    const hasAmendments =
+                                        chain.amendments.length > 0;
 
-                {/* Table */}
-                <ContentCard padding="none">
-                    <div className="flex items-center justify-between px-6 pt-4 pb-3">
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Menampilkan {(currentPage - 1) * perPage + 1}-
-                            {Math.min(
-                                currentPage * perPage,
-                                filteredAndSortedDasarHukum.length,
-                            )}{' '}
-                            dari {filteredAndSortedDasarHukum.length} data
-                            {(search || status !== 'all') &&
-                                ` (difilter dari ${allDasarHukum.length} total)`}
-                        </p>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
-                                <tr>
-                                    <th
-                                        className="cursor-pointer px-3 py-3.5 text-left text-sm font-semibold hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                                        onClick={() => handleSort('nomor')}
-                                    >
-                                        <div className="flex items-center gap-1.5">
-                                            <FileText className="h-4 w-4" />
-                                            Dasar Hukum
-                                            {renderSortIcon('nomor')}
-                                        </div>
-                                    </th>
-                                    <th
-                                        className="cursor-pointer px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                                        onClick={() => handleSort('tahun')}
-                                    >
-                                        <div className="flex items-center gap-1.5">
-                                            <Calendar className="h-4 w-4" />
-                                            Tahun
-                                            {renderSortIcon('tahun')}
-                                        </div>
-                                    </th>
-                                    <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                        <div className="flex items-center gap-1.5">
-                                            <CheckCircle2 className="h-4 w-4" />
-                                            Status
-                                        </div>
-                                    </th>
-                                    {!isPJ && (
-                                        <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
-                                            Aksi
-                                        </th>
-                                    )}
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                                {!paginatedDasarHukum ||
-                                paginatedDasarHukum.length === 0 ? (
-                                    <tr>
-                                        <td
-                                            colSpan={isPJ ? 3 : 4}
-                                            className="px-6 py-12 text-center"
+                                    return (
+                                        <div
+                                            key={chain.key}
+                                            className="overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900/50"
                                         >
-                                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                                <FileText className="h-12 w-12 opacity-20" />
-                                                <p className="font-medium">
-                                                    Belum ada data dasar hukum
-                                                </p>
-                                                <p className="text-xs">
-                                                    Coba ubah filter atau
-                                                    kriteria pencarian
-                                                </p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    paginatedDasarHukum?.map((item) => {
-                                        const kategoriLabel =
-                                            getKategoriLabel(item);
-                                        const fullLabel = `${kategoriLabel} Nomor ${item.nomor} Tahun ${item.tahun}`;
-
-                                        return (
-                                            <tr
-                                                key={item.id}
-                                                className="transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
-                                            >
-                                                <td className="px-3 py-3">
-                                                    <div className="space-y-1">
-                                                        <div className="font-medium text-neutral-900 dark:text-white">
-                                                            <div className="flex max-w-2xl flex-wrap items-center gap-2">
-                                                                <Badge
-                                                                    variant="outline"
-                                                                    className={getKategoriBadgeClass(
-                                                                        item.kategori,
-                                                                    )}
-                                                                >
-                                                                    {
-                                                                        kategoriLabel
-                                                                    }
-                                                                </Badge>
-                                                                <span className="font-semibold text-neutral-900 dark:text-white">
-                                                                    No.{' '}
-                                                                    {item.nomor}
-                                                                </span>
-                                                                <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                                                                    Tahun{' '}
-                                                                    {item.tahun}
-                                                                </span>
-                                                                {item.jenis ===
-                                                                    'perubahan' && (
-                                                                    <Badge
-                                                                        variant="outline"
-                                                                        className="shrink-0 border-amber-300 text-xs text-amber-600 dark:border-amber-600 dark:text-amber-400"
-                                                                    >
-                                                                        <Sparkles className="mr-1 h-3 w-3" />
-                                                                        Perubahan
-                                                                    </Badge>
+                                            <div className="p-4">
+                                                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <Badge variant="outline">
+                                                                {getKategoriLabel(
+                                                                    chain.root,
                                                                 )}
-                                                            </div>
-                                                        </div>
-                                                        <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                                                            <div className="max-w-2xl">
-                                                                tentang{' '}
-                                                                {item.tentang}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
-                                                    <div className="font-medium">
-                                                        {item.tahun}
-                                                    </div>
-                                                </td>
-                                                <td className="px-3 py-3 whitespace-nowrap">
-                                                    <StatusBadge
-                                                        status={item.status}
-                                                    />
-                                                </td>
-                                                {!isPJ && (
-                                                    <td className="px-3 py-3 whitespace-nowrap">
-                                                        <div className="flex items-center justify-center gap-2">
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="gap-2"
-                                                                onClick={() =>
-                                                                    router.post(
-                                                                        '/dasar-hukum/edit',
-                                                                        {
-                                                                            encrypted:
-                                                                                encryptData(
-                                                                                    {
-                                                                                        id: item.id,
-                                                                                    },
-                                                                                ),
-                                                                        },
-                                                                    )
+                                                            </Badge>
+                                                            <Badge
+                                                                className={
+                                                                    current.status ===
+                                                                    'aktif'
+                                                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                                                                        : ''
+                                                                }
+                                                                variant={
+                                                                    current.status ===
+                                                                    'aktif'
+                                                                        ? 'default'
+                                                                        : 'secondary'
                                                                 }
                                                             >
-                                                                <Pencil className="h-3.5 w-3.5" />
-                                                                Edit
-                                                            </Button>
+                                                                {current.status ===
+                                                                'aktif'
+                                                                    ? 'Aktif'
+                                                                    : 'Nonaktif'}
+                                                            </Badge>
+                                                            {hasAmendments && (
+                                                                <Badge variant="secondary">
+                                                                    {
+                                                                        chain
+                                                                            .amendments
+                                                                            .length
+                                                                    }{' '}
+                                                                    perubahan
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+
+                                                        <p className="mt-2 text-base font-semibold text-neutral-900 dark:text-white">
+                                                            {getShortLabel(
+                                                                current,
+                                                            )}
+                                                        </p>
+                                                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                                                            {current.tentang}
+                                                        </p>
+
+                                                        {current.id !==
+                                                            chain.root.id && (
+                                                            <p className="mt-2 text-xs text-muted-foreground">
+                                                                Referensi dasar:{' '}
+                                                                <span className="font-medium text-foreground">
+                                                                    {getShortLabel(
+                                                                        chain.root,
+                                                                    )}
+                                                                </span>
+                                                            </p>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                                        {hasAmendments && (
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
-                                                                className="gap-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950"
-                                                                onClick={() => {
-                                                                    handleDelete(
-                                                                        item.id,
-                                                                        fullLabel,
-                                                                    );
-                                                                }}
+                                                                onClick={() =>
+                                                                    toggleChain(
+                                                                        chain.key,
+                                                                    )
+                                                                }
+                                                                className="gap-2"
                                                             >
-                                                                <Trash2 className="h-3.5 w-3.5" />
-                                                                Hapus
+                                                                {expanded ? (
+                                                                    <ChevronDown className="h-4 w-4" />
+                                                                ) : (
+                                                                    <ChevronRight className="h-4 w-4" />
+                                                                )}
+                                                                Riwayat
                                                             </Button>
-                                                        </div>
-                                                    </td>
-                                                )}
-                                            </tr>
-                                        );
-                                    })
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                                        )}
 
-                    {/* Pagination */}
-                    {totalPages > 1 && (
-                        <div className="mt-4 flex flex-col gap-3 border-t border-neutral-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-neutral-800">
-                            <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                                Halaman{' '}
-                                <span className="font-semibold text-neutral-900 dark:text-neutral-100">
-                                    {currentPage}
-                                </span>{' '}
-                                dari{' '}
-                                <span className="font-semibold text-neutral-900 dark:text-neutral-100">
-                                    {totalPages}
-                                </span>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-1.5">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                        setCurrentPage((prev) =>
-                                            Math.max(1, prev - 1),
-                                        )
-                                    }
-                                    disabled={currentPage === 1}
-                                >
-                                    <ChevronLeft className="h-4 w-4" />
-                                </Button>
-
-                                {Array.from(
-                                    { length: totalPages },
-                                    (_, i) => i + 1,
-                                )
-                                    .filter((page) => {
-                                        return (
-                                            page === 1 ||
-                                            page === totalPages ||
-                                            (page >= currentPage - 1 &&
-                                                page <= currentPage + 1)
-                                        );
-                                    })
-                                    .map((page, index, array) => {
-                                        const prevPage = array[index - 1];
-                                        const showEllipsis =
-                                            prevPage && page > prevPage + 1;
-
-                                        return (
-                                            <div
-                                                key={page}
-                                                className="flex items-center gap-1"
-                                            >
-                                                {showEllipsis && (
-                                                    <span className="px-2 text-neutral-500">
-                                                        ...
-                                                    </span>
-                                                )}
-                                                <Button
-                                                    variant={
-                                                        currentPage === page
-                                                            ? 'default'
-                                                            : 'outline'
-                                                    }
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        setCurrentPage(page)
-                                                    }
-                                                >
-                                                    {page}
-                                                </Button>
+                                                        {!isPJ && (
+                                                            <>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="gap-2"
+                                                                    onClick={() =>
+                                                                        editItem(
+                                                                            current,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Pencil className="h-3.5 w-3.5" />
+                                                                    Edit
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="gap-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
+                                                                    onClick={() =>
+                                                                        deleteItem(
+                                                                            current,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                    Hapus
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
-                                        );
-                                    })}
 
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                        setCurrentPage((prev) =>
-                                            Math.min(totalPages, prev + 1),
-                                        )
-                                    }
-                                    disabled={currentPage === totalPages}
-                                >
-                                    <ChevronRight className="h-4 w-4" />
-                                </Button>
+                                            {expanded && (
+                                                <div className="border-t border-neutral-200 bg-neutral-50/70 p-4 dark:border-neutral-800 dark:bg-neutral-950/30">
+                                                    <div className="relative ml-2 space-y-0 border-l border-neutral-300 pl-5 dark:border-neutral-700">
+                                                        {[
+                                                            chain.root,
+                                                            ...chain.amendments,
+                                                        ].map((item, index) => {
+                                                            const isCurrent =
+                                                                item.id ===
+                                                                current.id;
+                                                            return (
+                                                                <div
+                                                                    key={
+                                                                        item.id
+                                                                    }
+                                                                    className="relative pb-5 last:pb-0"
+                                                                >
+                                                                    <span
+                                                                        className={[
+                                                                            'absolute -left-[27px] top-1.5 h-3 w-3 rounded-full border-2',
+                                                                            isCurrent
+                                                                                ? 'border-emerald-500 bg-emerald-500'
+                                                                                : 'border-neutral-300 bg-white dark:border-neutral-600 dark:bg-neutral-900',
+                                                                        ].join(
+                                                                            ' ',
+                                                                        )}
+                                                                    />
+                                                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                                                        <div className="min-w-0">
+                                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                                <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                                                                    {index ===
+                                                                                    0
+                                                                                        ? 'Dasar'
+                                                                                        : `Perubahan ${index}`}
+                                                                                </span>
+                                                                                <Badge
+                                                                                    variant={
+                                                                                        item.status ===
+                                                                                        'aktif'
+                                                                                            ? 'default'
+                                                                                            : 'secondary'
+                                                                                    }
+                                                                                    className={
+                                                                                        item.status ===
+                                                                                        'aktif'
+                                                                                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                                                                                            : ''
+                                                                                    }
+                                                                                >
+                                                                                    {
+                                                                                        item.status
+                                                                                    }
+                                                                                </Badge>
+                                                                            </div>
+                                                                            <p className="mt-1 text-sm font-medium text-neutral-900 dark:text-white">
+                                                                                {getShortLabel(
+                                                                                    item,
+                                                                                )}
+                                                                            </p>
+                                                                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                                                                {
+                                                                                    item.tentang
+                                                                                }
+                                                                            </p>
+                                                                        </div>
+
+                                                                        {!isPJ && (
+                                                                            <div className="flex shrink-0 gap-1">
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="h-8 w-8"
+                                                                                    onClick={() =>
+                                                                                        editItem(
+                                                                                            item,
+                                                                                        )
+                                                                                    }
+                                                                                >
+                                                                                    <Pencil className="h-3.5 w-3.5" />
+                                                                                </Button>
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
+                                                                                    onClick={() =>
+                                                                                        deleteItem(
+                                                                                            item,
+                                                                                        )
+                                                                                    }
+                                                                                >
+                                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                                </Button>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </ContentCard>
             </div>
         </AppLayout>
