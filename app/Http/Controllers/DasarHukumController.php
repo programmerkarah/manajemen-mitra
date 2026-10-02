@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\DasarHukum;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -101,18 +102,54 @@ class DasarHukumController extends Controller
             $validated['instansi'] = 'Badan Pusat Statistik';
         }
 
-        $dasarHukum = DasarHukum::create($validated);
+        [$dasarHukum, $deactivatedCount] = DB::transaction(function () use ($validated): array {
+            if (
+                $validated['jenis'] === 'perubahan' &&
+                $validated['status'] === 'aktif' &&
+                ! empty($validated['induk_id'])
+            ) {
+                DasarHukum::query()
+                    ->where(function ($query) use ($validated): void {
+                        $query->where('id', $validated['induk_id'])
+                            ->orWhere('induk_id', $validated['induk_id']);
+                    })
+                    ->lockForUpdate()
+                    ->get();
+
+                $deactivatedCount = DasarHukum::query()
+                    ->where('status', 'aktif')
+                    ->where(function ($query) use ($validated): void {
+                        $query->where('id', $validated['induk_id'])
+                            ->orWhere('induk_id', $validated['induk_id']);
+                    })
+                    ->update(['status' => 'nonaktif']);
+            } else {
+                $deactivatedCount = 0;
+            }
+
+            return [DasarHukum::create($validated), $deactivatedCount];
+        });
 
         ActivityLog::log(
             'Tambah Dasar Hukum',
             'dasar_hukum',
             "Berhasil menambahkan dasar hukum: {$dasarHukum->kategori} Nomor {$dasarHukum->nomor} Tahun {$dasarHukum->tahun}",
             'success',
-            ['dasar_hukum_id' => $dasarHukum->id, 'kategori' => $dasarHukum->kategori, 'nomor' => $dasarHukum->nomor]
+            [
+                'dasar_hukum_id' => $dasarHukum->id,
+                'kategori' => $dasarHukum->kategori,
+                'nomor' => $dasarHukum->nomor,
+                'auto_deactivated_count' => $deactivatedCount,
+            ]
         );
 
+        $message = 'Data dasar hukum sudah berhasil disimpan ke sistem.';
+        if ($deactivatedCount > 0) {
+            $message .= " {$deactivatedCount} peraturan aktif sebelumnya pada referensi yang sama otomatis dinonaktifkan.";
+        }
+
         return redirect()->route('dasar-hukum.index')
-            ->with('success', 'Data dasar hukum sudah berhasil disimpan ke sistem.');
+            ->with('success', $message);
     }
 
     public function edit(Request $request): Response|RedirectResponse
@@ -193,18 +230,55 @@ class DasarHukumController extends Controller
             $validated['instansi'] = 'Badan Pusat Statistik';
         }
 
-        $dasarHukum->update($validated);
+        $deactivatedCount = DB::transaction(function () use ($dasarHukum, $validated): int {
+            $dasarHukum->update($validated);
+
+            if (
+                $validated['jenis'] !== 'perubahan' ||
+                $validated['status'] !== 'aktif' ||
+                empty($validated['induk_id'])
+            ) {
+                return 0;
+            }
+
+            DasarHukum::query()
+                ->where(function ($query) use ($validated): void {
+                    $query->where('id', $validated['induk_id'])
+                        ->orWhere('induk_id', $validated['induk_id']);
+                })
+                ->lockForUpdate()
+                ->get();
+
+            return DasarHukum::query()
+                ->where('id', '!=', $dasarHukum->id)
+                ->where('status', 'aktif')
+                ->where(function ($query) use ($validated): void {
+                    $query->where('id', $validated['induk_id'])
+                        ->orWhere('induk_id', $validated['induk_id']);
+                })
+                ->update(['status' => 'nonaktif']);
+        });
 
         ActivityLog::log(
             'Ubah Dasar Hukum',
             'dasar_hukum',
             "Berhasil mengubah dasar hukum: {$dasarHukum->kategori} Nomor {$dasarHukum->nomor} Tahun {$dasarHukum->tahun}",
             'success',
-            ['dasar_hukum_id' => $dasarHukum->id, 'kategori' => $dasarHukum->kategori, 'nomor' => $dasarHukum->nomor]
+            [
+                'dasar_hukum_id' => $dasarHukum->id,
+                'kategori' => $dasarHukum->kategori,
+                'nomor' => $dasarHukum->nomor,
+                'auto_deactivated_count' => $deactivatedCount,
+            ]
         );
 
+        $message = 'Perubahan data dasar hukum sudah berhasil disimpan.';
+        if ($deactivatedCount > 0) {
+            $message .= " {$deactivatedCount} peraturan aktif sebelumnya pada referensi yang sama otomatis dinonaktifkan.";
+        }
+
         return redirect()->route('dasar-hukum.index')
-            ->with('success', 'Perubahan data dasar hukum sudah berhasil disimpan.');
+            ->with('success', $message);
     }
 
     public function destroy(DasarHukum $dasarHukum): RedirectResponse
