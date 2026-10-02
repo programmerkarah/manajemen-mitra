@@ -1,3 +1,4 @@
+import ChevronRight from 'lucide-react/icons/chevron-right';
 import {
     Collapsible,
     CollapsibleContent,
@@ -16,7 +17,7 @@ import {
 import { resolveUrl } from '@/lib/utils';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { ChevronRight } from 'lucide-react';
+
 import { useState } from 'react';
 
 export function NavMain({ items = [] }: { items: NavItem[] }) {
