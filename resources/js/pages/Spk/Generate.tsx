@@ -1,3 +1,8 @@
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import Download from 'lucide-react/icons/download';
+import FileText from 'lucide-react/icons/file-text';
+import Loader2 from 'lucide-react/icons/loader2';
+import Printer from 'lucide-react/icons/printer';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
@@ -11,7 +16,7 @@ import {
     previewFileFromPost,
 } from '@/utils/downloadUtils';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Download, FileText, Loader2, Printer } from 'lucide-react';
+
 import { type MouseEvent, useState } from 'react';
 
 interface Petugas {
