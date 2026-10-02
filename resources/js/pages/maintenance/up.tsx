@@ -1,10 +1,12 @@
+import Key from 'lucide-react/icons/key';
+import LoaderCircle from 'lucide-react/icons/loader-circle';
+import PowerIcon from 'lucide-react/icons/power';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { up } from '@/routes/maintenance';
 import { Form, Head } from '@inertiajs/react';
-import { Key, LoaderCircle, PowerIcon } from 'lucide-react';
 
 export default function Up() {
     return (
