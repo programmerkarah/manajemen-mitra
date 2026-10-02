@@ -1,28 +1,16 @@
-import { SVGAttributes } from 'react';
+import { ImgHTMLAttributes } from 'react';
 
-export default function AppLogoIcon(props: SVGAttributes<SVGElement>) {
+export default function AppLogoIcon({
+    className = '',
+    alt = 'SIMANTIK',
+    ...props
+}: ImgHTMLAttributes<HTMLImageElement>) {
     return (
-        <svg
-            width="800px"
-            height="800px"
-            viewBox="0 0 24 24"
-            id="minimize-size"
-            data-name="Flat Color"
-            xmlns="http://www.w3.org/2000/svg"
-            className={`icon flat-color ${props.className ?? ''}`}
+        <img
+            src="/favicon.svg"
+            alt={alt}
+            className={`object-contain ${className}`}
             {...props}
-        >
-            <path
-                id="secondary"
-                d="M10,16v4a1,1,0,0,1-2,0V17.41l-4.29,4.3a1,1,0,0,1-1.42,0,1,1,0,0,1,0-1.42L6.59,16H4a1,1,0,0,1,0-2H8A2,2,0,0,1,10,16Zm6-6h4a1,1,0,0,0,0-2H17.41l4.3-4.29a1,1,0,1,0-1.42-1.42L16,6.59V4a1,1,0,0,0-2,0V8A2,2,0,0,0,16,10Z"
-                style={{ fill: 'var(--chart-5)' }}
-            />
-            <path
-                id="primary"
-                d="M21.71,20.29a1,1,0,0,1,0,1.42,1,1,0,0,1-1.42,0L16,17.41V20a1,1,0,0,1-2,0V16a2,2,0,0,1,2-2h4a1,1,0,0,1,0,2H17.41ZM9,3A1,1,0,0,0,8,4V6.59L3.71,2.29A1,1,0,0,0,2.29,3.71L6.59,8H4a1,1,0,0,0,0,2H8a2,2,0,0,0,2-2V4A1,1,0,0,0,9,3Z"
-                style={{ fill: 'var(--chart-2)' }}
-                className="transition-colors dark:fill-black"
-            />
-        </svg>
+        />
     );
 }
