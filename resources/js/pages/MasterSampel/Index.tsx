@@ -26,7 +26,7 @@ import {
     Search,
     Trash2,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
 interface MasterItem {
     id: number;
@@ -111,17 +111,15 @@ export default function Index({ frames, units }: Props) {
     const activeConfig = config[activeType];
     const ActiveIcon = activeConfig.icon;
 
-    const filteredItems = useMemo(() => {
-        const query = search.trim().toLowerCase();
-        if (!query) return activeConfig.items;
-
-        return activeConfig.items.filter(
-            (item) =>
-                item.nama.toLowerCase().includes(query) ||
-                item.kode.toLowerCase().includes(query) ||
-                item.deskripsi?.toLowerCase().includes(query),
-        );
-    }, [activeConfig.items, search]);
+    const query = search.trim().toLowerCase();
+    const filteredItems = query
+        ? activeConfig.items.filter(
+              (item) =>
+                  item.nama.toLowerCase().includes(query) ||
+                  item.kode.toLowerCase().includes(query) ||
+                  item.deskripsi?.toLowerCase().includes(query),
+          )
+        : activeConfig.items;
 
     const activeCount = activeConfig.items.filter(
         (item) => item.is_active,
