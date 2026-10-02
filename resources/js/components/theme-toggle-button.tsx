@@ -47,8 +47,7 @@ export function ThemeToggleButton() {
                         onClick={() => updateAppearance(value)}
                         className={cn(
                             'cursor-pointer',
-                            appearance === value &&
-                                'bg-muted text-foreground',
+                            appearance === value && 'bg-muted text-foreground',
                         )}
                     >
                         <Icon className="mr-2 size-4" />

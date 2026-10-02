@@ -50,7 +50,7 @@ export default function Welcome({
                                     {canRegister && (
                                         <Link
                                             href={register()}
-                                            className="hidden h-11 items-center rounded-xl border border-border bg-card px-4 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:inline-flex "
+                                            className="hidden h-11 items-center rounded-xl border border-border bg-card px-4 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:inline-flex"
                                         >
                                             Daftar
                                         </Link>
@@ -93,7 +93,7 @@ export default function Welcome({
                                 {!auth.user && canRegister && (
                                     <Link
                                         href={register()}
-                                        className="inline-flex h-12 items-center rounded-xl border border-border bg-card px-6 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 "
+                                        className="inline-flex h-12 items-center rounded-xl border border-border bg-card px-6 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
                                     >
                                         Buat akun
                                     </Link>
@@ -119,7 +119,7 @@ export default function Welcome({
                         <div className="relative w-full">
                             <div className="absolute inset-x-8 top-10 bottom-10 rounded-[2.5rem] bg-blue-500/10 blur-3xl" />
 
-                            <div className="relative overflow-hidden rounded-[1.75rem] border border-border bg-card shadow-[0_24px_64px_rgba(15,23,42,0.12)] ">
+                            <div className="relative overflow-hidden rounded-[1.75rem] border border-border bg-card shadow-[0_24px_64px_rgba(15,23,42,0.12)]">
                                 <div className="h-1.5 bg-gradient-to-r from-blue-600 via-emerald-500 to-orange-500" />
 
                                 <div className="flex items-center justify-between border-b border-border px-5 py-5 sm:px-7 sm:py-6">

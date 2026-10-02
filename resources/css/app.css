@@ -62,80 +62,80 @@
 }
 
 :root {
-    --background: #F4F7FB;
+    --background: #f4f7fb;
     --foreground: #243247;
-    --card: #FFFFFF;
+    --card: #ffffff;
     --card-foreground: #243247;
-    --popover: #FFFFFF;
+    --popover: #ffffff;
     --popover-foreground: #243247;
-    --primary: #6F93C7;
-    --primary-foreground: #FFFFFF;
-    --secondary: #EAF0F7;
+    --primary: #6f93c7;
+    --primary-foreground: #ffffff;
+    --secondary: #eaf0f7;
     --secondary-foreground: #243247;
-    --muted: #EAF0F7;
+    --muted: #eaf0f7;
     --muted-foreground: #718096;
-    --accent: #A9C7F5;
+    --accent: #a9c7f5;
     --accent-foreground: #243247;
-    --destructive: #C96D6D;
-    --destructive-foreground: #FFFFFF;
-    --border: #D7E0EB;
-    --input: #D7E0EB;
-    --ring: #6F93C7;
-    --chart-1: #6F93C7;
-    --chart-2: #6FAF8D;
-    --chart-3: #C99062;
-    --chart-4: #A9C7F5;
-    --chart-5: #A9DCC2;
+    --destructive: #c96d6d;
+    --destructive-foreground: #ffffff;
+    --border: #d7e0eb;
+    --input: #d7e0eb;
+    --ring: #6f93c7;
+    --chart-1: #6f93c7;
+    --chart-2: #6faf8d;
+    --chart-3: #c99062;
+    --chart-4: #a9c7f5;
+    --chart-5: #a9dcc2;
     --radius: 0.75rem;
-    --sidebar: #FFFFFF;
+    --sidebar: #ffffff;
     --sidebar-foreground: #243247;
-    --sidebar-primary: #6F93C7;
-    --sidebar-primary-foreground: #FFFFFF;
-    --sidebar-accent: #EAF0F7;
+    --sidebar-primary: #6f93c7;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #eaf0f7;
     --sidebar-accent-foreground: #243247;
-    --sidebar-border: #D7E0EB;
-    --sidebar-ring: #6F93C7;
-    --pastel-blue: #A9C7F5;
-    --pastel-green: #A9DCC2;
-    --pastel-orange: #F6C89F;
+    --sidebar-border: #d7e0eb;
+    --sidebar-ring: #6f93c7;
+    --pastel-blue: #a9c7f5;
+    --pastel-green: #a9dcc2;
+    --pastel-orange: #f6c89f;
 }
 
 .dark {
     --background: #243044;
-    --foreground: #EEF3F8;
-    --card: #2D3A4F;
-    --card-foreground: #EEF3F8;
-    --popover: #2D3A4F;
-    --popover-foreground: #EEF3F8;
-    --primary: #6F93C7;
-    --primary-foreground: #EEF3F8;
+    --foreground: #eef3f8;
+    --card: #2d3a4f;
+    --card-foreground: #eef3f8;
+    --popover: #2d3a4f;
+    --popover-foreground: #eef3f8;
+    --primary: #6f93c7;
+    --primary-foreground: #eef3f8;
     --secondary: #344258;
-    --secondary-foreground: #EEF3F8;
+    --secondary-foreground: #eef3f8;
     --muted: #344258;
-    --muted-foreground: #BCC7D6;
-    --accent: #6F93C7;
-    --accent-foreground: #EEF3F8;
-    --destructive: #D27A7A;
-    --destructive-foreground: #FFFFFF;
-    --border: #46566D;
-    --input: #46566D;
-    --ring: #6F93C7;
-    --chart-1: #6F93C7;
-    --chart-2: #6FAF8D;
-    --chart-3: #C99062;
-    --chart-4: #A9C7F5;
-    --chart-5: #A9DCC2;
-    --sidebar: #2D3A4F;
-    --sidebar-foreground: #EEF3F8;
-    --sidebar-primary: #6F93C7;
-    --sidebar-primary-foreground: #EEF3F8;
+    --muted-foreground: #bcc7d6;
+    --accent: #6f93c7;
+    --accent-foreground: #eef3f8;
+    --destructive: #d27a7a;
+    --destructive-foreground: #ffffff;
+    --border: #46566d;
+    --input: #46566d;
+    --ring: #6f93c7;
+    --chart-1: #6f93c7;
+    --chart-2: #6faf8d;
+    --chart-3: #c99062;
+    --chart-4: #a9c7f5;
+    --chart-5: #a9dcc2;
+    --sidebar: #2d3a4f;
+    --sidebar-foreground: #eef3f8;
+    --sidebar-primary: #6f93c7;
+    --sidebar-primary-foreground: #eef3f8;
     --sidebar-accent: #344258;
-    --sidebar-accent-foreground: #EEF3F8;
-    --sidebar-border: #46566D;
-    --sidebar-ring: #6F93C7;
-    --pastel-blue: #6F93C7;
-    --pastel-green: #6FAF8D;
-    --pastel-orange: #C99062;
+    --sidebar-accent-foreground: #eef3f8;
+    --sidebar-border: #46566d;
+    --sidebar-ring: #6f93c7;
+    --pastel-blue: #6f93c7;
+    --pastel-green: #6faf8d;
+    --pastel-orange: #c99062;
 }
 
 @layer base {
@@ -262,7 +262,6 @@
     }
 }
 
-
 @layer components {
     .app-surface {
         @apply rounded-xl border border-border bg-card text-card-foreground shadow-sm;
@@ -333,7 +332,6 @@
         color: var(--muted-foreground) !important;
     }
 }
-
 
 @layer components {
     .summary-grid {

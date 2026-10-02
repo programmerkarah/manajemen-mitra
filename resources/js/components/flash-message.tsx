@@ -37,16 +37,31 @@ export function FlashMessage() {
             return;
         }
 
-        const nextMessage =
-            flash.success
-                ? { type: 'success' as const, text: flash.success, title: 'Berhasil' }
-                : flash.error
-                  ? { type: 'error' as const, text: flash.error, title: 'Perhatian' }
-                  : flash.warning
-                    ? { type: 'warning' as const, text: flash.warning, title: 'Peringatan' }
-                    : flash.info
-                      ? { type: 'info' as const, text: flash.info, title: 'Informasi' }
-                      : null;
+        const nextMessage = flash.success
+            ? {
+                  type: 'success' as const,
+                  text: flash.success,
+                  title: 'Berhasil',
+              }
+            : flash.error
+              ? {
+                    type: 'error' as const,
+                    text: flash.error,
+                    title: 'Perhatian',
+                }
+              : flash.warning
+                ? {
+                      type: 'warning' as const,
+                      text: flash.warning,
+                      title: 'Peringatan',
+                  }
+                : flash.info
+                  ? {
+                        type: 'info' as const,
+                        text: flash.info,
+                        title: 'Informasi',
+                    }
+                  : null;
 
         if (nextMessage) {
             setMessage(nextMessage);
@@ -93,7 +108,7 @@ export function FlashMessage() {
     const Icon = variant.icon;
 
     return (
-        <div className="fixed right-3 top-3 z-[9999] w-[calc(100%-1.5rem)] animate-in slide-in-from-top-2 duration-200 sm:right-4 sm:top-4 sm:w-full sm:max-w-sm">
+        <div className="fixed top-3 right-3 z-[9999] w-[calc(100%-1.5rem)] animate-in duration-200 slide-in-from-top-2 sm:top-4 sm:right-4 sm:w-full sm:max-w-sm">
             <div
                 className={`relative rounded-xl border p-3 shadow-lg sm:p-4 ${variant.surface}`}
                 role="status"

@@ -271,14 +271,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
         });
 
         return result;
-    }, [
-        allPetugas,
-        search,
-        status,
-        jenisPetugas,
-        sortField,
-        sortDirection,
-    ]);
+    }, [allPetugas, search, status, jenisPetugas, sortField, sortDirection]);
 
     // Client-side pagination
     const totalPages = Math.ceil(filteredAndSortedPetugas.length / perPage);
@@ -727,7 +720,9 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                 filteredAndSortedPetugas.length,
                             )}{' '}
                             dari {filteredAndSortedPetugas.length} data
-                            {(search || status !== 'all' || jenisPetugas !== 'all') &&
+                            {(search ||
+                                status !== 'all' ||
+                                jenisPetugas !== 'all') &&
                                 ` (difilter dari ${allPetugas.length} total)`}
                         </p>
                     </div>

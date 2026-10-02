@@ -113,7 +113,11 @@ export default function AdminDashboard() {
 
                 {/* Statistics Cards */}
                 <div className="summary-grid">
-                    <ContentCard padding="sm" density="compact" className="min-w-0">
+                    <ContentCard
+                        padding="sm"
+                        density="compact"
+                        className="min-w-0"
+                    >
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="summary-card__label">
@@ -129,7 +133,11 @@ export default function AdminDashboard() {
                         </div>
                     </ContentCard>
 
-                    <ContentCard padding="sm" density="compact" className="min-w-0">
+                    <ContentCard
+                        padding="sm"
+                        density="compact"
+                        className="min-w-0"
+                    >
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="summary-card__label">
@@ -145,7 +153,11 @@ export default function AdminDashboard() {
                         </div>
                     </ContentCard>
 
-                    <ContentCard padding="sm" density="compact" className="min-w-0">
+                    <ContentCard
+                        padding="sm"
+                        density="compact"
+                        className="min-w-0"
+                    >
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="summary-card__label">
@@ -161,7 +173,11 @@ export default function AdminDashboard() {
                         </div>
                     </ContentCard>
 
-                    <ContentCard padding="sm" density="compact" className="min-w-0">
+                    <ContentCard
+                        padding="sm"
+                        density="compact"
+                        className="min-w-0"
+                    >
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="summary-card__label">
