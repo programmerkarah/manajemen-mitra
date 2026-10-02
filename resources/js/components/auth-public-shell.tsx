@@ -27,12 +27,17 @@ export function AuthPublicShell({
     return (
         <div className="flex min-h-svh flex-col bg-background text-foreground">
             <header className="border-b border-border bg-card/95 backdrop-blur">
-                <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-                    <Link href="/" className="min-w-0">
+                <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+                    <Link href="/" className="flex min-w-0 items-center">
                         <AppLogo />
                     </Link>
-                    <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-                        {headerAction}
+                    <div className="flex shrink-0 items-center gap-2">
+                        {headerAction && (
+                            <div className="flex items-center">{headerAction}</div>
+                        )}
+                        {headerAction && (
+                            <span className="hidden h-5 w-px bg-border sm:block" aria-hidden="true" />
+                        )}
                         <ThemeToggleButton />
                     </div>
                 </div>
