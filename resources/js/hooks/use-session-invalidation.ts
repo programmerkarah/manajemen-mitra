@@ -1,10 +1,9 @@
 import { useEffect } from 'react';
-import echo from '../lib/echo';
 
 /**
- * Hook to listen for session invalidation events via WebSocket.
- * When user logs in from another device, this will automatically
- * redirect them to the login page.
+ * Loads the websocket client only for authenticated sessions.
+ * Keeping Echo/Pusher out of the application shell significantly reduces
+ * the initial bundle for guest pages and the synchronous layout chunk.
  */
 export function useSessionInvalidation(userId: number | null | undefined) {
     useEffect(() => {
@@ -12,41 +11,37 @@ export function useSessionInvalidation(userId: number | null | undefined) {
             return;
         }
 
-        // Subscribe to private channel for this user
-        const channel = echo.private(`session.${userId}`);
+        let disposed = false;
+        let cleanup: (() => void) | undefined;
 
-        // Listen for session invalidation event
-        channel.listen(
-            '.session.invalidated',
-            (event: { message?: string }) => {
-                console.log('🔴 Session invalidated received!', event);
+        void import('../lib/echo').then(({ default: echo }) => {
+            if (disposed) {
+                return;
+            }
 
-                // Force immediate redirect without Inertia (to bypass any caching)
-                window.location.href =
-                    '/login?message=' +
-                    encodeURIComponent(
-                        'Anda telah login dari perangkat lain. Silakan login kembali.',
-                    );
-            },
-        );
+            const channelName = `session.${userId}`;
+            const channel = echo.private(channelName);
 
-        // Debug: log connection status
-        channel.subscription.bind('pusher:subscription_succeeded', () => {
-            console.log('✅ Channel subscription succeeded');
+            channel.listen(
+                '.session.invalidated',
+                () => {
+                    window.location.href =
+                        '/login?message=' +
+                        encodeURIComponent(
+                            'Anda telah login dari perangkat lain. Silakan login kembali.',
+                        );
+                },
+            );
+
+            cleanup = () => {
+                channel.stopListening('.session.invalidated');
+                echo.leave(channelName);
+            };
         });
 
-        channel.subscription.bind(
-            'pusher:subscription_error',
-            (error: Error) => {
-                console.error('❌ Channel subscription error:', error);
-            },
-        );
-
-        // Cleanup: unsubscribe when component unmounts
         return () => {
-            console.log('useSessionInvalidation: Cleaning up listener');
-            channel.stopListening('.session.invalidated');
-            echo.leave(`session.${userId}`);
+            disposed = true;
+            cleanup?.();
         };
     }, [userId]);
 }
