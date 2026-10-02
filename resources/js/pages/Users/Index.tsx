@@ -1,3 +1,17 @@
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import ChevronDown from 'lucide-react/icons/chevron-down';
+import ChevronLeft from 'lucide-react/icons/chevron-left';
+import ChevronRight from 'lucide-react/icons/chevron-right';
+import ChevronUp from 'lucide-react/icons/chevron-up';
+import Mail from 'lucide-react/icons/mail';
+import MailQuestion from 'lucide-react/icons/mail-question';
+import Pencil from 'lucide-react/icons/pencil';
+import RefreshCw from 'lucide-react/icons/refresh-cw';
+import Search from 'lucide-react/icons/search';
+import Shield from 'lucide-react/icons/shield';
+import UserIcon from 'lucide-react/icons/user';
+import UserRoundCog from 'lucide-react/icons/user-round-cog';
+import X from 'lucide-react/icons/x';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -24,22 +38,7 @@ import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import {
-    CheckCircle2,
-    ChevronDown,
-    ChevronLeft,
-    ChevronRight,
-    ChevronUp,
-    Mail,
-    MailQuestion,
-    Pencil,
-    RefreshCw,
-    Search,
-    Shield,
-    User as UserIcon,
-    UserRoundCog,
-    X,
-} from 'lucide-react';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
