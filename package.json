@@ -6,8 +6,8 @@
         "build": "vite build",
         "build:ssr": "vite build && vite build --ssr",
         "dev": "vite",
-        "format": "prettier --write resources/",
-        "format:check": "prettier --check resources/",
+        "format": "prettier --write resources/js resources/css",
+        "format:check": "prettier --check resources/js resources/css",
         "lint": "eslint resources/js --fix --cache --cache-location .cache/eslint",
         "types": "tsc --noEmit --incremental",
         "lint:check": "eslint resources/js --cache --cache-location .cache/eslint"
