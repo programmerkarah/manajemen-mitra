@@ -1,7 +1,9 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import { Download, TrendingUp, Wallet } from 'lucide-react';
+import Download from 'lucide-react/icons/download';
+import TrendingUp from 'lucide-react/icons/trending-up';
+import Wallet from 'lucide-react/icons/wallet';
 import { useState } from 'react';
 import {
     Bar,

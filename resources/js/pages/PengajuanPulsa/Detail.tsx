@@ -16,15 +16,13 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { encryptFilters } from '@/utils/encryption';
 import { Head, router } from '@inertiajs/react';
-import {
-    ArrowLeft,
-    Check,
-    CheckCheck,
-    ClipboardCheck,
-    Loader2,
-    RotateCcw,
-    X,
-} from 'lucide-react';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import Check from 'lucide-react/icons/check';
+import CheckCheck from 'lucide-react/icons/check-check';
+import ClipboardCheck from 'lucide-react/icons/clipboard-check';
+import Loader2 from 'lucide-react/icons/loader2';
+import RotateCcw from 'lucide-react/icons/rotate-ccw';
+import X from 'lucide-react/icons/x';
 import { useMemo, useState } from 'react';
 
 interface PengajuanPulsaItem {

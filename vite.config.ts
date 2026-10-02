@@ -1,26 +1,108 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
-import { fileURLToPath, URL } from 'node:url';
-import { defineConfig } from 'vite';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { defineConfig, type Plugin } from 'vite';
+
+const require = createRequire(import.meta.url);
+
+function toPascalCase(slug: string): string {
+    return slug
+        .split('-')
+        .filter(Boolean)
+        .map((part) =>
+            /^\d+$/.test(part)
+                ? part
+                : part.charAt(0).toUpperCase() + part.slice(1),
+        )
+        .join('');
+}
+
+function lucidePerIconResolver(): Plugin {
+    const lucideEntry = require.resolve('lucide-react');
+    const lucideRoot = dirname(dirname(dirname(lucideEntry)));
+    const iconsDir = join(lucideRoot, 'dist', 'esm', 'icons');
+    const barrelPath = join(lucideRoot, 'dist', 'esm', 'lucide-react.js');
+    const iconFiles = new Set(readdirSync(iconsDir));
+    const compactFileMap = new Map<string, string>();
+    const exportAliasMap = new Map<string, string>();
+
+    for (const file of iconFiles) {
+        if (!file.endsWith('.js')) continue;
+        const slug = file.slice(0, -3);
+        compactFileMap.set(slug.replaceAll('-', ''), slug);
+    }
+
+    if (existsSync(barrelPath)) {
+        const barrel = readFileSync(barrelPath, 'utf8');
+        const reExportPattern =
+            /export\s*\{([^}]+)\}\s*from\s*['"]\.\/icons\/([^'"]+)\.js['"];?/g;
+
+        for (const match of barrel.matchAll(reExportPattern)) {
+            const aliases = match[1];
+            const targetSlug = match[2];
+
+            for (const alias of aliases.matchAll(
+                /default\s+as\s+([A-Za-z0-9_$]+)/g,
+            )) {
+                exportAliasMap.set(alias[1], targetSlug);
+            }
+        }
+    }
+
+    return {
+        name: 'simantik-lucide-per-icon-resolver',
+        enforce: 'pre',
+        resolveId(source) {
+            const prefix = 'lucide-react/icons/';
+            if (!source.startsWith(prefix)) return null;
+
+            const requestedSlug = source.slice(prefix.length);
+            const directFile = `${requestedSlug}.js`;
+
+            if (iconFiles.has(directFile)) {
+                return join(iconsDir, directFile);
+            }
+
+            const exportName = toPascalCase(requestedSlug);
+            const aliasTarget = exportAliasMap.get(exportName);
+
+            if (aliasTarget && iconFiles.has(`${aliasTarget}.js`)) {
+                return join(iconsDir, `${aliasTarget}.js`);
+            }
+
+            const compactTarget = compactFileMap.get(
+                requestedSlug.replaceAll('-', ''),
+            );
+
+            if (compactTarget) {
+                return join(iconsDir, `${compactTarget}.js`);
+            }
+
+            this.error(
+                `Unknown Lucide icon import "${source}". No matching icon module or export alias was found.`,
+            );
+        },
+    };
+}
 
 export default defineConfig(({ command }) => ({
+    cacheDir: '.cache/vite',
     resolve: {
-        alias: {
-            'lucide-react/icons': fileURLToPath(
-                new URL('./node_modules/lucide-react/dist/esm/icons', import.meta.url),
-            ),
-        },
+        dedupe: ['react', 'react-dom'],
+    },
+    optimizeDeps: {
+        exclude: ['lucide-react'],
     },
     plugins: [
+        lucidePerIconResolver(),
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
             ssr: 'resources/js/ssr.tsx',
             refresh: command === 'serve',
         }),
-        // Keep React Fast Refresh during development, but let Vite/esbuild handle
-        // production TSX transformation directly. This avoids the Babel-based
-        // React transform pass across every Inertia page during production builds.
         ...(command === 'serve' ? [react()] : []),
         tailwindcss(),
     ],
@@ -65,10 +147,6 @@ export default defineConfig(({ command }) => ({
 
                     if (id.includes('/@radix-ui/')) {
                         return 'vendor-radix';
-                    }
-
-                    if (id.includes('/lucide-react/')) {
-                        return 'vendor-icons';
                     }
 
                     if (

@@ -15,18 +15,16 @@ import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, SharedData } from '@/types';
 import { encryptData } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import {
-    BookOpenText,
-    ChevronDown,
-    ChevronRight,
-    FileText,
-    History,
-    Pencil,
-    Plus,
-    Search,
-    ShieldCheck,
-    Trash2,
-} from 'lucide-react';
+import BookOpenText from 'lucide-react/icons/book-open-text';
+import ChevronDown from 'lucide-react/icons/chevron-down';
+import ChevronRight from 'lucide-react/icons/chevron-right';
+import FileText from 'lucide-react/icons/file-text';
+import History from 'lucide-react/icons/history';
+import Pencil from 'lucide-react/icons/pencil';
+import Plus from 'lucide-react/icons/plus';
+import Search from 'lucide-react/icons/search';
+import ShieldCheck from 'lucide-react/icons/shield-check';
+import Trash2 from 'lucide-react/icons/trash2';
 import { useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [

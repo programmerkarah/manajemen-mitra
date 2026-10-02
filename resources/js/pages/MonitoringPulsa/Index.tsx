@@ -14,16 +14,14 @@ import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
-import {
-    CheckCircle,
-    ChevronDown,
-    ChevronRight,
-    Clock,
-    Download,
-    Search,
-    SendHorizontal,
-    Users,
-} from 'lucide-react';
+import CheckCircle from 'lucide-react/icons/check-circle';
+import ChevronDown from 'lucide-react/icons/chevron-down';
+import ChevronRight from 'lucide-react/icons/chevron-right';
+import Clock from 'lucide-react/icons/clock';
+import Download from 'lucide-react/icons/download';
+import Search from 'lucide-react/icons/search';
+import SendHorizontal from 'lucide-react/icons/send-horizontal';
+import Users from 'lucide-react/icons/users';
 import { useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [

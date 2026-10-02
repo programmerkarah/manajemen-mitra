@@ -10,7 +10,8 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { SharedData } from '@/types';
 import { usePage } from '@inertiajs/react';
-import { AlertTriangle, Send } from 'lucide-react';
+import AlertTriangle from 'lucide-react/icons/alert-triangle';
+import Send from 'lucide-react/icons/send';
 import React from 'react';
 
 interface DeadlineRequestContext {

@@ -17,16 +17,14 @@ import AppLayout from '@/layouts/app-layout';
 import { openFastDownload } from '@/utils/downloadUtils';
 import { encryptFilters } from '@/utils/encryption';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import {
-    Archive,
-    CheckCircle2,
-    Download,
-    FileText,
-    PenLine,
-    RotateCcw,
-    Trash2,
-    Upload,
-} from 'lucide-react';
+import Archive from 'lucide-react/icons/archive';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import Download from 'lucide-react/icons/download';
+import FileText from 'lucide-react/icons/file-text';
+import PenLine from 'lucide-react/icons/pen-line';
+import RotateCcw from 'lucide-react/icons/rotate-ccw';
+import Trash2 from 'lucide-react/icons/trash2';
+import Upload from 'lucide-react/icons/upload';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 interface Spk {

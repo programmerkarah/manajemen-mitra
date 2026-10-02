@@ -22,23 +22,21 @@ import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import {
-    Briefcase,
-    Calendar,
-    CheckCircle2,
-    ChevronDown,
-    ChevronLeft,
-    ChevronRight,
-    ChevronUp,
-    CreditCard,
-    Pencil,
-    Plus,
-    RefreshCw,
-    Search,
-    Trash2,
-    User as UserIcon,
-    X,
-} from 'lucide-react';
+import Briefcase from 'lucide-react/icons/briefcase';
+import Calendar from 'lucide-react/icons/calendar';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import ChevronDown from 'lucide-react/icons/chevron-down';
+import ChevronLeft from 'lucide-react/icons/chevron-left';
+import ChevronRight from 'lucide-react/icons/chevron-right';
+import ChevronUp from 'lucide-react/icons/chevron-up';
+import CreditCard from 'lucide-react/icons/credit-card';
+import Pencil from 'lucide-react/icons/pencil';
+import Plus from 'lucide-react/icons/plus';
+import RefreshCw from 'lucide-react/icons/refresh-cw';
+import Search from 'lucide-react/icons/search';
+import Trash2 from 'lucide-react/icons/trash2';
+import UserIcon from 'lucide-react/icons/user';
+import X from 'lucide-react/icons/x';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [

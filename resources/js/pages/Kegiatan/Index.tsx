@@ -24,25 +24,23 @@ import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import {
-    AlertTriangle,
-    Check,
-    ChevronDown,
-    ChevronLeft,
-    ChevronRight,
-    ChevronUp,
-    Copy,
-    Eye,
-    MessageSquareWarning,
-    Pencil,
-    Plus,
-    RefreshCw,
-    RotateCcw,
-    Search,
-    Send,
-    Trash2,
-    X,
-} from 'lucide-react';
+import AlertTriangle from 'lucide-react/icons/alert-triangle';
+import Check from 'lucide-react/icons/check';
+import ChevronDown from 'lucide-react/icons/chevron-down';
+import ChevronLeft from 'lucide-react/icons/chevron-left';
+import ChevronRight from 'lucide-react/icons/chevron-right';
+import ChevronUp from 'lucide-react/icons/chevron-up';
+import Copy from 'lucide-react/icons/copy';
+import Eye from 'lucide-react/icons/eye';
+import MessageSquareWarning from 'lucide-react/icons/message-square-warning';
+import Pencil from 'lucide-react/icons/pencil';
+import Plus from 'lucide-react/icons/plus';
+import RefreshCw from 'lucide-react/icons/refresh-cw';
+import RotateCcw from 'lucide-react/icons/rotate-ccw';
+import Search from 'lucide-react/icons/search';
+import Send from 'lucide-react/icons/send';
+import Trash2 from 'lucide-react/icons/trash2';
+import X from 'lucide-react/icons/x';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [

@@ -1,7 +1,9 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import { AlertTriangle, Download, Users } from 'lucide-react';
+import AlertTriangle from 'lucide-react/icons/alert-triangle';
+import Download from 'lucide-react/icons/download';
+import Users from 'lucide-react/icons/users';
 import { useState } from 'react';
 import {
     CartesianGrid,

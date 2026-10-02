@@ -1,5 +1,7 @@
 import { cn } from '@/lib/utils';
-import { Check, ChevronDown, X } from 'lucide-react';
+import Check from 'lucide-react/icons/check';
+import ChevronDown from 'lucide-react/icons/chevron-down';
+import X from 'lucide-react/icons/x';
 import * as React from 'react';
 import { createPortal } from 'react-dom';
 

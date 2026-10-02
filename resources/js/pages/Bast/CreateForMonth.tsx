@@ -16,14 +16,12 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import { previewFileFromPost } from '@/utils/downloadUtils';
 import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import {
-    AlertCircle,
-    ArrowLeft,
-    Calendar,
-    Eye,
-    FileText,
-    User,
-} from 'lucide-react';
+import AlertCircle from 'lucide-react/icons/alert-circle';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import Calendar from 'lucide-react/icons/calendar';
+import Eye from 'lucide-react/icons/eye';
+import FileText from 'lucide-react/icons/file-text';
+import User from 'lucide-react/icons/user';
 import { useState } from 'react';
 
 interface Petugas {

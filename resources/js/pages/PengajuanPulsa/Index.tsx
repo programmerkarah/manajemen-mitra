@@ -21,16 +21,14 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { encryptFilters } from '@/utils/encryption';
 import { Head, router, usePage } from '@inertiajs/react';
-import {
-    CheckCircle,
-    ChevronLeft,
-    ChevronRight,
-    Clock3,
-    Eye,
-    FileText,
-    Plus,
-    XCircle,
-} from 'lucide-react';
+import CheckCircle from 'lucide-react/icons/check-circle';
+import ChevronLeft from 'lucide-react/icons/chevron-left';
+import ChevronRight from 'lucide-react/icons/chevron-right';
+import Clock3 from 'lucide-react/icons/clock3';
+import Eye from 'lucide-react/icons/eye';
+import FileText from 'lucide-react/icons/file-text';
+import Plus from 'lucide-react/icons/plus';
+import XCircle from 'lucide-react/icons/x-circle';
 import { useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [

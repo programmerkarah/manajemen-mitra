@@ -15,19 +15,17 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
-import {
-    AlertTriangle,
-    CheckCircle2,
-    Clock,
-    Copy,
-    ExternalLink,
-    Info,
-    Power,
-    PowerOff,
-    Server,
-    Settings,
-    Shield,
-} from 'lucide-react';
+import AlertTriangle from 'lucide-react/icons/alert-triangle';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import Clock from 'lucide-react/icons/clock';
+import Copy from 'lucide-react/icons/copy';
+import ExternalLink from 'lucide-react/icons/external-link';
+import Info from 'lucide-react/icons/info';
+import Power from 'lucide-react/icons/power';
+import PowerOff from 'lucide-react/icons/power-off';
+import Server from 'lucide-react/icons/server';
+import Settings from 'lucide-react/icons/settings';
+import Shield from 'lucide-react/icons/shield';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Administrasi', href: '/admin/dashboard' },

@@ -11,15 +11,13 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Head } from '@inertiajs/react';
-import {
-    AlertCircle,
-    CheckCircle2,
-    ChevronDown,
-    Download,
-    Eye,
-    Loader2,
-    Search,
-} from 'lucide-react';
+import AlertCircle from 'lucide-react/icons/alert-circle';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import ChevronDown from 'lucide-react/icons/chevron-down';
+import Download from 'lucide-react/icons/download';
+import Eye from 'lucide-react/icons/eye';
+import Loader2 from 'lucide-react/icons/loader2';
+import Search from 'lucide-react/icons/search';
 import { useEffect, useMemo, useState } from 'react';
 
 interface OptionItem {

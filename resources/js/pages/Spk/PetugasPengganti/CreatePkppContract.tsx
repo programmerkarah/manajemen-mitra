@@ -11,7 +11,9 @@ import {
     previewFileFromPost,
 } from '@/utils/downloadUtils';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, CheckCircle2, FileText } from 'lucide-react';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import FileText from 'lucide-react/icons/file-text';
 import { useState } from 'react';
 
 interface ReplacementSummary {

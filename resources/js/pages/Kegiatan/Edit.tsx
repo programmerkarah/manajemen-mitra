@@ -30,7 +30,10 @@ import {
     importFrameSampelPreview,
 } from '@/utils/frameSampelExcel';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { ArrowLeft, Loader2, Save, X } from 'lucide-react';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import Loader2 from 'lucide-react/icons/loader2';
+import Save from 'lucide-react/icons/save';
+import X from 'lucide-react/icons/x';
 import { useEffect, useMemo, useState } from 'react';
 
 const BULAN_OPTIONS = [

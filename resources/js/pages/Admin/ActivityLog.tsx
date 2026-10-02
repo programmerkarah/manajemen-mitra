@@ -6,22 +6,20 @@ import { cn } from '@/lib/utils';
 import { BreadcrumbItem } from '@/types';
 import { decryptData, encryptFilters } from '@/utils/encryption';
 import { Head, router, usePage } from '@inertiajs/react';
-import {
-    Activity,
-    AlertCircle,
-    AlertTriangle,
-    Calendar,
-    CheckCircle2,
-    ChevronDown,
-    ChevronUp,
-    Clock,
-    Download,
-    Eye,
-    Info,
-    RefreshCw,
-    Search,
-    User as UserIcon,
-} from 'lucide-react';
+import Activity from 'lucide-react/icons/activity';
+import AlertCircle from 'lucide-react/icons/alert-circle';
+import AlertTriangle from 'lucide-react/icons/alert-triangle';
+import Calendar from 'lucide-react/icons/calendar';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import ChevronDown from 'lucide-react/icons/chevron-down';
+import ChevronUp from 'lucide-react/icons/chevron-up';
+import Clock from 'lucide-react/icons/clock';
+import Download from 'lucide-react/icons/download';
+import Eye from 'lucide-react/icons/eye';
+import Info from 'lucide-react/icons/info';
+import RefreshCw from 'lucide-react/icons/refresh-cw';
+import Search from 'lucide-react/icons/search';
+import UserIcon from 'lucide-react/icons/user';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';

@@ -8,7 +8,10 @@ import {
 } from '@/components/ui/card';
 import { regenerateRecoveryCodes } from '@/routes/two-factor';
 import { Form } from '@inertiajs/react';
-import { Eye, EyeOff, LockKeyhole, RefreshCw } from 'lucide-react';
+import Eye from 'lucide-react/icons/eye';
+import EyeOff from 'lucide-react/icons/eye-off';
+import LockKeyhole from 'lucide-react/icons/lock-keyhole';
+import RefreshCw from 'lucide-react/icons/refresh-cw';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import AlertError from './alert-error';
 

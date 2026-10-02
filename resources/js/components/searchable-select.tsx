@@ -1,6 +1,7 @@
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Search, X } from 'lucide-react';
+import Search from 'lucide-react/icons/search';
+import X from 'lucide-react/icons/x';
 import * as React from 'react';
 import { createPortal } from 'react-dom';
 

@@ -30,22 +30,20 @@ import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, Kegiatan, SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import {
-    AlertCircle,
-    ChevronLeft,
-    ChevronRight,
-    Copy,
-    Edit2,
-    Eye,
-    MoreVertical,
-    Plus,
-    RefreshCw,
-    RotateCcw,
-    Search,
-    Send,
-    Users,
-    X,
-} from 'lucide-react';
+import AlertCircle from 'lucide-react/icons/alert-circle';
+import ChevronLeft from 'lucide-react/icons/chevron-left';
+import ChevronRight from 'lucide-react/icons/chevron-right';
+import Copy from 'lucide-react/icons/copy';
+import Edit2 from 'lucide-react/icons/edit2';
+import Eye from 'lucide-react/icons/eye';
+import MoreVertical from 'lucide-react/icons/more-vertical';
+import Plus from 'lucide-react/icons/plus';
+import RefreshCw from 'lucide-react/icons/refresh-cw';
+import RotateCcw from 'lucide-react/icons/rotate-ccw';
+import Search from 'lucide-react/icons/search';
+import Send from 'lucide-react/icons/send';
+import Users from 'lucide-react/icons/users';
+import X from 'lucide-react/icons/x';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 interface AlokasiPeriod {

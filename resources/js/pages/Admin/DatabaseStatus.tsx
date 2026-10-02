@@ -8,7 +8,10 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
-import { AlertTriangle, CircleAlert, Database, Download } from 'lucide-react';
+import AlertTriangle from 'lucide-react/icons/alert-triangle';
+import CircleAlert from 'lucide-react/icons/circle-alert';
+import Database from 'lucide-react/icons/database';
+import Download from 'lucide-react/icons/download';
 import React from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [

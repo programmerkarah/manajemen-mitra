@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { CalendarIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import CalendarIcon from 'lucide-react/icons/calendar-icon';
+import ChevronLeft from 'lucide-react/icons/chevron-left';
+import ChevronRight from 'lucide-react/icons/chevron-right';
+import X from 'lucide-react/icons/x';
 
 import { cn } from '@/lib/utils';
 import {

@@ -24,28 +24,26 @@ import AppLayout from '@/layouts/app-layout';
 import { KECAMATAN_LIST, getDesaByKecamatan } from '@/lib/wilayah-data';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import {
-    AlertTriangle,
-    CheckCircle2,
-    ChevronDown,
-    ChevronLeft,
-    ChevronRight,
-    ChevronUp,
-    CreditCard,
-    Download,
-    Eye,
-    FileUp,
-    GraduationCap,
-    Mail,
-    Pencil,
-    PencilLine,
-    Phone,
-    Plus,
-    RefreshCw,
-    Search,
-    User as UserIcon,
-    X,
-} from 'lucide-react';
+import AlertTriangle from 'lucide-react/icons/alert-triangle';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import ChevronDown from 'lucide-react/icons/chevron-down';
+import ChevronLeft from 'lucide-react/icons/chevron-left';
+import ChevronRight from 'lucide-react/icons/chevron-right';
+import ChevronUp from 'lucide-react/icons/chevron-up';
+import CreditCard from 'lucide-react/icons/credit-card';
+import Download from 'lucide-react/icons/download';
+import Eye from 'lucide-react/icons/eye';
+import FileUp from 'lucide-react/icons/file-up';
+import GraduationCap from 'lucide-react/icons/graduation-cap';
+import Mail from 'lucide-react/icons/mail';
+import Pencil from 'lucide-react/icons/pencil';
+import PencilLine from 'lucide-react/icons/pencil-line';
+import Phone from 'lucide-react/icons/phone';
+import Plus from 'lucide-react/icons/plus';
+import RefreshCw from 'lucide-react/icons/refresh-cw';
+import Search from 'lucide-react/icons/search';
+import UserIcon from 'lucide-react/icons/user';
+import X from 'lucide-react/icons/x';
 import { useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Mitra', href: '/petugas' }];

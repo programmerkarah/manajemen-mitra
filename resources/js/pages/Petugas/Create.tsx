@@ -18,7 +18,11 @@ import AppLayout from '@/layouts/app-layout';
 import { KECAMATAN_LIST, getDesaByKecamatan } from '@/lib/wilayah-data';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { AlertCircle, ArrowLeft, Loader2, Save, X } from 'lucide-react';
+import AlertCircle from 'lucide-react/icons/alert-circle';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import Loader2 from 'lucide-react/icons/loader2';
+import Save from 'lucide-react/icons/save';
+import X from 'lucide-react/icons/x';
 import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [

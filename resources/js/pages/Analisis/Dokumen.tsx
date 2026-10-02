@@ -1,15 +1,13 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import {
-    AlertTriangle,
-    CheckCircle2,
-    Clock,
-    Download,
-    FileCheck2,
-    FileText,
-    XCircle,
-} from 'lucide-react';
+import AlertTriangle from 'lucide-react/icons/alert-triangle';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import Clock from 'lucide-react/icons/clock';
+import Download from 'lucide-react/icons/download';
+import FileCheck2 from 'lucide-react/icons/file-check2';
+import FileText from 'lucide-react/icons/file-text';
+import XCircle from 'lucide-react/icons/x-circle';
 import { useState } from 'react';
 import {
     Bar,

@@ -4,7 +4,12 @@ import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import { AlertCircle, Check, Copy, Download, Users, X } from 'lucide-react';
+import AlertCircle from 'lucide-react/icons/alert-circle';
+import Check from 'lucide-react/icons/check';
+import Copy from 'lucide-react/icons/copy';
+import Download from 'lucide-react/icons/download';
+import Users from 'lucide-react/icons/users';
+import X from 'lucide-react/icons/x';
 import { useMemo, useState } from 'react';
 import {
     CartesianGrid,

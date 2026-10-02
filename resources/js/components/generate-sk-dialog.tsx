@@ -17,7 +17,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { FileText } from 'lucide-react';
+import FileText from 'lucide-react/icons/file-text';
 import { useState } from 'react';
 
 interface DasarHukum {

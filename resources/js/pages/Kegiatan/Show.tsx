@@ -10,7 +10,9 @@ import type {
     Satuan,
 } from '@/types';
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Pencil, Settings } from 'lucide-react';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import Pencil from 'lucide-react/icons/pencil';
+import Settings from 'lucide-react/icons/settings';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Kegiatan', href: '/kegiatan' },

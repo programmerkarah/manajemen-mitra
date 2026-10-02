@@ -15,17 +15,15 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import {
-    ArrowLeft,
-    BookOpen,
-    ChevronRight,
-    Eye,
-    GitMerge,
-    Loader2,
-    Save,
-    Search,
-    X,
-} from 'lucide-react';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import BookOpen from 'lucide-react/icons/book-open';
+import ChevronRight from 'lucide-react/icons/chevron-right';
+import Eye from 'lucide-react/icons/eye';
+import GitMerge from 'lucide-react/icons/git-merge';
+import Loader2 from 'lucide-react/icons/loader2';
+import Save from 'lucide-react/icons/save';
+import Search from 'lucide-react/icons/search';
+import X from 'lucide-react/icons/x';
 import { FormEventHandler, useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [

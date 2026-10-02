@@ -22,19 +22,17 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import {
-    AlertTriangle,
-    ArrowLeft,
-    Check,
-    ChevronLeft,
-    ChevronRight,
-    Download,
-    FileUp,
-    Info,
-    Loader2,
-    Send,
-    Upload,
-} from 'lucide-react';
+import AlertTriangle from 'lucide-react/icons/alert-triangle';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import Check from 'lucide-react/icons/check';
+import ChevronLeft from 'lucide-react/icons/chevron-left';
+import ChevronRight from 'lucide-react/icons/chevron-right';
+import Download from 'lucide-react/icons/download';
+import FileUp from 'lucide-react/icons/file-up';
+import Info from 'lucide-react/icons/info';
+import Loader2 from 'lucide-react/icons/loader2';
+import Send from 'lucide-react/icons/send';
+import Upload from 'lucide-react/icons/upload';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [

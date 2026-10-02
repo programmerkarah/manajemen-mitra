@@ -6,13 +6,11 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type Kegiatan } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import {
-    ArrowLeft,
-    ChevronLeft,
-    ChevronRight,
-    Search,
-    Trash2,
-} from 'lucide-react';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import ChevronLeft from 'lucide-react/icons/chevron-left';
+import ChevronRight from 'lucide-react/icons/chevron-right';
+import Search from 'lucide-react/icons/search';
+import Trash2 from 'lucide-react/icons/trash2';
 import { useMemo, useState } from 'react';
 
 interface KegiatanFrameSampel {

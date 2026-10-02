@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, FileText, Plus } from 'lucide-react';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import FileText from 'lucide-react/icons/file-text';
+import Plus from 'lucide-react/icons/plus';
 
 interface ReplacementItem {
     id: number;
