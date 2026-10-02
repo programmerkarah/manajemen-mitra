@@ -122,7 +122,7 @@ export default function Register({
                                     {ssoRegisterUrl ? (
                                         <a
                                             href={ssoRegisterUrl}
-                                            className="flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 text-base font-semibold text-white  transition hover:bg-blue-700"
+                                            className="flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 text-base font-semibold text-white transition hover:bg-blue-700"
                                         >
                                             Lanjutkan Daftar via SSO
                                         </a>
@@ -301,7 +301,7 @@ export default function Register({
 
                                     <Button
                                         type="submit"
-                                        className="h-11 w-full rounded-lg bg-blue-600 text-base font-semibold  hover:bg-blue-700"
+                                        className="h-11 w-full rounded-lg bg-blue-600 text-base font-semibold hover:bg-blue-700"
                                         disabled={registerForm.processing}
                                     >
                                         {registerForm.processing && <Spinner />}

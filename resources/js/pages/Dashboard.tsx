@@ -516,7 +516,7 @@ export default function Dashboard({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
             <div className="flex flex-1 flex-col gap-7 overflow-x-hidden pb-8">
-                <div className="border-b border-neutral-200 bg-white px-1 pb-6 pt-1 dark:border-neutral-800 dark:bg-transparent">
+                <div className="border-b border-neutral-200 bg-white px-1 pt-1 pb-6 dark:border-neutral-800 dark:bg-transparent">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div className="min-w-0">
                             <h1 className="text-2xl font-semibold tracking-[-0.025em] break-words text-neutral-900 dark:text-white">
