@@ -81,8 +81,7 @@ export default function Index({ frames, units }: Props) {
             icon: Layers3,
             items: frames,
             storeUrl: '/master-sampel/frame',
-            updateUrl: (hashedId: string) =>
-                `/master-sampel/frame/${hashedId}`,
+            updateUrl: (hashedId: string) => `/master-sampel/frame/${hashedId}`,
             destroyUrl: (hashedId: string) =>
                 `/master-sampel/frame/${hashedId}`,
         },
@@ -93,10 +92,8 @@ export default function Index({ frames, units }: Props) {
             icon: Boxes,
             items: units,
             storeUrl: '/master-sampel/unit',
-            updateUrl: (hashedId: string) =>
-                `/master-sampel/unit/${hashedId}`,
-            destroyUrl: (hashedId: string) =>
-                `/master-sampel/unit/${hashedId}`,
+            updateUrl: (hashedId: string) => `/master-sampel/unit/${hashedId}`,
+            destroyUrl: (hashedId: string) => `/master-sampel/unit/${hashedId}`,
         },
     } satisfies Record<
         MasterType,
@@ -255,14 +252,17 @@ export default function Index({ frames, units }: Props) {
                                         </p>
                                     </div>
                                 </div>
-                                <Badge variant={selected ? 'default' : 'secondary'}>
+                                <Badge
+                                    variant={selected ? 'default' : 'secondary'}
+                                >
                                     {item.items.length}
                                 </Badge>
                             </div>
                             <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
                                 <span>{itemActiveCount} aktif</span>
                                 <span>
-                                    {item.items.length - itemActiveCount} nonaktif
+                                    {item.items.length - itemActiveCount}{' '}
+                                    nonaktif
                                 </span>
                             </div>
                         </button>
@@ -409,7 +409,8 @@ export default function Index({ frames, units }: Props) {
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="space-y-2 sm:col-span-2">
                                 <Label htmlFor="nama">
-                                    Nama <span className="text-destructive">*</span>
+                                    Nama{' '}
+                                    <span className="text-destructive">*</span>
                                 </Label>
                                 <Input
                                     id="nama"
@@ -425,7 +426,8 @@ export default function Index({ frames, units }: Props) {
 
                             <div className="space-y-2">
                                 <Label htmlFor="kode">
-                                    Kode <span className="text-destructive">*</span>
+                                    Kode{' '}
+                                    <span className="text-destructive">*</span>
                                 </Label>
                                 <Input
                                     id="kode"
@@ -446,7 +448,8 @@ export default function Index({ frames, units }: Props) {
                                             Status aktif
                                         </Label>
                                         <p className="mt-0.5 text-xs text-muted-foreground">
-                                            Tampilkan sebagai pilihan pada kegiatan.
+                                            Tampilkan sebagai pilihan pada
+                                            kegiatan.
                                         </p>
                                     </div>
                                     <Switch

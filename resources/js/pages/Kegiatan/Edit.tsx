@@ -375,9 +375,7 @@ export default function Edit({
     masterUnitSampel,
     kegiatanFrameSampel,
 }: KegiatanEditProps) {
-    const page = usePage<
-        SharedData & { errors?: Record<string, string> }
-    >();
+    const page = usePage<SharedData & { errors?: Record<string, string> }>();
     const { auth, errors: pageErrors } = page.props;
     const errors = pageErrors ?? {};
     const isKetuaTim = auth.activeRole?.name === 'ketua_tim';

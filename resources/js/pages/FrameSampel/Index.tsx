@@ -176,7 +176,8 @@ export default function FrameSampelIndex({ kegiatans }: Props) {
                             <div className="divide-y divide-neutral-200 dark:divide-neutral-800">
                                 {paginated.map((kegiatan) => {
                                     const configured =
-                                        kegiatan.kegiatan_frame_sampel_count > 0;
+                                        kegiatan.kegiatan_frame_sampel_count >
+                                        0;
 
                                     return (
                                         <div
