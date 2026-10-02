@@ -1,5 +1,4 @@
 import AppLogo from '@/components/app-logo';
-import AppLogoIcon from '@/components/app-logo-icon';
 import { FlashMessage } from '@/components/flash-message';
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
