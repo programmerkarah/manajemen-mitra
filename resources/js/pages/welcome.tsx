@@ -1,5 +1,6 @@
 import AppLogo from '@/components/app-logo';
 import AppLogoIcon from '@/components/app-logo-icon';
+import { ThemeToggleButton } from '@/components/theme-toggle-button';
 import { dashboard, login, register } from '@/routes';
 import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
@@ -34,7 +35,7 @@ export default function Welcome({
                             {auth.user ? (
                                 <Link
                                     href={dashboard()}
-                                    className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm shadow-blue-600/20 transition-all hover:-translate-y-px hover:bg-blue-700 hover:shadow-md"
+                                    className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm shadow-blue-600/20 transition-all hover:-translate-y-px hover:bg-primary/90 hover:shadow-md"
                                 >
                                     Buka Dashboard
                                     <ArrowRight className="size-4" />
@@ -43,20 +44,22 @@ export default function Welcome({
                                 <>
                                     <Link
                                         href={login()}
-                                        className="inline-flex h-11 items-center rounded-xl px-4 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white"
+                                        className="inline-flex h-11 items-center rounded-xl px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground   dark:hover:text-primary-foreground"
                                     >
                                         Masuk
                                     </Link>
                                     {canRegister && (
                                         <Link
                                             href={register()}
-                                            className="hidden h-11 items-center rounded-xl border border-border bg-card px-4 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 sm:inline-flex"
+                                            className="hidden h-11 items-center rounded-xl border border-border bg-card px-4 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted sm:inline-flex"
                                         >
                                             Daftar
                                         </Link>
                                     )}
                                 </>
                             )}
+                            <span className="hidden h-5 w-px bg-border sm:block" aria-hidden="true" />
+                            <ThemeToggleButton />
                         </nav>
                     </div>
                 </header>
@@ -82,7 +85,7 @@ export default function Welcome({
                             <div className="mt-9 flex flex-wrap items-center gap-3">
                                 <Link
                                     href={auth.user ? dashboard() : login()}
-                                    className="inline-flex h-12 items-center gap-2 rounded-xl bg-blue-600 px-6 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition-all hover:-translate-y-px hover:bg-blue-700 hover:shadow-lg"
+                                    className="inline-flex h-12 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-md shadow-blue-600/20 transition-all hover:-translate-y-px hover:bg-primary/90 hover:shadow-lg"
                                 >
                                     {auth.user
                                         ? 'Buka Dashboard'
@@ -93,7 +96,7 @@ export default function Welcome({
                                 {!auth.user && canRegister && (
                                     <Link
                                         href={register()}
-                                        className="inline-flex h-12 items-center rounded-xl border border-border bg-card px-6 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+                                        className="inline-flex h-12 items-center rounded-xl border border-border bg-card px-6 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-muted"
                                     >
                                         Buat akun
                                     </Link>
@@ -215,7 +218,7 @@ export default function Welcome({
                                                 key={no}
                                                 className="flex items-center gap-3"
                                             >
-                                                <span className="flex size-8 items-center justify-center rounded-full bg-slate-900 text-[11px] font-semibold text-white dark:bg-white dark:text-slate-950">
+                                                <span className="flex size-8 items-center justify-center rounded-full bg-slate-900 text-[11px] font-semibold text-primary-foreground dark:bg-white dark:text-slate-950">
                                                     {no}
                                                 </span>
                                                 <span className="text-sm font-medium text-muted-foreground">
@@ -231,7 +234,7 @@ export default function Welcome({
                 </main>
 
                 <footer className="border-t border-border bg-card/80 py-5">
-                    <div className="mx-auto flex max-w-[1480px] flex-col gap-1 px-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-10">
+                    <div className="mx-auto flex max-w-[1480px] flex-col gap-1 px-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-10">
                         <span>
                             © {new Date().getFullYear()} Badan Pusat Statistik
                             Kota Sawahlunto
