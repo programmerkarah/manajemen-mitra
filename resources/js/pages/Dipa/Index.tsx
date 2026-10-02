@@ -106,7 +106,7 @@ export default function Index({ dipaList, tahunOptions }: DipaIndexProps) {
 
         // Filter by status
         if (status) {
-            const isActive = status === 'active';
+            const isActive = status === 'aktif';
             result = result.filter((item: Dipa) => item.is_active === isActive);
         }
 
@@ -240,6 +240,16 @@ export default function Index({ dipaList, tahunOptions }: DipaIndexProps) {
         });
     };
 
+    const summary = useMemo(
+        () => ({
+            total: allDipa.length,
+            active: allDipa.filter((item) => item.is_active).length,
+            inactive: allDipa.filter((item) => !item.is_active).length,
+            years: new Set(allDipa.map((item) => item.tahun)).size,
+        }),
+        [allDipa],
+    );
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="DIPA" />
@@ -259,9 +269,42 @@ export default function Index({ dipaList, tahunOptions }: DipaIndexProps) {
                     )}
                 </PageHeader>
 
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <ContentCard>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Total dokumen
+                        </p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.total}</p>
+                    </ContentCard>
+                    <ContentCard>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            DIPA aktif
+                        </p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.active}</p>
+                    </ContentCard>
+                    <ContentCard>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Nonaktif
+                        </p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.inactive}</p>
+                    </ContentCard>
+                    <ContentCard>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Tahun tercakup
+                        </p>
+                        <p className="mt-1 text-2xl font-semibold">{summary.years}</p>
+                    </ContentCard>
+                </div>
+
                 <ContentCard>
+                    <div className="mb-4">
+                        <h2 className="font-semibold">Cari & Filter DIPA</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Temukan dokumen berdasarkan nomor, tahun anggaran, atau status aktif.
+                        </p>
+                    </div>
                     {/* Search and Filter */}
-                    <div className="mb-6 flex flex-col gap-4 sm:flex-row">
+                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_160px_160px_auto]">
                         <div className="flex-1">
                             <div className="relative">
                                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -281,7 +324,7 @@ export default function Index({ dipaList, tahunOptions }: DipaIndexProps) {
                                 setTahun(value === 'all' ? '' : value)
                             }
                         >
-                            <SelectTrigger className="h-10 w-full sm:w-[150px]">
+                            <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Semua Tahun" />
                             </SelectTrigger>
                             <SelectContent>
@@ -303,7 +346,7 @@ export default function Index({ dipaList, tahunOptions }: DipaIndexProps) {
                                 setStatus(value === 'all' ? '' : value)
                             }
                         >
-                            <SelectTrigger className="h-10 w-full sm:w-[150px]">
+                            <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Semua Status" />
                             </SelectTrigger>
                             <SelectContent>
@@ -320,15 +363,14 @@ export default function Index({ dipaList, tahunOptions }: DipaIndexProps) {
                         <Button
                             onClick={handleReset}
                             variant="outline"
-                            className="h-10"
+                            className="w-full"
                         >
                             <X className="mr-2 h-4 w-4" />
                             Reset
                         </Button>
                     </div>
 
-                    {/* Table */}
-                    <div className="mb-4 flex items-center justify-between">
+                    <div className="mt-4 flex items-center justify-between border-t border-neutral-200 pt-4 dark:border-neutral-800">
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">
                             Menampilkan {(currentPage - 1) * perPage + 1}-
                             {Math.min(
@@ -352,7 +394,7 @@ export default function Index({ dipaList, tahunOptions }: DipaIndexProps) {
                             Refresh
                         </Button>
                     </div>
-                    <div className="overflow-x-auto">
+                    <div className="mt-3 overflow-x-auto rounded-2xl border border-neutral-200 dark:border-neutral-800">
                         <table className="w-full">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-900/50">
                                 <tr>
