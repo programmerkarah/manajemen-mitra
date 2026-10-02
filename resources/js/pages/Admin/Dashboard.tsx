@@ -112,67 +112,67 @@ export default function AdminDashboard() {
                 )}
 
                 {/* Statistics Cards */}
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                    <ContentCard className="transition-shadow hover:shadow-md">
+                <div className="summary-grid">
+                    <ContentCard padding="sm" density="compact" className="min-w-0">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                <p className="summary-card__label">
                                     Total Users
                                 </p>
-                                <p className="mt-1 text-3xl font-bold text-neutral-900 dark:text-white">
+                                <p className="summary-card__value">
                                     {stats.totalUsers}
                                 </p>
                             </div>
-                            <div className="rounded-full bg-blue-100 p-3 dark:bg-blue-900/30">
-                                <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                            <div className="hidden size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--pastel-blue)]/35 sm:flex">
+                                <Users className="size-4 text-foreground sm:size-5" />
                             </div>
                         </div>
                     </ContentCard>
 
-                    <ContentCard className="transition-shadow hover:shadow-md">
+                    <ContentCard padding="sm" density="compact" className="min-w-0">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                <p className="summary-card__label">
                                     Total Mitra
                                 </p>
-                                <p className="mt-1 text-3xl font-bold text-neutral-900 dark:text-white">
+                                <p className="summary-card__value">
                                     {stats.totalMitra}
                                 </p>
                             </div>
-                            <div className="rounded-full bg-green-100 p-3 dark:bg-green-900/30">
-                                <UserCheck className="h-6 w-6 text-green-600 dark:text-green-400" />
+                            <div className="hidden size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--pastel-green)]/35 sm:flex">
+                                <UserCheck className="size-4 text-foreground sm:size-5" />
                             </div>
                         </div>
                     </ContentCard>
 
-                    <ContentCard className="transition-shadow hover:shadow-md">
+                    <ContentCard padding="sm" density="compact" className="min-w-0">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                <p className="summary-card__label">
                                     Kegiatan Aktif
                                 </p>
-                                <p className="mt-1 text-3xl font-bold text-neutral-900 dark:text-white">
+                                <p className="summary-card__value">
                                     {stats.totalKegiatan}
                                 </p>
                             </div>
-                            <div className="rounded-full bg-purple-100 p-3 dark:bg-purple-900/30">
-                                <FolderKanban className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                            <div className="hidden size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--pastel-blue)]/35 sm:flex">
+                                <FolderKanban className="size-4 text-foreground sm:size-5" />
                             </div>
                         </div>
                     </ContentCard>
 
-                    <ContentCard className="transition-shadow hover:shadow-md">
+                    <ContentCard padding="sm" density="compact" className="min-w-0">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                <p className="summary-card__label">
                                     Ukuran Database
                                 </p>
-                                <p className="mt-1 text-3xl font-bold text-neutral-900 dark:text-white">
+                                <p className="summary-card__value">
                                     {stats.dbSize} MB
                                 </p>
                             </div>
-                            <div className="rounded-full bg-orange-100 p-3 dark:bg-orange-900/30">
-                                <HardDrive className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                            <div className="hidden size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--pastel-orange)]/35 sm:flex">
+                                <HardDrive className="size-4 text-foreground sm:size-5" />
                             </div>
                         </div>
                     </ContentCard>
@@ -197,7 +197,7 @@ export default function AdminDashboard() {
                                         <p className="font-medium text-neutral-900 dark:text-white">
                                             Activity Log
                                         </p>
-                                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        <p className="summary-card__label">
                                             Monitor aktivitas sistem
                                         </p>
                                     </div>
@@ -217,7 +217,7 @@ export default function AdminDashboard() {
                                         <p className="font-medium text-neutral-900 dark:text-white">
                                             Database Management
                                         </p>
-                                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        <p className="summary-card__label">
                                             Backup & restore database
                                         </p>
                                     </div>
@@ -237,7 +237,7 @@ export default function AdminDashboard() {
                                         <p className="font-medium text-neutral-900 dark:text-white">
                                             Deadline & Bypass
                                         </p>
-                                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        <p className="summary-card__label">
                                             Atur batas waktu dan request bypass
                                         </p>
                                     </div>
@@ -257,7 +257,7 @@ export default function AdminDashboard() {
                                         <p className="font-medium text-neutral-900 dark:text-white">
                                             System Settings
                                         </p>
-                                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        <p className="summary-card__label">
                                             Konfigurasi sistem
                                         </p>
                                     </div>
@@ -278,7 +278,7 @@ export default function AdminDashboard() {
                             {lastBackup ? (
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        <span className="summary-card__label">
                                             Nama File:
                                         </span>
                                         <span
@@ -289,7 +289,7 @@ export default function AdminDashboard() {
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between">
-                                        <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        <span className="summary-card__label">
                                             Ukuran:
                                         </span>
                                         <span className="text-sm font-medium text-neutral-900 dark:text-white">
@@ -297,7 +297,7 @@ export default function AdminDashboard() {
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between">
-                                        <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                                        <span className="summary-card__label">
                                             Dibuat:
                                         </span>
                                         <span className="text-sm font-medium text-neutral-900 dark:text-white">
@@ -308,7 +308,7 @@ export default function AdminDashboard() {
                             ) : (
                                 <div className="py-4 text-center">
                                     <Clock className="mx-auto mb-2 h-8 w-8 text-neutral-400" />
-                                    <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                                    <p className="summary-card__label">
                                         Belum ada backup
                                     </p>
                                 </div>
