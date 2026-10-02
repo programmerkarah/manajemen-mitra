@@ -82,9 +82,9 @@ export default function Register({
     return (
         <>
             <Head title="Daftar" />
-            <div className="flex min-h-screen flex-col bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-blue-950">
+            <div className="flex min-h-screen flex-col bg-[#f7f9fc] dark:bg-slate-950">
                 {/* Header */}
-                <header className="border-b border-neutral-200/50 backdrop-blur-sm dark:border-neutral-800">
+                <header className="border-b border-slate-200/70 bg-white/75 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
                     <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
                         <Link href="/" className="flex items-center gap-3">
                             <AppLogo />
@@ -100,14 +100,14 @@ export default function Register({
 
                 {/* Main Content */}
                 <main className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-                    <div className="w-full max-w-md">
-                        <div className="rounded-2xl border border-neutral-200/70 bg-white p-8 shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="w-full max-w-lg">
+                        <div className="rounded-[2rem] border border-slate-200/80 bg-white p-7 shadow-xl shadow-slate-900/5 sm:p-9 dark:border-white/10 dark:bg-white/[0.04]">
                             {/* Icon & Title */}
                             <div className="mb-8 text-center">
-                                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
-                                    <UserPlus className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                                <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
+                                    <UserPlus className="h-6 w-6 text-white" />
                                 </div>
-                                <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">
+                                <h2 className="text-3xl font-bold tracking-[-0.03em] text-slate-950 dark:text-white">
                                     Daftar Akun
                                 </h2>
                                 <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
@@ -122,7 +122,7 @@ export default function Register({
                                     {ssoRegisterUrl ? (
                                         <a
                                             href={ssoRegisterUrl}
-                                            className="flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-base font-medium text-white transition hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                            className="flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 text-base font-semibold text-white shadow-lg shadow-blue-600/15 transition hover:bg-blue-700"
                                         >
                                             Lanjutkan Daftar via SSO
                                         </a>
@@ -163,7 +163,7 @@ export default function Register({
                                             autoFocus
                                             autoComplete="name"
                                             placeholder="Masukkan nama lengkap"
-                                            className="h-11"
+                                            className="h-12 rounded-xl bg-white dark:bg-white\/5"
                                             value={registerForm.data.name}
                                             onChange={(event) =>
                                                 registerForm.setData(
@@ -191,7 +191,7 @@ export default function Register({
                                             required
                                             autoComplete="username"
                                             placeholder="Masukkan username"
-                                            className="h-11"
+                                            className="h-12 rounded-xl bg-white dark:bg-white\/5"
                                             value={registerForm.data.username}
                                             onChange={(event) =>
                                                 registerForm.setData(
@@ -221,7 +221,7 @@ export default function Register({
                                             required
                                             autoComplete="email"
                                             placeholder="Masukkan email"
-                                            className="h-11"
+                                            className="h-12 rounded-xl bg-white dark:bg-white\/5"
                                             value={registerForm.data.email}
                                             onChange={(event) =>
                                                 registerForm.setData(
@@ -249,7 +249,7 @@ export default function Register({
                                             required
                                             autoComplete="new-password"
                                             placeholder="Minimal 8 karakter"
-                                            className="h-11"
+                                            className="h-12 rounded-xl bg-white dark:bg-white\/5"
                                             value={registerForm.data.password}
                                             onChange={(event) =>
                                                 registerForm.setData(
@@ -279,7 +279,7 @@ export default function Register({
                                             required
                                             autoComplete="new-password"
                                             placeholder="Ulangi password"
-                                            className="h-11"
+                                            className="h-12 rounded-xl bg-white dark:bg-white\/5"
                                             value={
                                                 registerForm.data
                                                     .password_confirmation
@@ -301,7 +301,7 @@ export default function Register({
 
                                     <Button
                                         type="submit"
-                                        className="h-11 w-full bg-blue-600 text-base font-medium hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                        className="h-12 w-full rounded-xl bg-blue-600 text-base font-semibold shadow-lg shadow-blue-600/15 hover:bg-blue-700"
                                         disabled={registerForm.processing}
                                     >
                                         {registerForm.processing && <Spinner />}
