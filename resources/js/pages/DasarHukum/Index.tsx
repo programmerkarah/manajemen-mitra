@@ -249,7 +249,7 @@ export default function Index({ dasarHukum }: Props) {
                     </div>
                 )}
 
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="summary-grid">
                     <ContentCard>
                         <div className="flex items-center justify-between">
                             <div>
