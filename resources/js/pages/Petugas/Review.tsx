@@ -37,6 +37,11 @@ interface ReviewRow {
     periode_alokasi_id: number;
     periode_tahun: number;
     periode_bulan: number;
+    periode_mulai_tahun: number;
+    periode_mulai_bulan: number;
+    periode_selesai_tahun: number;
+    periode_selesai_bulan: number;
+    periode_bulan_terlibat: string[];
     tanggal_selesai: string | null;
     can_review_now: boolean;
     user_can_submit: boolean;
@@ -59,6 +64,43 @@ interface ReviewProps {
     petugas_options: PetugasOption[];
     active_year: number;
     can_submit_review: boolean;
+}
+
+const MONTH_NAMES = [
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember',
+];
+
+function formatEpisodePeriod(row: ReviewRow): string {
+    const startMonth =
+        MONTH_NAMES[Math.max(0, Number(row.periode_mulai_bulan) - 1)] ??
+        String(row.periode_mulai_bulan);
+    const endMonth =
+        MONTH_NAMES[Math.max(0, Number(row.periode_selesai_bulan) - 1)] ??
+        String(row.periode_selesai_bulan);
+
+    if (
+        row.periode_mulai_bulan === row.periode_selesai_bulan &&
+        row.periode_mulai_tahun === row.periode_selesai_tahun
+    ) {
+        return `${startMonth} ${row.periode_mulai_tahun}`;
+    }
+
+    if (row.periode_mulai_tahun === row.periode_selesai_tahun) {
+        return `${startMonth}–${endMonth} ${row.periode_mulai_tahun}`;
+    }
+
+    return `${startMonth} ${row.periode_mulai_tahun}–${endMonth} ${row.periode_selesai_tahun}`;
 }
 
 function peranLabel(peran: string): string {
@@ -453,12 +495,10 @@ export default function Review({
                                                         </Badge>
                                                     </div>
                                                     <p className="mt-1 text-sm text-muted-foreground">
-                                                        {peranLabel(row.peran)}{' '}
-                                                        ·{' '}
-                                                        {String(
-                                                            row.periode_bulan,
-                                                        ).padStart(2, '0')}
-                                                        /{row.periode_tahun}
+                                                        {peranLabel(row.peran)} · Periode penugasan{' '}
+                                                        <span className="font-medium text-foreground">
+                                                            {formatEpisodePeriod(row)}
+                                                        </span>
                                                     </p>
                                                 </div>
                                                 <div className="flex flex-wrap gap-2">
