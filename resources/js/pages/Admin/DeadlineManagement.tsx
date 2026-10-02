@@ -958,8 +958,7 @@ export default function DeadlineManagement() {
                     items: entry.items.sort((left, right) => {
                         if (left.is_active !== right.is_active) {
                             return (
-                                Number(right.is_active) -
-                                Number(left.is_active)
+                                Number(right.is_active) - Number(left.is_active)
                             );
                         }
 
@@ -969,8 +968,7 @@ export default function DeadlineManagement() {
                 };
             })
             .sort((left, right) => {
-                const leftPeriod =
-                    (left.year ?? 0) * 100 + (left.month ?? 0);
+                const leftPeriod = (left.year ?? 0) * 100 + (left.month ?? 0);
                 const rightPeriod =
                     (right.year ?? 0) * 100 + (right.month ?? 0);
 
@@ -1597,8 +1595,8 @@ export default function DeadlineManagement() {
                                             </Badge>
                                         </div>
                                         <p className="text-xs text-muted-foreground">
-                                            User yang sama pada periode yang sama
-                                            digabung, setiap request tetap
+                                            User yang sama pada periode yang
+                                            sama digabung, setiap request tetap
                                             dipisahkan di detail.
                                         </p>
                                     </div>
@@ -1729,8 +1727,7 @@ export default function DeadlineManagement() {
                                                                                 item,
                                                                             ) =>
                                                                                 item.is_active,
-                                                                        )
-                                                                            .length;
+                                                                        ).length;
                                                                     const requestLabel =
                                                                         requestGroup.requestId
                                                                             ? `Request #${requestGroup.requestId}`
