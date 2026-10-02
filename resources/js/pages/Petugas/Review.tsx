@@ -1,6 +1,5 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
-import { SearchableSelect } from '@/components/searchable-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,11 +10,19 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
-import { Star } from 'lucide-react';
+import {
+    CheckCircle2,
+    ClipboardCheck,
+    Clock3,
+    Search,
+    Star,
+    Users,
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 interface ReviewRow {
@@ -81,24 +88,13 @@ export default function Review({
     const [selectedPetugasId, setSelectedPetugasId] = useState<number | null>(
         null,
     );
+    const [search, setSearch] = useState('');
     const [savingKey, setSavingKey] = useState<string | null>(null);
-    const [modalAlert, setModalAlert] = useState<{
-        open: boolean;
-        title: string;
-        message: string;
-    }>({
+    const [modalAlert, setModalAlert] = useState({
         open: false,
         title: '',
         message: '',
     });
-
-    const showModalAlert = (title: string, message: string) => {
-        setModalAlert({
-            open: true,
-            title,
-            message,
-        });
-    };
 
     const initialDrafts = useMemo(() => {
         const map: Record<string, { rating: number; ulasan: string }> = {};
@@ -126,31 +122,52 @@ export default function Review({
         }
     }, [petugas_options, selectedPetugasId]);
 
-    const selectedRows = useMemo(() => {
-        if (!selectedPetugasId) {
-            return [];
-        }
+    const filteredOptions = useMemo(() => {
+        const query = search.trim().toLowerCase();
+        if (!query) return petugas_options;
 
-        return rows.filter((row) => row.petugas_id === selectedPetugasId);
-    }, [rows, selectedPetugasId]);
+        return petugas_options.filter((item) =>
+            item.petugas_nama.toLowerCase().includes(query),
+        );
+    }, [petugas_options, search]);
+
+    const selectedRows = useMemo(
+        () =>
+            selectedPetugasId
+                ? rows.filter((row) => row.petugas_id === selectedPetugasId)
+                : [],
+        [rows, selectedPetugasId],
+    );
+
+    const selectedOption = petugas_options.find(
+        (item) => item.petugas_id === selectedPetugasId,
+    );
+
+    const completedCount = rows.filter(
+        (row) => row.existing_review !== null,
+    ).length;
+    const readyCount = rows.filter(
+        (row) =>
+            row.existing_review === null &&
+            row.can_review_now &&
+            row.user_can_submit,
+    ).length;
+    const pendingCount = Math.max(
+        rows.length - completedCount - readyCount,
+        0,
+    );
 
     const setRating = (key: string, rating: number) => {
         setDrafts((prev) => ({
             ...prev,
-            [key]: {
-                ...prev[key],
-                rating,
-            },
+            [key]: { ...prev[key], rating },
         }));
     };
 
     const setUlasan = (key: string, ulasan: string) => {
         setDrafts((prev) => ({
             ...prev,
-            [key]: {
-                ...prev[key],
-                ulasan,
-            },
+            [key]: { ...prev[key], ulasan },
         }));
     };
 
@@ -159,15 +176,15 @@ export default function Review({
         const draft = drafts[key];
 
         if (!draft || draft.rating < 1 || draft.rating > 5) {
-            showModalAlert(
-                'Input Belum Valid',
-                'Nilai bintang wajib diisi antara 1 sampai 5.',
-            );
+            setModalAlert({
+                open: true,
+                title: 'Input Belum Valid',
+                message: 'Nilai bintang wajib diisi antara 1 sampai 5.',
+            });
             return;
         }
 
         setSavingKey(key);
-
         router.post(
             '/petugas/review',
             {
@@ -184,8 +201,6 @@ export default function Review({
         );
     };
 
-    const totalPetugas = petugas_options.length;
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Penilaian Mitra Statistik" />
@@ -199,9 +214,7 @@ export default function Review({
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>{modalAlert.title}</DialogTitle>
-                        <DialogDescription>
-                            {modalAlert.message}
-                        </DialogDescription>
+                        <DialogDescription>{modalAlert.message}</DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button
@@ -219,239 +232,370 @@ export default function Review({
                 </DialogContent>
             </Dialog>
 
-            <div className="space-y-6">
+            <div className="space-y-5">
                 <PageHeader
                     title="Penilaian Mitra Statistik"
-                    description={`Penilaian petugas untuk tahun aktif ${active_year}`}
+                    description={`Nilai kinerja mitra non-organik berdasarkan penugasan yang sudah selesai pada tahun ${active_year}.`}
                 />
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <ContentCard>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Total Petugas Dinilai
-                        </p>
-                        <p className="mt-1 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                            {totalPetugas}
-                        </p>
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Mitra tersedia
+                                </p>
+                                <p className="mt-1 text-2xl font-semibold">
+                                    {petugas_options.length}
+                                </p>
+                            </div>
+                            <Users className="h-5 w-5 text-muted-foreground" />
+                        </div>
                     </ContentCard>
                     <ContentCard>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            Total Kegiatan x Petugas
-                        </p>
-                        <p className="mt-1 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                            {rows.length}
-                        </p>
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Siap dinilai
+                                </p>
+                                <p className="mt-1 text-2xl font-semibold">
+                                    {readyCount}
+                                </p>
+                            </div>
+                            <ClipboardCheck className="h-5 w-5 text-blue-600" />
+                        </div>
+                    </ContentCard>
+                    <ContentCard>
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Sudah final
+                                </p>
+                                <p className="mt-1 text-2xl font-semibold">
+                                    {completedCount}
+                                </p>
+                            </div>
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                        </div>
+                    </ContentCard>
+                    <ContentCard>
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Belum tersedia
+                                </p>
+                                <p className="mt-1 text-2xl font-semibold">
+                                    {pendingCount}
+                                </p>
+                            </div>
+                            <Clock3 className="h-5 w-5 text-amber-600" />
+                        </div>
                     </ContentCard>
                 </div>
 
                 {!can_submit_review && (
-                    <ContentCard className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20">
-                        <p className="text-sm text-amber-800 dark:text-amber-200">
-                            Anda dapat melihat daftar review, tetapi hanya PML
-                            atau ketua tim yang bisa mengisi penilaian.
-                        </p>
-                    </ContentCard>
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200">
+                        Anda dapat melihat penilaian. Pengisian hanya tersedia
+                        untuk PML atau ketua tim yang memenuhi konteks
+                        penugasan.
+                    </div>
                 )}
 
-                <ContentCard>
-                    <div className="space-y-4">
-                        <div className="max-w-xl space-y-2">
-                            <Label>Pilih Mitra Statistik</Label>
-                            <SearchableSelect
-                                value={selectedPetugasId?.toString() ?? ''}
-                                onValueChange={(value) =>
-                                    setSelectedPetugasId(Number(value))
-                                }
-                                options={petugas_options.map((option) => ({
-                                    value: option.petugas_id.toString(),
-                                    label: option.petugas_nama,
-                                    searchKeywords: `${option.petugas_nama} ${option.petugas_hashed_id}`,
-                                }))}
-                                placeholder="Pilih petugas untuk direview"
-                                searchPlaceholder="Cari nama petugas..."
-                                className="h-9 rounded-md border-input bg-transparent shadow-xs"
-                            />
-                        </div>
-
-                        {selectedRows.length === 0 ? (
-                            <div className="rounded-lg border border-dashed border-neutral-300 px-4 py-8 text-center text-sm text-neutral-600 dark:border-neutral-700 dark:text-neutral-300">
-                                Tidak ada data review untuk petugas yang
-                                dipilih.
+                <div className="grid min-h-[560px] gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+                    <ContentCard className="h-fit lg:sticky lg:top-4">
+                        <div className="space-y-4">
+                            <div>
+                                <h2 className="font-semibold">Pilih Mitra</h2>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Hanya mitra non-organik yang memenuhi syarat
+                                    penilaian ditampilkan.
+                                </p>
                             </div>
-                        ) : (
-                            <div className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
-                                <div className="flex flex-wrap items-center justify-between gap-3">
-                                    <div>
-                                        <p className="font-semibold text-neutral-900 dark:text-neutral-100">
-                                            {selectedRows.length} kegiatan
-                                            siap/selesai review
-                                        </p>
-                                    </div>
-                                </div>
 
-                                <div className="mt-4 space-y-4">
-                                    {selectedRows.map((row) => {
-                                        const key = `${row.kegiatan_id}-${row.petugas_id}-${row.periode_alokasi_id}`;
-                                        const draft = drafts[key] ?? {
-                                            rating: 0,
-                                            ulasan: '',
-                                        };
-                                        const isFinal =
-                                            row.existing_review !== null;
-                                        const disabled =
-                                            isFinal ||
-                                            !row.can_review_now ||
-                                            !row.user_can_submit;
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    value={search}
+                                    onChange={(event) =>
+                                        setSearch(event.target.value)
+                                    }
+                                    placeholder="Cari nama mitra..."
+                                    className="pl-9"
+                                />
+                            </div>
+
+                            <div className="max-h-[430px] space-y-1 overflow-y-auto pr-1">
+                                {filteredOptions.length === 0 ? (
+                                    <div className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
+                                        Mitra tidak ditemukan.
+                                    </div>
+                                ) : (
+                                    filteredOptions.map((option) => {
+                                        const selected =
+                                            option.petugas_id ===
+                                            selectedPetugasId;
+                                        const optionRows = rows.filter(
+                                            (row) =>
+                                                row.petugas_id ===
+                                                option.petugas_id,
+                                        );
+                                        const finalCount = optionRows.filter(
+                                            (row) =>
+                                                row.existing_review !== null,
+                                        ).length;
 
                                         return (
-                                            <div
-                                                key={key}
-                                                className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-700"
+                                            <button
+                                                key={option.petugas_id}
+                                                type="button"
+                                                onClick={() =>
+                                                    setSelectedPetugasId(
+                                                        option.petugas_id,
+                                                    )
+                                                }
+                                                className={[
+                                                    'w-full rounded-xl border px-3 py-2.5 text-left transition-colors',
+                                                    selected
+                                                        ? 'border-primary bg-primary/5'
+                                                        : 'border-transparent hover:border-neutral-200 hover:bg-neutral-50 dark:hover:border-neutral-800 dark:hover:bg-neutral-900/60',
+                                                ].join(' ')}
                                             >
-                                                <div className="flex flex-wrap items-start justify-between gap-3">
-                                                    <div>
-                                                        <p className="font-medium text-neutral-900 dark:text-neutral-100">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="min-w-0">
+                                                        <p className="truncate text-sm font-medium">
+                                                            {
+                                                                option.petugas_nama
+                                                            }
+                                                        </p>
+                                                        <p className="mt-0.5 text-xs text-muted-foreground">
+                                                            {
+                                                                optionRows.length
+                                                            }{' '}
+                                                            episode penugasan
+                                                        </p>
+                                                    </div>
+                                                    {finalCount > 0 && (
+                                                        <Badge
+                                                            variant="secondary"
+                                                            className="shrink-0"
+                                                        >
+                                                            {finalCount} final
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            </button>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+                    </ContentCard>
+
+                    <div className="space-y-4">
+                        <ContentCard>
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                        Mitra terpilih
+                                    </p>
+                                    <h2 className="mt-1 text-lg font-semibold">
+                                        {selectedOption?.petugas_nama ??
+                                            'Belum memilih mitra'}
+                                    </h2>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        {selectedRows.length} episode/kegiatan
+                                        tersedia untuk ditinjau.
+                                    </p>
+                                </div>
+                                {selectedRows.length > 0 && (
+                                    <Badge variant="outline">
+                                        Tahun {active_year}
+                                    </Badge>
+                                )}
+                            </div>
+                        </ContentCard>
+
+                        {selectedRows.length === 0 ? (
+                            <ContentCard>
+                                <div className="flex min-h-64 flex-col items-center justify-center text-center">
+                                    <ClipboardCheck className="h-10 w-10 text-muted-foreground/30" />
+                                    <p className="mt-3 font-medium">
+                                        Tidak ada penilaian yang tersedia
+                                    </p>
+                                    <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                                        Pilih mitra lain atau tunggu sampai
+                                        periode/kegiatan memenuhi syarat untuk
+                                        dinilai.
+                                    </p>
+                                </div>
+                            </ContentCard>
+                        ) : (
+                            selectedRows.map((row) => {
+                                const key = `${row.kegiatan_id}-${row.petugas_id}-${row.periode_alokasi_id}`;
+                                const draft = drafts[key] ?? {
+                                    rating: 0,
+                                    ulasan: '',
+                                };
+                                const isFinal = row.existing_review !== null;
+                                const disabled =
+                                    isFinal ||
+                                    !row.can_review_now ||
+                                    !row.user_can_submit;
+
+                                return (
+                                    <ContentCard key={key}>
+                                        <div className="space-y-5">
+                                            <div className="flex flex-col gap-3 border-b border-neutral-200 pb-4 sm:flex-row sm:items-start sm:justify-between dark:border-neutral-800">
+                                                <div>
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <h3 className="font-semibold">
                                                             {row.kegiatan_nama}
-                                                        </p>
-                                                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                                            Bulan{' '}
-                                                            {row.periode_bulan}/
-                                                            {row.periode_tahun}
-                                                        </p>
-                                                        <p className="mt-1 text-sm font-medium text-blue-600 dark:text-blue-400">
-                                                            {peranLabel(
-                                                                row.peran,
-                                                            )}
-                                                        </p>
+                                                        </h3>
+                                                        <Badge variant="outline">
+                                                            {row.kegiatan_kode}
+                                                        </Badge>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
-                                                        {isFinal ? (
-                                                            <Badge variant="outline">
-                                                                Final
-                                                            </Badge>
-                                                        ) : (
-                                                            <Badge
-                                                                variant={
-                                                                    row.can_review_now
-                                                                        ? 'default'
-                                                                        : 'secondary'
-                                                                }
-                                                            >
-                                                                {row.can_review_now
-                                                                    ? 'Bisa direview'
-                                                                    : 'Belum bisa direview'}
-                                                            </Badge>
-                                                        )}
-                                                        {!row.user_can_submit && (
-                                                            <Badge variant="outline">
-                                                                Hanya PML/Ketua
-                                                                Tim
-                                                            </Badge>
+                                                    <p className="mt-1 text-sm text-muted-foreground">
+                                                        {peranLabel(row.peran)} ·{' '}
+                                                        {String(
+                                                            row.periode_bulan,
+                                                        ).padStart(2, '0')}
+                                                        /{row.periode_tahun}
+                                                    </p>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {isFinal ? (
+                                                        <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                                            Final
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge
+                                                            variant={
+                                                                row.can_review_now
+                                                                    ? 'default'
+                                                                    : 'secondary'
+                                                            }
+                                                        >
+                                                            {row.can_review_now
+                                                                ? 'Siap dinilai'
+                                                                : 'Belum dapat dinilai'}
+                                                        </Badge>
+                                                    )}
+                                                    {!row.user_can_submit && (
+                                                        <Badge variant="outline">
+                                                            Lihat saja
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)]">
+                                                <div>
+                                                    <Label>Nilai kinerja</Label>
+                                                    <div className="mt-2 flex items-center gap-1">
+                                                        {[1, 2, 3, 4, 5].map(
+                                                            (value) => (
+                                                                <button
+                                                                    key={value}
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        setRating(
+                                                                            key,
+                                                                            value,
+                                                                        )
+                                                                    }
+                                                                    disabled={
+                                                                        disabled
+                                                                    }
+                                                                    className="rounded-lg p-1.5 transition-colors hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-amber-950/20"
+                                                                    aria-label={`Nilai ${value}`}
+                                                                >
+                                                                    <Star
+                                                                        className={[
+                                                                            'h-7 w-7',
+                                                                            draft.rating >=
+                                                                            value
+                                                                                ? 'fill-amber-400 text-amber-400'
+                                                                                : 'text-neutral-300 dark:text-neutral-600',
+                                                                        ].join(
+                                                                            ' ',
+                                                                        )}
+                                                                    />
+                                                                </button>
+                                                            ),
                                                         )}
                                                     </div>
+                                                    <p className="mt-2 text-xs text-muted-foreground">
+                                                        {draft.rating > 0
+                                                            ? `${draft.rating} dari 5`
+                                                            : 'Pilih 1–5 bintang'}
+                                                    </p>
                                                 </div>
 
-                                                <div className="mt-4 space-y-3">
-                                                    <div>
-                                                        <Label>
-                                                            Berikan Penilaian
-                                                        </Label>
-                                                        <div className="mt-2 flex items-center gap-1">
-                                                            {[
-                                                                1, 2, 3, 4, 5,
-                                                            ].map((value) => {
-                                                                const active =
-                                                                    draft.rating >=
-                                                                    value;
-                                                                return (
-                                                                    <button
-                                                                        key={
-                                                                            value
-                                                                        }
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            setRating(
-                                                                                key,
-                                                                                value,
-                                                                            )
-                                                                        }
-                                                                        disabled={
-                                                                            disabled
-                                                                        }
-                                                                        className="rounded-md p-1 disabled:cursor-not-allowed disabled:opacity-50"
-                                                                    >
-                                                                        <Star
-                                                                            className={`h-6 w-6 ${
-                                                                                active
-                                                                                    ? 'fill-amber-400 text-amber-400'
-                                                                                    : 'text-neutral-300 dark:text-neutral-600'
-                                                                            }`}
-                                                                        />
-                                                                    </button>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    </div>
-
-                                                    <div>
-                                                        <Label
-                                                            htmlFor={`ulasan-${key}`}
-                                                        >
-                                                            Ulasan Singkat
-                                                        </Label>
-                                                        <textarea
-                                                            id={`ulasan-${key}`}
-                                                            value={draft.ulasan}
-                                                            onChange={(event) =>
-                                                                setUlasan(
-                                                                    key,
-                                                                    event.target
-                                                                        .value,
-                                                                )
-                                                            }
-                                                            disabled={disabled}
-                                                            rows={3}
-                                                            maxLength={500}
-                                                            className="mt-2 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                                                            placeholder="Tulis catatan singkat untuk petugas ini"
-                                                        />
-                                                    </div>
-
-                                                    <div className="flex items-center justify-between">
-                                                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                                                            {row.existing_review
+                                                <div>
+                                                    <Label htmlFor={`ulasan-${key}`}>
+                                                        Catatan / ulasan
+                                                    </Label>
+                                                    <textarea
+                                                        id={`ulasan-${key}`}
+                                                        value={draft.ulasan}
+                                                        onChange={(event) =>
+                                                            setUlasan(
+                                                                key,
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        disabled={disabled}
+                                                        rows={4}
+                                                        maxLength={500}
+                                                        className="mt-2 w-full resize-y rounded-xl border border-neutral-300 bg-background px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700"
+                                                        placeholder="Tuliskan catatan singkat yang relevan dengan kinerja mitra..."
+                                                    />
+                                                    <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+                                                        <span>
+                                                            {isFinal &&
+                                                            row.existing_review
                                                                 ?.reviewed_at
-                                                                ? `Review final: ${row.existing_review.reviewed_at}`
-                                                                : 'Belum ada review'}
-                                                        </p>
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            onClick={() =>
-                                                                saveReview(row)
+                                                                ? `Final pada ${row.existing_review.reviewed_at}`
+                                                                : 'Ulasan bersifat opsional'}
+                                                        </span>
+                                                        <span>
+                                                            {
+                                                                draft.ulasan
+                                                                    .length
                                                             }
-                                                            disabled={
-                                                                disabled ||
-                                                                savingKey ===
-                                                                    key
-                                                            }
-                                                        >
-                                                            {savingKey === key
-                                                                ? 'Menyimpan...'
-                                                                : isFinal
-                                                                  ? 'Sudah Dinilai'
-                                                                  : 'Simpan Penilaian'}
-                                                        </Button>
+                                                            /500
+                                                        </span>
                                                     </div>
                                                 </div>
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
+
+                                            <div className="flex justify-end border-t border-neutral-200 pt-4 dark:border-neutral-800">
+                                                <Button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        saveReview(row)
+                                                    }
+                                                    disabled={
+                                                        disabled ||
+                                                        savingKey === key
+                                                    }
+                                                >
+                                                    {savingKey === key
+                                                        ? 'Menyimpan...'
+                                                        : isFinal
+                                                          ? 'Penilaian Final'
+                                                          : 'Simpan Penilaian'}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </ContentCard>
+                                );
+                            })
                         )}
                     </div>
-                </ContentCard>
+                </div>
             </div>
         </AppLayout>
     );
