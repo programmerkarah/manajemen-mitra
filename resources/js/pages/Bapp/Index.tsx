@@ -1,3 +1,7 @@
+import AlertCircle from 'lucide-react/icons/alert-circle';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import Eye from 'lucide-react/icons/eye';
+import Plus from 'lucide-react/icons/plus';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -5,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
-import { AlertCircle, ArrowLeft, Eye, Plus } from 'lucide-react';
 
 interface TerminData {
     termin: number;
