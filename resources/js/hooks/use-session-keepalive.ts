@@ -6,10 +6,8 @@ interface UseSessionKeepAliveOptions {
 }
 
 const ACTIVITY_EVENTS: Array<keyof WindowEventMap> = [
-    'click',
+    'pointerdown',
     'keydown',
-    'mousemove',
-    'scroll',
     'touchstart',
 ];
 
@@ -26,7 +24,7 @@ export function useSessionKeepAlive({
         let lastSentAt = 0;
         let inFlight = false;
 
-        const csrfToken =
+        const getCsrfToken = () =>
             document
                 .querySelector('meta[name="csrf-token"]')
                 ?.getAttribute('content') || '';
@@ -43,38 +41,47 @@ export function useSessionKeepAlive({
 
             inFlight = true;
 
-            fetch('/session/heartbeat', {
+            void fetch('/session/heartbeat', {
                 method: 'POST',
                 headers: {
-                    'X-CSRF-TOKEN': csrfToken,
+                    'X-CSRF-TOKEN': getCsrfToken(),
                     'X-Requested-With': 'XMLHttpRequest',
                     Accept: 'application/json',
                 },
                 credentials: 'same-origin',
+                keepalive: true,
             })
-                .then(() => {
-                    lastSentAt = now;
+                .then((response) => {
+                    if (response.ok) {
+                        lastSentAt = now;
+                    }
                 })
                 .catch(() => {
-                    // Ignore transient heartbeat failures.
+                    // A transient heartbeat failure should not disturb the UI.
                 })
                 .finally(() => {
                     inFlight = false;
                 });
         };
 
-        const onActivity = () => {
-            sendHeartbeat();
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') {
+                sendHeartbeat();
+            }
         };
 
         ACTIVITY_EVENTS.forEach((eventName) => {
-            window.addEventListener(eventName, onActivity, { passive: true });
+            window.addEventListener(eventName, sendHeartbeat, {
+                passive: true,
+            });
         });
+        document.addEventListener('visibilitychange', onVisible);
 
         return () => {
             ACTIVITY_EVENTS.forEach((eventName) => {
-                window.removeEventListener(eventName, onActivity);
+                window.removeEventListener(eventName, sendHeartbeat);
             });
+            document.removeEventListener('visibilitychange', onVisible);
         };
     }, [enabled, intervalSeconds]);
 }
