@@ -1,9 +1,17 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
+import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 
 export default defineConfig(({ command }) => ({
+    resolve: {
+        alias: {
+            'lucide-react/icons': fileURLToPath(
+                new URL('./node_modules/lucide-react/dist/esm/icons', import.meta.url),
+            ),
+        },
+    },
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
