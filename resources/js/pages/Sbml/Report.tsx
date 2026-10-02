@@ -191,7 +191,8 @@ export default function Report({
                     <div className="mb-4">
                         <h2 className="font-semibold">Periode & Petugas</h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Pilih periode terlebih dahulu, lalu persempit ke petugas tertentu bila diperlukan.
+                            Pilih periode terlebih dahulu, lalu persempit ke
+                            petugas tertentu bila diperlukan.
                         </p>
                     </div>
                     <div className="grid gap-3 md:grid-cols-[180px_200px_minmax(260px,1fr)] md:items-end">
@@ -269,7 +270,7 @@ export default function Report({
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Petugas
                         </p>
                         <p className="mt-1 text-2xl font-semibold">
@@ -277,7 +278,7 @@ export default function Report({
                         </p>
                     </ContentCard>
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Total honor
                         </p>
                         <p className="mt-1 text-xl font-semibold">
@@ -285,7 +286,7 @@ export default function Report({
                         </p>
                     </ContentCard>
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Mendekati batas
                         </p>
                         <p className="mt-1 text-2xl font-semibold text-amber-600">
@@ -293,7 +294,7 @@ export default function Report({
                         </p>
                     </ContentCard>
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Melebihi SBML
                         </p>
                         <p className="mt-1 text-2xl font-semibold text-destructive">

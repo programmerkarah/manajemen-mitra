@@ -46,8 +46,7 @@ export default function Index({ year_groups }: Props) {
             ),
             latestYear:
                 [...year_groups].sort(
-                    (left, right) =>
-                        right.tahun_anggaran - left.tahun_anggaran,
+                    (left, right) => right.tahun_anggaran - left.tahun_anggaran,
                 )[0]?.tahun_anggaran ?? null,
         };
     }, [year_groups]);
@@ -83,7 +82,7 @@ export default function Index({ year_groups }: Props) {
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Tahun tersedia
                         </p>
                         <p className="mt-1 text-2xl font-semibold">
@@ -91,7 +90,7 @@ export default function Index({ year_groups }: Props) {
                         </p>
                     </ContentCard>
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Tahun aktif
                         </p>
                         <div className="mt-1 flex items-center gap-2">
@@ -102,7 +101,7 @@ export default function Index({ year_groups }: Props) {
                         </div>
                     </ContentCard>
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Total konfigurasi
                         </p>
                         <p className="mt-1 text-2xl font-semibold">
@@ -110,7 +109,7 @@ export default function Index({ year_groups }: Props) {
                         </p>
                     </ContentCard>
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Tahun terbaru
                         </p>
                         <p className="mt-1 text-2xl font-semibold">
@@ -126,8 +125,9 @@ export default function Index({ year_groups }: Props) {
                                 Konfigurasi per Tahun Anggaran
                             </h2>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                Buka detail untuk melihat kombinasi jenis kegiatan,
-                                status kepegawaian, penugasan, dan batas honor.
+                                Buka detail untuk melihat kombinasi jenis
+                                kegiatan, status kepegawaian, penugasan, dan
+                                batas honor.
                             </p>
                         </div>
                         <Badge variant="outline">
@@ -142,7 +142,8 @@ export default function Index({ year_groups }: Props) {
                                 Belum ada konfigurasi SBML
                             </p>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                Tambahkan tahun anggaran untuk mulai mengatur batas honor.
+                                Tambahkan tahun anggaran untuk mulai mengatur
+                                batas honor.
                             </p>
                         </div>
                     ) : (
@@ -168,11 +169,14 @@ export default function Index({ year_groups }: Props) {
                                                         {group.tahun_anggaran}
                                                     </p>
                                                     <p className="mt-1 text-sm text-muted-foreground">
-                                                        {group.count} konfigurasi biaya
+                                                        {group.count}{' '}
+                                                        konfigurasi biaya
                                                     </p>
                                                 </div>
                                             </div>
-                                            <StatusBadge status={group.status} />
+                                            <StatusBadge
+                                                status={group.status}
+                                            />
                                         </div>
 
                                         <div className="mt-4 flex items-center gap-2 border-t border-neutral-200 pt-3 dark:border-neutral-800">

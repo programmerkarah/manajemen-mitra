@@ -152,10 +152,7 @@ export default function Review({
             row.can_review_now &&
             row.user_can_submit,
     ).length;
-    const pendingCount = Math.max(
-        rows.length - completedCount - readyCount,
-        0,
-    );
+    const pendingCount = Math.max(rows.length - completedCount - readyCount, 0);
 
     const setRating = (key: string, rating: number) => {
         setDrafts((prev) => ({
@@ -214,7 +211,9 @@ export default function Review({
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>{modalAlert.title}</DialogTitle>
-                        <DialogDescription>{modalAlert.message}</DialogDescription>
+                        <DialogDescription>
+                            {modalAlert.message}
+                        </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button
@@ -242,7 +241,7 @@ export default function Review({
                     <ContentCard>
                         <div className="flex items-center justify-between gap-3">
                             <div>
-                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                     Mitra tersedia
                                 </p>
                                 <p className="mt-1 text-2xl font-semibold">
@@ -255,7 +254,7 @@ export default function Review({
                     <ContentCard>
                         <div className="flex items-center justify-between gap-3">
                             <div>
-                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                     Siap dinilai
                                 </p>
                                 <p className="mt-1 text-2xl font-semibold">
@@ -268,7 +267,7 @@ export default function Review({
                     <ContentCard>
                         <div className="flex items-center justify-between gap-3">
                             <div>
-                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                     Sudah final
                                 </p>
                                 <p className="mt-1 text-2xl font-semibold">
@@ -281,7 +280,7 @@ export default function Review({
                     <ContentCard>
                         <div className="flex items-center justify-between gap-3">
                             <div>
-                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                     Belum tersedia
                                 </p>
                                 <p className="mt-1 text-2xl font-semibold">
@@ -313,7 +312,7 @@ export default function Review({
                             </div>
 
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     value={search}
                                     onChange={(event) =>
@@ -368,9 +367,7 @@ export default function Review({
                                                             }
                                                         </p>
                                                         <p className="mt-0.5 text-xs text-muted-foreground">
-                                                            {
-                                                                optionRows.length
-                                                            }{' '}
+                                                            {optionRows.length}{' '}
                                                             episode penugasan
                                                         </p>
                                                     </div>
@@ -395,7 +392,7 @@ export default function Review({
                         <ContentCard>
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                         Mitra terpilih
                                     </p>
                                     <h2 className="mt-1 text-lg font-semibold">
@@ -456,7 +453,8 @@ export default function Review({
                                                         </Badge>
                                                     </div>
                                                     <p className="mt-1 text-sm text-muted-foreground">
-                                                        {peranLabel(row.peran)} ·{' '}
+                                                        {peranLabel(row.peran)}{' '}
+                                                        ·{' '}
                                                         {String(
                                                             row.periode_bulan,
                                                         ).padStart(2, '0')}
@@ -533,7 +531,9 @@ export default function Review({
                                                 </div>
 
                                                 <div>
-                                                    <Label htmlFor={`ulasan-${key}`}>
+                                                    <Label
+                                                        htmlFor={`ulasan-${key}`}
+                                                    >
                                                         Catatan / ulasan
                                                     </Label>
                                                     <textarea
@@ -549,7 +549,7 @@ export default function Review({
                                                         disabled={disabled}
                                                         rows={4}
                                                         maxLength={500}
-                                                        className="mt-2 w-full resize-y rounded-xl border border-neutral-300 bg-background px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700"
+                                                        className="mt-2 w-full resize-y rounded-xl border border-neutral-300 bg-background px-3 py-2.5 text-sm transition outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700"
                                                         placeholder="Tuliskan catatan singkat yang relevan dengan kinerja mitra..."
                                                     />
                                                     <div className="mt-1 flex justify-between text-xs text-muted-foreground">

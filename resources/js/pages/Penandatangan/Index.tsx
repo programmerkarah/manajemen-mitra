@@ -304,39 +304,50 @@ export default function Index({ PenandatanganList }: PenandatanganIndexProps) {
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Total penandatangan
                         </p>
-                        <p className="mt-1 text-2xl font-semibold">{summary.total}</p>
+                        <p className="mt-1 text-2xl font-semibold">
+                            {summary.total}
+                        </p>
                     </ContentCard>
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Aktif
                         </p>
                         <div className="mt-1 flex items-center gap-2">
-                            <p className="text-2xl font-semibold">{summary.active}</p>
+                            <p className="text-2xl font-semibold">
+                                {summary.active}
+                            </p>
                             <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                         </div>
                     </ContentCard>
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Kepala BPS
                         </p>
-                        <p className="mt-1 text-2xl font-semibold">{summary.kepala}</p>
+                        <p className="mt-1 text-2xl font-semibold">
+                            {summary.kepala}
+                        </p>
                     </ContentCard>
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             PPK
                         </p>
-                        <p className="mt-1 text-2xl font-semibold">{summary.ppk}</p>
+                        <p className="mt-1 text-2xl font-semibold">
+                            {summary.ppk}
+                        </p>
                     </ContentCard>
                 </div>
 
                 <ContentCard>
                     <div className="mb-4">
-                        <h2 className="font-semibold">Cari & Filter Penandatangan</h2>
+                        <h2 className="font-semibold">
+                            Cari & Filter Penandatangan
+                        </h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Filter berdasarkan identitas, jenis penandatangan, dan status aktif.
+                            Filter berdasarkan identitas, jenis penandatangan,
+                            dan status aktif.
                         </p>
                     </div>
                     {/* Search and Filter */}

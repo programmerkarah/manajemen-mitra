@@ -271,28 +271,36 @@ export default function Index({ dipaList, tahunOptions }: DipaIndexProps) {
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Total dokumen
                         </p>
-                        <p className="mt-1 text-2xl font-semibold">{summary.total}</p>
+                        <p className="mt-1 text-2xl font-semibold">
+                            {summary.total}
+                        </p>
                     </ContentCard>
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             DIPA aktif
                         </p>
-                        <p className="mt-1 text-2xl font-semibold">{summary.active}</p>
+                        <p className="mt-1 text-2xl font-semibold">
+                            {summary.active}
+                        </p>
                     </ContentCard>
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Nonaktif
                         </p>
-                        <p className="mt-1 text-2xl font-semibold">{summary.inactive}</p>
+                        <p className="mt-1 text-2xl font-semibold">
+                            {summary.inactive}
+                        </p>
                     </ContentCard>
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Tahun tercakup
                         </p>
-                        <p className="mt-1 text-2xl font-semibold">{summary.years}</p>
+                        <p className="mt-1 text-2xl font-semibold">
+                            {summary.years}
+                        </p>
                     </ContentCard>
                 </div>
 
@@ -300,7 +308,8 @@ export default function Index({ dipaList, tahunOptions }: DipaIndexProps) {
                     <div className="mb-4">
                         <h2 className="font-semibold">Cari & Filter DIPA</h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Temukan dokumen berdasarkan nomor, tahun anggaran, atau status aktif.
+                            Temukan dokumen berdasarkan nomor, tahun anggaran,
+                            atau status aktif.
                         </p>
                     </div>
                     {/* Search and Filter */}

@@ -591,7 +591,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Total petugas
                         </p>
                         <p className="mt-1 text-2xl font-semibold">
@@ -601,7 +601,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                     <ContentCard>
                         <div className="flex items-center justify-between gap-3">
                             <div>
-                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                     Aktif
                                 </p>
                                 <p className="mt-1 text-2xl font-semibold">
@@ -612,7 +612,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                         </div>
                     </ContentCard>
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Mitra non-organik
                         </p>
                         <p className="mt-1 text-2xl font-semibold">
@@ -620,7 +620,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                         </p>
                     </ContentCard>
                     <ContentCard>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Petugas organik
                         </p>
                         <p className="mt-1 text-2xl font-semibold">
@@ -634,7 +634,8 @@ export default function Index({ petugas }: PetugasIndexProps) {
                     <div className="mb-4">
                         <h2 className="font-semibold">Cari & Filter Petugas</h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Temukan petugas berdasarkan identitas, jenis petugas, atau status.
+                            Temukan petugas berdasarkan identitas, jenis
+                            petugas, atau status.
                         </p>
                     </div>
                     <div className="mb-4 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-muted-foreground dark:bg-neutral-900/60">

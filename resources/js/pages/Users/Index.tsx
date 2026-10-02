@@ -180,14 +180,7 @@ export default function Index({ users }: UsersIndexProps) {
         });
 
         return result;
-    }, [
-        allUsers,
-        search,
-        statusFilter,
-        roleFilter,
-        sortField,
-        sortDirection,
-    ]);
+    }, [allUsers, search, statusFilter, roleFilter, sortField, sortDirection]);
 
     // Client-side pagination
     const totalPages = Math.ceil(filteredAndSortedUsers.length / perPage);
@@ -348,9 +341,12 @@ export default function Index({ users }: UsersIndexProps) {
                 <ContentCard>
                     <div className="space-y-4">
                         <div>
-                            <h2 className="font-semibold">Cari & Filter User</h2>
+                            <h2 className="font-semibold">
+                                Cari & Filter User
+                            </h2>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                Temukan akun berdasarkan identitas, status, atau role.
+                                Temukan akun berdasarkan identitas, status, atau
+                                role.
                             </p>
                         </div>
                         <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_220px_220px_auto]">
@@ -375,9 +371,15 @@ export default function Index({ users }: UsersIndexProps) {
                                     <SelectValue placeholder="Semua status" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">Semua status</SelectItem>
-                                    <SelectItem value="active">Aktif</SelectItem>
-                                    <SelectItem value="inactive">Nonaktif</SelectItem>
+                                    <SelectItem value="all">
+                                        Semua status
+                                    </SelectItem>
+                                    <SelectItem value="active">
+                                        Aktif
+                                    </SelectItem>
+                                    <SelectItem value="inactive">
+                                        Nonaktif
+                                    </SelectItem>
                                 </SelectContent>
                             </Select>
                             <Select
@@ -391,9 +393,14 @@ export default function Index({ users }: UsersIndexProps) {
                                     <SelectValue placeholder="Semua role" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">Semua role</SelectItem>
+                                    <SelectItem value="all">
+                                        Semua role
+                                    </SelectItem>
                                     {roleOptions.map((role) => (
-                                        <SelectItem key={role.name} value={role.name}>
+                                        <SelectItem
+                                            key={role.name}
+                                            value={role.name}
+                                        >
                                             {role.display_name}
                                         </SelectItem>
                                     ))}
