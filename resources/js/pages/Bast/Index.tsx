@@ -1,3 +1,6 @@
+import FileCheck from 'lucide-react/icons/file-check';
+import FileText from 'lucide-react/icons/file-text';
+import Plus from 'lucide-react/icons/plus';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +17,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { FileCheck, FileText, Plus } from 'lucide-react';
+
 import { useMemo, useState } from 'react';
 
 interface PeriodeData {
