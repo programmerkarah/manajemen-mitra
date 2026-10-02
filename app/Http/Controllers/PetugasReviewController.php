@@ -61,6 +61,7 @@ class PetugasReviewController extends Controller
                 ->whereIn('pa.status', self::EFFECTIVE_STATUSES)
                 ->whereIn('pa.kegiatan_id', $reviewableKegiatanIds)
                 ->where('alokasi_petugas.status_kepegawaian', 'non_organik')
+                ->where('p.jenis_petugas', 'non-organik')
                 ->where(fn (Builder $query) => $this->applyReviewableHonorFilter($query))
                 ->select([
                     'p.id as petugas_id',
@@ -184,12 +185,17 @@ class PetugasReviewController extends Controller
         $targetAssignment = AlokasiPetugas::query()
             ->join('periode_alokasi as pa', 'pa.id', '=', 'alokasi_petugas.periode_alokasi_id')
             ->join('kegiatan as k', 'k.id', '=', 'pa.kegiatan_id')
+            ->join('petugas as p', 'p.id', '=', 'alokasi_petugas.petugas_id')
             ->where('pa.tahun', $activeYear)
             ->whereIn('pa.status', self::EFFECTIVE_STATUSES)
             ->where('pa.id', $validated['periode_alokasi_id'])
             ->where('pa.kegiatan_id', $validated['kegiatan_id'])
             ->where('alokasi_petugas.petugas_id', $validated['petugas_id'])
             ->where('alokasi_petugas.status_kepegawaian', 'non_organik')
+            ->where('p.jenis_petugas', 'non-organik')
+            ->where('p.jenis_petugas', 'non-organik')
+            ->where('p.jenis_petugas', 'non-organik')
+            ->where('p.jenis_petugas', 'non-organik')
             ->where(fn (Builder $query) => $this->applyReviewableHonorFilter($query))
             ->select([
                 'pa.id as periode_alokasi_id',
@@ -207,6 +213,7 @@ class PetugasReviewController extends Controller
 
         $canonicalPeriodeId = AlokasiPetugas::query()
             ->join('periode_alokasi as pa', 'pa.id', '=', 'alokasi_petugas.periode_alokasi_id')
+            ->join('petugas as p', 'p.id', '=', 'alokasi_petugas.petugas_id')
             ->where('pa.tahun', $activeYear)
             ->whereIn('pa.status', self::EFFECTIVE_STATUSES)
             ->where('pa.kegiatan_id', $validated['kegiatan_id'])
@@ -235,6 +242,7 @@ class PetugasReviewController extends Controller
 
         $hasNextMonthAssignment = AlokasiPetugas::query()
             ->join('periode_alokasi as pa', 'pa.id', '=', 'alokasi_petugas.periode_alokasi_id')
+            ->join('petugas as p', 'p.id', '=', 'alokasi_petugas.petugas_id')
             ->where('pa.tahun', $activeYear)
             ->whereIn('pa.status', self::EFFECTIVE_STATUSES)
             ->where('pa.kegiatan_id', $validated['kegiatan_id'])
