@@ -1,3 +1,9 @@
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import Briefcase from 'lucide-react/icons/briefcase';
+import CalendarDays from 'lucide-react/icons/calendar-days';
+import Pencil from 'lucide-react/icons/pencil';
+import Trash2 from 'lucide-react/icons/trash2';
+import Wallet from 'lucide-react/icons/wallet';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
@@ -11,14 +17,7 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import {
-    ArrowLeft,
-    Briefcase,
-    CalendarDays,
-    Pencil,
-    Trash2,
-    Wallet,
-} from 'lucide-react';
+
 import { useMemo, useState } from 'react';
 import {
     Area,
