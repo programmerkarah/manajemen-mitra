@@ -21,8 +21,7 @@ export default function AppSidebarLayout({
     children,
     breadcrumbs = [],
 }: PropsWithChildren<{ breadcrumbs?: BreadcrumbItem[] }>) {
-    const { auth, flash, ssoSync, sessionConfig } =
-        usePage<SharedData>().props;
+    const { auth, flash, ssoSync, sessionConfig } = usePage<SharedData>().props;
     const hasDeadlineBypassRequest = Boolean(flash?.deadline_blocked);
 
     useSessionInvalidation(auth?.user?.id);

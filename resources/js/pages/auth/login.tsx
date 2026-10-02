@@ -67,21 +67,22 @@ export default function Login({
         });
     };
 
-    const headerAction = ssoActive && ssoRegisterUrl ? (
-        <a
-            href={ssoRegisterUrl}
-            className="hidden h-9 items-center rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex"
-        >
-            Daftar
-        </a>
-    ) : (
-        <Link
-            href="/register"
-            className="hidden h-9 items-center rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex"
-        >
-            Daftar
-        </Link>
-    );
+    const headerAction =
+        ssoActive && ssoRegisterUrl ? (
+            <a
+                href={ssoRegisterUrl}
+                className="hidden h-9 items-center rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex"
+            >
+                Daftar
+            </a>
+        ) : (
+            <Link
+                href="/register"
+                className="hidden h-9 items-center rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex"
+            >
+                Daftar
+            </Link>
+        );
 
     return (
         <>

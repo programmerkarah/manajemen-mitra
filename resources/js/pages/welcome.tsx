@@ -44,7 +44,7 @@ export default function Welcome({
                                 <>
                                     <Link
                                         href={login()}
-                                        className="inline-flex h-11 items-center rounded-xl px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground   dark:hover:text-primary-foreground"
+                                        className="inline-flex h-11 items-center rounded-xl px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground dark:hover:text-primary-foreground"
                                     >
                                         Masuk
                                     </Link>
@@ -58,7 +58,10 @@ export default function Welcome({
                                     )}
                                 </>
                             )}
-                            <span className="hidden h-5 w-px bg-border sm:block" aria-hidden="true" />
+                            <span
+                                className="hidden h-5 w-px bg-border sm:block"
+                                aria-hidden="true"
+                            />
                             <ThemeToggleButton />
                         </nav>
                     </div>

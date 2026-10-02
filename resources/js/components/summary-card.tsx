@@ -60,7 +60,7 @@ export function SummaryCard({
                 type="button"
                 onClick={onClick}
                 className={cn(
-                    'summary-card w-full text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    'summary-card w-full text-left transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
                     className,
                 )}
             >

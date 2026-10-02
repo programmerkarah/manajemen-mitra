@@ -753,7 +753,10 @@ export default function PublicPreview({
                                     Dokumen {active_year}
                                 </p>
                             </div>
-                            <span className="hidden h-5 w-px bg-border sm:block" aria-hidden="true" />
+                            <span
+                                className="hidden h-5 w-px bg-border sm:block"
+                                aria-hidden="true"
+                            />
                             <ThemeToggleButton />
                         </div>
                     </div>
@@ -787,14 +790,14 @@ export default function PublicPreview({
                             }
                             className="flex w-full cursor-pointer items-center gap-3 border-b border-border bg-muted/45 px-6 py-4 text-left transition-colors hover:bg-muted"
                         >
-                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground shadow-sm ">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground shadow-sm">
                                 1
                             </span>
                             <span className="text-sm font-semibold text-foreground">
                                 Verifikasi Identitas
                             </span>
                             {expandedStep !== 1 && loadedPetugasName && (
-                                <span className="ml-2 flex items-center gap-1.5 rounded-md border border-[var(--pastel-green)]/70 bg-[var(--pastel-green)]/15 px-2 py-1 text-xs font-medium text-foreground   ">
+                                <span className="ml-2 flex items-center gap-1.5 rounded-md border border-[var(--pastel-green)]/70 bg-[var(--pastel-green)]/15 px-2 py-1 text-xs font-medium text-foreground">
                                     <CheckCircle2 className="h-3 w-3" />
                                     {loadedPetugasName}
                                 </span>
@@ -894,7 +897,7 @@ export default function PublicPreview({
                                             (!recaptchaReady &&
                                                 !!recaptcha_site_key)
                                         }
-                                        className="h-11 gap-2 rounded-lg shadow-sm transition-all  "
+                                        className="h-11 gap-2 rounded-lg shadow-sm transition-all"
                                     >
                                         {loadingOptions ? (
                                             <>
@@ -910,7 +913,7 @@ export default function PublicPreview({
                                     </Button>
 
                                     {isOptionsLoaded && loadedPetugasName && (
-                                        <div className="flex items-center gap-2 rounded-lg border border-[var(--pastel-green)]/70 bg-[var(--pastel-green)]/15 px-3 py-2 text-sm font-medium text-emerald-800   ">
+                                        <div className="flex items-center gap-2 rounded-lg border border-[var(--pastel-green)]/70 bg-[var(--pastel-green)]/15 px-3 py-2 text-sm font-medium text-emerald-800">
                                             <CheckCircle2 className="h-4 w-4 shrink-0" />
                                             <span>{loadedPetugasName}</span>
                                         </div>
@@ -932,7 +935,7 @@ export default function PublicPreview({
                                           )
                                         : undefined
                                 }
-                                className={`flex w-full items-center gap-3 bg-muted/70 px-6 py-4 text-left  ${
+                                className={`flex w-full items-center gap-3 bg-muted/70 px-6 py-4 text-left ${
                                     canSubmit
                                         ? 'cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800'
                                         : 'cursor-default'
@@ -942,7 +945,7 @@ export default function PublicPreview({
                                         : ''
                                 }`}
                             >
-                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground shadow-sm ">
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground shadow-sm">
                                     2
                                 </span>
                                 <span className="text-sm font-semibold text-foreground">
@@ -1124,13 +1127,13 @@ export default function PublicPreview({
                                 onClick={() =>
                                     setExpandedStep((v) => (v === 3 ? null : 3))
                                 }
-                                className={`flex w-full cursor-pointer items-center gap-3 bg-muted/70 px-6 py-4 text-left hover:bg-slate-100  dark:hover:bg-slate-800 ${
+                                className={`flex w-full cursor-pointer items-center gap-3 bg-muted/70 px-6 py-4 text-left hover:bg-slate-100 dark:hover:bg-slate-800 ${
                                     expandedStep === 3
                                         ? 'border-b border-neutral-200/60 dark:border-white/10'
                                         : ''
                                 }`}
                             >
-                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground shadow-sm ">
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground shadow-sm">
                                     3
                                 </span>
                                 <span className="text-sm font-semibold text-foreground">
@@ -1153,10 +1156,10 @@ export default function PublicPreview({
                                 <div className="space-y-0 divide-y divide-neutral-200/60 dark:divide-white/10">
                                     {/* Penugasan section */}
                                     <div>
-                                        <div className="border-b border-border bg-muted/70 px-6 py-5 dark:border-white/10 ">
+                                        <div className="border-b border-border bg-muted/70 px-6 py-5 dark:border-white/10">
                                             <div className="flex flex-wrap items-start justify-between gap-4">
                                                 <div>
-                                                    <h2 className="text-lg font-bold text-foreground ">
+                                                    <h2 className="text-lg font-bold text-foreground">
                                                         {
                                                             selectedPenugasanCardTitle
                                                         }
@@ -1172,7 +1175,7 @@ export default function PublicPreview({
                                                 </div>
 
                                                 <div className="flex flex-wrap gap-2">
-                                                    <span className="inline-flex items-center rounded-full border border-[var(--pastel-green)]/70 bg-[var(--pastel-green)]/15 px-3 py-1 text-xs font-semibold text-foreground dark:border-emerald-900/50 dark:bg-emerald-950/30 ">
+                                                    <span className="inline-flex items-center rounded-full border border-[var(--pastel-green)]/70 bg-[var(--pastel-green)]/15 px-3 py-1 text-xs font-semibold text-foreground dark:border-emerald-900/50 dark:bg-emerald-950/30">
                                                         PK:{' '}
                                                         {
                                                             selectedPenugasanList[0]
@@ -1212,17 +1215,17 @@ export default function PublicPreview({
                                             </div>
                                         </div>
 
-                                        <div className="overflow-x-auto rounded-xl border border-border shadow-sm ">
+                                        <div className="overflow-x-auto rounded-xl border border-border shadow-sm">
                                             <table className="min-w-full divide-y divide-neutral-100 dark:divide-neutral-800">
                                                 <thead>
-                                                    <tr className="bg-muted/50 ">
-                                                        <th className="px-6 py-3 text-left text-xs font-bold tracking-wide text-neutral-500 uppercase ">
+                                                    <tr className="bg-muted/50">
+                                                        <th className="px-6 py-3 text-left text-xs font-bold tracking-wide text-neutral-500 uppercase">
                                                             Kegiatan
                                                         </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-bold tracking-wide text-neutral-500 uppercase ">
+                                                        <th className="px-6 py-3 text-left text-xs font-bold tracking-wide text-neutral-500 uppercase">
                                                             Target Pekerjaan
                                                         </th>
-                                                        <th className="px-6 py-3 text-right text-xs font-bold tracking-wide text-neutral-500 uppercase ">
+                                                        <th className="px-6 py-3 text-right text-xs font-bold tracking-wide text-neutral-500 uppercase">
                                                             Honor
                                                         </th>
                                                     </tr>
@@ -1235,18 +1238,18 @@ export default function PublicPreview({
                                                                 className="transition-colors hover:bg-muted dark:hover:bg-slate-800/60"
                                                             >
                                                                 <td className="px-6 py-4">
-                                                                    <div className="font-semibold text-foreground ">
+                                                                    <div className="font-semibold text-foreground">
                                                                         {
                                                                             item.nama_kegiatan
                                                                         }
                                                                     </div>
                                                                 </td>
-                                                                <td className="px-6 py-4 text-foreground ">
+                                                                <td className="px-6 py-4 text-foreground">
                                                                     {
                                                                         item.target_pekerjaan
                                                                     }
                                                                 </td>
-                                                                <td className="px-6 py-4 text-right font-bold text-foreground ">
+                                                                <td className="px-6 py-4 text-right font-bold text-foreground">
                                                                     {
                                                                         item.honor_label
                                                                     }
@@ -1256,10 +1259,10 @@ export default function PublicPreview({
                                                     )}
                                                 </tbody>
                                                 <tfoot>
-                                                    <tr className="border-t border-border bg-muted/50  ">
+                                                    <tr className="border-t border-border bg-muted/50">
                                                         <td
                                                             colSpan={2}
-                                                            className="px-6 py-4 text-sm font-medium text-muted-foreground "
+                                                            className="px-6 py-4 text-sm font-medium text-muted-foreground"
                                                         >
                                                             Total{' '}
                                                             {
@@ -1267,7 +1270,7 @@ export default function PublicPreview({
                                                             }{' '}
                                                             penugasan
                                                         </td>
-                                                        <td className="px-6 py-4 text-right text-base font-bold text-foreground ">
+                                                        <td className="px-6 py-4 text-right text-base font-bold text-foreground">
                                                             {`Rp ${new Intl.NumberFormat('id-ID').format(selectedPenugasanTotalHonor)}`}
                                                         </td>
                                                     </tr>
@@ -1291,18 +1294,18 @@ export default function PublicPreview({
                                                 onClick={() =>
                                                     setDokumenTipe('pk')
                                                 }
-                                                className={`rounded-xl border p-4 text-left shadow-sm transition-all   ${
+                                                className={`rounded-xl border p-4 text-left shadow-sm transition-all ${
                                                     dokumenTipe === 'pk'
                                                         ? 'border-blue-300 bg-[linear-gradient(180deg,#eff6ff_0%,#ffffff_100%)] shadow-sm ring-1 shadow-blue-600/10 ring-blue-200 dark:border-blue-800 dark:bg-[linear-gradient(180deg,rgba(30,58,138,.22)_0%,rgba(15,23,42,.9)_100%)] dark:ring-blue-900'
                                                         : 'border-border bg-card hover:bg-muted'
                                                 }`}
                                             >
-                                                <div className="text-[11px] font-bold tracking-widest text-neutral-500 uppercase "></div>
+                                                <div className="text-[11px] font-bold tracking-widest text-neutral-500 uppercase"></div>
                                                 <div
                                                     className={`mt-2 text-sm font-semibold ${
                                                         dokumenTipe === 'pk'
                                                             ? 'text-indigo-700 dark:text-indigo-300'
-                                                            : 'text-foreground '
+                                                            : 'text-foreground'
                                                     }`}
                                                 >
                                                     Perjanjian Kerja
@@ -1319,7 +1322,7 @@ export default function PublicPreview({
                                                     onClick={() =>
                                                         setDokumenTipe('bapp_i')
                                                     }
-                                                    className={`rounded-xl border p-4 text-left shadow-sm transition-all   ${
+                                                    className={`rounded-xl border p-4 text-left shadow-sm transition-all ${
                                                         dokumenTipe === 'bapp_i'
                                                             ? 'border-violet-300 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] shadow-sm ring-1 shadow-violet-500/10 ring-violet-200 dark:border-violet-700 dark:bg-[linear-gradient(180deg,rgba(76,29,149,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-violet-900'
                                                             : 'border-border bg-card hover:bg-muted'
@@ -1330,7 +1333,7 @@ export default function PublicPreview({
                                                             dokumenTipe ===
                                                             'bapp_i'
                                                                 ? 'text-violet-700 dark:text-violet-300'
-                                                                : 'text-foreground '
+                                                                : 'text-foreground'
                                                         }`}
                                                     >
                                                         Pemeriksaan Tahap I
@@ -1350,7 +1353,7 @@ export default function PublicPreview({
                                                             'bapp_ii',
                                                         )
                                                     }
-                                                    className={`rounded-xl border p-4 text-left shadow-sm transition-all   ${
+                                                    className={`rounded-xl border p-4 text-left shadow-sm transition-all ${
                                                         dokumenTipe ===
                                                         'bapp_ii'
                                                             ? 'border-violet-300 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] shadow-sm ring-1 shadow-violet-500/10 ring-violet-200 dark:border-violet-700 dark:bg-[linear-gradient(180deg,rgba(76,29,149,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-violet-900'
@@ -1362,7 +1365,7 @@ export default function PublicPreview({
                                                             dokumenTipe ===
                                                             'bapp_ii'
                                                                 ? 'text-violet-700 dark:text-violet-300'
-                                                                : 'text-foreground '
+                                                                : 'text-foreground'
                                                         }`}
                                                     >
                                                         Pemeriksaan Tahap II
@@ -1379,7 +1382,7 @@ export default function PublicPreview({
                                                 onClick={() =>
                                                     setDokumenTipe('bast')
                                                 }
-                                                className={`rounded-xl border p-4 text-left shadow-sm transition-all   ${
+                                                className={`rounded-xl border p-4 text-left shadow-sm transition-all ${
                                                     dokumenTipe === 'bast'
                                                         ? 'border-sky-300 bg-[linear-gradient(180deg,#f0f9ff_0%,#ffffff_100%)] shadow-sm ring-1 shadow-sky-500/10 ring-sky-200 dark:border-sky-700 dark:bg-[linear-gradient(180deg,rgba(12,74,110,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-sky-900'
                                                         : 'border-border bg-card hover:bg-muted'
@@ -1389,7 +1392,7 @@ export default function PublicPreview({
                                                     className={`mt-2 text-sm font-semibold ${
                                                         dokumenTipe === 'bast'
                                                             ? 'text-sky-700 dark:text-sky-300'
-                                                            : 'text-foreground '
+                                                            : 'text-foreground'
                                                     }`}
                                                 >
                                                     Serah Terima
@@ -1409,7 +1412,7 @@ export default function PublicPreview({
                                                 disabled={
                                                     processing || !canSubmit
                                                 }
-                                                className="h-11 gap-2 rounded-lg shadow-sm transition-all  "
+                                                className="h-11 gap-2 rounded-lg shadow-sm transition-all"
                                             >
                                                 <Eye className="h-4 w-4" />
                                                 {processing
@@ -1425,7 +1428,7 @@ export default function PublicPreview({
                                                 disabled={
                                                     processing || !canSubmit
                                                 }
-                                                className="h-11 gap-2 rounded-lg shadow-sm transition-all  "
+                                                className="h-11 gap-2 rounded-lg shadow-sm transition-all"
                                             >
                                                 <Download className="h-4 w-4" />
                                                 {processing

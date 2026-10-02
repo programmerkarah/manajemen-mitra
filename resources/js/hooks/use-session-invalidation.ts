@@ -22,16 +22,13 @@ export function useSessionInvalidation(userId: number | null | undefined) {
             const channelName = `session.${userId}`;
             const channel = echo.private(channelName);
 
-            channel.listen(
-                '.session.invalidated',
-                () => {
-                    window.location.href =
-                        '/login?message=' +
-                        encodeURIComponent(
-                            'Anda telah login dari perangkat lain. Silakan login kembali.',
-                        );
-                },
-            );
+            channel.listen('.session.invalidated', () => {
+                window.location.href =
+                    '/login?message=' +
+                    encodeURIComponent(
+                        'Anda telah login dari perangkat lain. Silakan login kembali.',
+                    );
+            });
 
             cleanup = () => {
                 channel.stopListening('.session.invalidated');

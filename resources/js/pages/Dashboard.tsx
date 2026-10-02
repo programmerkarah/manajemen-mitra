@@ -1114,7 +1114,7 @@ export default function Dashboard({
                             <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
                                 Ringkasan Penilaian Mitra Statistik
                             </h3>
-                            <p className="mt-1 summary-card__label">
+                            <p className="summary-card__label mt-1">
                                 Snapshot kualitas mitra untuk pemantauan cepat
                             </p>
                         </div>
@@ -1381,7 +1381,7 @@ export default function Dashboard({
                                     Distribusi Beban Kerja Petugas {currentYear}
                                 </h3>
                             </div>
-                            <p className="mt-1 summary-card__label">
+                            <p className="summary-card__label mt-1">
                                 Monitoring alokasi kegiatan per petugas untuk
                                 evaluasi workload
                             </p>
@@ -1952,7 +1952,7 @@ export default function Dashboard({
                                             Honor Per Petugas Per Bulan{' '}
                                             {currentYear}
                                         </h3>
-                                        <p className="mt-1 summary-card__label">
+                                        <p className="summary-card__label mt-1">
                                             Total honor survei non-organik per
                                             bulan (honor + listing), diurutkan
                                             dari terbesar
@@ -2142,7 +2142,7 @@ export default function Dashboard({
                                     <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
                                         Analisis Ketimpangan Honor {currentYear}
                                     </h3>
-                                    <p className="mt-1 summary-card__label">
+                                    <p className="summary-card__label mt-1">
                                         Early warning system untuk distribusi
                                         honor yang tidak merata
                                     </p>

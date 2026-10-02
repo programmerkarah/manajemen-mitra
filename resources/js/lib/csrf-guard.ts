@@ -105,11 +105,7 @@ export function initializeInertiaCsrfGuard(): void {
             options: MutationVisitOptions = {},
         ) => {
             void refreshCsrfToken().then((token) => {
-                originalMethod(
-                    url,
-                    attachTokenToPayload(data, token),
-                    options,
-                );
+                originalMethod(url, attachTokenToPayload(data, token), options);
             });
         };
     }

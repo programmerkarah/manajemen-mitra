@@ -355,9 +355,7 @@ export default function AnalisisPetugasOrganik({
                                 </p>
                                 {card.icon}
                             </div>
-                            <p className="summary-card__value">
-                                {card.value}
-                            </p>
+                            <p className="summary-card__value">{card.value}</p>
                             <p className={`mt-0.5 text-xs ${card.subColor}`}>
                                 {card.sub}
                             </p>

@@ -6,10 +6,7 @@ const themeConfig = {
     light: { icon: Sun, label: 'Light' },
     dark: { icon: Moon, label: 'Dark' },
     system: { icon: Monitor, label: 'System' },
-} satisfies Record<
-    Appearance,
-    { icon: typeof Sun; label: string }
->;
+} satisfies Record<Appearance, { icon: typeof Sun; label: string }>;
 
 export function ThemeToggleButton() {
     const { appearance, updateAppearance } = useAppearance();
@@ -38,17 +35,19 @@ export function ThemeToggleButton() {
                 role="menu"
                 aria-label="Tema aplikasi"
             >
-                {(Object.entries(themeConfig) as [
-                    Appearance,
-                    (typeof themeConfig)[Appearance],
-                ][]).map(([value, { icon: Icon, label }]) => (
+                {(
+                    Object.entries(themeConfig) as [
+                        Appearance,
+                        (typeof themeConfig)[Appearance],
+                    ][]
+                ).map(([value, { icon: Icon, label }]) => (
                     <button
                         key={value}
                         type="button"
                         role="menuitemradio"
                         aria-checked={appearance === value}
                         onClick={() => selectAppearance(value)}
-                        className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     >
                         <Icon className="size-4 text-muted-foreground" />
                         <span className="flex-1">{label}</span>

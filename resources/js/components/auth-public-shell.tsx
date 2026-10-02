@@ -33,10 +33,15 @@ export function AuthPublicShell({
                     </Link>
                     <div className="flex shrink-0 items-center gap-2">
                         {headerAction && (
-                            <div className="flex items-center">{headerAction}</div>
+                            <div className="flex items-center">
+                                {headerAction}
+                            </div>
                         )}
                         {headerAction && (
-                            <span className="hidden h-5 w-px bg-border sm:block" aria-hidden="true" />
+                            <span
+                                className="hidden h-5 w-px bg-border sm:block"
+                                aria-hidden="true"
+                            />
                         )}
                         <ThemeToggleButton />
                     </div>

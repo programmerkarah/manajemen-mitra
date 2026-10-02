@@ -123,7 +123,7 @@ export function initializeReturnNavigation(): void {
         const destinationPath = normalizeInternalPath(destination);
         const destinationIsEditor = Boolean(
             destinationPath &&
-                /\/(?:create|edit)(?:\/|\?|$)/i.test(destinationPath),
+            /\/(?:create|edit)(?:\/|\?|$)/i.test(destinationPath),
         );
 
         if (method === 'get' || destinationIsEditor) {
