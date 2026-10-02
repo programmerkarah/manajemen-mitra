@@ -1,3 +1,12 @@
+import AlertCircle from 'lucide-react/icons/alert-circle';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import Clock from 'lucide-react/icons/clock';
+import Download from 'lucide-react/icons/download';
+import Eye from 'lucide-react/icons/eye';
+import FileText from 'lucide-react/icons/file-text';
+import PenLine from 'lucide-react/icons/pen-line';
+import Upload from 'lucide-react/icons/upload';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -7,17 +16,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import {
-    AlertCircle,
-    ArrowLeft,
-    CheckCircle2,
-    Clock,
-    Download,
-    Eye,
-    FileText,
-    PenLine,
-    Upload,
-} from 'lucide-react';
+
 import { useRef, useState } from 'react';
 
 interface SpkItem {
