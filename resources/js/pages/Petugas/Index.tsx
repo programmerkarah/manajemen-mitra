@@ -443,10 +443,26 @@ export default function Index({ petugas }: PetugasIndexProps) {
     };
 
     const toggleSelectAll = () => {
-        if (selectedIds.size === paginatedPetugas.length) {
-            setSelectedIds(new Set());
+        const selectableIds = paginatedPetugas
+            .filter((p) => p.jenis_petugas === 'non-organik')
+            .map((p) => p.id);
+
+        const allSelectableSelected =
+            selectableIds.length > 0 &&
+            selectableIds.every((id) => selectedIds.has(id));
+
+        if (allSelectableSelected) {
+            setSelectedIds((prev) => {
+                const next = new Set(prev);
+                selectableIds.forEach((id) => next.delete(id));
+                return next;
+            });
         } else {
-            setSelectedIds(new Set(paginatedPetugas.map((p) => p.id)));
+            setSelectedIds((prev) => {
+                const next = new Set(prev);
+                selectableIds.forEach((id) => next.add(id));
+                return next;
+            });
         }
     };
 
@@ -627,7 +643,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                 {/* Filters */}
                 <ContentCard>
                     <div className="mb-4">
-                        <h2 className="font-semibold">Cari & Filter Mitra</h2>
+                        <h2 className="font-semibold">Cari & Filter Petugas</h2>
                         <p className="mt-1 text-sm text-muted-foreground">
                             Cari petugas organik maupun non-organik berdasarkan
                             identitas, jenis petugas, atau status.
@@ -724,10 +740,22 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                             <input
                                                 type="checkbox"
                                                 checked={
-                                                    paginatedPetugas.length >
-                                                        0 &&
-                                                    selectedIds.size ===
-                                                        paginatedPetugas.length
+                                                    paginatedPetugas.some(
+                                                        (p) =>
+                                                            p.jenis_petugas ===
+                                                            'non-organik',
+                                                    ) &&
+                                                    paginatedPetugas
+                                                        .filter(
+                                                            (p) =>
+                                                                p.jenis_petugas ===
+                                                                'non-organik',
+                                                        )
+                                                        .every((p) =>
+                                                            selectedIds.has(
+                                                                p.id,
+                                                            ),
+                                                        )
                                                 }
                                                 onChange={toggleSelectAll}
                                                 className="h-4 w-4 rounded border-neutral-300"
@@ -753,6 +781,9 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                             <CreditCard className="h-4 w-4" />
                                             NIK/NIP
                                         </div>
+                                    </th>
+                                    <th className="px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap text-neutral-900 dark:text-neutral-100">
+                                        Jenis Petugas
                                     </th>
                                     <th
                                         className="cursor-pointer px-3 py-3.5 text-left text-sm font-semibold whitespace-nowrap hover:bg-neutral-100 dark:hover:bg-neutral-800"
@@ -801,7 +832,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                 {paginatedPetugas.length === 0 ? (
                                     <tr>
                                         <td
-                                            colSpan={isPJ ? 8 : 9}
+                                            colSpan={isPJ ? 9 : 10}
                                             className="px-6 py-12 text-center"
                                         >
                                             <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -859,6 +890,21 @@ export default function Index({ petugas }: PetugasIndexProps) {
                                             </td>
                                             <td className="px-3 py-3 text-sm whitespace-nowrap text-neutral-600 dark:text-neutral-400">
                                                 {Petugas.nik_masked || '-'}
+                                            </td>
+                                            <td className="px-3 py-3 text-sm whitespace-nowrap">
+                                                <span
+                                                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                                                        Petugas.jenis_petugas ===
+                                                        'organik'
+                                                            ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+                                                            : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                                    }`}
+                                                >
+                                                    {Petugas.jenis_petugas ===
+                                                    'organik'
+                                                        ? 'Organik'
+                                                        : 'Non-organik'}
+                                                </span>
                                             </td>
                                             <td className="px-3 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                                                 <div
