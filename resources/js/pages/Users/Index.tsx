@@ -13,6 +13,13 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -106,6 +113,8 @@ export default function Index({ users }: UsersIndexProps) {
     const allUsers = useDecryptedData<User>(users.encrypted);
 
     const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [roleFilter, setRoleFilter] = useState('all');
     const [sortField, setSortField] = useState<'name' | 'username' | 'email'>(
         'name',
     );
@@ -130,6 +139,19 @@ export default function Index({ users }: UsersIndexProps) {
                     user.roles?.some((role: Role) =>
                         role.display_name?.toLowerCase().includes(query),
                     ),
+            );
+        }
+
+        if (statusFilter !== 'all') {
+            const expectedActive = statusFilter === 'active';
+            result = result.filter(
+                (user: User) => user.is_active === expectedActive,
+            );
+        }
+
+        if (roleFilter !== 'all') {
+            result = result.filter((user: User) =>
+                user.roles?.some((role: Role) => role.name === roleFilter),
             );
         }
 
@@ -158,7 +180,14 @@ export default function Index({ users }: UsersIndexProps) {
         });
 
         return result;
-    }, [allUsers, search, sortField, sortDirection]);
+    }, [
+        allUsers,
+        search,
+        statusFilter,
+        roleFilter,
+        sortField,
+        sortDirection,
+    ]);
 
     // Client-side pagination
     const totalPages = Math.ceil(filteredAndSortedUsers.length / perPage);
@@ -213,6 +242,20 @@ export default function Index({ users }: UsersIndexProps) {
         };
     }, [allUsers]);
 
+    const roleOptions = useMemo(
+        () =>
+            Array.from(
+                new Map(
+                    allUsers
+                        .flatMap((user) => user.roles ?? [])
+                        .map((role) => [role.name, role]),
+                ).values(),
+            ).sort((a, b) =>
+                a.display_name.localeCompare(b.display_name, 'id'),
+            ),
+        [allUsers],
+    );
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Manajemen User" />
@@ -236,8 +279,8 @@ export default function Index({ users }: UsersIndexProps) {
                     </Button>
                 </PageHeader>
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <ContentCard className="cursor-pointer border border-blue-200/60 bg-gradient-to-br from-blue-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-blue-900/40 dark:from-blue-950/30 dark:to-neutral-900">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <ContentCard className="border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900/60">
                         <div className="flex items-start justify-between gap-3">
                             <div>
                                 <p className="text-sm text-blue-700 dark:text-blue-300">
@@ -253,7 +296,7 @@ export default function Index({ users }: UsersIndexProps) {
                         </div>
                     </ContentCard>
 
-                    <ContentCard className="cursor-pointer border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
+                    <ContentCard className="border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900/60">
                         <div className="flex items-start justify-between gap-3">
                             <div>
                                 <p className="text-sm text-emerald-700 dark:text-emerald-300">
@@ -269,7 +312,7 @@ export default function Index({ users }: UsersIndexProps) {
                         </div>
                     </ContentCard>
 
-                    <ContentCard className="cursor-pointer border border-indigo-200/60 bg-gradient-to-br from-indigo-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-indigo-900/40 dark:from-indigo-950/30 dark:to-neutral-900">
+                    <ContentCard className="border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900/60">
                         <div className="flex items-start justify-between gap-3">
                             <div>
                                 <p className="text-sm text-indigo-700 dark:text-indigo-300">
@@ -285,7 +328,7 @@ export default function Index({ users }: UsersIndexProps) {
                         </div>
                     </ContentCard>
 
-                    <ContentCard className="cursor-pointer border border-violet-200/60 bg-gradient-to-br from-violet-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-violet-900/40 dark:from-violet-950/30 dark:to-neutral-900">
+                    <ContentCard className="border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900/60">
                         <div className="flex items-start justify-between gap-3">
                             <div>
                                 <p className="text-sm text-violet-700 dark:text-violet-300">
@@ -302,31 +345,78 @@ export default function Index({ users }: UsersIndexProps) {
                     </ContentCard>
                 </div>
 
-                {/* Search */}
                 <ContentCard>
-                    <div className="space-y-3">
-                        <div className="flex gap-4">
-                            <div className="relative flex-1">
-                                <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-neutral-400" />
+                    <div className="space-y-4">
+                        <div>
+                            <h2 className="font-semibold">Cari & Filter User</h2>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Temukan akun berdasarkan identitas, status, atau role.
+                            </p>
+                        </div>
+                        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_220px_220px_auto]">
+                            <div className="relative">
+                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-400" />
                                 <Input
                                     type="text"
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Cari user (nama, username, email, role)..."
-                                    className="h-11 pl-10 text-base"
+                                    placeholder="Nama, username, email, atau role..."
+                                    className="pl-9"
                                 />
                             </div>
-                            {search && (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setSearch('')}
-                                    className="h-11 gap-2"
-                                >
-                                    <X className="h-5 w-5" />
-                                    Reset
-                                </Button>
-                            )}
+                            <Select
+                                value={statusFilter}
+                                onValueChange={(value) => {
+                                    setStatusFilter(value);
+                                    setCurrentPage(1);
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Semua status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua status</SelectItem>
+                                    <SelectItem value="active">Aktif</SelectItem>
+                                    <SelectItem value="inactive">Nonaktif</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Select
+                                value={roleFilter}
+                                onValueChange={(value) => {
+                                    setRoleFilter(value);
+                                    setCurrentPage(1);
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Semua role" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua role</SelectItem>
+                                    {roleOptions.map((role) => (
+                                        <SelectItem key={role.name} value={role.name}>
+                                            {role.display_name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    setSearch('');
+                                    setStatusFilter('all');
+                                    setRoleFilter('all');
+                                    setCurrentPage(1);
+                                }}
+                                disabled={
+                                    !search &&
+                                    statusFilter === 'all' &&
+                                    roleFilter === 'all'
+                                }
+                            >
+                                <X className="mr-2 h-4 w-4" />
+                                Reset
+                            </Button>
                         </div>
                     </div>
                 </ContentCard>
@@ -341,7 +431,9 @@ export default function Index({ users }: UsersIndexProps) {
                                 filteredAndSortedUsers.length,
                             )}{' '}
                             dari {filteredAndSortedUsers.length} user
-                            {search &&
+                            {(search ||
+                                statusFilter !== 'all' ||
+                                roleFilter !== 'all') &&
                                 ` (difilter dari ${allUsers.length} total)`}
                         </p>
                     </div>
