@@ -80,9 +80,9 @@ export default function Index({ dasarHukum }: Props) {
 
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<'all' | 'aktif' | 'nonaktif'>('all');
-    const [expandedChains, setExpandedChains] = useState<Record<string, boolean>>(
-        {},
-    );
+    const [expandedChains, setExpandedChains] = useState<
+        Record<string, boolean>
+    >({});
 
     const getKategoriLabel = (item: DasarHukum): string => {
         switch (item.kategori) {
@@ -128,8 +128,7 @@ export default function Index({ dasarHukum }: Props) {
             .map((root) => {
                 const amendments = (amendmentsByRoot.get(root.id) ?? []).sort(
                     (left, right) =>
-                        left.tahun - right.tahun ||
-                        left.id - right.id,
+                        left.tahun - right.tahun || left.id - right.id,
                 );
                 const activeItem =
                     [...amendments]
@@ -521,7 +520,7 @@ export default function Index({ dasarHukum }: Props) {
                                                                 >
                                                                     <span
                                                                         className={[
-                                                                            'absolute -left-[27px] top-1.5 h-3 w-3 rounded-full border-2',
+                                                                            'absolute top-1.5 -left-[27px] h-3 w-3 rounded-full border-2',
                                                                             isCurrent
                                                                                 ? 'border-emerald-500 bg-emerald-500'
                                                                                 : 'border-neutral-300 bg-white dark:border-neutral-600 dark:bg-neutral-900',
