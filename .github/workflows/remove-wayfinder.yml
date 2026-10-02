@@ -1,0 +1,37 @@
+name: one-time-remove-wayfinder
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/remove-wayfinder.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+      - name: Remove unused Laravel Wayfinder package
+        run: composer remove laravel/wayfinder --no-interaction --no-progress --no-scripts --with-all-dependencies
+      - name: Commit dependency cleanup
+        run: |
+          if git diff --quiet -- composer.json composer.lock; then
+            echo "No Composer changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add composer.json composer.lock
+          git commit -m "chore: remove unused Laravel Wayfinder package"
+          git push origin HEAD:main
