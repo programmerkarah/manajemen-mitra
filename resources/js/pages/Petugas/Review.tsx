@@ -1,5 +1,6 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
+import { SummaryCard } from '@/components/summary-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -280,58 +281,30 @@ export default function Review({
                 />
 
                 <div className="summary-grid">
-                    <ContentCard>
-                        <div className="flex items-center justify-between gap-3">
-                            <div>
-                                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                    Mitra tersedia
-                                </p>
-                                <p className="mt-1 text-2xl font-semibold">
-                                    {petugas_options.length}
-                                </p>
-                            </div>
-                            <Users className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                    </ContentCard>
-                    <ContentCard>
-                        <div className="flex items-center justify-between gap-3">
-                            <div>
-                                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                    Siap dinilai
-                                </p>
-                                <p className="mt-1 text-2xl font-semibold">
-                                    {readyCount}
-                                </p>
-                            </div>
-                            <ClipboardCheck className="h-5 w-5 text-blue-600" />
-                        </div>
-                    </ContentCard>
-                    <ContentCard>
-                        <div className="flex items-center justify-between gap-3">
-                            <div>
-                                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                    Sudah final
-                                </p>
-                                <p className="mt-1 text-2xl font-semibold">
-                                    {completedCount}
-                                </p>
-                            </div>
-                            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                        </div>
-                    </ContentCard>
-                    <ContentCard>
-                        <div className="flex items-center justify-between gap-3">
-                            <div>
-                                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                    Belum tersedia
-                                </p>
-                                <p className="mt-1 text-2xl font-semibold">
-                                    {pendingCount}
-                                </p>
-                            </div>
-                            <Clock3 className="h-5 w-5 text-amber-600" />
-                        </div>
-                    </ContentCard>
+                    <SummaryCard
+                        label="Mitra tersedia"
+                        value={petugas_options.length}
+                        icon={<Users className="size-4" />}
+                        accent="neutral"
+                    />
+                    <SummaryCard
+                        label="Siap dinilai"
+                        value={readyCount}
+                        icon={<ClipboardCheck className="size-4" />}
+                        accent="blue"
+                    />
+                    <SummaryCard
+                        label="Sudah final"
+                        value={completedCount}
+                        icon={<CheckCircle2 className="size-4" />}
+                        accent="green"
+                    />
+                    <SummaryCard
+                        label="Belum tersedia"
+                        value={pendingCount}
+                        icon={<Clock3 className="size-4" />}
+                        accent="orange"
+                    />
                 </div>
 
                 {!can_submit_review && (
