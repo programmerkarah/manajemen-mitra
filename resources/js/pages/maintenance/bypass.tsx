@@ -1,9 +1,11 @@
+import Key from 'lucide-react/icons/key';
+import LoaderCircle from 'lucide-react/icons/loader-circle';
+import ShieldCheck from 'lucide-react/icons/shield-check';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Form, Head } from '@inertiajs/react';
-import { Key, LoaderCircle, ShieldCheck } from 'lucide-react';
 
 export default function Bypass() {
     return (
