@@ -18,16 +18,15 @@ import AppLogo from './app-logo';
 
 export function AppSidebar() {
     const { auth, isSeKetuaTim } = usePage<SharedData>().props;
-
     const mainNavItems = buildNavItems(auth.activeRole?.name, isSeKetuaTim);
 
     return (
         <Sidebar
             collapsible="icon"
             variant="inset"
-            className="border-r border-neutral-200 bg-white shadow-lg transition-all duration-300 dark:border-neutral-800 dark:bg-neutral-900"
+            className="border-r border-sidebar-border bg-sidebar shadow-sm transition-all duration-300"
         >
-            <SidebarHeader className="flex h-20 items-center justify-center border-b border-neutral-200 dark:border-neutral-800">
+            <SidebarHeader className="flex h-18 items-center justify-center border-b border-sidebar-border">
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
@@ -43,7 +42,7 @@ export function AppSidebar() {
                 <NavMain items={mainNavItems} />
             </SidebarContent>
 
-            <SidebarFooter className="flex flex-col gap-2 border-t border-neutral-200 p-3 dark:border-neutral-800">
+            <SidebarFooter className="flex flex-col gap-2 border-t border-sidebar-border p-3">
                 <YearSwitcher />
                 <NavUser />
             </SidebarFooter>
