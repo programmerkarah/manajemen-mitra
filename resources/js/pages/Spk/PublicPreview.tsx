@@ -754,13 +754,13 @@ export default function PublicPreview({
                     </div>
                 </header>
 
-                <div className="mx-auto max-w-5xl space-y-5 px-5 py-8 sm:px-8 sm:py-10">
-                    <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white px-6 py-6 shadow-[0_10px_28px_rgba(15,23,42,0.05)] dark:border-slate-800 dark:bg-slate-900">
+                <div className="mx-auto max-w-6xl space-y-6 px-5 py-8 sm:px-8 sm:py-10">
+                    <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white px-6 py-7 shadow-[0_14px_36px_rgba(15,23,42,0.07)] sm:px-8 dark:border-slate-800 dark:bg-slate-900">
                         <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-blue-600 via-emerald-500 to-orange-500" />
-                        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                        <h1 className="text-3xl font-semibold tracking-[-0.03em] text-slate-900 dark:text-white">
                             Akses Dokumen Mitra
                         </h1>
-                        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
+                        <p className="mt-2 max-w-3xl text-base leading-7 text-slate-500 dark:text-slate-400">
                             Verifikasi identitas, pilih kegiatan, lalu buka atau
                             unduh dokumen penugasan Anda.
                         </p>
@@ -806,12 +806,12 @@ export default function PublicPreview({
                         </button>
 
                         {expandedStep === 1 && (
-                            <div className="p-6 sm:p-8">
+                            <div className="p-6 sm:p-8 lg:p-9">
                                 <div className="grid gap-5 sm:grid-cols-[1fr_1fr_190px]">
                                     <div className="space-y-2">
                                         <Label
                                             htmlFor="nama"
-                                            className="text-sm font-semibold text-neutral-700 dark:text-neutral-100"
+                                            className="text-sm font-semibold text-slate-700 dark:text-slate-100"
                                         >
                                             Nama Lengkap
                                         </Label>
@@ -823,14 +823,14 @@ export default function PublicPreview({
                                             }
                                             placeholder="Contoh: Sena Susanto"
                                             autoComplete="name"
-                                            className="h-11 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
+                                            className="h-12 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
                                         />
                                     </div>
 
                                     <div className="space-y-2">
                                         <Label
                                             htmlFor="nik"
-                                            className="text-sm font-semibold text-neutral-700 dark:text-neutral-100"
+                                            className="text-sm font-semibold text-slate-700 dark:text-slate-100"
                                         >
                                             NIK
                                         </Label>
@@ -843,14 +843,14 @@ export default function PublicPreview({
                                             placeholder="16 digit NIK"
                                             inputMode="numeric"
                                             autoComplete="off"
-                                            className="h-11 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
+                                            className="h-12 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
                                         />
                                     </div>
 
                                     <div className="space-y-2">
                                         <Label
                                             htmlFor="telepon-4-digit"
-                                            className="text-sm font-semibold text-neutral-700 dark:text-neutral-100"
+                                            className="text-sm font-semibold text-slate-700 dark:text-slate-100"
                                         >
                                             4 Digit Terakhir HP
                                         </Label>
@@ -868,7 +868,7 @@ export default function PublicPreview({
                                             inputMode="numeric"
                                             maxLength={4}
                                             autoComplete="off"
-                                            className="h-11 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
+                                            className="h-12 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
                                         />
                                     </div>
                                 </div>
@@ -889,7 +889,7 @@ export default function PublicPreview({
                                             (!recaptchaReady &&
                                                 !!recaptcha_site_key)
                                         }
-                                        className="gap-2 shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
+                                        className="h-11 gap-2 rounded-lg shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
                                     >
                                         {loadingOptions ? (
                                             <>
@@ -974,12 +974,12 @@ export default function PublicPreview({
                             </button>
 
                             {expandedStep === 2 && (
-                                <div className="p-6 sm:p-8">
+                                <div className="p-6 sm:p-8 lg:p-9">
                                     <div className="grid gap-5 sm:grid-cols-2">
                                         <div className="space-y-2">
                                             <Label
                                                 htmlFor="jenis-kegiatan"
-                                                className="text-sm font-semibold text-neutral-700 dark:text-neutral-100"
+                                                className="text-sm font-semibold text-slate-700 dark:text-slate-100"
                                             >
                                                 Jenis Kegiatan
                                             </Label>
@@ -995,7 +995,7 @@ export default function PublicPreview({
                                             >
                                                 <SelectTrigger
                                                     id="jenis-kegiatan"
-                                                    className="h-11 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
+                                                    className="h-12 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
                                                 >
                                                     <SelectValue placeholder="Pilih jenis kegiatan" />
                                                 </SelectTrigger>
@@ -1022,7 +1022,7 @@ export default function PublicPreview({
                                             <div className="space-y-2">
                                                 <Label
                                                     htmlFor="opsi-kegiatan"
-                                                    className="text-sm font-semibold text-neutral-700 dark:text-neutral-100"
+                                                    className="text-sm font-semibold text-slate-700 dark:text-slate-100"
                                                 >
                                                     {jenisKegiatan === 'survei'
                                                         ? 'Periode Bulan Survei'
@@ -1042,7 +1042,7 @@ export default function PublicPreview({
                                                     >
                                                         <SelectTrigger
                                                             id="opsi-kegiatan"
-                                                            className="h-11 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
+                                                            className="h-12 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
                                                         >
                                                             <SelectValue placeholder="Pilih periode survei" />
                                                         </SelectTrigger>
@@ -1078,7 +1078,7 @@ export default function PublicPreview({
                                                     >
                                                         <SelectTrigger
                                                             id="opsi-kegiatan"
-                                                            className="h-11 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
+                                                            className="h-12 border-slate-200 bg-slate-50/70 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:bg-white dark:border-slate-700 dark:bg-slate-950/40"
                                                         >
                                                             <SelectValue placeholder="Pilih kegiatan sensus" />
                                                         </SelectTrigger>
@@ -1272,7 +1272,7 @@ export default function PublicPreview({
                                     </div>
 
                                     {/* Dokumen section */}
-                                    <div className="p-6 sm:p-8">
+                                    <div className="p-6 sm:p-8 lg:p-9">
                                         <div
                                             className={`grid gap-3 ${
                                                 jenisKegiatan === 'sensus'
@@ -1404,7 +1404,7 @@ export default function PublicPreview({
                                                 disabled={
                                                     processing || !canSubmit
                                                 }
-                                                className="gap-2 shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
+                                                className="h-11 gap-2 rounded-lg shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
                                             >
                                                 <Eye className="h-4 w-4" />
                                                 {processing
@@ -1420,7 +1420,7 @@ export default function PublicPreview({
                                                 disabled={
                                                     processing || !canSubmit
                                                 }
-                                                className="gap-2 shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
+                                                className="h-11 gap-2 rounded-lg shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
                                             >
                                                 <Download className="h-4 w-4" />
                                                 {processing
@@ -1434,10 +1434,9 @@ export default function PublicPreview({
                         </div>
                     )}
 
-                    <div className="border-t border-slate-200 pt-5 text-center dark:border-slate-800">
-                        <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                            Data dan dokumen hanya ditampilkan setelah identitas
-                            petugas berhasil diverifikasi.
+                    <div className="rounded-xl border border-slate-200 bg-white/70 px-5 py-4 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+                        <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
+                            Data dan dokumen hanya ditampilkan setelah identitas petugas berhasil diverifikasi.
                         </p>
                     </div>
                 </div>
