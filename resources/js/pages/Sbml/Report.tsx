@@ -1,3 +1,5 @@
+import ChevronDown from 'lucide-react/icons/chevron-down';
+import ChevronRight from 'lucide-react/icons/chevron-right';
 import { ContentCard } from '@/components/content-card';
 import { MultiSelectCheckbox } from '@/components/multi-select-checkbox';
 import { PageHeader } from '@/components/page-header';
@@ -15,7 +17,7 @@ import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+
 import { useMemo, useState } from 'react';
 
 interface AlokasiDetail {
