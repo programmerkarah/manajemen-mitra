@@ -26,12 +26,7 @@ class HonorReturnNavigation
             return $response;
         }
 
-        return redirect($returnTo)->withHeaders(
-            collect($response->headers->all())
-                ->except(['location'])
-                ->mapWithKeys(fn (array $values, string $key) => [$key => $values])
-                ->all()
-        );
+        return redirect($returnTo);
     }
 
     private function isSafeInternalPath(string $returnTo): bool
