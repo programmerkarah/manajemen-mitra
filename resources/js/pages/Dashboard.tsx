@@ -1,39 +1,44 @@
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
-import AppLayout from '@/layouts/app-layout';
-import { buildNavItems } from '@/lib/nav-items';
-import { dashboard } from '@/routes';
-import { index as bastIndex } from '@/routes/bast';
-import { index as kegiatanIndex } from '@/routes/kegiatan';
-import { index as petugasIndex } from '@/routes/petugas';
-import { SharedData, type BreadcrumbItem } from '@/types';
-import { Head, Link, usePage } from '@inertiajs/react';
-import {
-    AlertCircle,
-    AlertTriangle,
-    ArrowRight,
-    Briefcase,
-    Calendar,
-    CheckCircle,
-    ChevronRight,
-    Clock,
-    Eye,
-    FileText,
-    Plus,
-    ScrollText,
-    Search,
-    Star,
-    TrendingUp,
-    Users,
-    XCircle,
-} from 'lucide-react';
+import { type BreadcrumbItem } from '@/types';
+import { Head } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
+import Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+    Tooltip from 'lucide-react/dist/esm/icons/button } from '@/components/ui/button';
+import { input } from '@/components/ui/input';
+import {
+    tooltip';
+import TooltipContent from 'lucide-react/dist/esm/icons/tooltip-content';
+import TooltipTrigger from 'lucide-react/dist/esm/icons/tooltip-trigger';
+import bastIndex } from '@/routes/bast';
+import { index from 'lucide-react/dist/esm/icons/} from '@/components/ui/tooltip';
+import app-layout from '@/layouts/app-layout';
+import { build-nav-items } from '@/lib/nav-items';
+import { dashboard } from '@/routes';
+import { index';
+import Link from 'lucide-react/dist/esm/icons/link';
+import usePage } from '@inertiajs/react';
+import {
+    AlertCircle from 'lucide-react/dist/esm/icons/use-page } from '@inertiajs/react';
+import {
+    alert-circle';
+import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
+import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right';
+import Briefcase from 'lucide-react/dist/esm/icons/briefcase';
+import Calendar from 'lucide-react/dist/esm/icons/calendar';
+import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
+import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
+import Clock from 'lucide-react/dist/esm/icons/clock';
+import Eye from 'lucide-react/dist/esm/icons/eye';
+import FileText from 'lucide-react/dist/esm/icons/file-text';
+import Plus from 'lucide-react/dist/esm/icons/plus';
+import ScrollText from 'lucide-react/dist/esm/icons/scroll-text';
+import Search from 'lucide-react/dist/esm/icons/search';
+import Star from 'lucide-react/dist/esm/icons/star';
+import TrendingUp from 'lucide-react/dist/esm/icons/trending-up';
+import Users from 'lucide-react/dist/esm/icons/users';
+import XCircle from 'lucide-react/dist/esm/icons/x-circle';
     Area,
     Bar,
     BarChart,
