@@ -1,7 +1,7 @@
 /.phpunit.cache
 /bootstrap/ssr
 /node_modules
-# /public/build
+/public/build
 /public/sk
 /public/spk-export
 /public/bast-export
