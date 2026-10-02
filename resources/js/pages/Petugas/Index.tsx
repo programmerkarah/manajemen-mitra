@@ -601,36 +601,26 @@ export default function Index({ petugas }: PetugasIndexProps) {
                     </div>
                 </PageHeader>
 
-                <div className="grid gap-3 sm:grid-cols-3">
-                    <ContentCard>
-                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                            Total petugas
-                        </p>
-                        <p className="mt-1 text-2xl font-semibold">
-                            {petugasSummary.total}
-                        </p>
-                    </ContentCard>
-                    <ContentCard>
-                        <div className="flex items-center justify-between gap-3">
-                            <div>
-                                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                    Organik
-                                </p>
-                                <p className="mt-1 text-2xl font-semibold">
-                                    {petugasSummary.organik}
-                                </p>
-                            </div>
-                            <UserIcon className="h-5 w-5 text-blue-600" />
-                        </div>
-                    </ContentCard>
-                    <ContentCard>
-                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                            Non-organik
-                        </p>
-                        <p className="mt-1 text-2xl font-semibold">
-                            {petugasSummary.nonOrganik}
-                        </p>
-                    </ContentCard>
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+                    <SummaryCard
+                        label="Total petugas"
+                        value={petugasSummary.total}
+                        icon={<UserIcon className="size-4" />}
+                        accent="neutral"
+                    />
+                    <SummaryCard
+                        label="Organik"
+                        value={petugasSummary.organik}
+                        icon={<UserIcon className="size-4" />}
+                        accent="blue"
+                    />
+                    <SummaryCard
+                        label="Non-organik"
+                        value={petugasSummary.nonOrganik}
+                        icon={<UserIcon className="size-4" />}
+                        accent="green"
+                        className="col-span-2 lg:col-span-1"
+                    />
                 </div>
 
                 {/* Filters */}
@@ -642,7 +632,7 @@ export default function Index({ petugas }: PetugasIndexProps) {
                             identitas, jenis petugas, atau status.
                         </p>
                     </div>
-                    <div className="mb-4 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-muted-foreground dark:bg-neutral-900/60">
+                    <div className="mb-4 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
                         Menampilkan{' '}
                         <span className="font-semibold text-foreground">
                             {(currentPage - 1) * perPage + 1}-
