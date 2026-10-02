@@ -263,12 +263,12 @@ export default function AnalisisPetugasOrganik({
             <Head title="Analisis Petugas Organik" />
             <div className="flex flex-1 flex-col gap-6 p-4">
                 {/* Header */}
-                <div className="flex items-start justify-between rounded-2xl border border-neutral-200/70 bg-white/80 p-6 shadow-lg dark:border-neutral-800 dark:bg-neutral-900/80">
+                <div className="app-surface flex items-start justify-between p-4 sm:p-5 md:p-6">
                     <div>
-                        <h1 className="text-xl font-bold text-neutral-900 dark:text-white">
+                        <h1 className="app-page-title">
                             Analisis Petugas Organik
                         </h1>
-                        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                        <p className="app-page-description">
                             Distribusi beban kerja pegawai organik &middot;
                             Tahun {currentYear} (Januari &ndash;{' '}
                             {monthNames[currentMonth - 1]})
@@ -283,7 +283,7 @@ export default function AnalisisPetugasOrganik({
                                 'noopener,noreferrer',
                             )
                         }
-                        className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                        className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
                     >
                         <Download className="h-4 w-4" />
                         Export PDF
@@ -291,7 +291,7 @@ export default function AnalisisPetugasOrganik({
                 </div>
 
                 {/* KPI Cards */}
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="summary-grid">
                     {(
                         [
                             {
@@ -347,21 +347,21 @@ export default function AnalisisPetugasOrganik({
                     ).map((card) => (
                         <div
                             key={card.label}
-                            className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50"
+                            className="app-surface p-4 sm:p-5"
                         >
                             <div className="mb-3 flex items-center justify-between">
-                                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                                <p className="summary-card__label">
                                     {card.label}
                                 </p>
                                 {card.icon}
                             </div>
-                            <p className="text-2xl font-bold text-neutral-900 dark:text-white">
+                            <p className="summary-card__value">
                                 {card.value}
                             </p>
                             <p className={`mt-0.5 text-xs ${card.subColor}`}>
                                 {card.sub}
                             </p>
-                            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700">
+                            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted">
                                 <div
                                     className="h-full rounded-full transition-all duration-500"
                                     style={{
@@ -384,13 +384,13 @@ export default function AnalisisPetugasOrganik({
                     ).map(([key, cfg]) => (
                         <div
                             key={key}
-                            className="flex items-center justify-between rounded-xl border border-white/20 bg-white/40 px-4 py-3 shadow-lg backdrop-blur-xl dark:border-neutral-700/30 dark:bg-neutral-800/50"
+                            className="app-surface flex items-center justify-between px-3 py-3 sm:px-4"
                         >
                             <div className="flex items-center gap-2">
                                 <span
                                     className={`h-2 w-2 rounded-full ${cfg.dot}`}
                                 />
-                                <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                                <span className="text-xs font-medium text-muted-foreground">
                                     {cfg.label}
                                 </span>
                             </div>
@@ -434,11 +434,11 @@ export default function AnalisisPetugasOrganik({
 
                 {/* Charts */}
                 <div className="grid gap-6 lg:grid-cols-2">
-                    <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
-                        <h3 className="mb-1 text-sm font-semibold text-neutral-900 dark:text-white">
+                    <div className="app-surface p-4 sm:p-5">
+                        <h3 className="mb-1 text-sm font-semibold text-foreground">
                             Distribusi Beban Kerja
                         </h3>
-                        <p className="mb-4 text-xs text-neutral-500 dark:text-neutral-400">
+                        <p className="mb-4 text-xs text-muted-foreground">
                             Jumlah kegiatan unik yang dialokasikan per pegawai
                         </p>
                         {pieData.length > 0 ? (
@@ -503,11 +503,11 @@ export default function AnalisisPetugasOrganik({
                         )}
                     </div>
 
-                    <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
-                        <h3 className="mb-1 text-sm font-semibold text-neutral-900 dark:text-white">
+                    <div className="app-surface p-4 sm:p-5">
+                        <h3 className="mb-1 text-sm font-semibold text-foreground">
                             Tren Beban Kerja Bulanan
                         </h3>
-                        <p className="mb-4 text-xs text-neutral-500 dark:text-neutral-400">
+                        <p className="mb-4 text-xs text-muted-foreground">
                             Petugas teralokasi, kegiatan, dan total alokasi per
                             bulan
                         </p>
@@ -595,11 +595,11 @@ export default function AnalisisPetugasOrganik({
                 </div>
 
                 {/* Detail Table */}
-                <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
-                    <h3 className="mb-1 text-sm font-semibold text-neutral-900 dark:text-white">
+                <div className="app-surface p-4 sm:p-5">
+                    <h3 className="mb-1 text-sm font-semibold text-foreground">
                         Detail Beban Kerja Pegawai Organik
                     </h3>
-                    <p className="mb-4 text-xs text-neutral-500 dark:text-neutral-400">
+                    <p className="mb-4 text-xs text-muted-foreground">
                         Aturan indikator:{' '}
                         <span className="font-medium text-red-600 dark:text-red-400">
                             Overload
