@@ -17,7 +17,6 @@
         "laravel/passport": "*",
         "laravel/reverb": "*",
         "laravel/tinker": "^2.10.1",
-        "laravel/wayfinder": "^0.1.9",
         "maatwebsite/excel": "^4.0",
         "setasign/fpdi-tcpdf": "*",
         "tecnickcom/tcpdf": "*",
