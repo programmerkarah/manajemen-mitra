@@ -1,3 +1,4 @@
+import Lock from 'lucide-react/icons/lock';
 import AppLogo from '@/components/app-logo';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { store } from '@/routes/password/confirm';
 import { Form, Head, Link } from '@inertiajs/react';
-import { Lock } from 'lucide-react';
 
 export default function ConfirmPassword() {
     return (
