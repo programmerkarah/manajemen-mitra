@@ -58,7 +58,9 @@ export default function Login({
 
         try {
             csrfToken = await refreshCsrfToken();
-        } catch {}
+        } catch {
+            // Fall back to the CSRF token already present in the page.
+        }
 
         loginForm.transform((data) => ({ ...data, _token: csrfToken }));
         loginForm.post('/login', {
