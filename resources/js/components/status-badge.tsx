@@ -1,27 +1,25 @@
+import AlertCircle from 'lucide-react/icons/alert-circle';
+import AlertTriangle from 'lucide-react/icons/alert-triangle';
+import Ban from 'lucide-react/icons/ban';
+import Briefcase from 'lucide-react/icons/briefcase';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import ClipboardCheck from 'lucide-react/icons/clipboard-check';
+import Clock from 'lucide-react/icons/clock';
+import Crown from 'lucide-react/icons/crown';
+import Edit from 'lucide-react/icons/edit';
+import Eye from 'lucide-react/icons/eye';
+import FileCheck from 'lucide-react/icons/file-check';
+import FileText from 'lucide-react/icons/file-text';
+import Globe from 'lucide-react/icons/globe';
+import Mail from 'lucide-react/icons/mail';
+import RefreshCw from 'lucide-react/icons/refresh-cw';
+import Send from 'lucide-react/icons/send';
+import ShieldCheck from 'lucide-react/icons/shield-check';
+import ShieldX from 'lucide-react/icons/shield-x';
+import UserCog from 'lucide-react/icons/user-cog';
+import Users from 'lucide-react/icons/users';
+import XCircle from 'lucide-react/icons/x-circle';
 import { cn } from '@/lib/utils';
-import {
-    AlertCircle,
-    AlertTriangle,
-    Ban,
-    Briefcase,
-    CheckCircle2,
-    ClipboardCheck,
-    Clock,
-    Crown,
-    Edit,
-    Eye,
-    FileCheck,
-    FileText,
-    Globe,
-    Mail,
-    RefreshCw,
-    Send,
-    ShieldCheck,
-    ShieldX,
-    UserCog,
-    Users,
-    XCircle,
-} from 'lucide-react';
 
 interface StatusBadgeProps {
     status: string;
