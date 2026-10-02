@@ -359,6 +359,10 @@
         @apply mt-1 line-clamp-1 text-[11px] text-muted-foreground sm:text-xs;
     }
 
+    .header-control {
+        @apply h-9 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground shadow-none transition-colors hover:bg-muted;
+    }
+
     .responsive-card-grid {
         @apply grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3;
     }
