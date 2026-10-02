@@ -743,11 +743,11 @@ export default function Dashboard({
                 {/* Kondisi Ekuitas Mitra — replaces decorative SK/SPK + proportion cards */}
                 <div className="app-surface min-w-0 p-4 sm:p-5 md:p-6">
                     <div className="mb-5 border-b border-border pb-4">
-                        <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
+                        <h3 className="text-base font-semibold text-foreground">
                             Kondisi Ekuitas Mitra —{' '}
                             {monthNames[currentMonth - 1]} {currentYear}
                         </h3>
-                        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                        <p className="mt-1 text-xs text-muted-foreground">
                             Apakah beban kerja dan honor sudah terdistribusi
                             secara adil untuk seluruh mitra non-organik?
                         </p>
@@ -999,7 +999,7 @@ export default function Dashboard({
                                                 bulan ini
                                             </p>
                                         </div>
-                                        <div className="rounded-lg bg-emerald-50 p-3 dark:bg-emerald-900/20">
+                                        <div className="summary-card">
                                             <p className="text-[10px] text-emerald-600 uppercase dark:text-emerald-400">
                                                 Rata-rata
                                             </p>
@@ -1012,7 +1012,7 @@ export default function Dashboard({
                                                 per petugas
                                             </p>
                                         </div>
-                                        <div className="rounded-lg bg-sky-50 p-3 dark:bg-sky-900/20">
+                                        <div className="summary-card">
                                             <p className="text-[10px] text-sky-600 uppercase dark:text-sky-400">
                                                 Tertinggi
                                             </p>
@@ -1109,12 +1109,12 @@ export default function Dashboard({
 
                 {/* Ringkasan Penilaian Mitra */}
                 <div className="app-surface min-w-0 p-4 sm:p-5 md:p-6">
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 pb-4 dark:border-neutral-800">
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
                         <div>
                             <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
                                 Ringkasan Penilaian Mitra Statistik
                             </h3>
-                            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                            <p className="mt-1 summary-card__label">
                                 Snapshot kualitas mitra untuk pemantauan cepat
                             </p>
                         </div>
@@ -1154,22 +1154,22 @@ export default function Dashboard({
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                        <div className="rounded-lg bg-sky-50 p-3 dark:bg-sky-900/20">
-                            <p className="text-xs text-sky-700 dark:text-sky-300">
+                        <div className="summary-card">
+                            <p className="summary-card__label text-blue-600 dark:text-blue-300">
                                 Total Review
                             </p>
-                            <p className="mt-1 text-2xl font-bold text-sky-900 dark:text-sky-200">
+                            <p className="summary-card__value">
                                 {
                                     mitraReviewSummary[mitraInsightMode]
                                         .total_reviews
                                 }
                             </p>
                         </div>
-                        <div className="rounded-lg bg-amber-50 p-3 dark:bg-amber-900/20">
-                            <p className="text-xs text-amber-700 dark:text-amber-300">
+                        <div className="summary-card">
+                            <p className="summary-card__label text-amber-600 dark:text-amber-300">
                                 Rata-rata Rating
                             </p>
-                            <p className="mt-1 flex items-center gap-2 text-2xl font-bold text-amber-900 dark:text-amber-200">
+                            <p className="summary-card__value flex items-center gap-2">
                                 {
                                     mitraReviewSummary[mitraInsightMode]
                                         .avg_rating
@@ -1177,22 +1177,22 @@ export default function Dashboard({
                                 <Star className="size-4 fill-amber-500 text-amber-500" />
                             </p>
                         </div>
-                        <div className="rounded-lg bg-emerald-50 p-3 dark:bg-emerald-900/20">
-                            <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                        <div className="summary-card">
+                            <p className="summary-card__label text-emerald-600 dark:text-emerald-300">
                                 Mitra Dinilai
                             </p>
-                            <p className="mt-1 text-2xl font-bold text-emerald-900 dark:text-emerald-200">
+                            <p className="summary-card__value">
                                 {
                                     mitraReviewSummary[mitraInsightMode]
                                         .mitra_reviewed
                                 }
                             </p>
                         </div>
-                        <div className="rounded-lg bg-purple-50 p-3 dark:bg-purple-900/20">
-                            <p className="text-xs text-purple-700 dark:text-purple-300">
+                        <div className="summary-card">
+                            <p className="summary-card__label text-violet-600 dark:text-violet-300">
                                 Rating Positif (4-5)
                             </p>
-                            <p className="mt-1 text-2xl font-bold text-purple-900 dark:text-purple-200">
+                            <p className="summary-card__value">
                                 {
                                     mitraReviewSummary[mitraInsightMode]
                                         .positive_percentage
@@ -1200,20 +1200,20 @@ export default function Dashboard({
                                 %
                             </p>
                         </div>
-                        <div className="rounded-lg bg-rose-50 p-3 dark:bg-rose-900/20">
-                            <p className="text-xs text-rose-700 dark:text-rose-300">
+                        <div className="summary-card">
+                            <p className="summary-card__label text-rose-600 dark:text-rose-300">
                                 Mitra Terbaik Bulan Ini
                             </p>
                             {mitraReviewSummary.best_mitra_current_month ? (
                                 <>
-                                    <p className="mt-1 truncate text-sm font-bold text-rose-900 dark:text-rose-200">
+                                    <p className="mt-1 truncate text-sm font-semibold text-foreground">
                                         {
                                             mitraReviewSummary
                                                 .best_mitra_current_month
                                                 .petugas_nama
                                         }
                                     </p>
-                                    <p className="mt-1 text-[11px] text-rose-700/80 dark:text-rose-200/80">
+                                    <p className="summary-card__meta">
                                         {
                                             mitraReviewSummary
                                                 .best_mitra_current_month
@@ -1228,7 +1228,7 @@ export default function Dashboard({
                                     </p>
                                 </>
                             ) : (
-                                <p className="mt-1 text-sm text-rose-700/80 dark:text-rose-200/80">
+                                <p className="mt-1 text-sm text-muted-foreground">
                                     Belum ada review bulan ini
                                 </p>
                             )}
@@ -1239,15 +1239,15 @@ export default function Dashboard({
                         {mitraReviewSummary.top_mitra.map((mitra, index) => (
                             <div
                                 key={mitra.petugas_id}
-                                className="rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900"
+                                className="summary-card"
                             >
-                                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                                <p className="summary-card__label">
                                     Top {index + 1}
                                 </p>
-                                <p className="mt-1 truncate text-sm font-semibold text-neutral-900 dark:text-white">
+                                <p className="mt-1 truncate text-sm font-semibold text-foreground">
                                     {mitra.petugas_nama}
                                 </p>
-                                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-600 dark:text-neutral-300">
+                                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                                     <span>{mitra.total_review} review</span>
                                     <span>Balanced {mitra.balanced_score}</span>
                                     <span className="font-semibold text-amber-600 dark:text-amber-400">
@@ -1257,7 +1257,7 @@ export default function Dashboard({
                             </div>
                         ))}
                         {mitraReviewSummary.top_mitra.length === 0 && (
-                            <div className="rounded-lg border border-dashed border-neutral-300 p-4 text-sm text-neutral-500 md:col-span-3 dark:border-neutral-700 dark:text-neutral-400">
+                            <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground md:col-span-3">
                                 Belum ada data penilaian mitra pada tahun aktif.
                             </div>
                         )}
@@ -1381,7 +1381,7 @@ export default function Dashboard({
                                     Distribusi Beban Kerja Petugas {currentYear}
                                 </h3>
                             </div>
-                            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                            <p className="mt-1 summary-card__label">
                                 Monitoring alokasi kegiatan per petugas untuk
                                 evaluasi workload
                             </p>
@@ -1488,7 +1488,7 @@ export default function Dashboard({
                                 </p>
                             </div>
 
-                            <div className="rounded-lg bg-amber-50 p-3 dark:bg-amber-900/20">
+                            <div className="summary-card">
                                 <div className="mb-1 flex items-center gap-2">
                                     <AlertTriangle className="size-3.5 text-amber-600 dark:text-amber-400" />
                                     <span className="text-[10px] font-medium text-amber-600 uppercase dark:text-amber-400">
@@ -1952,7 +1952,7 @@ export default function Dashboard({
                                             Honor Per Petugas Per Bulan{' '}
                                             {currentYear}
                                         </h3>
-                                        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                                        <p className="mt-1 summary-card__label">
                                             Total honor survei non-organik per
                                             bulan (honor + listing), diurutkan
                                             dari terbesar
@@ -2142,7 +2142,7 @@ export default function Dashboard({
                                     <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
                                         Analisis Ketimpangan Honor {currentYear}
                                     </h3>
-                                    <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                                    <p className="mt-1 summary-card__label">
                                         Early warning system untuk distribusi
                                         honor yang tidak merata
                                     </p>
