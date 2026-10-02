@@ -515,12 +515,12 @@ export default function Dashboard({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
-            <div className="flex flex-1 flex-col gap-6 overflow-x-hidden">
-                <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/70">
+            <div className="flex flex-1 flex-col gap-7 overflow-x-hidden pb-8">
+                <div className="border-b border-neutral-200 bg-white px-1 pb-6 pt-1 dark:border-neutral-800 dark:bg-transparent">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div className="min-w-0">
-                            <h1 className="text-xl font-bold break-words text-neutral-900 dark:text-white">
-                                Ringkasan Operasional
+                            <h1 className="text-2xl font-semibold tracking-[-0.025em] break-words text-neutral-900 dark:text-white">
+                                Dashboard
                             </h1>
                             <p className="mt-1 text-sm break-words text-neutral-500 dark:text-neutral-400">
                                 {auth.user.name} ·{' '}
@@ -540,9 +540,9 @@ export default function Dashboard({
                         </div>
                     </div>
                     {attentionItems.length > 0 && (
-                        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800/40 dark:bg-amber-900/20">
+                        <div className="mt-5 flex flex-wrap items-center gap-2 border-l-2 border-amber-500 bg-amber-50/70 px-4 py-3 dark:bg-amber-950/20">
                             <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
-                                Perlu Perhatian:
+                                Perlu ditindaklanjuti
                             </span>
                             {attentionItems.map((item) => (
                                 <Link
@@ -581,11 +581,11 @@ export default function Dashboard({
                         </p>
                     </div>
                 </div>
-                <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid min-w-0 divide-y divide-neutral-200 border-y border-neutral-200 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4 dark:divide-neutral-800 dark:border-neutral-800">
                     {canViewPetugas ? (
                         <Link
                             href={petugasIndex().url}
-                            className="group flex min-w-0 flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all hover:border-blue-200/60 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900/60 dark:hover:border-blue-700/30"
+                            className="group flex min-w-0 flex-col justify-between bg-white p-5 transition-colors hover:bg-neutral-50 dark:bg-transparent dark:hover:bg-neutral-900/40"
                         >
                             <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0 flex-1">
@@ -605,7 +605,7 @@ export default function Dashboard({
                             </div>
                         </Link>
                     ) : (
-                        <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/60">
+                        <div className="flex min-w-0 flex-col justify-between bg-white p-5 dark:bg-transparent">
                             <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0 flex-1">
                                     <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
@@ -624,7 +624,7 @@ export default function Dashboard({
                     {canViewKegiatan ? (
                         <Link
                             href={kegiatanIndex().url}
-                            className="group flex min-w-0 flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all hover:border-green-200/60 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900/60 dark:hover:border-green-700/30"
+                            className="group flex min-w-0 flex-col justify-between bg-white p-5 transition-colors hover:bg-neutral-50 dark:bg-transparent dark:hover:bg-neutral-900/40"
                         >
                             <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0 flex-1">
@@ -644,7 +644,7 @@ export default function Dashboard({
                             </div>
                         </Link>
                     ) : (
-                        <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/60">
+                        <div className="flex min-w-0 flex-col justify-between bg-white p-5 dark:bg-transparent">
                             <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0 flex-1">
                                     <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
@@ -663,7 +663,7 @@ export default function Dashboard({
                     {canViewKegiatan ? (
                         <Link
                             href={kegiatanIndex().url}
-                            className="group flex min-w-0 flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all hover:border-amber-200/60 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900/60 dark:hover:border-amber-700/30"
+                            className="group flex min-w-0 flex-col justify-between bg-white p-5 transition-colors hover:bg-neutral-50 dark:bg-transparent dark:hover:bg-neutral-900/40"
                         >
                             <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0 flex-1">
@@ -683,7 +683,7 @@ export default function Dashboard({
                             </div>
                         </Link>
                     ) : (
-                        <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/60">
+                        <div className="flex min-w-0 flex-col justify-between bg-white p-5 dark:bg-transparent">
                             <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0 flex-1">
                                     <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
@@ -702,7 +702,7 @@ export default function Dashboard({
                     {canViewBast ? (
                         <Link
                             href={bastIndex().url}
-                            className="group flex min-w-0 flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all hover:border-purple-200/60 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900/60 dark:hover:border-purple-700/30"
+                            className="group flex min-w-0 flex-col justify-between bg-white p-5 transition-colors hover:bg-neutral-50 dark:bg-transparent dark:hover:bg-neutral-900/40"
                         >
                             <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0 flex-1">
@@ -722,7 +722,7 @@ export default function Dashboard({
                             </div>
                         </Link>
                     ) : (
-                        <div className="flex min-w-0 flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/60">
+                        <div className="flex min-w-0 flex-col justify-between bg-white p-5 dark:bg-transparent">
                             <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0 flex-1">
                                     <p className="truncate text-xs font-medium text-neutral-600 dark:text-neutral-400">
