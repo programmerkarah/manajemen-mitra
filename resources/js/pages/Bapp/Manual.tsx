@@ -2,6 +2,8 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
+import { FileUpload } from '@/components/ui/file-upload';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -38,6 +40,8 @@ interface Props {
     bulan_label: string;
     persentase: number;
     spk_list: SpkItem[];
+    document_type?: 'regular' | 'stopped_petugas' | 'replacement_pkpp';
+    replacement_termin_count?: number;
 }
 
 export default function Manual({
@@ -48,6 +52,8 @@ export default function Manual({
     bulan_label,
     persentase,
     spk_list,
+    document_type = 'regular',
+    replacement_termin_count = 0,
 }: Props) {
     const [files, setFiles] = useState<Record<number, File | null>>({});
     const [nomor, setNomor] = useState<Record<number, string>>({});
@@ -56,7 +62,8 @@ export default function Manual({
 
     const upload = (item: SpkItem) => {
         const file = files[item.spk_id];
-        if (!file) return;
+        const nomorBapp = (nomor[item.spk_id] ?? item.nomor_bapp ?? '').trim();
+        if (!file || !nomorBapp) return;
 
         setUploading(item.spk_id);
         router.post(
@@ -65,8 +72,10 @@ export default function Manual({
                 spk_hashed_id: item.spk_hashed_id,
                 termin,
                 file,
-                nomor_bapp: nomor[item.spk_id] ?? item.nomor_bapp ?? '',
+                nomor_bapp: nomorBapp,
                 tanggal_bapp: tanggal[item.spk_id] ?? item.tanggal_bapp ?? '',
+                document_type,
+                replacement_termin_count,
             },
             {
                 forceFormData: true,
@@ -85,9 +94,16 @@ export default function Manual({
         { title: 'BAPP SE2026', href: '/bapp' },
         {
             title: `Termin ${termin_roman}`,
-            href: `/bapp/create?termin=${termin_hashed}`,
+            href: `/bapp/create?termin=${termin_hashed}&document_type=${document_type}&replacement_termin_count=${replacement_termin_count}`,
         },
     ];
+
+    const contextLabel =
+        document_type === 'stopped_petugas'
+            ? 'Petugas berhenti'
+            : document_type === 'replacement_pkpp'
+              ? `Petugas pengganti · ${replacement_termin_count} termin`
+              : 'Petugas utama';
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -95,7 +111,7 @@ export default function Manual({
             <div className="flex flex-col gap-6 p-6">
                 <PageHeader
                     title={`BAPP Termin ${termin_roman} — Upload Manual`}
-                    description={`${bulan_label} ${tahun} · ${persentase}% · unggah PDF final per petugas`}
+                    description={`${contextLabel} · ${bulan_label} ${tahun} · ${persentase}% · unggah PDF final per petugas`}
                 >
                     <Button variant="outline" asChild>
                         <Link href="/bapp" prefetch>
@@ -107,9 +123,10 @@ export default function Manual({
 
                 <ContentCard>
                     <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-4 text-sm text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-200">
-                        SIMANTIK tidak membuat ulang isi BAPP. Nomor dan tanggal
-                        di bawah hanya metadata pencarian; PDF yang diunggah
-                        menjadi dokumen final yang tersedia untuk petugas.
+                        SIMANTIK menyimpan BAPP sebagai dokumen manual. Isi
+                        <strong> nomor BAPP lengkap persis seperti yang tercetak pada surat</strong>,
+                        termasuk kode/klasifikasi surat bila memang tercantum. Nomor ini wajib
+                        diisi agar dokumen mudah ditelusuri.
                     </div>
                 </ContentCard>
 
@@ -165,28 +182,31 @@ export default function Manual({
                                                         event.target.value,
                                                 }))
                                             }
-                                            placeholder="Opsional"
+                                            placeholder="Contoh: nomor lengkap sesuai dokumen"
+                                            required
                                         />
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Wajib · gunakan nomor lengkap, bukan nomor urut saja.
+                                        </p>
                                     </div>
 
                                     <div>
                                         <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
                                             Tanggal
                                         </label>
-                                        <Input
-                                            type="date"
+                                        <DatePicker
                                             value={
                                                 tanggal[item.spk_id] ??
                                                 item.tanggal_bapp ??
                                                 ''
                                             }
-                                            onChange={(event) =>
+                                            onChange={(value) =>
                                                 setTanggal((current) => ({
                                                     ...current,
-                                                    [item.spk_id]:
-                                                        event.target.value,
+                                                    [item.spk_id]: value,
                                                 }))
                                             }
+                                            placeholder="Pilih tanggal BAPP"
                                         />
                                     </div>
 
@@ -205,16 +225,16 @@ export default function Manual({
                                 </div>
 
                                 <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center">
-                                    <Input
-                                        type="file"
-                                        accept="application/pdf,.pdf"
+                                    <FileUpload
+                                        value={selected}
+                                        maxSizeMb={20}
                                         className="min-w-0 flex-1"
-                                        onChange={(event) =>
+                                        label={available ? 'Pilih PDF pengganti' : 'Pilih atau jatuhkan PDF BAPP'}
+                                        helperText="PDF final BAPP"
+                                        onChange={(file) =>
                                             setFiles((current) => ({
                                                 ...current,
-                                                [item.spk_id]:
-                                                    event.target.files?.[0] ??
-                                                    null,
+                                                [item.spk_id]: file,
                                             }))
                                         }
                                     />
@@ -222,6 +242,7 @@ export default function Manual({
                                         onClick={() => upload(item)}
                                         disabled={
                                             !selected ||
+                                            !(nomor[item.spk_id] ?? item.nomor_bapp ?? '').trim() ||
                                             uploading === item.spk_id
                                         }
                                     >
