@@ -107,6 +107,61 @@ class AnalisisExportController extends Controller
             ];
         }
 
+        // KPI dan ringkasan jenis mengikuti kartu/section di frontend.
+        $totalPaguAll = (float) collect($utilisasiAnggaran)->sum('total_pagu');
+        $totalTerpakaiAll = (float) collect($utilisasiAnggaran)->sum('total_terpakai');
+
+        $totalPetugasAktifQuery = DB::table('alokasi_petugas')
+            ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+            ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
+            ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
+            ->where('periode_alokasi.tahun', $currentYear)
+            ->where('petugas.jenis_petugas', 'non-organik')
+            ->whereRaw($this->allocationOrHonorExistsClause());
+        $this->applyEffectivePeriode($totalPetugasAktifQuery);
+        $totalPetugasAktif = $totalPetugasAktifQuery
+            ->distinct('alokasi_petugas.petugas_id')
+            ->count('alokasi_petugas.petugas_id');
+
+        $ringkasanKPI = [
+            'total_pagu' => $totalPaguAll,
+            'total_terpakai' => $totalTerpakaiAll,
+            'serapan_persen' => $totalPaguAll > 0
+                ? round(($totalTerpakaiAll / $totalPaguAll) * 100, 1)
+                : 0,
+            'total_petugas_aktif' => $totalPetugasAktif,
+            'total_kegiatan_aktif' => Kegiatan::query()
+                ->where('tahun_anggaran', $currentYear)
+                ->whereNotIn('status', ['dibatalkan'])
+                ->count(),
+        ];
+
+        $ringkasanJenisKegiatan = collect($utilisasiAnggaran)
+            ->groupBy('jenis_kegiatan')
+            ->map(function ($items, $jenis) {
+                $pagu = (float) collect($items)->sum('total_pagu');
+                $terpakai = (float) collect($items)->sum('total_terpakai');
+
+                return [
+                    'jenis' => $jenis,
+                    'label' => match ($jenis) {
+                        'sensus' => 'Sensus',
+                        'survei' => 'Survei',
+                        'kompilasi' => 'Kompilasi',
+                        default => ucfirst((string) $jenis),
+                    },
+                    'jumlah_kegiatan' => count($items),
+                    'total_pagu' => $pagu,
+                    'total_terpakai' => $terpakai,
+                    'serapan_persen' => $pagu > 0
+                        ? round(($terpakai / $pagu) * 100, 1)
+                        : 0,
+                ];
+            })
+            ->sortByDesc('total_pagu')
+            ->values()
+            ->all();
+
         $umumPieSvg = $this->buildPieChartSvg($distribusiBebanKerja, 'label', 'count', 'Distribusi Beban Kerja Petugas');
         $umumLineSvg = $this->buildLineChartSvg(
             array_map(fn ($item) => [
@@ -190,6 +245,8 @@ class AnalisisExportController extends Controller
             'distribusiBebanKerja' => $distribusiBebanKerja,
             'trenAlokasi' => $trenAlokasi,
             'topPetugas' => $topPetugas,
+            'ringkasanKPI' => $ringkasanKPI,
+            'ringkasanJenisKegiatan' => $ringkasanJenisKegiatan,
             'pieChartSvg' => $umumPieSvg,
             'lineChartSvg' => $umumLineSvg,
             'currentYear' => $currentYear,
