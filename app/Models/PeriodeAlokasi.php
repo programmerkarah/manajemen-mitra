@@ -17,6 +17,8 @@ class PeriodeAlokasi extends Model
 
     protected $fillable = [
         'kegiatan_id',
+        'parent_periode_id',
+        'revision_number',
         'bulan',
         'tahun',
         'tanggal_mulai',
@@ -44,6 +46,8 @@ class PeriodeAlokasi extends Model
     protected $casts = [
         'bulan' => 'string',
         'tahun' => 'integer',
+        'parent_periode_id' => 'integer',
+        'revision_number' => 'integer',
         'tanggal_mulai' => 'date',
         'tanggal_selesai' => 'date',
         'tanggal_mulai_listing' => 'date',
