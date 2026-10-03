@@ -957,17 +957,45 @@ class DashboardController extends Controller
             )
                 ->get();
 
-            // Group by petugas_id + kegiatan_id, prefer perubahan
+            // Group by petugas_id + kegiatan_id. Perubahan tetap paling prioritas.
+            // Untuk Sensus Ekonomi, satu kegiatan dapat memiliki baris periode Juni–Agustus.
+            // Pilih honor efektif terbesar pada status yang sama agar periode bernilai 0
+            // tidak menutupi basis honor yang diproyeksikan ke bulan laporan.
             $grouped = [];
             foreach ($rawAlokasi as $row) {
                 $key = $row->petugas_id.'-'.$row->kegiatan_id;
                 if (! isset($grouped[$key])) {
                     $grouped[$key] = $row;
-                } else {
-                    // Prefer perubahan over dikirim
-                    if ($row->periode_status === 'perubahan') {
-                        $grouped[$key] = $row;
-                    }
+                    continue;
+                }
+
+                $existing = $grouped[$key];
+
+                if ($row->periode_status === 'perubahan' && $existing->periode_status !== 'perubahan') {
+                    $grouped[$key] = $row;
+                    continue;
+                }
+
+                if ($row->periode_status !== $existing->periode_status) {
+                    continue;
+                }
+
+                $rowEffectiveHonor = ($row->is_partial_payment && $row->estimasi_honor_partial !== null)
+                    ? (float) $row->estimasi_honor_partial
+                    : (float) ($row->total_honor ?? 0);
+                $rowEffectiveHonor += ($row->is_partial_payment_listing && $row->estimasi_honor_partial_listing !== null)
+                    ? (float) $row->estimasi_honor_partial_listing
+                    : (float) ($row->total_honor_listing ?? 0);
+
+                $existingEffectiveHonor = ($existing->is_partial_payment && $existing->estimasi_honor_partial !== null)
+                    ? (float) $existing->estimasi_honor_partial
+                    : (float) ($existing->total_honor ?? 0);
+                $existingEffectiveHonor += ($existing->is_partial_payment_listing && $existing->estimasi_honor_partial_listing !== null)
+                    ? (float) $existing->estimasi_honor_partial_listing
+                    : (float) ($existing->total_honor_listing ?? 0);
+
+                if ($rowEffectiveHonor > $existingEffectiveHonor) {
+                    $grouped[$key] = $row;
                 }
             }
 
