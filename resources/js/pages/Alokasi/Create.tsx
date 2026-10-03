@@ -1,42 +1,13 @@
-import { ContentCard } from '@/components/content-card';
-import { PageHeader } from '@/components/page-header';
-import { SearchableSelect } from '@/components/searchable-select';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { DatePicker } from '@/components/ui/date-picker';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import {
-    ArrowLeft,
-    Copy,
-    Download,
-    FileUp,
-    Loader2,
-    Plus,
-    Save,
-    Send,
-    Trash2,
-    X,
-} from 'lucide-react';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import Copy from 'lucide-react/icons/copy';
+import Download from 'lucide-react/icons/download';
+import FileUp from 'lucide-react/icons/file-up';
+import Loader2 from 'lucide-react/icons/loader2';
+import Plus from 'lucide-react/icons/plus';
+import Save from 'lucide-react/icons/save';
+import Send from 'lucide-react/icons/send';
+import Trash2 from 'lucide-react/icons/trash2';
+import X from 'lucide-react/icons/x';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
