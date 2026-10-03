@@ -83,20 +83,6 @@ export function buildNavItems(
                         title: 'Perjanjian Kerja',
                         href: '/spk',
                         icon: ClipboardList,
-                        items: [
-                            {
-                                title: 'PK Reguler',
-                                href: '/spk?mode=regular',
-                            },
-                            {
-                                title: 'PK Sensus Ekonomi',
-                                href: '/spk?mode=sensus-ekonomi',
-                            },
-                            {
-                                title: 'PK Petugas Pengganti',
-                                href: '/spk/petugas-pengganti',
-                            },
-                        ],
                     },
                     {
                         title: 'Berita Acara',
@@ -218,20 +204,6 @@ export function buildNavItems(
                         title: 'Perjanjian Kerja',
                         href: '/spk',
                         icon: ClipboardList,
-                        items: [
-                            {
-                                title: 'PK Reguler',
-                                href: '/spk?mode=regular',
-                            },
-                            {
-                                title: 'PK Sensus Ekonomi',
-                                href: '/spk?mode=sensus-ekonomi',
-                            },
-                            {
-                                title: 'PK Petugas Pengganti',
-                                href: '/spk/petugas-pengganti',
-                            },
-                        ],
                     },
                     {
                         title: 'Berita Acara',
@@ -392,20 +364,6 @@ export function buildNavItems(
                         title: 'Perjanjian Kerja',
                         href: '/spk',
                         icon: ClipboardList,
-                        items: [
-                            {
-                                title: 'PK Reguler',
-                                href: '/spk?mode=regular',
-                            },
-                            {
-                                title: 'PK Sensus Ekonomi',
-                                href: '/spk?mode=sensus-ekonomi',
-                            },
-                            {
-                                title: 'PK Petugas Pengganti',
-                                href: '/spk/petugas-pengganti',
-                            },
-                        ],
                     },
                     {
                         title: 'Berita Acara',
