@@ -18,16 +18,6 @@ class UpdatePetugasRequest extends FormRequest
     }
 
     /**
-     * Halaman Petugas/Mitra hanya mengelola petugas non-organik.
-     */
-    protected function prepareForValidation(): void
-    {
-        $this->merge([
-            'jenis_petugas' => 'non-organik',
-        ]);
-    }
-
-    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
@@ -56,7 +46,7 @@ class UpdatePetugasRequest extends FormRequest
             'alamat' => ['required', 'string'],
             'pendidikan' => ['required', 'in:SD,SMP,SMA,D1,D2,D3,D4,S1,S2,S3'],
             'tahun_bergabung' => ['required', 'integer', 'min:1980', 'max:'.date('Y')],
-            'jenis_petugas' => ['required', 'in:non-organik'],
+            'jenis_petugas' => ['required', 'in:organik,non-organik'],
             'jabatan' => ['nullable', 'string', 'max:255'],
             'golongan' => ['nullable', 'string', 'max:100'],
             'npwp' => ['nullable', 'string', 'max:24', Rule::unique('petugas', 'npwp')->ignore($petugasId)->whereNotNull('npwp')],
@@ -93,7 +83,7 @@ class UpdatePetugasRequest extends FormRequest
             'tahun_bergabung.min' => 'Tahun bergabung minimal 1980.',
             'tahun_bergabung.max' => 'Tahun bergabung tidak boleh melebihi tahun saat ini.',
             'jenis_petugas.required' => 'Jenis petugas wajib dipilih.',
-            'jenis_petugas.in' => 'Halaman Mitra hanya menerima petugas non-organik.',
+            'jenis_petugas.in' => 'Jenis petugas harus organik atau non-organik.',
             'npwp.size' => 'NPWP maksimal 24 digit.',
             'npwp.unique' => 'NPWP sudah terdaftar.',
             'status.required' => 'Status wajib dipilih.',
