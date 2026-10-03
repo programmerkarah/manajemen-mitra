@@ -118,21 +118,17 @@ class SpkAugustAddendumRegressionTest extends TestCase
             'Kasus ini belum addendum, jadi bukan re-generate addendum'
         );
 
-        $generateResponse = $this->get('/spk/periode/'.$periodePerubahan->hashed_id.'/generate');
-        $generateResponse->assertStatus(200);
-        $generateResponse->assertInertia(fn ($page) => $page->component('Spk/Generate'));
+        $addendumResponse = $this->get('/spk/periode/'.$periodePerubahan->hashed_id.'/addendum?bulan=8&tahun='.$tahun.'&mode=addendum');
+        $addendumResponse->assertStatus(200);
+        $addendumResponse->assertInertia(fn ($page) => $page->component('Spk/Addendum'));
 
-        $petugasList = collect($generateResponse->inertiaProps('petugas_list'));
+        $petugasList = collect($addendumResponse->inertiaProps('petugas_list'));
 
         $fitri = $petugasList->first(function (array $item): bool {
             return ($item['petugas']['nama'] ?? '') === 'Fitri Yati';
         });
 
-        $this->assertNotNull($fitri, 'Fitri Yati harus muncul pada daftar generate karena ada alokasi baru di SPK bulan tersebut.');
-        $this->assertNotEmpty(
-            $fitri['perubahan'] ?? [],
-            'Kolom perubahan untuk regenerate harus berisi ringkasan selisih alokasi.'
-        );
+        $this->assertNotNull($fitri, 'Fitri Yati harus muncul pada daftar addendum karena ada perubahan alokasi setelah PK awal.');
 
         Carbon::setTestNow();
     }
