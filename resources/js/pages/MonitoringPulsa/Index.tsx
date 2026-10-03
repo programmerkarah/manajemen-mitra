@@ -1,7 +1,7 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
+import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -19,7 +19,6 @@ import ChevronDown from 'lucide-react/icons/chevron-down';
 import ChevronRight from 'lucide-react/icons/chevron-right';
 import Clock from 'lucide-react/icons/clock';
 import Download from 'lucide-react/icons/download';
-import Search from 'lucide-react/icons/search';
 import SendHorizontal from 'lucide-react/icons/send-horizontal';
 import Users from 'lucide-react/icons/users';
 import { useMemo, useState } from 'react';
@@ -150,8 +149,7 @@ export default function MonitoringPulsaIndex({
     const [bulan, setBulan] = useState(initialBulan);
     const tahun = filters.tahun;
     const [activeTab, setActiveTab] = useState<ActiveTab>('semua');
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedPetugasIds] = useState<number[]>([]);
+    const [selectedPetugasId, setSelectedPetugasId] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 8;
 
@@ -226,15 +224,25 @@ export default function MonitoringPulsaIndex({
         );
     }, [displayItems]);
 
+    const petugasOptions = useMemo(
+        () =>
+            petugasGroups.map((group) => ({
+                value: String(group.petugasId),
+                label: group.petugasNama,
+                searchKeywords: group.petugasNama,
+            })),
+        [petugasGroups],
+    );
+
     const searchedGroups = useMemo(() => {
-        if (selectedPetugasIds.length === 0) {
+        if (!selectedPetugasId) {
             return petugasGroups;
         }
 
-        return petugasGroups.filter((group) =>
-            selectedPetugasIds.includes(group.petugasId),
+        return petugasGroups.filter(
+            (group) => String(group.petugasId) === selectedPetugasId,
         );
-    }, [petugasGroups, selectedPetugasIds]);
+    }, [petugasGroups, selectedPetugasId]);
 
     const totalPages = Math.max(1, Math.ceil(searchedGroups.length / pageSize));
     const effectiveCurrentPage =
@@ -323,23 +331,21 @@ export default function MonitoringPulsaIndex({
                                 </Select>
                             </div>
 
-                            <div className="min-w-[220px] flex-1 space-y-1.5 md:max-w-xs">
-                                <Label htmlFor="petugas-search">
-                                    Cari Petugas
-                                </Label>
-                                <div className="relative">
-                                    <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-                                    <Input
-                                        id="petugas-search"
-                                        value={searchTerm}
-                                        onChange={(event) => {
-                                            setSearchTerm(event.target.value);
-                                            setCurrentPage(1);
-                                        }}
-                                        placeholder="Nama petugas..."
-                                        className="pl-9"
-                                    />
-                                </div>
+                            <div className="min-w-[240px] flex-1 space-y-1.5 md:max-w-sm">
+                                <Label>Cari Petugas</Label>
+                                <SearchableSelect
+                                    options={petugasOptions}
+                                    value={selectedPetugasId}
+                                    onValueChange={(value) => {
+                                        setSelectedPetugasId(value);
+                                        setCurrentPage(1);
+                                    }}
+                                    placeholder="Semua petugas"
+                                    searchPlaceholder="Cari nama petugas..."
+                                    defaultVisibleCount={10}
+                                    showClearAction
+                                    clearLabel="Tampilkan semua petugas"
+                                />
                             </div>
                         </div>
 
