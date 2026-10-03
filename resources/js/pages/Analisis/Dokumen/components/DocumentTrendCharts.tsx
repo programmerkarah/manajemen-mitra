@@ -8,6 +8,7 @@ import {
     XAxis,
     YAxis,
 } from 'recharts';
+import type { ReactNode } from 'react';
 import type { TrenDokumenItem } from '../types';
 
 function TrendTooltip({
@@ -52,7 +53,7 @@ function ChartCard({
 }: {
     title: string;
     description: string;
-    children: React.ReactNode;
+    children: ReactNode;
 }) {
     return (
         <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
