@@ -19,7 +19,7 @@ class SpkActionDecisionService
         $bulanFormatted = str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
 
         $allPeriodeInMonth = PeriodeAlokasi::query()
-            ->whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
+            ->whereRaw('CAST(bulan AS INTEGER) = ?', [(int) $bulanFormatted])
             ->where('tahun', $tahun)
             ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
             ->whereHas('kegiatan', fn ($q) => $q->where('jenis_kegiatan', '!=', 'sensus'))
@@ -221,7 +221,7 @@ class SpkActionDecisionService
         if ($monthAllocationIds === null) {
             $bulanFormatted = str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
             $periodeIds = PeriodeAlokasi::query()
-                ->whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
+                ->whereRaw('CAST(bulan AS INTEGER) = ?', [(int) $bulanFormatted])
                 ->where('tahun', $tahun)
                 ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
                 ->whereHas('kegiatan', fn ($q) => $q->where('jenis_kegiatan', '!=', 'sensus'))
@@ -279,16 +279,14 @@ class SpkActionDecisionService
         }
 
         if ($hasExistingAddendum) {
-            // A replacement always creates the next numbered addendum. When a
-            // replacement and a new allocation arrive together, replacement
-            // takes priority and the resulting addendum snapshots both.
-            if ($hasReplacementChange) {
-                return 'generate_addendum';
-            }
-
-            // Re-generate Addendum is reserved for a pure new allocation after
-            // at least one addendum already exists.
-            if ($hasNewAllocation || $hasUncoveredPostAddendumChange) {
+            // Any uncovered contractual change after an existing addendum
+            // must regenerate the addendum chain instead of creating a new
+            // "first" addendum action.
+            if (
+                $hasReplacementChange
+                || $hasNewAllocation
+                || $hasUncoveredPostAddendumChange
+            ) {
                 return 'regenerate_addendum';
             }
 
@@ -562,7 +560,7 @@ class SpkActionDecisionService
         $bulanFormatted = str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
 
         $allPeriodeInMonth = PeriodeAlokasi::query()
-            ->whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
+            ->whereRaw('CAST(bulan AS INTEGER) = ?', [(int) $bulanFormatted])
             ->where('tahun', $tahun)
             ->whereIn('status', ['dikirim', 'disetujui', 'perubahan'])
             ->whereHas('kegiatan', fn ($q) => $q->where('jenis_kegiatan', '!=', 'sensus'))
@@ -840,7 +838,7 @@ class SpkActionDecisionService
                 $q->where('jenis_petugas', 'non-organik');
             })
             ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun, $upToCreatedAt): void {
-                $q->whereRaw("LPAD(CAST(bulan AS UNSIGNED), 2, '0') = ?", [$bulanFormatted])
+                $q->whereRaw('CAST(bulan AS INTEGER) = ?', [(int) $bulanFormatted])
                     ->where('tahun', $tahun)
                     ->whereIn('status', ['dikirim', 'disetujui', 'perubahan'])
                     ->whereHas('kegiatan', fn ($qq) => $qq->where('jenis_kegiatan', '!=', 'sensus'));
