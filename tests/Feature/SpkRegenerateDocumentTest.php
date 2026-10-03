@@ -43,7 +43,11 @@ class SpkRegenerateDocumentTest extends TestCase
             'is_active' => true,
         ]);
 
-        $kegiatan = Kegiatan::factory()->create();
+        $kegiatan = Kegiatan::factory()->create([
+            'jenis_kegiatan' => 'survei',
+            'nama_kegiatan' => 'Survei Regenerate SPK',
+            'tahun_anggaran' => 2026,
+        ]);
         $petugas = Petugas::factory()->create(['nama' => 'John Doe']);
 
         $periode = PeriodeAlokasi::factory()->for($kegiatan)->create([
@@ -120,7 +124,11 @@ class SpkRegenerateDocumentTest extends TestCase
             'is_active' => true,
         ]);
 
-        $kegiatan = Kegiatan::factory()->create();
+        $kegiatan = Kegiatan::factory()->create([
+            'jenis_kegiatan' => 'survei',
+            'nama_kegiatan' => 'Survei Regenerate SPK',
+            'tahun_anggaran' => 2026,
+        ]);
         $petugas = Petugas::factory()->create(['nama' => 'Jane Doe']);
 
         $periode = PeriodeAlokasi::factory()->for($kegiatan)->create([
