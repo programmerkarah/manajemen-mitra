@@ -798,13 +798,6 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
 
     public function title(): string
     {
-        if ($this->periodeAlokasiId) {
-            $periode = PeriodeAlokasi::find($this->periodeAlokasiId);
-            if ($periode) {
-                return "Alokasi {$periode->bulan}/{$periode->tahun}";
-            }
-        }
-
         return 'Alokasi Petugas';
     }
 
