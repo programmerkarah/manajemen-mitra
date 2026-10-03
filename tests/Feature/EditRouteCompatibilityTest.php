@@ -38,7 +38,7 @@ class EditRouteCompatibilityTest extends TestCase
         $this->assertStringContainsString('/login', (string) $response->headers->get('Location'));
     }
 
-    public function test_csrf_token_endpoint_regenerates_and_returns_token(): void
+    public function test_csrf_token_endpoint_returns_current_session_token(): void
     {
         $firstResponse = $this->getJson('/csrf-token');
         $firstResponse->assertOk();
@@ -53,6 +53,6 @@ class EditRouteCompatibilityTest extends TestCase
         $secondToken = $secondResponse->json('token');
         $this->assertIsString($secondToken);
         $this->assertNotEmpty($secondToken);
-        $this->assertNotSame($firstToken, $secondToken);
+        $this->assertSame($firstToken, $secondToken);
     }
 }
