@@ -987,9 +987,9 @@ class BappController extends Controller
         $tahun = ActiveYearService::get();
         $currentMonth = (int) now()->format('m');
         $hasBappTerminTable = $this->hasBappTerminTable();
-        $documentType = $this->resolveDocumentType($request);
-        $replacementTerminCount = $this->resolveReplacementTerminCount($request);
-        $contextReplacementTerminCount = $this->getContextReplacementTerminCount($documentType, $replacementTerminCount);
+        // BAPP SE2026 hanya memakai alur reguler manual.
+        $documentType = 'regular';
+        $contextReplacementTerminCount = 2;
         $kegiatan = $this->getSensusEkonomiKegiatan();
         $unitSampelItems = $this->getUnitSampelItems($kegiatan);
 
@@ -1002,7 +1002,8 @@ class BappController extends Controller
                 $bappCount = $this->applyBappDocumentContextScope(
                     BappSeTermin::query()
                         ->where('termin', $terminNumber)
-                        ->where('tahun', $tahun),
+                        ->where('tahun', $tahun)
+                        ->whereNotNull('signed_file_path'),
                     $documentType,
                     $contextReplacementTerminCount,
                 )->count();
