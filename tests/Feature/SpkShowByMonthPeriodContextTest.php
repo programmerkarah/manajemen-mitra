@@ -140,7 +140,9 @@ class SpkShowByMonthPeriodContextTest extends TestCase
         ]);
 
         $response = $this->get('/spk/month?state='.urlencode($state));
+        $response->assertRedirect(route('spk.show-by-month-get'));
 
+        $response = $this->get('/spk/month');
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->component('Spk/ShowByMonth')
@@ -228,7 +230,9 @@ class SpkShowByMonthPeriodContextTest extends TestCase
         ]);
 
         $response = $this->get('/spk/month?state='.urlencode($state));
+        $response->assertRedirect(route('spk.show-by-month-get'));
 
+        $response = $this->get('/spk/month');
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->component('Spk/ShowByMonth')
@@ -313,7 +317,11 @@ class SpkShowByMonthPeriodContextTest extends TestCase
         $response = $this->get('/spk/periode/'.$periode->hashed_id.'/kegiatan/'.$kegiatan->hashed_id.'/download-all');
 
         $response->assertOk();
-        $response->assertHeader('content-disposition', fn (string $header) => str_contains($header, 'attachment; filename="SPK_'));
+        $response->assertHeader('content-disposition');
+        $this->assertStringContainsString(
+            'attachment; filename="SPK_',
+            (string) $response->headers->get('content-disposition')
+        );
     }
 
     public function test_download_all_for_month_includes_non_survey_activities(): void
@@ -388,9 +396,20 @@ class SpkShowByMonthPeriodContextTest extends TestCase
             'created_by' => $user->id,
         ]);
 
-        $response = $this->get('/spk/download-all?bulan=5&tahun='.$tahun);
+        $response = $this->post('/spk/download-all', [
+            'state' => encryptFilters([
+                'bulan' => 5,
+                'tahun' => $tahun,
+                'context' => 'sensus',
+                'periode_hashed_id' => $periode->hashed_id,
+            ]),
+        ]);
 
         $response->assertOk();
-        $response->assertHeader('content-disposition', fn (string $header) => str_contains($header, 'attachment; filename="SPK_'));
+        $response->assertHeader('content-disposition');
+        $this->assertStringContainsString(
+            'attachment; filename="SPK_',
+            (string) $response->headers->get('content-disposition')
+        );
     }
 }
