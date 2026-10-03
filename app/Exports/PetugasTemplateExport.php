@@ -95,7 +95,7 @@ class PetugasTemplateExport implements FromArray, WithHeadings, WithStyles, With
         ];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         $sheet->getColumnDimension('A')->setWidth(25);
         $sheet->getColumnDimension('B')->setWidth(20);
