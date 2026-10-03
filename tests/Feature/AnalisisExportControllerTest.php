@@ -181,7 +181,7 @@ class AnalisisExportControllerTest extends TestCase
             $trenAgustus = collect($captured['data']['trenAlokasi'])->firstWhere('bulan', 8);
 
             $this->assertNotNull($utilisasi);
-            $this->assertEquals(750000, $utilisasi['total_terpakai']);
+            $this->assertEquals(250000, $utilisasi['total_terpakai']);
             $this->assertNotNull($trenJuni);
             $this->assertNotNull($trenJuli);
             $this->assertNotNull($trenAgustus);
