@@ -559,7 +559,26 @@ class DashboardController extends Controller
                 )
                 ->distinct()
                 ->get()
-                ->mapWithKeys(fn ($row) => [$row->petugas_id.'_'.$row->bast_year.'_'.$row->bast_month => true])
+                ->mapWithKeys(fn ($row) => [$row->petugas_id.'_'.$row->bast_year.'_'.$row->bast_month => true]);
+
+            // BAST baru/manual tidak selalu memiliki baris bast_petugas. Gabungkan
+            // relasi langsung bast -> spk -> petugas agar dashboard memakai sumber
+            // kelengkapan yang sama dengan halaman Berita Acara.
+            $directPetugasMonthsWithBast = DB::table('bast as b')
+                ->join('spk as s', 'b.spk_id', '=', 's.id')
+                ->whereNull('b.deleted_at')
+                ->whereYear('b.tanggal_bast', $currentYear)
+                ->select(
+                    's.petugas_id',
+                    DB::raw('YEAR(b.tanggal_bast) as bast_year'),
+                    DB::raw('MONTH(b.tanggal_bast) as bast_month'),
+                )
+                ->distinct()
+                ->get()
+                ->mapWithKeys(fn ($row) => [$row->petugas_id.'_'.$row->bast_year.'_'.$row->bast_month => true]);
+
+            $petugasMonthsWithBast = $petugasMonthsWithBast
+                ->union($directPetugasMonthsWithBast)
                 ->all();
 
             $bastDueSoonCount = 0;
@@ -674,6 +693,8 @@ class DashboardController extends Controller
                     'label' => 'BAST mendekati / melewati target',
                     'count' => $bastAttentionCount,
                     'url' => $targetUrl,
+                    'target_bulan' => $firstTarget['bulan'] ?? null,
+                    'target_tahun' => $firstTarget['tahun'] ?? null,
                     'description' => sprintf(
                         '%d lewat target, %d mendekati target%s',
                         $bastOverdueCount,
