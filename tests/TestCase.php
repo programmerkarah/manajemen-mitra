@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use App\Http\Middleware\EnforceFeatureDeadlines;
 use App\Http\Middleware\EnsureSingleActiveSession;
 use App\Http\Middleware\PreventMaintenanceModeRequests;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
@@ -18,6 +19,7 @@ abstract class TestCase extends BaseTestCase
         Cache::flush();
 
         $this->withoutMiddleware([
+            EnforceFeatureDeadlines::class,
             EnsureSingleActiveSession::class,
             PreventMaintenanceModeRequests::class,
         ]);
