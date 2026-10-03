@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\BappSeTermin;
 use App\Models\SensusEkonomiPkppContract;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -41,14 +42,28 @@ class SensusEkonomiReplacementReadService
 
         $contracts = $query->get();
 
+        $replacementIds = $contracts->pluck('replacement_id')->filter()->unique()->values();
+
         $documentRows = Schema::hasTable('sensus_ekonomi_replacement_documents')
             ? DB::table('sensus_ekonomi_replacement_documents')
-                ->whereIn('replacement_id', $contracts->pluck('replacement_id')->filter()->unique())
+                ->whereIn('replacement_id', $replacementIds)
                 ->get()
                 ->groupBy('replacement_id')
             : collect();
 
-        return $contracts->map(function (SensusEkonomiPkppContract $contract) use ($documentRows): ?array {
+        $bappRows = Schema::hasTable('bapp_se_termin')
+            && Schema::hasColumn('bapp_se_termin', 'replacement_id')
+            && Schema::hasColumn('bapp_se_termin', 'document_type')
+            ? BappSeTermin::query()
+                ->whereIn('replacement_id', $replacementIds)
+                ->where('document_type', 'replacement_pkpp')
+                ->where('tahun', $year)
+                ->whereNotNull('signed_file_path')
+                ->get()
+                ->groupBy('replacement_id')
+            : collect();
+
+        return $contracts->map(function (SensusEkonomiPkppContract $contract) use ($documentRows, $bappRows): ?array {
             $replacement = $contract->replacement;
             $periode = $replacement?->periodeAlokasi;
             $kegiatan = $periode?->kegiatan;
@@ -71,6 +86,16 @@ class SensusEkonomiReplacementReadService
             $documents = $documentRows->get($replacement->id, collect());
             $bastDocument = $documents
                 ->where('document_type', 'bast')
+                ->sortByDesc('updated_at')
+                ->first();
+
+            $replacementBapps = $bappRows->get($replacement->id, collect());
+            $bappTermin1 = $replacementBapps
+                ->where('termin', 1)
+                ->sortByDesc('updated_at')
+                ->first();
+            $bappTermin2 = $replacementBapps
+                ->where('termin', 2)
                 ->sortByDesc('updated_at')
                 ->first();
 
@@ -100,6 +125,10 @@ class SensusEkonomiReplacementReadService
                 'bast_available' => filled($bastDocument?->file_path),
                 'bast_file_path' => $bastDocument?->file_path,
                 'bast_nomor' => $bastDocument?->nomor_dokumen,
+                'bapp_termin_i_available' => filled($bappTermin1?->signed_file_path),
+                'bapp_termin_i_file_path' => $bappTermin1?->signed_file_path,
+                'bapp_termin_ii_available' => filled($bappTermin2?->signed_file_path),
+                'bapp_termin_ii_file_path' => $bappTermin2?->signed_file_path,
             ];
         })->filter()->values();
     }
