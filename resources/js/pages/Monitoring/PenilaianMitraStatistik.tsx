@@ -1,5 +1,6 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
+import { SummaryCard } from '@/components/summary-card';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -507,46 +508,11 @@ export default function PenilaianMitraStatistik({
                 />
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                    <ContentCard>
-                        <p className="text-xs text-neutral-500">
-                            Total Penilaian
-                        </p>
-                        <p className="mt-2 text-2xl font-semibold">
-                            {summary.total_reviews}
-                        </p>
-                    </ContentCard>
-                    <ContentCard>
-                        <p className="text-xs text-neutral-500">
-                            Rata-rata Rating
-                        </p>
-                        <p className="mt-2 text-2xl font-semibold">
-                            {summary.avg_rating}
-                        </p>
-                    </ContentCard>
-                    <ContentCard>
-                        <p className="text-xs text-neutral-500">
-                            Mitra Dinilai
-                        </p>
-                        <p className="mt-2 text-2xl font-semibold">
-                            {summary.petugas_reviewed}
-                        </p>
-                    </ContentCard>
-                    <ContentCard>
-                        <p className="text-xs text-neutral-500">
-                            Kegiatan Dinilai
-                        </p>
-                        <p className="mt-2 text-2xl font-semibold">
-                            {summary.kegiatan_reviewed}
-                        </p>
-                    </ContentCard>
-                    <ContentCard>
-                        <p className="text-xs text-neutral-500">
-                            Review Berulasan
-                        </p>
-                        <p className="mt-2 text-2xl font-semibold">
-                            {summary.reviews_with_ulasan}
-                        </p>
-                    </ContentCard>
+                    <SummaryCard label="Total Penilaian" value={summary.total_reviews} />
+                    <SummaryCard label="Rata-rata Rating" value={summary.avg_rating} />
+                    <SummaryCard label="Mitra Dinilai" value={summary.petugas_reviewed} />
+                    <SummaryCard label="Kegiatan Dinilai" value={summary.kegiatan_reviewed} />
+                    <SummaryCard label="Review Berulasan" value={summary.reviews_with_ulasan} />
                 </div>
 
                 <ContentCard>
