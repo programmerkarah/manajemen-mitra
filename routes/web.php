@@ -674,6 +674,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         // Berita Acara static routes must come before {bast} wildcard
         Route::get('berita-acara/create', [BastController::class, 'create'])->name('bast.create');
         Route::post('berita-acara/generate-batch', [BastController::class, 'generateBatch'])->name('bast.generate-batch');
+        Route::post('berita-acara/manual-se-upload', [BastController::class, 'uploadManualSensus'])->name('bast.manual-se-upload');
         Route::post('berita-acara/preview-bast', [BastController::class, 'previewForSpk'])->name('bast.preview-bast');
         Route::get('berita-acara/download-all', [BastController::class, 'downloadAll'])->name('bast.download-all');
         Route::get('berita-acara/kegiatan/{kegiatan}/create', [BastController::class, 'createForKegiatan'])->name('bast.create-for-kegiatan');
