@@ -309,8 +309,23 @@ class SbmlHonorTerendahTest extends TestCase
             'updated_at' => now(),
         ]);
 
+        $kegiatanPengolahan = Kegiatan::factory()->create([
+            'status' => 'divalidasi',
+            'jenis_kegiatan' => 'sensus',
+            'tahun_anggaran' => $tahun,
+            'nama_kegiatan' => 'Sensus Ekonomi Pengolahan',
+        ]);
+
+        $periodePengolahan = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatanPengolahan->id,
+            'tahun' => $tahun,
+            'bulan' => $bulan,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'sensus',
+        ]);
+
         DB::table('alokasi_petugas')->insert([
-            'periode_alokasi_id' => $periode->id,
+            'periode_alokasi_id' => $periodePengolahan->id,
             'petugas_id' => $petugas->id,
             'jumlah_satuan' => 1,
             'total_honor' => 0,
