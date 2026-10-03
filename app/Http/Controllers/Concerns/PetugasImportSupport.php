@@ -153,9 +153,7 @@ trait PetugasImportSupport
                 continue;
             }
 
-            $petugas = Petugas::query()
-                ->where('jenis_petugas', 'non-organik')
-                ->find($id);
+            $petugas = Petugas::query()->find($id);
             if (! $petugas) {
                 continue;
             }
