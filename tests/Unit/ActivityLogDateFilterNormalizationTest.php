@@ -19,7 +19,6 @@ class ActivityLogDateFilterNormalizationTest extends TestCase
 
         $controller = new SystemSettingsController(Mockery::mock(DatabaseBackupService::class));
         $method = new \ReflectionMethod(SystemSettingsController::class, 'normalizeActivityLogDateFilters');
-        $method->setAccessible(true);
 
         $filters = $method->invoke($controller, [
             'date_from' => '2026-06-07',
@@ -33,7 +32,6 @@ class ActivityLogDateFilterNormalizationTest extends TestCase
     {
         $controller = new SystemSettingsController(Mockery::mock(DatabaseBackupService::class));
         $method = new \ReflectionMethod(SystemSettingsController::class, 'normalizeActivityLogDateFilters');
-        $method->setAccessible(true);
 
         $filters = $method->invoke($controller, [
             'date_to' => '2026-06-07',
