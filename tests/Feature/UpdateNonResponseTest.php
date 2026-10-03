@@ -10,6 +10,7 @@ use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class UpdateNonResponseTest extends TestCase
@@ -23,7 +24,7 @@ class UpdateNonResponseTest extends TestCase
         $this->seed(RoleSeeder::class);
     }
 
-    /** @test */
+    #[Test]
     public function ketua_tim_can_update_non_response()
     {
         // Create users
@@ -109,7 +110,7 @@ class UpdateNonResponseTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function non_ketua_tim_cannot_update_non_response()
     {
         // Create users
@@ -163,7 +164,7 @@ class UpdateNonResponseTest extends TestCase
         $response->assertSessionHas('error');
     }
 
-    /** @test */
+    #[Test]
     public function ketua_tim_cannot_update_other_ketua_tim_alokasi()
     {
         // Create users
