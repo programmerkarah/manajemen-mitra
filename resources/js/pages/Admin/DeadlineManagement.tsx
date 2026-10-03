@@ -1,5 +1,24 @@
 import React from 'react';
 
+import { ContentCard } from '@/components/content-card';
+import { MultiSelectCheckbox } from '@/components/multi-select-checkbox';
+import { SearchableSelect } from '@/components/searchable-select';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import AppLayout from '@/layouts/app-layout';
+import { BreadcrumbItem } from '@/types';
+import { Head, router, usePage } from '@inertiajs/react';
+
 import AlertTriangle from 'lucide-react/icons/alert-triangle';
 import Clock3 from 'lucide-react/icons/clock3';
 import HelpCircle from 'lucide-react/icons/help-circle';
