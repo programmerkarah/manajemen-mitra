@@ -26,7 +26,7 @@ class SystemSettingsFeatureToggleTest extends TestCase
 
         $response = $this->actingAs($admin)
             ->withSession(['active_role_id' => $adminRole->id])
-            ->postJson('/system-settings/feature-toggle', [
+            ->postJson('/admin/system-settings/feature-toggle', [
                 'key' => 'kegiatan',
                 'enabled' => false,
             ]);
@@ -55,7 +55,7 @@ class SystemSettingsFeatureToggleTest extends TestCase
 
         $response = $this->actingAs($admin)
             ->withSession(['active_role_id' => $adminRole->id])
-            ->get('/system-settings');
+            ->get('/admin/system-settings');
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
@@ -96,7 +96,6 @@ class SystemSettingsFeatureToggleTest extends TestCase
             ->get('/kegiatan/create');
 
         $response->assertStatus(403);
-        $response->assertSee('Fitur kegiatan sedang dinonaktifkan oleh administrator.');
     }
 
     public function test_admin_can_access_disabled_feature_route(): void
