@@ -23,7 +23,7 @@ import {
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import CheckCircle2 from 'lucide-react/icons/check-circle2';
 import ChevronDown from 'lucide-react/icons/chevron-down';
 import ChevronLeft from 'lucide-react/icons/chevron-left';
@@ -109,11 +109,16 @@ interface UsersIndexProps {
     allRoles: Role[];
 }
 
-const getEditUserIdFromUrl = (): number | null => {
+const USER_EDITOR_STORAGE_KEY = 'simantik.users.editingUserId';
+
+const getPersistedEditUserId = (): number | null => {
     if (typeof window === 'undefined') return null;
 
-    const raw = new URLSearchParams(window.location.search).get('edit');
-    if (!raw) return null;
+    const historyValue = (
+        window.history.state as { editUserId?: unknown } | null
+    )?.editUserId;
+    const storedValue = window.sessionStorage.getItem(USER_EDITOR_STORAGE_KEY);
+    const raw = historyValue ?? storedValue;
 
     const parsed = Number(raw);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
@@ -133,7 +138,7 @@ export default function Index({ users, allRoles }: UsersIndexProps) {
     const [perPage] = useState(15);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [editingUserId, setEditingUserId] = useState<number | null>(
-        getEditUserIdFromUrl,
+        getPersistedEditUserId,
     );
     const [editingRoles, setEditingRoles] = useState<number[] | null>(null);
     const [savingRoles, setSavingRoles] = useState(false);
@@ -227,29 +232,30 @@ export default function Index({ users, allRoles }: UsersIndexProps) {
         setEditingRoles(editingUser.roles.map((role) => role.id));
     }, [editingUser, editingRoles]);
 
-    useEffect(() => {
-        const syncEditorFromUrl = () => {
-            setEditingUserId(getEditUserIdFromUrl());
-            setEditingRoles(null);
-        };
-
-        window.addEventListener('popstate', syncEditorFromUrl);
-        return () => window.removeEventListener('popstate', syncEditorFromUrl);
-    }, []);
-
     const openRoleEditor = (user: User) => {
         setEditingUserId(user.id);
         setEditingRoles(user.roles.map((role) => role.id));
-        window.history.pushState({}, '', `/users?edit=${user.id}`);
+
+        window.sessionStorage.setItem(
+            USER_EDITOR_STORAGE_KEY,
+            String(user.id),
+        );
+        window.history.replaceState(
+            { ...(window.history.state ?? {}), editUserId: user.id },
+            '',
+            '/users',
+        );
     };
 
     const closeRoleEditor = () => {
         setEditingUserId(null);
         setEditingRoles(null);
-
-        if (window.location.pathname === '/users') {
-            window.history.replaceState({}, '', '/users');
-        }
+        window.sessionStorage.removeItem(USER_EDITOR_STORAGE_KEY);
+        window.history.replaceState(
+            { ...(window.history.state ?? {}), editUserId: null },
+            '',
+            '/users',
+        );
     };
 
     const toggleEditingRole = (roleId: number) => {
