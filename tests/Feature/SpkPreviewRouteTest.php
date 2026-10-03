@@ -6,6 +6,7 @@ use App\Http\Controllers\SpkController;
 use App\Models\AlokasiPetugas;
 use App\Models\Kegiatan;
 use App\Models\PeriodeAlokasi;
+use App\Models\Penandatangan;
 use App\Models\Petugas;
 use App\Services\ActiveYearService;
 use Carbon\Carbon;
@@ -22,6 +23,16 @@ class SpkPreviewRouteTest extends TestCase
         $this->withoutMiddleware();
 
         $tahun = ActiveYearService::get();
+
+        Penandatangan::query()->create([
+            'nama' => 'Preview PPK',
+            'nip' => '198001012010011001',
+            'jenis_penandatangan' => 'ppk',
+            'jabatan' => 'PPK',
+            'periode_mulai' => "{$tahun}-01-01",
+            'periode_selesai' => "{$tahun}-12-31",
+            'is_active' => true,
+        ]);
 
         $petugas = Petugas::factory()->create([
             'nama' => 'Preview Petugas',
