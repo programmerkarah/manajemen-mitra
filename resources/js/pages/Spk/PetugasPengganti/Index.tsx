@@ -495,8 +495,7 @@ export default function Index({
                                         )}
                                     </div>
 
-                                    {item.termination_type ===
-                                        'diberhentikan' && (
+                                    {item.requires_old_documents && (
                                         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
                                             Petugas diberhentikan: BAPP dan BAST
                                             petugas lama tetap wajib
