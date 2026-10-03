@@ -177,7 +177,7 @@ export default function CreatePkppContract({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Skema & PK Petugas Pengganti" />
 
-            <div className="space-y-6 p-6">
+            <div className="space-y-4">
                 <PageHeader
                     title="Kelola PK Petugas Pengganti"
                     description="Tetapkan skema berdasarkan tanggal kontrak dan inventaris PDF PK final yang sudah disiapkan."
