@@ -3265,7 +3265,7 @@ class BastController extends Controller
         })->values();
 
         // Format data SPK dengan detail kegiatan yang diikuti petugas
-        $spkList = $spks->map(function ($spk, $index) use ($bulanFormatted, $tahun, $nomorUrutStart, $isSensusEkonomiMode, $sensusAlokasiByPetugas) {
+        $spkList = $spks->map(function ($spk, $index) use ($bulan, $bulanFormatted, $tahun, $nomorUrutStart, $isSensusEkonomiMode, $sensusAlokasiByPetugas) {
             $petugas = $spk->alokasiPetugas?->petugas;
 
             // Ambil SEMUA alokasi petugas untuk bulan ini (semua kegiatan yang diikuti petugas di bulan yang sama)
