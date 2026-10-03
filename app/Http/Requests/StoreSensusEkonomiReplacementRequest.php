@@ -106,6 +106,7 @@ class StoreSensusEkonomiReplacementRequest extends FormRequest
                     }
                 },
             ],
+            'termination_type' => ['nullable', 'in:diberhentikan,mengundurkan_diri'],
             'tanggal_berhenti' => ['required', 'date'],
             'tanggal_mulai_cover' => ['nullable', 'date', 'after_or_equal:tanggal_berhenti'],
             'tanggal_mulai_pkpp' => ['nullable', 'date', 'after_or_equal:tanggal_berhenti'],
@@ -155,6 +156,7 @@ class StoreSensusEkonomiReplacementRequest extends FormRequest
             'pml_cover_petugas_id.different' => 'Petugas cover PML harus berbeda dari petugas berhenti.',
             'spk_lama_id.required' => 'SPK lama wajib dipilih.',
             'spk_lama_id.exists' => 'SPK lama tidak valid.',
+            'termination_type.in' => 'Alasan berhenti tidak valid.',
             'tanggal_berhenti.required' => 'Tanggal berhenti wajib diisi.',
             'tanggal_mulai_cover.after_or_equal' => 'Tanggal mulai cover harus sama atau setelah tanggal berhenti.',
             'tanggal_mulai_pkpp.after_or_equal' => 'Tanggal mulai PKPP harus sama atau setelah tanggal berhenti.',
