@@ -74,13 +74,13 @@ class SensusEkonomiReplacementReadService
             }
 
             $oldAlokasi = $replacement->spkLama?->alokasiPetugas;
-            $oldHonor = $oldAlokasi ? (float) $oldAlokasi->getEffectiveCombinedHonor() : 0.0;
-            $baseMonthlyHonor = $oldHonor > 0 ? $oldHonor / 2 : 0.0;
+            $peran = (string) ($oldAlokasi?->peran ?? '');
+            $obRate = $this->obRateForRole($peran);
             $monthFractions = $this->monthFractions((string) $contract->skema_kode);
             $monthlyHonor = [];
 
             foreach ($monthFractions as $month => $fraction) {
-                $monthlyHonor[(int) $month] = round($baseMonthlyHonor * $fraction, 2);
+                $monthlyHonor[(int) $month] = round($obRate * $fraction, 2);
             }
 
             $documents = $documentRows->get($replacement->id, collect());
@@ -114,6 +114,8 @@ class SensusEkonomiReplacementReadService
                 'nama_kegiatan' => (string) $kegiatan->nama_kegiatan,
                 'jenis_kegiatan' => (string) $kegiatan->jenis_kegiatan,
                 'target_sisa' => (float) ($replacement->target_sisa ?? 0),
+                'peran' => $peran,
+                'ob_rate' => $obRate,
                 'honor_ob' => (float) $contract->honor_ob,
                 'total_honor' => round(array_sum($monthlyHonor), 2),
                 'monthly_honor' => $monthlyHonor,
@@ -131,6 +133,13 @@ class SensusEkonomiReplacementReadService
                 'bapp_termin_ii_file_path' => $bappTermin2?->signed_file_path,
             ];
         })->filter()->values();
+    }
+
+    private function obRateForRole(string $role): float
+    {
+        return in_array(strtolower($role), ['pml', 'pemeriksa', 'pemeriksa_lapangan'], true)
+            ? 5_036_000.0
+            : 4_780_000.0;
     }
 
     /**
