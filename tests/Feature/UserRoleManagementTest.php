@@ -22,6 +22,16 @@ class UserRoleManagementTest extends TestCase
         }
     }
 
+    private function actingAsAdminWithRole(User $admin): static
+    {
+        $adminRole = Role::where('name', 'admin')->firstOrFail();
+
+        return $this->actingAs($admin)->withSession([
+            'active_role_id' => $adminRole->id,
+            'active_role_user_id' => $admin->id,
+        ]);
+    }
+
     public function test_admin_can_view_users_list(): void
     {
         $this->seedRoles();
@@ -30,7 +40,7 @@ class UserRoleManagementTest extends TestCase
 
         $this->assertTrue($admin->isAdmin(), 'User should be admin');
 
-        $response = $this->actingAs($admin)->get('/users');
+        $response = $this->actingAsAdminWithRole($admin)->get('/users');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page->component('Users/Index'));
@@ -52,7 +62,7 @@ class UserRoleManagementTest extends TestCase
         $admin = User::factory()->admin()->create();
         $user = User::factory()->create();
 
-        $response = $this->actingAs($admin)->get("/users/{$user->id}/edit");
+        $response = $this->actingAsAdminWithRole($admin)->get("/users/{$user->id}/edit");
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -70,7 +80,7 @@ class UserRoleManagementTest extends TestCase
         $operatorRole = Role::where('name', 'operator')->first();
         $pjRole = Role::where('name', 'pj')->first();
 
-        $response = $this->actingAs($admin)->patch("/users/{$user->id}", [
+        $response = $this->actingAsAdminWithRole($admin)->patch("/users/{$user->id}", [
             'roles' => [$operatorRole->id, $pjRole->id],
         ]);
 
@@ -89,7 +99,7 @@ class UserRoleManagementTest extends TestCase
         // This is the only admin
         $guestRole = Role::where('name', 'guest')->first();
 
-        $response = $this->actingAs($admin)->patch("/users/{$admin->id}", [
+        $response = $this->actingAsAdminWithRole($admin)->patch("/users/{$admin->id}", [
             'roles' => [$guestRole->id],
         ]);
 
@@ -103,7 +113,7 @@ class UserRoleManagementTest extends TestCase
         $admin = User::factory()->admin()->create();
         $user = User::factory()->create();
 
-        $response = $this->actingAs($admin)->patch("/users/{$user->id}", [
+        $response = $this->actingAsAdminWithRole($admin)->patch("/users/{$user->id}", [
             'roles' => [],
         ]);
 
@@ -135,7 +145,7 @@ class UserRoleManagementTest extends TestCase
         $pjRole = Role::where('name', 'pj')->first();
         $approverRole = Role::where('name', 'approver')->first();
 
-        $this->actingAs($admin)->patch("/users/{$user->id}", [
+        $this->actingAsAdminWithRole($admin)->patch("/users/{$user->id}", [
             'roles' => [$operatorRole->id, $pjRole->id, $approverRole->id],
         ]);
 
