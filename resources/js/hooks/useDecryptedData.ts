@@ -1,3 +1,4 @@
+import { normalizePersonNames } from '@/lib/person-name';
 import { decryptData } from '@/utils/encryption';
 import { useMemo } from 'react';
 
@@ -24,7 +25,9 @@ export function useDecryptedData<T = unknown>(
             return [];
         }
 
-        return Array.isArray(decrypted) ? decrypted : [decrypted];
+        const normalized = normalizePersonNames(decrypted);
+
+        return Array.isArray(normalized) ? normalized : [normalized];
     }, [encryptedData]);
 }
 
@@ -50,6 +53,6 @@ export function useDecryptedObject<T = unknown>(
             return null;
         }
 
-        return decrypted;
+        return normalizePersonNames(decrypted);
     }, [encryptedData]);
 }
