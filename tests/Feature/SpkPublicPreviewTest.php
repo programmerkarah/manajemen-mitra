@@ -21,6 +21,7 @@ use App\Services\ActiveYearService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class SpkPublicPreviewTest extends TestCase
@@ -202,7 +203,7 @@ class SpkPublicPreviewTest extends TestCase
             'jabatan' => 'PPK',
             'periode_mulai' => now()->subYear()->toDateString(),
             'periode_selesai' => now()->addYear()->toDateString(),
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
 
         $response = $this->post(
@@ -994,19 +995,19 @@ class SpkPublicPreviewTest extends TestCase
         $unitRumahTangga = MasterUnitSampel::query()->create([
             'nama' => 'Rumah Tangga',
             'kode' => 'RTX',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
 
         $unitUsaha = MasterUnitSampel::query()->create([
             'nama' => 'Usaha',
             'kode' => 'USX',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
 
         $masterFrame = MasterFrameSampel::query()->create([
             'nama' => 'Frame Sampel Utama',
             'kode' => 'FSX',
-            'is_active' => true,
+            'status' => 'aktif',
         ]);
 
         $frameRow = KegiatanFrameSampel::query()->create([
@@ -1187,7 +1188,7 @@ class SpkPublicPreviewTest extends TestCase
             'nama_kegiatan' => 'Survei BAST Kosong',
         ]);
 
-        $satuan = Satuan::factory()->create(['nama' => 'Dokumen BAST', 'kode' => 'DBST', 'is_active' => true]);
+        $satuan = Satuan::factory()->create(['nama' => 'Dokumen BAST', 'kode' => 'DBST', 'status' => 'aktif']);
         RateHonor::factory()->create([
             'kegiatan_id' => $kegiatan->id,
             'posisi' => 'PCL',
@@ -1260,7 +1261,7 @@ class SpkPublicPreviewTest extends TestCase
             'nama_kegiatan' => 'Survei BAST Ada',
         ]);
 
-        $satuan = Satuan::factory()->create(['nama' => 'Dokumen BAST Ada', 'kode' => 'DBSA', 'is_active' => true]);
+        $satuan = Satuan::factory()->create(['nama' => 'Dokumen BAST Ada', 'kode' => 'DBSA', 'status' => 'aktif']);
         RateHonor::factory()->create([
             'kegiatan_id' => $kegiatan->id,
             'posisi' => 'PCL',
@@ -1405,7 +1406,7 @@ class SpkPublicPreviewTest extends TestCase
                 'nik' => '3201000099990000',
                 'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
                 'jenis_kegiatan' => 'sensus',
-                'sensus_kegiatan' => (string) $kegiatan->id,
+                'sensus_kegiatan' => $kegiatan->hashed_id,
                 'dokumen_tipe' => 'bapp',
                 'bapp_termin' => '1',
                 'recaptcha_token' => 'test-recaptcha-token',
@@ -1458,14 +1459,12 @@ class SpkPublicPreviewTest extends TestCase
             'total_honor_listing' => 0,
         ]);
 
-        $bappDir = storage_path('app/public/bapp-se/tests');
-        if (! is_dir($bappDir)) {
-            mkdir($bappDir, 0755, true);
-        }
-
+        Storage::fake('public');
         $bappRelativePath = 'bapp-se/tests/bapp_test.pdf';
-        $bappAbsolutePath = storage_path('app/public/'.$bappRelativePath);
-        file_put_contents($bappAbsolutePath, Pdf::loadHTML('<h1>BAPP Test</h1>')->output());
+        Storage::disk('public')->put(
+            $bappRelativePath,
+            Pdf::loadHTML('<h1>BAPP Test</h1>')->output()
+        );
 
         try {
             BappSeTermin::query()->create([
@@ -1475,6 +1474,7 @@ class SpkPublicPreviewTest extends TestCase
                 'tahun' => $tahun,
                 'nomor_bapp' => 'BAPP-TEST-001',
                 'file_path' => $bappRelativePath,
+                'signed_file_path' => $bappRelativePath,
                 'created_by' => User::factory()->create()->id,
             ]);
 
@@ -1485,7 +1485,7 @@ class SpkPublicPreviewTest extends TestCase
                     'nik' => '3201111122223333',
                     'telepon_4_digit' => $this->lastFourDigits((string) $petugas->telepon),
                     'jenis_kegiatan' => 'sensus',
-                    'sensus_kegiatan' => (string) $kegiatan->id,
+                    'sensus_kegiatan' => $kegiatan->hashed_id,
                     'dokumen_tipe' => 'bapp',
                     'bapp_termin' => '1',
                     'recaptcha_token' => 'test-recaptcha-token',
@@ -1500,7 +1500,7 @@ class SpkPublicPreviewTest extends TestCase
             $response->assertOk();
             $response->assertHeader('Content-Type', 'application/pdf');
         } finally {
-            @unlink($bappAbsolutePath);
+            Storage::disk('public')->delete($bappRelativePath);
         }
     }
 
