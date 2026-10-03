@@ -57,7 +57,14 @@ class SpkController extends Controller
     use SpkPdfSupport;
     use SpkAddendumSupport;
     use SpkPublicPreviewSupport;
-    public function __construct(private readonly SpkActionDecisionService $spkActionDecisionService) {}
+    private readonly SpkActionDecisionService $spkActionDecisionService;
+
+    public function __construct(
+        ?SpkActionDecisionService $spkActionDecisionService = null,
+    ) {
+        $this->spkActionDecisionService = $spkActionDecisionService
+            ?? app(SpkActionDecisionService::class);
+    }
 
     /**
      * Display a listing of the resource.
