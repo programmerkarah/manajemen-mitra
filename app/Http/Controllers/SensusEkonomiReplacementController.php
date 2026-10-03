@@ -79,7 +79,7 @@ class SensusEkonomiReplacementController extends Controller
                         'termination_type' => $replacement->termination_type,
                         'termin_i_paid' => $replacement->termin_i_paid,
                         'requires_old_documents' => $replacement->termination_type === 'diberhentikan'
-                            || ($replacement->termination_type === 'mengundurkan_diri' && $replacement->termin_i_paid === true),
+                            || ($replacement->termination_type === 'mengundurkan_diri' && $replacement->termin_i_paid !== false),
                         'spk_lama_nomor' => $replacement->spkLama?->nomor_spk,
                         'tanggal_mulai_pkpp' => $replacement->tanggal_mulai_pkpp?->format('Y-m-d'),
                         'status' => $replacement->status,
