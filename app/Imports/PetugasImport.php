@@ -30,7 +30,7 @@ class PetugasImport implements SkipsEmptyRows, ToCollection, WithHeadingRow
     /**
      * @param  Collection  $collection
      */
-    public function collection(Collection $rows)
+    public function collection(Collection $rows): void
     {
         $result = $this->processor->process($rows, persist: true);
 
