@@ -270,6 +270,8 @@ class SensusEkonomiReplacementController extends Controller
 
         $validated = $request->validate([
             'petugas_pengganti_id' => ['required', 'integer', 'exists:petugas,id'],
+            // Nama kolom dipertahankan untuk kompatibilitas database lama,
+            // tetapi pada alur baru nilainya adalah tanggal kontrak awal PK pengganti.
             'tanggal_mulai_pkpp' => ['required', 'date', 'after_or_equal:'.$replacement->tanggal_berhenti?->format('Y-m-d')],
         ]);
 
@@ -446,9 +448,9 @@ class SensusEkonomiReplacementController extends Controller
             ] : null,
             'action' => route('se-replacements.pkpp-contracts.store', $replacement),
             'default_tanggal_kontrak' => $existingContract?->tanggal_kontrak?->format('Y-m-d')
+                ?? $replacement->tanggal_mulai_pkpp?->format('Y-m-d')
                 ?? now()->format('Y-m-d'),
-            'default_tanggal_mulai_lapangan' => $existingContract?->tanggal_mulai_lapangan?->format('Y-m-d')
-                ?? $replacement->tanggal_mulai_pkpp?->format('Y-m-d'),
+            'default_tanggal_mulai_lapangan' => $existingContract?->tanggal_mulai_lapangan?->format('Y-m-d'),
         ]);
     }
 
@@ -623,11 +625,10 @@ class SensusEkonomiReplacementController extends Controller
         $kontrakYear = (int) date('Y', strtotime((string) $validated['tanggal_kontrak']));
         $nomorPkpp = $existingContract?->nomor_pkpp ?: $pkNumberService->allocateNextNumber($kontrakYear);
         $targetSisa = (float) ($replacement->target_sisa ?? 0);
-        $tanggalMulaiLapangan = $validated['tanggal_mulai_lapangan']
-            ?? $replacement->tanggal_mulai_pkpp?->format('Y-m-d');
+        $tanggalMulaiLapangan = $validated['tanggal_mulai_lapangan'];
 
         if (! $tanggalMulaiLapangan) {
-            return back()->with('error', 'Tanggal mulai lapangan belum tersedia pada replacement ini.');
+            return back()->with('error', 'Tanggal mulai lapangan wajib ditentukan pada form skema pengganti.');
         }
 
         $targetTermin1 = (float) ($targetSisa * ((int) ($scheme['termin_targets'][0] ?? 0)) / 100);
