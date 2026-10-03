@@ -198,6 +198,8 @@ class DeadlineAccessServiceTest extends TestCase
 
         app()->instance(DeadlineAccessService::class, $service);
 
+        $this->withMiddleware(EnforceFeatureDeadlines::class);
+
         Route::middleware(['web', EnforceFeatureDeadlines::class])
             ->post('/test-alokasi-update', fn () => response()->json(['ok' => true]))
             ->name('alokasi.periode.update');
