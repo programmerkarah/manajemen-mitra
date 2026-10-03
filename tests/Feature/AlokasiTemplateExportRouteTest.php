@@ -1191,7 +1191,7 @@ class AlokasiTemplateExportRouteTest extends TestCase
 
         foreach ($referenceRows as $rowIndex => $columns) {
             foreach ($columns as $columnIndex => $value) {
-                $referenceSheet->setCellValueByColumnAndRow($columnIndex + 1, $rowIndex + 1, $value);
+                $referenceSheet->setCellValue(Coordinate::stringFromColumnIndex($columnIndex + 1).($rowIndex + 1), $value);
             }
         }
 
