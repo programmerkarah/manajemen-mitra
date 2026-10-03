@@ -1,6 +1,7 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
+import { SummaryCard } from '@/components/summary-card';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -396,90 +397,34 @@ export default function Index({
                 )}
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <button
-                        type="button"
+                    <SummaryCard
+                        label="Total Periode"
+                        value={summaryGroups.allPeriods.length}
+                        icon={<FileText className="h-5 w-5" />}
+                        accent="blue"
                         onClick={() => openSummaryModal('all_periods')}
-                        className="cursor-pointer text-left"
-                    >
-                        <ContentCard className="border border-blue-200/60 bg-gradient-to-br from-blue-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-blue-900/40 dark:from-blue-950/30 dark:to-neutral-900">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                                        Total Periode
-                                    </p>
-                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                                        {summaryGroups.allPeriods.length}
-                                    </p>
-                                </div>
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
-                                    <FileText className="h-5 w-5" />
-                                </span>
-                            </div>
-                        </ContentCard>
-                    </button>
-                    <button
-                        type="button"
+                    />
+                    <SummaryCard
+                        label="Perlu Generate"
+                        value={summaryGroups.needGenerate.length}
+                        icon={<Plus className="h-5 w-5" />}
+                        accent="orange"
                         onClick={() => openSummaryModal('need_generate')}
-                        className="cursor-pointer text-left"
-                    >
-                        <ContentCard className="border border-amber-200/60 bg-gradient-to-br from-amber-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-amber-900/40 dark:from-amber-950/30 dark:to-neutral-900">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                                        Perlu Generate
-                                    </p>
-                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                                        {summaryGroups.needGenerate.length}
-                                    </p>
-                                </div>
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
-                                    <Plus className="h-5 w-5" />
-                                </span>
-                            </div>
-                        </ContentCard>
-                    </button>
-                    <button
-                        type="button"
+                    />
+                    <SummaryCard
+                        label="Sudah Digenerate"
+                        value={summaryGroups.generated.length}
+                        icon={<CheckCircle className="h-5 w-5" />}
+                        accent="green"
                         onClick={() => openSummaryModal('generated')}
-                        className="cursor-pointer text-left"
-                    >
-                        <ContentCard className="border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                                        Sudah Digenerate
-                                    </p>
-                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                                        {summaryGroups.generated.length}
-                                    </p>
-                                </div>
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
-                                    <CheckCircle className="h-5 w-5" />
-                                </span>
-                            </div>
-                        </ContentCard>
-                    </button>
-                    <button
-                        type="button"
+                    />
+                    <SummaryCard
+                        label="Perlu Addendum"
+                        value={summaryGroups.needAddendum.length}
+                        icon={<RefreshCw className="h-5 w-5" />}
+                        accent="violet"
                         onClick={() => openSummaryModal('need_addendum')}
-                        className="cursor-pointer text-left"
-                    >
-                        <ContentCard className="border border-violet-200/60 bg-gradient-to-br from-violet-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-violet-900/40 dark:from-violet-950/30 dark:to-neutral-900">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-sm text-violet-700 dark:text-violet-300">
-                                        Perlu Addendum
-                                    </p>
-                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                                        {summaryGroups.needAddendum.length}
-                                    </p>
-                                </div>
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
-                                    <RefreshCw className="h-5 w-5" />
-                                </span>
-                            </div>
-                        </ContentCard>
-                    </button>
+                    />
                 </div>
 
                 {/* Table */}
