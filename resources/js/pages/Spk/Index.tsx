@@ -603,7 +603,7 @@ export default function Index({
                                                             size="sm"
                                                             variant="outline"
                                                             onClick={() =>
-                                                                router.get(
+                                                                router.post(
                                                                     '/spk/month',
                                                                     {
                                                                         state: encryptFilters(
@@ -616,6 +616,9 @@ export default function Index({
                                                                                         : undefined,
                                                                             },
                                                                         ),
+                                                                    },
+                                                                    {
+                                                                        preserveScroll: false,
                                                                     },
                                                                 )
                                                             }
