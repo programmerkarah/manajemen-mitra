@@ -628,8 +628,45 @@ class DashboardController extends Controller
                     continue;
                 }
 
-                // Skip if this petugas already has a BAST for the same month via another SPK
-                $petugasMonthKey = $spk->petugas_id.'_'.$bastDate->year.'_'.$bastDate->month;
+                $effectivePeriode = $effectiveAlokasi
+                    ->pluck('periodeAlokasi')
+                    ->filter()
+                    ->sortByDesc(fn ($periode) => $statusPriority[$periode->status] ?? 0)
+                    ->first();
+
+                $targetBulan = (int) ($effectivePeriode?->bulan ?? $bastDate->month);
+                $targetTahun = (int) ($effectivePeriode?->tahun ?? $bastDate->year);
+
+                // Gunakan periode yang sama dengan BastController::create(). SPK lama
+                // atau tanggal selesai kontrak tidak boleh memunculkan notifikasi jika
+                // SPK efektif/latest petugas pada periode tersebut sudah memiliki BAST.
+                $latestSpkForPeriod = Spk::query()
+                    ->where('petugas_id', $spk->petugas_id)
+                    ->whereHas('alokasiPetugas.periodeAlokasi', function ($query) use ($targetBulan, $targetTahun): void {
+                        $query->where('tahun', $targetTahun)
+                            ->whereIn('bulan', [
+                                (string) $targetBulan,
+                                str_pad((string) $targetBulan, 2, '0', STR_PAD_LEFT),
+                            ]);
+                    })
+                    ->with('bast')
+                    ->orderByDesc('addendum_number')
+                    ->orderByDesc('created_at')
+                    ->first();
+
+                if ($latestSpkForPeriod?->bast->contains(function (Bast $bast) use ($targetBulan, $targetTahun): bool {
+                    if (! $bast->tanggal_bast) {
+                        return false;
+                    }
+
+                    return (int) $bast->tanggal_bast->format('Y') === $targetTahun
+                        && (int) $bast->tanggal_bast->format('n') === $targetBulan;
+                })) {
+                    continue;
+                }
+
+                // Skip jika petugas sudah punya BAST di periode efektif lewat dokumen lain.
+                $petugasMonthKey = $spk->petugas_id.'_'.$targetTahun.'_'.$targetBulan;
                 if (array_key_exists($petugasMonthKey, $petugasMonthsWithBast)) {
                     continue;
                 }
@@ -649,16 +686,10 @@ class DashboardController extends Controller
                 }
 
                 if ($attentionType !== null) {
-                    $effectivePeriode = $effectiveAlokasi
-                        ->pluck('periodeAlokasi')
-                        ->filter()
-                        ->sortByDesc(fn ($periode) => $statusPriority[$periode->status] ?? 0)
-                        ->first();
-
                     $bastAttentionTargets->push([
                         'petugas' => $spk->petugas?->nama ?: 'Petugas',
-                        'bulan' => (int) ($effectivePeriode?->bulan ?? $bastDate->month),
-                        'tahun' => (int) ($effectivePeriode?->tahun ?? $bastDate->year),
+                        'bulan' => $targetBulan,
+                        'tahun' => $targetTahun,
                         'target_date' => $targetDate->toDateString(),
                         'type' => $attentionType,
                     ]);
