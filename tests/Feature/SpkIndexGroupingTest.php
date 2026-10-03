@@ -210,7 +210,11 @@ class SpkIndexGroupingTest extends TestCase
             'created_by' => $user->id,
         ]);
 
-        $response = $this->get('/spk?mode=sensus-ekonomi');
+        $response = $this->withSession([
+            'spk_index_mode' => 'sensus-ekonomi',
+            'active_role_id' => $adminRole->id,
+            'active_role_user_id' => $user->id,
+        ])->get('/spk');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page->component('Spk/Index'));
