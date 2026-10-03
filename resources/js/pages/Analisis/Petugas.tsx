@@ -11,19 +11,23 @@ import Download from 'lucide-react/icons/download';
 import X from 'lucide-react/icons/x';
 import { useMemo, useState } from 'react';
 import {
-    CartesianGrid,    Tooltip as ChartTooltip,
+    CartesianGrid,
+    Tooltip as ChartTooltip,
     Legend,
     Line,
-    LineChart,    ResponsiveContainer,
+    LineChart,
+    ResponsiveContainer,
     XAxis,
     YAxis,
 } from 'recharts';
-import {    COLORS,
+import {
+    COLORS,
     formatHonorAxis,
     formatRupiah,
     GlassTooltipContent,
     kegiatanChipStyle,
-    monthNames,    toNumericAmount,
+    monthNames,
+    toNumericAmount,
 } from './Petugas/helpers';
 import { PetugasAllocationDetailTable } from './Petugas/components/PetugasAllocationDetailTable';
 import { PetugasDemographicCharts } from './Petugas/components/PetugasDemographicCharts';
