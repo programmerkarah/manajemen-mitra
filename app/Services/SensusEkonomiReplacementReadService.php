@@ -122,6 +122,12 @@ class SensusEkonomiReplacementReadService
                 'monthly_honor' => $monthlyHonor,
                 'tanggal_kontrak' => $contract->tanggal_kontrak?->format('Y-m-d'),
                 'tanggal_mulai_lapangan' => $contract->tanggal_mulai_lapangan?->format('Y-m-d'),
+                // Bulan PK adalah bulan record PKPP dibuat/disimpan di SIMANTIK.
+                // Ini sengaja dipisahkan dari bulan periode alokasi (Juni) dan
+                // bulan honor/lapangan (Juli-Agustus).
+                'pk_created_at' => $contract->created_at?->format('Y-m-d H:i:s'),
+                'pk_created_year' => (int) ($contract->created_at?->year ?? $periode->tahun),
+                'pk_created_month' => (int) ($contract->created_at?->month ?? $periode->bulan),
                 'termin_count' => (int) $contract->termin_count,
                 'pk_available' => filled($contract->signed_file_path),
                 'pk_file_path' => $contract->signed_file_path,
