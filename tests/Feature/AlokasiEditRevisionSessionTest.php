@@ -180,7 +180,7 @@ class AlokasiEditRevisionSessionTest extends TestCase
                 ]],
             ]);
 
-        $response->assertSessionHasErrors(['validation']);
+        $response->assertSessionHasErrors(['alokasi.0.petugas_id']);
         $this->assertDatabaseMissing('periode_alokasi', [
             'kegiatan_id' => $kegiatan->id,
             'status' => 'perubahan',
@@ -279,7 +279,7 @@ class AlokasiEditRevisionSessionTest extends TestCase
                     'jenis_kegiatan' => 'survei',
                     'tahapan' => 'both',
                     'is_partial_payment' => true,
-                    'partial_jumlah_satuan' => 4,
+                    'partial_jumlah_satuan' => 3,
                     'is_partial_payment_listing' => false,
                     'partial_jumlah_satuan_listing' => null,
                 ]],
@@ -294,7 +294,7 @@ class AlokasiEditRevisionSessionTest extends TestCase
         $this->assertDatabaseHas('alokasi_petugas', [
             'petugas_id' => $petugas->id,
             'is_partial_payment' => 1,
-            'partial_jumlah_satuan' => 4,
+            'partial_jumlah_satuan' => 3,
             'periode_alokasi_id' => $periode->fresh()->load('children')->children->first()->id ?? $periode->id,
         ]);
     }
