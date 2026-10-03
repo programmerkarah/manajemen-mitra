@@ -2200,6 +2200,13 @@ class BastController extends Controller
         $sensusPetugasByMonth = collect();
 
         if ($isSensusEkonomiMode) {
+            $excludedOldPetugasIds = Schema::hasTable('sensus_ekonomi_petugas_replacements')
+                ? DB::table('sensus_ekonomi_petugas_replacements')
+                    ->where('termin_i_paid', 0)
+                    ->where('status', '!=', 'dibatalkan')
+                    ->pluck('petugas_berhenti_id')
+                : collect();
+
             $sensusPetugasIds = Spk::query()
                 ->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($activeYear) {
                     $q->where('tahun', $activeYear);
@@ -2218,6 +2225,8 @@ class BastController extends Controller
                 ->pluck('petugas_id')
                 ->filter()
                 ->unique()
+                ->values()
+                ->diff($excludedOldPetugasIds)
                 ->values();
 
             // Business rule: all Sensus Ekonomi PK are processed in August BAST batch.
