@@ -3060,7 +3060,11 @@ class BastController extends Controller
                         && (int) $bast->tanggal_bast->format('n') === (int) $bulan;
                 });
 
-                if (! $hasBastThisMonth) {
+                if ($isSensusEkonomiMode || ! $hasBastThisMonth) {
+                    // Workspace SE2026 berfungsi sebagai inventaris, bukan hanya
+                    // daftar "belum BAST". Dokumen yang sudah diunggah tetap
+                    // ditampilkan agar dapat ditinjau atau diganti dari halaman
+                    // yang sama.
                     $spks->push($latestSpk);
                 }
             }
@@ -3068,7 +3072,9 @@ class BastController extends Controller
 
         if ($spks->isEmpty()) {
             return redirect()->route('bast.index')
-                ->with('info', 'Tidak ada SPK yang belum memiliki BAST di bulan ini');
+                ->with('info', $isSensusEkonomiMode
+                    ? 'Tidak ada PK Sensus Ekonomi yang dapat dikelola.'
+                    : 'Tidak ada SPK yang belum memiliki BAST di bulan ini');
         }
 
         // Get starting nomor urut BAST untuk bulan ini
@@ -3301,6 +3307,18 @@ class BastController extends Controller
 
             $ketuaTim = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan?->ketuaTim;
 
+            $existingBast = $spk->bast
+                ->filter(function (Bast $bast) use ($tahun, $bulan): bool {
+                    if (! $bast->tanggal_bast) {
+                        return false;
+                    }
+
+                    return (int) $bast->tanggal_bast->format('Y') === (int) $tahun
+                        && (int) $bast->tanggal_bast->format('n') === (int) $bulan;
+                })
+                ->sortByDesc('id')
+                ->first();
+
             // Generate nomor BAST untuk SPK ini dengan nomor urut yang increment
             $nomorUrut = $nomorUrutStart + $index;
             $nomorBastPreview = $tanggalBerakhirPetugasIni
@@ -3335,6 +3353,11 @@ class BastController extends Controller
                     'nip' => $ketuaTim?->nip,
                 ],
                 'is_sensus_ekonomi' => $isSensusEkonomi,
+                'has_bast' => $existingBast !== null,
+                'existing_bast_hashed_id' => $existingBast?->hashed_id,
+                'existing_bast_nomor' => $existingBast?->nomor_bast,
+                'existing_bast_nomor_urut' => $this->extractSensusBastSequence($existingBast?->nomor_bast),
+                'existing_bast_tanggal' => $existingBast?->tanggal_bast?->format('Y-m-d'),
                 'bapp_termin_ii_complete' => $isSensusEkonomi ? $this->getBappSeTerminDataForSpk((int) $spk->id)['termin_ii_complete'] : null,
                 'muatan_prelist_default' => $muatanPrelistDefault,
                 'muatan_prelist_keluarga_default' => (int) $prelistBreakdown['keluarga'],
