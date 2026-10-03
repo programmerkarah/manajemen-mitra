@@ -989,9 +989,22 @@ class KegiatanController extends Controller
         ];
 
         $missingFrameSampelByTahapan = $normalizedRows
+            ->filter(function (array $row) use ($frameSampelByTahapan, $kegiatan): bool {
+                $tahapan = (string) ($row['tahapan'] ?? '');
+                if (! empty($frameSampelByTahapan[$tahapan])) {
+                    return false;
+                }
+
+                $identitas = $row['identitas_tambahan'] ?? null;
+                $hasMetadata = is_array($identitas) && collect($identitas)->filter(
+                    fn ($value): bool => $value !== null && trim((string) $value) !== ''
+                )->isNotEmpty();
+
+                return $hasMetadata
+                    || Kegiatan::normalizeMetodeSampling($kegiatan->metode_sampling) === Kegiatan::METODE_SAMPLING_PURPOSSIVE;
+            })
             ->pluck('tahapan')
             ->unique()
-            ->filter(fn (string $tahapan): bool => empty($frameSampelByTahapan[$tahapan]))
             ->values();
 
         if ($missingFrameSampelByTahapan->isNotEmpty()) {
