@@ -6,6 +6,8 @@ use App\Http\Requests\StoreSensusEkonomiPkppContractRequest;
 use App\Http\Requests\StoreSensusEkonomiReplacementRequest;
 use App\Models\SensusEkonomiPetugasReplacement;
 use App\Models\SensusEkonomiPkppContract;
+use App\Models\Petugas;
+use App\Models\PeriodeAlokasi;
 use App\Models\Spk;
 use App\Services\SensusEkonomiPkNumberService;
 use App\Services\SensusEkonomiPkppSchemeService;
@@ -14,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -47,6 +50,7 @@ class SensusEkonomiReplacementController extends Controller
                     'petugasPengganti:id,nama',
                     'pmlCoverPetugas:id,nama',
                     'pkppContracts.spk:id,signed_file_path,status',
+                    'spkLama:id,nomor_spk,petugas_id',
                 ])
                 ->latest('id')
                 ->get()
@@ -62,6 +66,8 @@ class SensusEkonomiReplacementController extends Controller
                         'petugas_pengganti_nama' => $replacement->petugasPengganti?->nama,
                         'pml_cover_nama' => $replacement->pmlCoverPetugas?->nama,
                         'tanggal_berhenti' => $replacement->tanggal_berhenti?->format('Y-m-d'),
+                        'termination_type' => $replacement->termination_type,
+                        'spk_lama_nomor' => $replacement->spkLama?->nomor_spk,
                         'tanggal_mulai_pkpp' => $replacement->tanggal_mulai_pkpp?->format('Y-m-d'),
                         'status' => $replacement->status,
                         'has_pkpp_contract' => $pkpp !== null,
@@ -79,9 +85,197 @@ class SensusEkonomiReplacementController extends Controller
                 });
         }
 
+        $canManage = $request->user()?->isAdmin() || $request->user()?->isOperator();
+
+        $activeStoppedSpkIds = $replacements
+            ->pluck('spk_lama_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $stoppedCandidates = Spk::query()
+            ->where('addendum_number', 0)
+            ->whereIn('lampiran_template', ['sensus_ekonomi', 'pml_sensus_ekonomi'])
+            ->whereNotIn('id', $activeStoppedSpkIds)
+            ->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($query): void {
+                $query->where('jenis_kegiatan', 'sensus')
+                    ->where('nama_kegiatan', 'like', '%Sensus Ekonomi%');
+            })
+            ->with(['petugas:id,nama,nik'])
+            ->orderBy('nomor_spk')
+            ->get()
+            ->map(fn (Spk $spk) => [
+                'spk_id' => $spk->id,
+                'spk_hashed_id' => $spk->hashed_id,
+                'nomor_spk' => $spk->nomor_spk,
+                'petugas_id' => $spk->petugas_id,
+                'petugas_nama' => $spk->petugas?->nama,
+                'petugas_nik' => $spk->petugas?->nik,
+            ])
+            ->values();
+
+        $usedReplacementIds = SensusEkonomiPetugasReplacement::query()
+            ->where('status', '!=', 'dibatalkan')
+            ->whereNotNull('petugas_pengganti_id')
+            ->pluck('petugas_pengganti_id');
+
+        $sensusPetugasIds = Spk::query()
+            ->where('addendum_number', 0)
+            ->whereIn('lampiran_template', ['sensus_ekonomi', 'pml_sensus_ekonomi'])
+            ->pluck('petugas_id')
+            ->filter()
+            ->unique();
+
+        $replacementCandidates = Petugas::query()
+            ->where('status', 'aktif')
+            ->where('jenis_petugas', 'non-organik')
+            ->whereNotIn('id', $sensusPetugasIds)
+            ->whereNotIn('id', $usedReplacementIds)
+            ->orderBy('nama')
+            ->get(['id', 'nama', 'nik'])
+            ->map(fn (Petugas $petugas) => [
+                'id' => $petugas->id,
+                'hashed_id' => $petugas->hashed_id,
+                'nama' => $petugas->nama,
+                'nik' => $petugas->nik,
+            ])
+            ->values();
+
         return Inertia::render('Spk/PetugasPengganti/Index', [
             'replacements' => $replacements,
+            'stopped_candidates' => $stoppedCandidates,
+            'replacement_candidates' => $replacementCandidates,
+            'can_manage' => $canManage,
         ]);
+    }
+
+    public function registerStop(Request $request): RedirectResponse
+    {
+        if (! $request->user()?->isAdmin() && ! $request->user()?->isOperator()) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'spk_id' => [
+                'required',
+                'integer',
+                'exists:spk,id',
+                Rule::unique('sensus_ekonomi_petugas_replacements', 'spk_lama_id')
+                    ->where(fn ($query) => $query->where('status', '!=', 'dibatalkan')),
+            ],
+            'termination_type' => ['required', 'in:diberhentikan,mengundurkan_diri'],
+            'tanggal_berhenti' => ['required', 'date'],
+        ]);
+
+        $spk = Spk::query()
+            ->with([
+                'alokasiPetugas.frameSampelAllocations.kegiatanFrameSampel',
+                'alokasiPetugas.periodeAlokasi.kegiatan',
+            ])
+            ->findOrFail((int) $validated['spk_id']);
+
+        $kegiatan = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan;
+        if (
+            ! $kegiatan
+            || $kegiatan->jenis_kegiatan !== 'sensus'
+            || ! str_contains(mb_strtolower((string) $kegiatan->nama_kegiatan), 'sensus ekonomi')
+        ) {
+            return back()->with('error', 'PK yang dipilih bukan PK Sensus Ekonomi.');
+        }
+
+        $details = $spk->alokasiPetugas?->frameSampelAllocations ?? collect();
+        $targetAwal = (float) $details->sum(
+            fn ($allocation) => $this->resolveFrameTarget(
+                $allocation->kegiatanFrameSampel?->target_unit_sampel
+            )
+        );
+
+        DB::transaction(function () use ($request, $validated, $spk, $details, $targetAwal): void {
+            $replacement = SensusEkonomiPetugasReplacement::query()->create([
+                'periode_alokasi_id' => (int) $spk->alokasiPetugas->periode_alokasi_id,
+                'petugas_berhenti_id' => (int) $spk->petugas_id,
+                'petugas_pengganti_id' => null,
+                'pml_cover_petugas_id' => null,
+                'spk_lama_id' => $spk->id,
+                'termination_type' => $validated['termination_type'],
+                'tanggal_berhenti' => $validated['tanggal_berhenti'],
+                'target_awal' => $targetAwal,
+                'realisasi_petugas_berhenti' => 0,
+                'realisasi_pml_cover' => 0,
+                'target_sisa' => $targetAwal,
+                'status' => 'draft',
+                'created_by' => $request->user()?->id,
+            ]);
+
+            if (Schema::hasTable('sensus_ekonomi_replacement_details')) {
+                $payload = $details->values()->map(function ($allocation, int $index): array {
+                    $target = $this->resolveFrameTarget(
+                        $allocation->kegiatanFrameSampel?->target_unit_sampel
+                    );
+
+                    return [
+                        'alokasi_petugas_frame_sampel_id' => $allocation->id,
+                        'kegiatan_frame_sampel_id' => $allocation->kegiatan_frame_sampel_id,
+                        'metadata' => $allocation->kegiatanFrameSampel?->identitas_tambahan,
+                        'target_awal' => $target,
+                        'realisasi_petugas_berhenti' => 0,
+                        'realisasi_pml_cover' => 0,
+                        'target_sisa' => $target,
+                        'urutan' => $index + 1,
+                    ];
+                })->all();
+
+                if ($payload !== []) {
+                    $replacement->details()->createMany($payload);
+                }
+            }
+        });
+
+        return back()->with('success', 'Status petugas SE2026 berhasil dicatat. Dokumen petugas lama dapat dilengkapi terpisah.');
+    }
+
+    public function assignReplacement(
+        Request $request,
+        SensusEkonomiPetugasReplacement $replacement,
+    ): RedirectResponse {
+        if (! $request->user()?->isAdmin() && ! $request->user()?->isOperator()) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'petugas_pengganti_id' => ['required', 'integer', 'exists:petugas,id'],
+            'tanggal_mulai_pkpp' => ['required', 'date', 'after_or_equal:'.$replacement->tanggal_berhenti?->format('Y-m-d')],
+        ]);
+
+        $petugasId = (int) $validated['petugas_pengganti_id'];
+
+        if (
+            Spk::query()
+                ->where('petugas_id', $petugasId)
+                ->where('addendum_number', 0)
+                ->whereIn('lampiran_template', ['sensus_ekonomi', 'pml_sensus_ekonomi'])
+                ->exists()
+        ) {
+            return back()->with('error', 'Petugas pengganti tidak boleh berasal dari petugas SE2026 aktif.');
+        }
+
+        if (
+            SensusEkonomiPetugasReplacement::query()
+                ->whereKeyNot($replacement->id)
+                ->where('petugas_pengganti_id', $petugasId)
+                ->where('status', '!=', 'dibatalkan')
+                ->exists()
+        ) {
+            return back()->with('error', 'Petugas tersebut sudah dipakai sebagai pengganti aktif.');
+        }
+
+        $replacement->update([
+            'petugas_pengganti_id' => $petugasId,
+            'tanggal_mulai_pkpp' => $validated['tanggal_mulai_pkpp'],
+            'status' => 'pengganti_ditetapkan',
+        ]);
+
+        return back()->with('success', 'Petugas pengganti berhasil ditetapkan. Selanjutnya tentukan skema PKPP.');
     }
 
     public function createPkppContract(SensusEkonomiPetugasReplacement $replacement): Response|RedirectResponse
@@ -220,6 +414,7 @@ class SensusEkonomiReplacementController extends Controller
                 'petugas_pengganti_id' => $validated['petugas_pengganti_id'] ?? null,
                 'pml_cover_petugas_id' => $validated['pml_cover_petugas_id'] ?? null,
                 'spk_lama_id' => $validated['spk_lama_id'] ?? null,
+                'termination_type' => $validated['termination_type'] ?? null,
                 'tanggal_berhenti' => $validated['tanggal_berhenti'],
                 'tanggal_mulai_cover' => $validated['tanggal_mulai_cover'] ?? null,
                 'tanggal_mulai_pkpp' => $validated['tanggal_mulai_pkpp'] ?? null,
