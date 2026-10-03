@@ -54,6 +54,9 @@ interface SpkPerBulan {
     total: number;
     draft: number;
     diterbitkan: number;
+    reguler_diterbitkan: number;
+    sensus_utama_diterbitkan: number;
+    sensus_pengganti_diterbitkan: number;
 }
 
 interface KelengkapanSKPerKegiatan {
@@ -134,6 +137,11 @@ export default function AnalisisDokumen({
         sk_diterbitkan: sk.diterbitkan + sk.ditandatangani,
         sk_draft: sk.draft,
         spk_diterbitkan: spkPerBulan[i]?.diterbitkan ?? 0,
+        spk_reguler: spkPerBulan[i]?.reguler_diterbitkan ?? 0,
+        spk_sensus_utama:
+            spkPerBulan[i]?.sensus_utama_diterbitkan ?? 0,
+        spk_sensus_pengganti:
+            spkPerBulan[i]?.sensus_pengganti_diterbitkan ?? 0,
         spk_draft: spkPerBulan[i]?.draft ?? 0,
     }));
 
@@ -582,8 +590,10 @@ export default function AnalisisDokumen({
                         <h3 className="mb-1 text-sm font-semibold text-neutral-900 dark:text-white">
                             Tren Perjanjian Kerja per Bulan
                         </h3>
-                        <p className="mb-4 text-xs text-neutral-500 dark:text-neutral-400">
-                            Jumlah SPK diterbitkan vs draft per bulan
+                        <p className="mb-4 text-xs text-muted-foreground">
+                            Mengikuti periode pada menu Perjanjian Kerja, termasuk
+                            PK reguler, Sensus Ekonomi petugas utama, dan petugas
+                            pengganti.
                         </p>
                         <ResponsiveContainer width="100%" height={220}>
                             <BarChart
@@ -640,16 +650,30 @@ export default function AnalisisDokumen({
                                 />
                                 <Legend wrapperStyle={{ fontSize: '11px' }} />
                                 <Bar
-                                    dataKey="spk_diterbitkan"
+                                    dataKey="spk_reguler"
                                     fill="#3b82f6"
-                                    name="Diterbitkan"
+                                    name="PK Reguler"
+                                    stackId="spk"
+                                    radius={[0, 0, 0, 0]}
+                                />
+                                <Bar
+                                    dataKey="spk_sensus_utama"
+                                    fill="#22c55e"
+                                    name="SE2026 Utama"
+                                    stackId="spk"
+                                    radius={[0, 0, 0, 0]}
+                                />
+                                <Bar
+                                    dataKey="spk_sensus_pengganti"
+                                    fill="#8b5cf6"
+                                    name="SE2026 Pengganti"
                                     stackId="spk"
                                     radius={[0, 0, 0, 0]}
                                 />
                                 <Bar
                                     dataKey="spk_draft"
                                     fill="#94a3b8"
-                                    name="Draft"
+                                    name="Draft / belum final"
                                     stackId="spk"
                                     radius={[4, 4, 0, 0]}
                                 />
