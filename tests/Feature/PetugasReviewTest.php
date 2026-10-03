@@ -138,7 +138,10 @@ class PetugasReviewTest extends TestCase
         $reviewerPetugas = Petugas::factory()->create([
             'nama' => 'Reviewer PML',
         ]);
-        $targetPetugas = Petugas::factory()->create();
+        $targetPetugas = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
 
         $kegiatan = Kegiatan::factory()->create([
             'tanggal_selesai' => now()->subDay()->format('Y-m-d'),
@@ -212,7 +215,10 @@ class PetugasReviewTest extends TestCase
         $reviewerPetugas = Petugas::factory()->create([
             'nama' => 'Reviewer Biasa',
         ]);
-        $targetPetugas = Petugas::factory()->create();
+        $targetPetugas = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
 
         $kegiatan = Kegiatan::factory()->create([
             'tanggal_selesai' => now()->subDay()->format('Y-m-d'),
@@ -280,7 +286,10 @@ class PetugasReviewTest extends TestCase
         $reviewerPetugas = Petugas::factory()->create([
             'nama' => 'Reviewer PML',
         ]);
-        $targetPetugas = Petugas::factory()->create();
+        $targetPetugas = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
 
         $kegiatan = Kegiatan::factory()->create([
             'tanggal_selesai' => now()->addMonth()->format('Y-m-d'),
@@ -413,7 +422,10 @@ class PetugasReviewTest extends TestCase
         $reviewerPetugas = Petugas::factory()->create([
             'nama' => 'Reviewer PML',
         ]);
-        $targetPetugas = Petugas::factory()->create();
+        $targetPetugas = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
 
         $kegiatan = Kegiatan::factory()->create([
             'tanggal_selesai' => now()->addMonths(6)->format('Y-m-d'),
@@ -524,8 +536,14 @@ class PetugasReviewTest extends TestCase
         $reviewerPetugas = Petugas::factory()->create([
             'nama' => 'Reviewer PML',
         ]);
-        $targetPetugasA = Petugas::factory()->create();
-        $targetPetugasB = Petugas::factory()->create();
+        $targetPetugasA = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
+        $targetPetugasB = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
 
         $kegiatan = Kegiatan::factory()->create([
             'tanggal_selesai' => now()->subDay()->format('Y-m-d'),
