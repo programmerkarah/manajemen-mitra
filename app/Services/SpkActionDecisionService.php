@@ -346,15 +346,22 @@ class SpkActionDecisionService
 
         foreach ($currentByKegiatan as $kegiatanId => $current) {
             $currentId = (int) $current->id;
-            if ($documentIds->contains($currentId)) {
+            $status = (string) ($current->periodeAlokasi?->status ?? '');
+            $documentAllocation = $documentByKegiatan->get((int) $kegiatanId);
+            $hasDocumentAllocationForKegiatan = $documentAllocation !== null;
+
+            // Legacy alokasi_petugas_ids JSON can contain both the old row and
+            // a later replacement row. Presence in that JSON alone does not
+            // mean the current allocation was already covered by the document.
+            // Only the authoritative per-kegiatan snapshot may short-circuit.
+            if (
+                $documentAllocation
+                && (int) $documentAllocation->id === $currentId
+            ) {
                 continue;
             }
 
-            $status = (string) ($current->periodeAlokasi?->status ?? '');
-            $hasDocumentAllocationForKegiatan = $documentByKegiatan->has((int) $kegiatanId);
-
             if ($status === 'perubahan' && $hasDocumentAllocationForKegiatan) {
-                $documentAllocation = $documentByKegiatan->get((int) $kegiatanId);
 
                 // A replacement ID by itself is not a meaningful amendment.
                 // Only volume and/or honor deltas create an Addendum candidate.
