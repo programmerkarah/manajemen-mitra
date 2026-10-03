@@ -18,7 +18,6 @@ interface ReplacementSummary {
     hashed_id: string;
     petugas_berhenti_nama: string | null;
     petugas_pengganti_nama: string | null;
-    pml_cover_nama: string | null;
     tanggal_berhenti: string | null;
     tanggal_mulai_pkpp: string | null;
     target_sisa: number;
@@ -45,6 +44,24 @@ interface CreateProps {
     default_tanggal_kontrak: string;
     default_tanggal_mulai_lapangan: string | null;
 }
+
+const formatDate = (value: string | null | undefined): string => {
+    if (!value) return '-';
+    const date = new Date(`${value.slice(0, 10)}T00:00:00`);
+    return Number.isNaN(date.getTime())
+        ? value
+        : date.toLocaleDateString('id-ID', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+          });
+};
+
+const statusLabel = (value: string): string =>
+    value
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Perjanjian Kerja', href: '/spk' },
