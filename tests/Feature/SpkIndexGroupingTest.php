@@ -126,7 +126,7 @@ class SpkIndexGroupingTest extends TestCase
         $this->assertCount(2, $mayRows->first()['kegiatan_list'] ?? []);
     }
 
-    public function test_sensus_spk_index_collapses_perubahan_and_direvisi_into_one_row(): void
+    public function test_sensus_spk_index_keeps_perubahan_and_direvisi_as_period_rows(): void
     {
         $adminRole = Role::firstOrCreate(
             ['name' => 'admin'],
@@ -227,9 +227,12 @@ class SpkIndexGroupingTest extends TestCase
                 && (int) ($item['bulan'] ?? 0) === 6;
         });
 
-        $this->assertCount(1, $juneRows);
-        $this->assertSame('perubahan', $juneRows->first()['spk_status'] ?? null);
-        $this->assertSame(1, (int) ($juneRows->first()['total_spk'] ?? 0));
-        $this->assertSame(1, (int) ($juneRows->first()['total_petugas_non_organik'] ?? 0));
+        $this->assertCount(2, $juneRows);
+        $this->assertTrue($juneRows->every(
+            fn (array $row): bool => (bool) ($row['is_period_based'] ?? false)
+        ));
+        $this->assertSame(1, $juneRows->sum(
+            fn (array $row): int => (int) ($row['total_spk'] ?? 0)
+        ));
     }
 }
