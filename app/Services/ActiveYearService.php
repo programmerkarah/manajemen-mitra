@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Sbml;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Session;
 
 class ActiveYearService
@@ -21,16 +22,21 @@ class ActiveYearService
 
     public static function getAvailableYears(): array
     {
-        // Get years that have SBML data
-        $yearsWithSbml = Sbml::where('status', 'aktif')
-            ->distinct()
-            ->pluck('tahun_anggaran')
-            ->map(fn ($year) => (int) $year)
-            ->sort()
-            ->values()
-            ->toArray();
+        return Cache::remember(
+            'active-year:available-years',
+            now()->addMinutes(5),
+            function (): array {
+                $yearsWithSbml = Sbml::where('status', 'aktif')
+                    ->distinct()
+                    ->pluck('tahun_anggaran')
+                    ->map(fn ($year) => (int) $year)
+                    ->sort()
+                    ->values()
+                    ->toArray();
 
-        return array_reverse($yearsWithSbml);
+                return array_reverse($yearsWithSbml);
+            },
+        );
     }
 
     public static function hasAvailableYears(): bool
