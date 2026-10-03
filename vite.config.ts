@@ -8,6 +8,33 @@ import { defineConfig, type Plugin } from 'vite';
 
 const require = createRequire(import.meta.url);
 
+
+/**
+ * Some ESM packages (notably Radix UI) ship React Server Component
+ * directives such as "use client". Rollup intentionally ignores those
+ * directives in a browser bundle and emits MODULE_LEVEL_DIRECTIVE warnings.
+ *
+ * They are harmless third-party build noise, not application warnings.
+ * Keep every other warning visible so a clean build still means something.
+ */
+function isIgnorableThirdPartyBuildWarning(warning: {
+    code?: string;
+    id?: string;
+    message?: string;
+}): boolean {
+    if (warning.code !== 'MODULE_LEVEL_DIRECTIVE') {
+        return false;
+    }
+
+    const id = warning.id ?? '';
+    const message = warning.message ?? '';
+
+    return (
+        id.includes('/node_modules/') &&
+        (message.includes('"use client"') || message.includes("'use client'"))
+    );
+}
+
 function buildModuleProfiler(): Plugin {
     const counts = new Map<string, number>();
 
@@ -170,6 +197,13 @@ export default defineConfig(({ command }) => ({
             polyfill: false,
         },
         rollupOptions: {
+            onwarn(warning, warn) {
+                if (isIgnorableThirdPartyBuildWarning(warning)) {
+                    return;
+                }
+
+                warn(warning);
+            },
             output: {
                 manualChunks(id) {
                     if (!id.includes('node_modules')) return undefined;
