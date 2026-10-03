@@ -48,7 +48,10 @@ class AnalisisExportController extends Controller
                     ->value('total');
 
                 return [
+                    'kegiatan_id' => $kegiatan->id,
                     'nama_kegiatan' => $kegiatan->nama_kegiatan,
+                    'kode_kegiatan' => $kegiatan->kode_kegiatan,
+                    'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
                     'total_pagu' => (float) $totalPagu,
                     'total_terpakai' => (float) $totalHonor,
                     'persentase' => $totalPagu > 0 ? round(($totalHonor / $totalPagu) * 100, 1) : 0,
