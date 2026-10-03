@@ -592,8 +592,8 @@ export default function AnalisisDokumen({
                         </h3>
                         <p className="mb-4 text-xs text-muted-foreground">
                             PK reguler dan SE2026 utama mengikuti periode pada
-                            menu Perjanjian Kerja. PK petugas pengganti masuk pada
-                            bulan saat PK dicatat di SIMANTIK.
+                            menu Perjanjian Kerja. PK petugas pengganti mengikuti
+                            bulan dari tanggal PK yang diinput.
                         </p>
                         <ResponsiveContainer width="100%" height={220}>
                             <BarChart
