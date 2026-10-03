@@ -366,6 +366,7 @@ interface KegiatanEditProps {
     masterFrameSampel: MasterSampelOption[];
     masterUnitSampel: MasterSampelOption[];
     kegiatanFrameSampel: KegiatanFrameSampelRow[];
+    initialStep?: 'metadata' | 'lapangan' | 'pelatihan' | 'ketua';
 }
 
 export default function Edit({
@@ -377,20 +378,18 @@ export default function Edit({
     masterFrameSampel,
     masterUnitSampel,
     kegiatanFrameSampel,
+    initialStep = 'metadata',
 }: KegiatanEditProps) {
     const page = usePage<SharedData & { errors?: Record<string, string> }>();
     const { auth, errors: pageErrors } = page.props;
     const errors = pageErrors ?? {};
     const isKetuaTim = auth.activeRole?.name === 'ketua_tim';
-    const requestedWizardStep = new URLSearchParams(
-        page.url.split('?')[1] ?? '',
-    ).get('step');
     const initialWizardStep =
-        requestedWizardStep === 'lapangan'
+        initialStep === 'lapangan'
             ? 1
-            : requestedWizardStep === 'pelatihan'
+            : initialStep === 'pelatihan'
               ? 2
-              : requestedWizardStep === 'ketua'
+              : initialStep === 'ketua'
                 ? 3
                 : 0;
     const [wizardStep, setWizardStep] = useState(initialWizardStep);
