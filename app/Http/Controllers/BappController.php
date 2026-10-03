@@ -1346,7 +1346,7 @@ class BappController extends Controller
                 'realisasi_unit_sampel' => $existing?->realisasi_unit_sampel ?? [],
                 'file_path' => $existing?->file_path,
                 'signed_file_path' => $existing?->signed_file_path,
-                'signed_uploaded_at' => $existing?->signed_uploaded_at?->format('d M Y H:i'),
+                'signed_uploaded_at' => $existing?->signed_uploaded_at?->toIso8601String(),
                 'nomor_bapp' => $existing?->nomor_bapp,
                 'nomor_bapp_urut' => $this->extractManualDocumentSequence($existing?->nomor_bapp),
                 'fasih_screenshot_path' => $existing?->fasih_screenshot_path,
