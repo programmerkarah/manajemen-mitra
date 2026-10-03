@@ -77,15 +77,17 @@ class EnsureSingleActiveSession
             ], 401);
         }
 
-        // Keep the message in the newly-created session, then force Inertia
-        // navigation to leave the stale SPA document behind. A full document
-        // request rebuilds the CSRF meta token from the new session.
-        $request->session()->flash('status', $message);
-
         if ($request->header('X-Inertia')) {
+            // Keep the message in the newly-created session, then force
+            // Inertia to leave the stale SPA document behind. A full document
+            // request rebuilds the CSRF meta token from the new session.
+            $request->session()->flash('status', $message);
+
             return Inertia::location(route('login'));
         }
 
-        return redirect()->route('login');
+        return redirect()->route('login')->withErrors([
+            'username' => $message,
+        ]);
     }
 }
