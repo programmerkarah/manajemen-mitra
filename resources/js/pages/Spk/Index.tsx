@@ -562,17 +562,23 @@ export default function Index({
                                                             .length > 0 && (
                                                             <Button
                                                                 size="sm"
-                                                                asChild
                                                                 className="w-full cursor-pointer justify-start gap-1"
+                                                                onClick={() =>
+                                                                    router.post(
+                                                                        '/spk/generate',
+                                                                        {
+                                                                            state: encryptFilters({
+                                                                                periode:
+                                                                                    monthData.primary_periode_hashed_id,
+                                                                                action: 'generate_pk',
+                                                                            }),
+                                                                        },
+                                                                    )
+                                                                }
                                                             >
-                                                                <Link
-                                                                    href={`/spk/periode/${monthData.primary_periode_hashed_id}/generate?action=generate_pk`}
-                                                                >
-                                                                    <Plus className="h-3.5 w-3.5" />
-                                                                    Generate
-                                                                    Perjanjian
-                                                                    Kerja
-                                                                </Link>
+                                                                <Plus className="h-3.5 w-3.5" />
+                                                                Generate
+                                                                Perjanjian Kerja
                                                             </Button>
                                                         )}
 
@@ -581,17 +587,23 @@ export default function Index({
                                                             <Button
                                                                 size="sm"
                                                                 variant="default"
-                                                                asChild
                                                                 className="w-full cursor-pointer justify-start gap-1 bg-orange-600 hover:bg-orange-700"
+                                                                onClick={() =>
+                                                                    router.post(
+                                                                        '/spk/generate',
+                                                                        {
+                                                                            state: encryptFilters({
+                                                                                periode:
+                                                                                    monthData.primary_periode_hashed_id,
+                                                                                action: 'regenerate_pk',
+                                                                            }),
+                                                                        },
+                                                                    )
+                                                                }
                                                             >
-                                                                <Link
-                                                                    href={`/spk/periode/${monthData.primary_periode_hashed_id}/generate?action=regenerate_pk`}
-                                                                >
-                                                                    <Plus className="h-3.5 w-3.5" />
-                                                                    Re-generate
-                                                                    Perjanjian
-                                                                    Kerja
-                                                                </Link>
+                                                                <Plus className="h-3.5 w-3.5" />
+                                                                Re-generate
+                                                                Perjanjian Kerja
                                                             </Button>
                                                         )}
 
@@ -844,13 +856,19 @@ export default function Index({
                                                     periodeHashedId && (
                                                         <Button
                                                             size="sm"
-                                                            asChild
+                                                            onClick={() =>
+                                                                router.post(
+                                                                    '/spk/generate',
+                                                                    {
+                                                                        state: encryptFilters({
+                                                                            periode:
+                                                                                periodeHashedId,
+                                                                        }),
+                                                                    },
+                                                                )
+                                                            }
                                                         >
-                                                            <Link
-                                                                href={`/spk/periode/${periodeHashedId}/generate`}
-                                                            >
-                                                                <Plus className="h-3.5 w-3.5" />
-                                                            </Link>
+                                                            <Plus className="h-3.5 w-3.5" />
                                                         </Button>
                                                     )}
 
