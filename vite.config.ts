@@ -9,30 +9,31 @@ import { defineConfig, type Plugin } from 'vite';
 const require = createRequire(import.meta.url);
 
 
-/**
- * Some ESM packages (notably Radix UI) ship React Server Component
- * directives such as "use client". Rollup intentionally ignores those
- * directives in a browser bundle and emits MODULE_LEVEL_DIRECTIVE warnings.
- *
- * They are harmless third-party build noise, not application warnings.
- * Keep every other warning visible so a clean build still means something.
- */
-function isIgnorableThirdPartyBuildWarning(warning: {
-    code?: string;
-    id?: string;
-    message?: string;
-}): boolean {
-    if (warning.code !== 'MODULE_LEVEL_DIRECTIVE') {
-        return false;
-    }
 
-    const id = warning.id ?? '';
-    const message = warning.message ?? '';
+function stripClientDirectivesFromVendorModules(): Plugin {
+    return {
+        name: 'simantik-strip-vendor-use-client-directives',
+        apply: 'build',
+        enforce: 'pre',
+        transform(code, id) {
+            if (!id.includes('/node_modules/')) return null;
+            if (!/^[\s\n\r]*(['"])use client\1;?/.test(code)) return null;
 
-    return (
-        id.includes('/node_modules/') &&
-        (message.includes('"use client"') || message.includes("'use client'"))
-    );
+            // SIMANTIK is a client-side Inertia/Vite application, not an RSC
+            // bundle. "use client" is therefore inert metadata here. Remove it
+            // before Rollup parses the module so MODULE_LEVEL_DIRECTIVE is
+            // never produced in the first place.
+            const transformed = code.replace(
+                /^[\s\n\r]*(['"])use client\1;?[\s\n\r]*/,
+                '',
+            );
+
+            return {
+                code: transformed,
+                map: null,
+            };
+        },
+    };
 }
 
 function buildModuleProfiler(): Plugin {
@@ -161,6 +162,7 @@ export default defineConfig(({ command }) => ({
         exclude: ['lucide-react'],
     },
     plugins: [
+        stripClientDirectivesFromVendorModules(),
         buildModuleProfiler(),
         lucidePerIconResolver(),
         laravel({
@@ -197,13 +199,6 @@ export default defineConfig(({ command }) => ({
             polyfill: false,
         },
         rollupOptions: {
-            onwarn(warning, warn) {
-                if (isIgnorableThirdPartyBuildWarning(warning)) {
-                    return;
-                }
-
-                warn(warning);
-            },
             output: {
                 manualChunks(id) {
                     if (!id.includes('node_modules')) return undefined;
