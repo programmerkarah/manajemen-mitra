@@ -540,16 +540,31 @@ export default function ShowPeriode({ periode, revisions }: Props) {
     const bulanLabel = months[parseInt(periode.bulan) - 1];
     const exportMonitoringUrl = `/alokasi/periode/${periode.kegiatan.hashed_id}/${periode.tahun}/${String(periode.bulan).padStart(2, '0')}/export-monitoring-skgb`;
     const effectiveRevisionNumber = useMemo(() => {
-        if (periode.revision_number > 0) {
-            return periode.revision_number;
+        const currentRevision = Number(periode.revision_number || 0);
+        const highestHistoricalRevision = revisions.reduce(
+            (highest, revision) =>
+                Math.max(highest, Number(revision.revision_number || 0)),
+            0,
+        );
+
+        if (currentRevision > 0) {
+            return Math.max(currentRevision, highestHistoricalRevision);
         }
 
-        if (periode.parent_periode_id) {
-            return Math.max(revisions.length, 1);
+        // Data lama dapat memiliki status perubahan tetapi revision_number = 0.
+        // Jika periode sudah berstatus revisi, label harus tetap mencerminkan
+        // revisi aktif dan tidak kembali tampil sebagai "Rev. 0".
+        if (periode.status === 'perubahan' || periode.parent_periode_id) {
+            return Math.max(highestHistoricalRevision + 1, revisions.length, 1);
         }
 
         return 0;
-    }, [periode.parent_periode_id, periode.revision_number, revisions.length]);
+    }, [
+        periode.parent_periode_id,
+        periode.revision_number,
+        periode.status,
+        revisions,
+    ]);
 
     const effectiveRevisionCount = useMemo(() => {
         if (effectiveRevisionNumber > 0) {
