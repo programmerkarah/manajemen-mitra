@@ -357,12 +357,6 @@ export default function Index({
                                 </Button>
                             </>
                         )}
-                        <Button variant="outline" asChild>
-                            <Link href="/spk/petugas-pengganti">
-                                <FileText className="mr-2 h-4 w-4" />
-                                PK Petugas Pengganti
-                            </Link>
-                        </Button>
                     </div>
                 </PageHeader>
 
