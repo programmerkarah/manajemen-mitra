@@ -591,9 +591,9 @@ export default function AnalisisDokumen({
                             Tren Perjanjian Kerja per Bulan
                         </h3>
                         <p className="mb-4 text-xs text-muted-foreground">
-                            Mengikuti periode pada menu Perjanjian Kerja, termasuk
-                            PK reguler, Sensus Ekonomi petugas utama, dan petugas
-                            pengganti.
+                            PK reguler dan SE2026 utama mengikuti periode pada
+                            menu Perjanjian Kerja. PK petugas pengganti masuk pada
+                            bulan saat PK dicatat di SIMANTIK.
                         </p>
                         <ResponsiveContainer width="100%" height={220}>
                             <BarChart
