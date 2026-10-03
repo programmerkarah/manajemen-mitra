@@ -2,6 +2,8 @@ import React from 'react';
 
 import { ContentCard } from '@/components/content-card';
 import { MultiSelectCheckbox } from '@/components/multi-select-checkbox';
+import { PageHeader } from '@/components/page-header';
+import { SummaryCard } from '@/components/summary-card';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -1118,71 +1120,30 @@ export default function DeadlineManagement() {
             <Head title="Manajemen Deadline & Bypass" />
 
             <div className="space-y-6">
-                <div className="mb-2 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-amber-600 shadow-sm dark:bg-amber-900/30 dark:text-amber-400">
-                            <Clock3 className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">
-                                Manajemen Deadline & Bypass
-                            </h1>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                Kelola cutoff fitur, request user, dan grant
-                                bypass manual.
-                            </p>
-                        </div>
-                    </div>
-                </div>
+                <PageHeader
+                    title="Manajemen Deadline & Bypass"
+                    description="Kelola cutoff fitur, request user, dan grant bypass manual."
+                />
 
                 <div className="grid gap-4 md:grid-cols-3">
-                    <ContentCard>
-                        <div className="flex items-center justify-between gap-3">
-                            <div>
-                                <p className="text-sm text-muted-foreground">
-                                    Rule aktif
-                                </p>
-                                <p className="mt-2 text-2xl font-bold text-neutral-900 dark:text-white">
-                                    {deadlineRules.length}
-                                </p>
-                            </div>
-                            <div className="rounded-xl bg-amber-100 p-2.5 text-amber-600 shadow-sm dark:bg-amber-900/30 dark:text-amber-400">
-                                <TimerReset className="h-5 w-5" />
-                            </div>
-                        </div>
-                    </ContentCard>
-
-                    <ContentCard>
-                        <div className="flex items-center justify-between gap-3">
-                            <div>
-                                <p className="text-sm text-muted-foreground">
-                                    Request pending
-                                </p>
-                                <p className="mt-2 text-2xl font-bold text-neutral-900 dark:text-white">
-                                    {pendingRequests.length}
-                                </p>
-                            </div>
-                            <div className="rounded-xl bg-purple-100 p-2.5 text-purple-600 shadow-sm dark:bg-purple-900/30 dark:text-purple-400">
-                                <Sparkles className="h-5 w-5" />
-                            </div>
-                        </div>
-                    </ContentCard>
-
-                    <ContentCard>
-                        <div className="flex items-center justify-between gap-3">
-                            <div>
-                                <p className="text-sm text-muted-foreground">
-                                    Bypass aktif
-                                </p>
-                                <p className="mt-2 text-2xl font-bold text-neutral-900 dark:text-white">
-                                    {activeBypasses.length}
-                                </p>
-                            </div>
-                            <div className="rounded-xl bg-emerald-100 p-2.5 text-emerald-600 shadow-sm dark:bg-emerald-900/30 dark:text-emerald-400">
-                                <ShieldCheck className="h-5 w-5" />
-                            </div>
-                        </div>
-                    </ContentCard>
+                    <SummaryCard
+                        label="Rule aktif"
+                        value={deadlineRules.length}
+                        icon={<TimerReset className="h-5 w-5" />}
+                        accent="orange"
+                    />
+                    <SummaryCard
+                        label="Request pending"
+                        value={pendingRequests.length}
+                        icon={<Sparkles className="h-5 w-5" />}
+                        accent="violet"
+                    />
+                    <SummaryCard
+                        label="Bypass aktif"
+                        value={activeBypasses.length}
+                        icon={<ShieldCheck className="h-5 w-5" />}
+                        accent="green"
+                    />
                 </div>
 
                 <ContentCard>
