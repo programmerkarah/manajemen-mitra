@@ -64,8 +64,34 @@ return new class extends Migration
             DB::statement('SET FOREIGN_KEY_CHECKS=1');
         }
 
-        // Step 3: Now modify the table structure
+        // Step 3: Now modify the table structure.
+        // SQLite cannot drop named foreign keys the same way as MySQL, but
+        // Laravel can rebuild the table for column drops. Keep the resulting
+        // test schema aligned with production so legacy columns do not remain
+        // NOT NULL during factories.
         if (DB::getDriverName() === 'sqlite') {
+            Schema::table('alokasi_petugas', function (Blueprint $table) {
+                $table->dropColumn([
+                    'kegiatan_id',
+                    'bulan',
+                    'tahun',
+                    'jenis_kegiatan',
+                    'status',
+                    'submitted_by',
+                    'submitted_at',
+                    'approved_by',
+                    'approved_at',
+                    'catatan_approval',
+                ]);
+            });
+
+            Schema::table('alokasi_petugas', function (Blueprint $table) {
+                $table->unique(
+                    ['periode_alokasi_id', 'petugas_id'],
+                    'unique_petugas_per_periode',
+                );
+            });
+
             return;
         }
 
