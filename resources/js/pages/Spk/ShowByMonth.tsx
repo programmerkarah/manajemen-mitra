@@ -605,16 +605,16 @@ export default function ShowByMonth({
                 <div className="space-y-4">
                     <div className="flex items-start justify-between gap-3">
                         <div>
-                            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
+                            <h3 className="text-lg font-semibold text-foreground">
                                 Ringkasan Dokumen {documentLabel}
                             </h3>
-                            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                            <p className="text-sm text-muted-foreground">
                                 Progres dokumen petugas periode {bulan_label}{' '}
                                 {tahun}
                             </p>
                         </div>
                         <Badge variant="outline" className="text-xs">
-                            {signedProgress}% signed
+                            {signedProgress}% ditandatangani
                         </Badge>
                     </div>
 
