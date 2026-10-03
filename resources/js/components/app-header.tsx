@@ -1,4 +1,5 @@
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import { formatPersonName } from '@/lib/person-name';
 import { Icon } from '@/components/icon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -241,10 +242,10 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                     <Avatar className="size-8 overflow-hidden rounded-full">
                                         <AvatarImage
                                             src={auth.user.avatar}
-                                            alt={auth.user.name}
+                                            alt={auth.formatPersonName(user.name)}
                                         />
                                         <AvatarFallback className="rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white">
-                                            {getInitials(auth.user.name)}
+                                            {getInitials(auth.formatPersonName(user.name))}
                                         </AvatarFallback>
                                     </Avatar>
                                 </Button>
