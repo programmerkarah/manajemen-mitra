@@ -12,10 +12,13 @@ use App\Models\Satuan;
 use App\Models\Spk;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class SpkLampiranHonorFilterTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_addendum_lampiran_only_renders_rows_with_positive_honor(): void
     {
         $html = view('spk-addendum-lampiran', [
@@ -167,10 +170,11 @@ class SpkLampiranHonorFilterTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        $kegiatan = new Kegiatan([
-            'id' => 999999,
+        $kegiatan = Kegiatan::factory()->create([
             'nama_kegiatan' => 'Survei Uji',
+            'jenis_kegiatan' => 'survei',
             'tahun_anggaran' => 2026,
+            'status' => 'divalidasi',
         ]);
 
         RateHonor::query()->create([
@@ -182,6 +186,7 @@ class SpkLampiranHonorFilterTest extends TestCase
             'rate' => 1000,
             'satuan_listing_id' => $satuanListing->id,
             'rate_listing' => 2000,
+            'tahun_berlaku' => 2026,
             'status' => 'aktif',
         ]);
 
@@ -227,9 +232,21 @@ class SpkLampiranHonorFilterTest extends TestCase
     {
         $user = User::factory()->create();
         $petugas = Petugas::factory()->create();
+        $kegiatan = Kegiatan::factory()->create([
+            'jenis_kegiatan' => 'survei',
+            'tahun_anggaran' => 2026,
+            'status' => 'divalidasi',
+        ]);
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '09',
+            'tahun' => 2026,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
         $alokasi = AlokasiPetugas::factory()->create([
             'petugas_id' => $petugas->id,
-            'periode_alokasi_id' => 1,
+            'periode_alokasi_id' => $periode->id,
             'jumlah_satuan' => 10,
             'jumlah_satuan_listing' => 0,
             'total_honor' => 20000,
@@ -238,7 +255,7 @@ class SpkLampiranHonorFilterTest extends TestCase
             'status_kepegawaian' => 'non_organik',
         ]);
 
-        for ($i = 1; $i <= 187; $i++) {
+        for ($i = 1; $i <= 188; $i++) {
             Spk::query()->create([
                 'nomor_spk' => "PPIS/13730/{$i}/K/2026",
                 'petugas_id' => $petugas->id,
