@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
+import { FileUpload } from '@/components/ui/file-upload';
 import {
     Select,
     SelectContent,
@@ -47,6 +48,12 @@ interface ReplacementItem {
     status: string;
     has_pkpp_contract: boolean;
     pkpp: PkppSummary | null;
+    replacement_bast: {
+        nomor: string;
+        nomor_urut: string | null;
+        tanggal: string | null;
+        uploaded_at: string | null;
+    } | null;
 }
 
 interface StoppedCandidate {
@@ -110,6 +117,10 @@ export default function Index({
         >
     >({});
     const [assigning, setAssigning] = useState<number | null>(null);
+    const [bastFiles, setBastFiles] = useState<Record<number, File | null>>({});
+    const [bastNumbers, setBastNumbers] = useState<Record<number, string>>({});
+    const [bastDates, setBastDates] = useState<Record<number, string>>({});
+    const [uploadingBast, setUploadingBast] = useState<number | null>(null);
 
     const availableStopCandidates = useMemo(
         () => stopped_candidates,
@@ -152,6 +163,36 @@ export default function Index({
             {
                 preserveScroll: true,
                 onFinish: () => setAssigning(null),
+            },
+        );
+    };
+
+    const uploadReplacementBast = (item: ReplacementItem) => {
+        const file = bastFiles[item.id];
+        const number =
+            bastNumbers[item.id] ?? item.replacement_bast?.nomor_urut ?? '';
+        const date =
+            bastDates[item.id] ?? item.replacement_bast?.tanggal ?? '';
+
+        if (!file || !number.trim()) return;
+
+        setUploadingBast(item.id);
+        router.post(
+            `/sensus-ekonomi/replacements/${item.hashed_id}/bast`,
+            {
+                nomor_bast: number.replace(/\D/g, ''),
+                tanggal_bast: date,
+                file,
+            },
+            {
+                forceFormData: true,
+                preserveScroll: true,
+                onFinish: () => setUploadingBast(null),
+                onSuccess: () =>
+                    setBastFiles((current) => ({
+                        ...current,
+                        [item.id]: null,
+                    })),
             },
         );
     };
@@ -592,7 +633,7 @@ export default function Index({
                                                             href={`/spk/petugas-pengganti/${item.hashed_id}/pkpp-contracts/create`}
                                                             prefetch
                                                         >
-                                                            PK
+                                                            Kelola PK
                                                         </Link>
                                                     </Button>
                                                     <Button
@@ -604,21 +645,151 @@ export default function Index({
                                                             href="/bapp"
                                                             prefetch
                                                         >
-                                                            BAPP
+                                                            Kelola BAPP
                                                         </Link>
                                                     </Button>
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-4 grid gap-3 border-t border-border pt-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+                                                <div className="space-y-3">
+                                                    <div>
+                                                        <p className="text-xs font-medium text-muted-foreground">
+                                                            Nomor BAST pengganti
+                                                        </p>
+                                                        <div className="mt-1.5 flex min-w-0 items-stretch rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring/30">
+                                                            <span className="flex items-center border-r border-input px-3 text-sm font-medium text-muted-foreground">
+                                                                B-
+                                                            </span>
+                                                            <input
+                                                                inputMode="numeric"
+                                                                pattern="[0-9]*"
+                                                                value={
+                                                                    bastNumbers[
+                                                                        item.id
+                                                                    ] ??
+                                                                    item
+                                                                        .replacement_bast
+                                                                        ?.nomor_urut ??
+                                                                    ''
+                                                                }
+                                                                onChange={(
+                                                                    event,
+                                                                ) => {
+                                                                    const value =
+                                                                        event.target.value.replace(
+                                                                            /\D/g,
+                                                                            '',
+                                                                        );
+                                                                    setBastNumbers(
+                                                                        (
+                                                                            current,
+                                                                        ) => ({
+                                                                            ...current,
+                                                                            [item.id]:
+                                                                                value,
+                                                                        }),
+                                                                    );
+                                                                }}
+                                                                placeholder="Nomor"
+                                                                className="h-10 w-24 min-w-[72px] bg-transparent px-3 text-sm outline-none"
+                                                            />
+                                                            <span className="flex min-w-0 flex-1 items-center overflow-hidden border-l border-input px-3 text-xs text-muted-foreground">
+                                                                <span className="truncate">
+                                                                    /BAST-SE2026/1373/PL.200/2026
+                                                                </span>
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <FileUpload
+                                                        value={
+                                                            bastFiles[item.id] ??
+                                                            null
+                                                        }
+                                                        maxSizeMb={20}
+                                                        label={
+                                                            item.replacement_bast
+                                                                ? 'Pilih PDF pengganti BAST'
+                                                                : 'Pilih atau jatuhkan PDF BAST pengganti'
+                                                        }
+                                                        helperText="PDF final BAST petugas pengganti"
+                                                        onChange={(file) =>
+                                                            setBastFiles(
+                                                                (current) => ({
+                                                                    ...current,
+                                                                    [item.id]:
+                                                                        file,
+                                                                }),
+                                                            )
+                                                        }
+                                                    />
+                                                </div>
+                                                <div className="space-y-3">
+                                                    <div>
+                                                        <p className="text-xs font-medium text-muted-foreground">
+                                                            Tanggal BAST
+                                                        </p>
+                                                        <DatePicker
+                                                            value={
+                                                                bastDates[
+                                                                    item.id
+                                                                ] ??
+                                                                item
+                                                                    .replacement_bast
+                                                                    ?.tanggal ??
+                                                                ''
+                                                            }
+                                                            onChange={(value) =>
+                                                                setBastDates(
+                                                                    (
+                                                                        current,
+                                                                    ) => ({
+                                                                        ...current,
+                                                                        [item.id]:
+                                                                            value,
+                                                                    }),
+                                                                )
+                                                            }
+                                                            placeholder="Pilih tanggal"
+                                                        />
+                                                    </div>
                                                     <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        asChild
+                                                        className="w-full"
+                                                        disabled={
+                                                            !bastFiles[
+                                                                item.id
+                                                            ] ||
+                                                            !(
+                                                                bastNumbers[
+                                                                    item.id
+                                                                ] ??
+                                                                item
+                                                                    .replacement_bast
+                                                                    ?.nomor_urut ??
+                                                                ''
+                                                            ).trim() ||
+                                                            uploadingBast ===
+                                                                item.id
+                                                        }
+                                                        onClick={() =>
+                                                            uploadReplacementBast(
+                                                                item,
+                                                            )
+                                                        }
                                                     >
-                                                        <Link
-                                                            href="/berita-acara?mode=sensus-ekonomi"
-                                                            prefetch
-                                                        >
-                                                            BAST
-                                                        </Link>
+                                                        {uploadingBast ===
+                                                        item.id
+                                                            ? 'Mengunggah...'
+                                                            : item.replacement_bast
+                                                              ? 'Perbarui BAST'
+                                                              : 'Upload BAST'}
                                                     </Button>
+                                                    {item.replacement_bast && (
+                                                        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                                                            BAST pengganti sudah
+                                                            tersimpan.
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
