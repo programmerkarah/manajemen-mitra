@@ -6,6 +6,7 @@ use App\Services\SessionConcurrencyManager;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureSingleActiveSession
@@ -70,14 +71,21 @@ class EnsureSingleActiveSession
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        if ($request->expectsJson()) {
+        if ($request->expectsJson() && ! $request->header('X-Inertia')) {
             return response()->json([
                 'message' => $message,
             ], 401);
         }
 
-        return redirect()->route('login')->withErrors([
-            'username' => $message,
-        ]);
+        // Keep the message in the newly-created session, then force Inertia
+        // navigation to leave the stale SPA document behind. A full document
+        // request rebuilds the CSRF meta token from the new session.
+        $request->session()->flash('status', $message);
+
+        if ($request->header('X-Inertia')) {
+            return Inertia::location(route('login'));
+        }
+
+        return redirect()->route('login');
     }
 }
