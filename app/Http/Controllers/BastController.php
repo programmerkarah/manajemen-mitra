@@ -3038,6 +3038,12 @@ class BastController extends Controller
         if ($isSensusEkonomiMode) {
             $allPetugasIds = Spk::query()
                 ->where('addendum_number', 0)
+                ->whereNotIn('petugas_id', function ($query): void {
+                    $query->select('petugas_berhenti_id')
+                        ->from('sensus_ekonomi_petugas_replacements')
+                        ->where('termin_i_paid', 0)
+                        ->where('status', '!=', 'dibatalkan');
+                })
                 ->whereHas('alokasiPetugas.periodeAlokasi', function ($query) use ($tahun): void {
                     $query->where('tahun', $tahun);
                 })
