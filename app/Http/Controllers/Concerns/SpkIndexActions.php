@@ -240,15 +240,19 @@ trait SpkIndexActions
                 return ($spk->regeneration_count ?? 0) > 0;
             });
 
-            // Check for incomplete addendum (some petugas with revision don't have addendum yet)
-            $hasIncompleteAddendum = $isPeriodBased
-                ? false
-                : $this->hasIncompleteAddendum($tahun, $bulan, $monthPeriodes);
+            // Addendum indicators follow the same decision service used by
+            // Generate/Addendum actions. They are intentionally shown only
+            // for the active month; historical months remain informational.
+            $isCurrentMonth = (int) now()->year === $tahun
+                && (int) now()->month === $bulan;
 
-            // Check for addendum changes (petugas who already have addendum but have allocation changes)
-            $hasAddendumChanges = $isPeriodBased
-                ? false
-                : $this->hasAddendumChanges($tahun, $bulan, $monthPeriodes);
+            $hasIncompleteAddendum = ! $isPeriodBased
+                && $isCurrentMonth
+                && (int) ($actionCounts['generate_addendum'] ?? 0) > 0;
+
+            $hasAddendumChanges = ! $isPeriodBased
+                && $isCurrentMonth
+                && (int) ($actionCounts['regenerate_addendum'] ?? 0) > 0;
 
             return [
                 'entry_key' => $this->resolveSpkIndexGroupKey($primaryPeriode),
