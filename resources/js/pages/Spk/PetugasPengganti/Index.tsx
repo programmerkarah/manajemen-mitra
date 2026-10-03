@@ -171,8 +171,7 @@ export default function Index({
         const file = bastFiles[item.id];
         const number =
             bastNumbers[item.id] ?? item.replacement_bast?.nomor_urut ?? '';
-        const date =
-            bastDates[item.id] ?? item.replacement_bast?.tanggal ?? '';
+        const date = bastDates[item.id] ?? item.replacement_bast?.tanggal ?? '';
 
         if (!file || !number.trim()) return;
 
@@ -703,8 +702,9 @@ export default function Index({
                                                     </div>
                                                     <FileUpload
                                                         value={
-                                                            bastFiles[item.id] ??
-                                                            null
+                                                            bastFiles[
+                                                                item.id
+                                                            ] ?? null
                                                         }
                                                         maxSizeMb={20}
                                                         label={
