@@ -22,7 +22,7 @@ class SbmlImport implements SkipsEmptyRows, ToCollection, WithHeadingRow
 
     public function __construct(protected int $tahun) {}
 
-    public function collection(Collection $rows)
+    public function collection(Collection $rows): void
     {
         $rowNumber = 1;
         $validRows = [];
