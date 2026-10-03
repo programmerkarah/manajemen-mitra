@@ -89,7 +89,7 @@ export default function ViewAsUserSwitcher() {
             {auth.isViewingAsUser && (
                 <div className="hidden items-center gap-2 rounded-lg border border-[var(--pastel-orange)]/70 bg-[var(--pastel-orange)]/15 px-3 py-1.5 text-xs font-medium text-foreground sm:flex">
                     <Eye className="h-3.5 w-3.5" />
-                    <span>Viewing as: {auth.user?.name}</span>
+                    <span>Viewing as: {formatPersonName(auth.user?.name)}</span>
                     <Button
                         variant="ghost"
                         size="sm"
