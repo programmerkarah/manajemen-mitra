@@ -21,6 +21,7 @@ import {
     LineChart,
     Pie,
     PieChart,
+    type PieSectorShapeProps,
     ResponsiveContainer,
     XAxis,
     YAxis,
