@@ -1582,7 +1582,8 @@ trait AlokasiPetugasPeriodActions
         }
 
         if (! $oldPeriode) {
-            return back()->with('error', 'Revisi hanya dapat dilakukan untuk alokasi berstatus dikirim.');
+            return redirect()->route('alokasi.index')
+                ->with('error', 'Revisi hanya dapat dilakukan untuk alokasi berstatus dikirim.');
         }
 
         // Store parent periode info in session for later comparison
