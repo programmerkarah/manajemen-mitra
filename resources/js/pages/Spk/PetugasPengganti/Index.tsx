@@ -151,6 +151,15 @@ export default function Index({
         [stopped_candidates],
     );
 
+    const replacementOptions = useMemo(
+        () =>
+            replacement_candidates.map((candidate) => ({
+                value: String(candidate.id),
+                label: candidate.nama,
+            })),
+        [replacement_candidates],
+    );
+
     const registerStop = () => {
         if (!stoppedSpkId || !stopDate) return;
 
