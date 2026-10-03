@@ -171,14 +171,22 @@ class DipaController extends Controller
                 ->with('error', 'Data DIPA tidak ditemukan.');
         }
 
-        return $this->edit(Dipa::findOrFail($id));
+        return $this->edit($request, Dipa::findOrFail($id));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Dipa $dipa): Response
+    public function edit(Request $request, Dipa $dipa): Response|RedirectResponse
     {
+        if ($request->routeIs('dipa.edit')) {
+            $request->session()->put('dipa.edit.context', [
+                'id' => (int) $dipa->id,
+            ]);
+
+            return redirect()->route('dipa.edit-context');
+        }
+
         // Generate tahun options (current year - 2 to current year + 5)
         $currentYear = (int) date('Y');
         $tahunOptions = range($currentYear + 5, $currentYear - 2);
