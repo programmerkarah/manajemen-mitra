@@ -1,8 +1,8 @@
-import ShieldCheck from 'lucide-react/icons/shield-check';
 import { Button } from '@/components/ui/button';
 import AuthLayout from '@/layouts/auth-layout';
 import { show } from '@/routes/two-factor';
 import { Head, Link } from '@inertiajs/react';
+import ShieldCheck from 'lucide-react/icons/shield-check';
 
 export default function TwoFactorPrompt() {
     return (

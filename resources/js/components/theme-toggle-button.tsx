@@ -1,7 +1,3 @@
-import Check from 'lucide-react/icons/check';
-import Monitor from 'lucide-react/icons/monitor';
-import Moon from 'lucide-react/icons/moon';
-import Sun from 'lucide-react/icons/sun';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -9,6 +5,10 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Appearance, useAppearance } from '@/hooks/use-appearance';
+import Check from 'lucide-react/icons/check';
+import Monitor from 'lucide-react/icons/monitor';
+import Moon from 'lucide-react/icons/moon';
+import Sun from 'lucide-react/icons/sun';
 
 const themeConfig = {
     light: { icon: Sun, label: 'Light' },

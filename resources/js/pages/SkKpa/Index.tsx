@@ -1,14 +1,3 @@
-import CheckCircle from 'lucide-react/icons/check-circle';
-import ChevronDown from 'lucide-react/icons/chevron-down';
-import ChevronLeft from 'lucide-react/icons/chevron-left';
-import ChevronRight from 'lucide-react/icons/chevron-right';
-import ChevronUp from 'lucide-react/icons/chevron-up';
-import Download from 'lucide-react/icons/download';
-import Eye from 'lucide-react/icons/eye';
-import FileCheck from 'lucide-react/icons/file-check';
-import FileText from 'lucide-react/icons/file-text';
-import Plus from 'lucide-react/icons/plus';
-import RefreshCw from 'lucide-react/icons/refresh-cw';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -34,6 +23,17 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { openFastDownload } from '@/utils/downloadUtils';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import CheckCircle from 'lucide-react/icons/check-circle';
+import ChevronDown from 'lucide-react/icons/chevron-down';
+import ChevronLeft from 'lucide-react/icons/chevron-left';
+import ChevronRight from 'lucide-react/icons/chevron-right';
+import ChevronUp from 'lucide-react/icons/chevron-up';
+import Download from 'lucide-react/icons/download';
+import Eye from 'lucide-react/icons/eye';
+import FileCheck from 'lucide-react/icons/file-check';
+import FileText from 'lucide-react/icons/file-text';
+import Plus from 'lucide-react/icons/plus';
+import RefreshCw from 'lucide-react/icons/refresh-cw';
 
 import { useMemo, useState } from 'react';
 

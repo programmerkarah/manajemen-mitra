@@ -1,8 +1,3 @@
-import ArrowLeft from 'lucide-react/icons/arrow-left';
-import CheckCircle2 from 'lucide-react/icons/check-circle2';
-import FileText from 'lucide-react/icons/file-text';
-import Loader2 from 'lucide-react/icons/loader2';
-import Upload from 'lucide-react/icons/upload';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +6,11 @@ import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import FileText from 'lucide-react/icons/file-text';
+import Loader2 from 'lucide-react/icons/loader2';
+import Upload from 'lucide-react/icons/upload';
 import { useState } from 'react';
 
 interface SpkItem {
@@ -66,8 +66,7 @@ export default function Manual({
                 termin,
                 file,
                 nomor_bapp: nomor[item.spk_id] ?? item.nomor_bapp ?? '',
-                tanggal_bapp:
-                    tanggal[item.spk_id] ?? item.tanggal_bapp ?? '',
+                tanggal_bapp: tanggal[item.spk_id] ?? item.tanggal_bapp ?? '',
             },
             {
                 forceFormData: true,
@@ -124,8 +123,7 @@ export default function Manual({
                                     <div className="min-w-0">
                                         <div className="flex flex-wrap items-center gap-2">
                                             <h3 className="font-semibold">
-                                                {item.petugas.nama ??
-                                                    'Petugas'}
+                                                {item.petugas.nama ?? 'Petugas'}
                                             </h3>
                                             <Badge
                                                 variant={
@@ -193,20 +191,16 @@ export default function Manual({
                                     </div>
 
                                     <div className="flex flex-wrap gap-2 lg:justify-end">
-                                        {available &&
-                                            item.bapp_hashed_id && (
-                                                <Button
-                                                    variant="outline"
-                                                    asChild
+                                        {available && item.bapp_hashed_id && (
+                                            <Button variant="outline" asChild>
+                                                <a
+                                                    href={`/bapp/${item.bapp_hashed_id}/download-signed`}
                                                 >
-                                                    <a
-                                                        href={`/bapp/${item.bapp_hashed_id}/download-signed`}
-                                                    >
-                                                        <FileText className="mr-2 h-4 w-4" />
-                                                        File
-                                                    </a>
-                                                </Button>
-                                            )}
+                                                    <FileText className="mr-2 h-4 w-4" />
+                                                    File
+                                                </a>
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
 
@@ -238,9 +232,7 @@ export default function Manual({
                                         ) : (
                                             <CheckCircle2 className="mr-2 h-4 w-4" />
                                         )}
-                                        {available
-                                            ? 'Ganti PDF'
-                                            : 'Upload PDF'}
+                                        {available ? 'Ganti PDF' : 'Upload PDF'}
                                     </Button>
                                 </div>
                             </ContentCard>

@@ -1,13 +1,3 @@
-import CheckCircle from 'lucide-react/icons/check-circle';
-import ChevronLeft from 'lucide-react/icons/chevron-left';
-import ChevronRight from 'lucide-react/icons/chevron-right';
-import Copy from 'lucide-react/icons/copy';
-import Eye from 'lucide-react/icons/eye';
-import FileEdit from 'lucide-react/icons/file-edit';
-import FileText from 'lucide-react/icons/file-text';
-import Plus from 'lucide-react/icons/plus';
-import RefreshCw from 'lucide-react/icons/refresh-cw';
-import Trash2 from 'lucide-react/icons/trash2';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -25,6 +15,16 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { encryptData, encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import CheckCircle from 'lucide-react/icons/check-circle';
+import ChevronLeft from 'lucide-react/icons/chevron-left';
+import ChevronRight from 'lucide-react/icons/chevron-right';
+import Copy from 'lucide-react/icons/copy';
+import Eye from 'lucide-react/icons/eye';
+import FileEdit from 'lucide-react/icons/file-edit';
+import FileText from 'lucide-react/icons/file-text';
+import Plus from 'lucide-react/icons/plus';
+import RefreshCw from 'lucide-react/icons/refresh-cw';
+import Trash2 from 'lucide-react/icons/trash2';
 
 import { useCallback, useMemo, useState } from 'react';
 

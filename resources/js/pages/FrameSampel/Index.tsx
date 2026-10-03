@@ -1,9 +1,3 @@
-import ArrowRight from 'lucide-react/icons/arrow-right';
-import ChevronLeft from 'lucide-react/icons/chevron-left';
-import ChevronRight from 'lucide-react/icons/chevron-right';
-import Database from 'lucide-react/icons/database';
-import Search from 'lucide-react/icons/search';
-import SlidersHorizontal from 'lucide-react/icons/sliders-horizontal';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +6,12 @@ import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
+import ArrowRight from 'lucide-react/icons/arrow-right';
+import ChevronLeft from 'lucide-react/icons/chevron-left';
+import ChevronRight from 'lucide-react/icons/chevron-right';
+import Database from 'lucide-react/icons/database';
+import Search from 'lucide-react/icons/search';
+import SlidersHorizontal from 'lucide-react/icons/sliders-horizontal';
 
 import { useMemo, useState } from 'react';
 

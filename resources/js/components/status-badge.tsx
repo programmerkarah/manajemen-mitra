@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils';
 import AlertCircle from 'lucide-react/icons/alert-circle';
 import AlertTriangle from 'lucide-react/icons/alert-triangle';
 import Ban from 'lucide-react/icons/ban';
@@ -19,7 +20,6 @@ import ShieldX from 'lucide-react/icons/shield-x';
 import UserCog from 'lucide-react/icons/user-cog';
 import Users from 'lucide-react/icons/users';
 import XCircle from 'lucide-react/icons/x-circle';
-import { cn } from '@/lib/utils';
 
 interface StatusBadgeProps {
     status: string;

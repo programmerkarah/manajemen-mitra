@@ -1,3 +1,5 @@
+import { dashboard } from '@/routes';
+import { type NavItem } from '@/types';
 import Airplay from 'lucide-react/icons/airplay';
 import BarChart3 from 'lucide-react/icons/bar-chart3';
 import ClipboardList from 'lucide-react/icons/clipboard-list';
@@ -14,8 +16,6 @@ import Signature from 'lucide-react/icons/signature';
 import Smartphone from 'lucide-react/icons/smartphone';
 import Users from 'lucide-react/icons/users';
 import Wrench from 'lucide-react/icons/wrench';
-import { dashboard } from '@/routes';
-import { type NavItem } from '@/types';
 
 /**
  * Returns the sidebar navigation items for the given active role name.

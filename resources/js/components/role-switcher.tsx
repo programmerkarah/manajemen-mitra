@@ -1,12 +1,3 @@
-import Award from 'lucide-react/icons/award';
-import Briefcase from 'lucide-react/icons/briefcase';
-import Check from 'lucide-react/icons/check';
-import ChevronDown from 'lucide-react/icons/chevron-down';
-import Crown from 'lucide-react/icons/crown';
-import KeyRound from 'lucide-react/icons/key-round';
-import Shield from 'lucide-react/icons/shield';
-import User from 'lucide-react/icons/user';
-import Users from 'lucide-react/icons/users';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -18,6 +9,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { SharedData } from '@/types';
 import { router, usePage } from '@inertiajs/react';
+import Award from 'lucide-react/icons/award';
+import Briefcase from 'lucide-react/icons/briefcase';
+import Check from 'lucide-react/icons/check';
+import ChevronDown from 'lucide-react/icons/chevron-down';
+import Crown from 'lucide-react/icons/crown';
+import KeyRound from 'lucide-react/icons/key-round';
+import Shield from 'lucide-react/icons/shield';
+import User from 'lucide-react/icons/user';
+import Users from 'lucide-react/icons/users';
 
 import { useState } from 'react';
 

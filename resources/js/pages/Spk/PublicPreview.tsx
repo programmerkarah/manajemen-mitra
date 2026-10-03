@@ -1420,7 +1420,8 @@ export default function PublicPreview({
                                                 type="button"
                                                 disabled={
                                                     selectedPenugasanList[0]
-                                                        ?.bast_available !== true
+                                                        ?.bast_available !==
+                                                    true
                                                 }
                                                 onClick={() =>
                                                     setDokumenTipe('bast')

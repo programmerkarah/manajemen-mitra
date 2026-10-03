@@ -1,12 +1,3 @@
-import AlertCircle from 'lucide-react/icons/alert-circle';
-import ArrowLeft from 'lucide-react/icons/arrow-left';
-import CheckCircle from 'lucide-react/icons/check-circle';
-import Download from 'lucide-react/icons/download';
-import Eye from 'lucide-react/icons/eye';
-import FileText from 'lucide-react/icons/file-text';
-import ImagePlus from 'lucide-react/icons/image-plus';
-import Loader2 from 'lucide-react/icons/loader2';
-import Upload from 'lucide-react/icons/upload';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +14,15 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import AlertCircle from 'lucide-react/icons/alert-circle';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import CheckCircle from 'lucide-react/icons/check-circle';
+import Download from 'lucide-react/icons/download';
+import Eye from 'lucide-react/icons/eye';
+import FileText from 'lucide-react/icons/file-text';
+import ImagePlus from 'lucide-react/icons/image-plus';
+import Loader2 from 'lucide-react/icons/loader2';
+import Upload from 'lucide-react/icons/upload';
 
 import { useMemo, useRef, useState } from 'react';
 

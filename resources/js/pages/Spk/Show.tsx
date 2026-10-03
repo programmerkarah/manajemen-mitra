@@ -1,7 +1,3 @@
-import Archive from 'lucide-react/icons/archive';
-import ArrowLeft from 'lucide-react/icons/arrow-left';
-import Download from 'lucide-react/icons/download';
-import Upload from 'lucide-react/icons/upload';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +12,10 @@ import {
     tryDirectDownload,
 } from '@/utils/downloadUtils';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import Archive from 'lucide-react/icons/archive';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import Download from 'lucide-react/icons/download';
+import Upload from 'lucide-react/icons/upload';
 
 import { useState } from 'react';
 

@@ -21,8 +21,8 @@ import ArrowLeft from 'lucide-react/icons/arrow-left';
 import Calendar from 'lucide-react/icons/calendar';
 import Eye from 'lucide-react/icons/eye';
 import FileText from 'lucide-react/icons/file-text';
-import User from 'lucide-react/icons/user';
 import Upload from 'lucide-react/icons/upload';
+import User from 'lucide-react/icons/user';
 import { useState } from 'react';
 
 interface Petugas {
@@ -141,10 +141,16 @@ export default function CreateForMonth({
 
     const [selectedSpks, setSelectedSpks] = useState<number[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [manualFiles, setManualFiles] = useState<Record<number, File | null>>({});
+    const [manualFiles, setManualFiles] = useState<Record<number, File | null>>(
+        {},
+    );
     const [manualNomor, setManualNomor] = useState<Record<number, string>>({});
-    const [manualTanggal, setManualTanggal] = useState<Record<number, string>>({});
-    const [uploadingManualSpk, setUploadingManualSpk] = useState<number | null>(null);
+    const [manualTanggal, setManualTanggal] = useState<Record<number, string>>(
+        {},
+    );
+    const [uploadingManualSpk, setUploadingManualSpk] = useState<number | null>(
+        null,
+    );
     const [modalAlert, setModalAlert] = useState<{
         open: boolean;
         title: string;
@@ -221,7 +227,10 @@ export default function CreateForMonth({
     const handleManualSensusUpload = (spk: SpkItem) => {
         const file = manualFiles[spk.spk_id];
         if (!file) {
-            showModalAlert('File Belum Dipilih', 'Pilih file PDF BAST terlebih dahulu.');
+            showModalAlert(
+                'File Belum Dipilih',
+                'Pilih file PDF BAST terlebih dahulu.',
+            );
             return;
         }
 
@@ -434,15 +443,20 @@ export default function CreateForMonth({
                                     : `${sortedSpkList.length} Perjanjian Kerja belum memiliki BAST di periode ini`}
                             </p>
                         </div>
-                        {!isDetailMode && !isSensusEkonomiMode && isAdminOrOperator && (
-                            <Button variant="outline" onClick={handleSelectAll}>
-                                {selectedSpks.length ===
-                                    selectableSpks.length &&
-                                selectableSpks.length > 0
-                                    ? 'Batal Pilih Semua'
-                                    : 'Pilih Semua'}
-                            </Button>
-                        )}
+                        {!isDetailMode &&
+                            !isSensusEkonomiMode &&
+                            isAdminOrOperator && (
+                                <Button
+                                    variant="outline"
+                                    onClick={handleSelectAll}
+                                >
+                                    {selectedSpks.length ===
+                                        selectableSpks.length &&
+                                    selectableSpks.length > 0
+                                        ? 'Batal Pilih Semua'
+                                        : 'Pilih Semua'}
+                                </Button>
+                            )}
                     </div>
 
                     <div className="space-y-4">
@@ -473,22 +487,26 @@ export default function CreateForMonth({
                                 }`}
                             >
                                 <div className="flex items-start gap-4">
-                                    {!isDetailMode && !isSensusEkonomiMode && isAdminOrOperator && (
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedSpks.includes(
-                                                spk.spk_id,
-                                            )}
-                                            disabled={!isSpkSelectable(spk)}
-                                            onChange={() => {}}
-                                            onClick={(e) => e.stopPropagation()}
-                                            className={`mt-1 h-4 w-4 rounded border-neutral-300 ${
-                                                isSpkSelectable(spk)
-                                                    ? 'pointer-events-none'
-                                                    : 'cursor-not-allowed opacity-40'
-                                            }`}
-                                        />
-                                    )}
+                                    {!isDetailMode &&
+                                        !isSensusEkonomiMode &&
+                                        isAdminOrOperator && (
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedSpks.includes(
+                                                    spk.spk_id,
+                                                )}
+                                                disabled={!isSpkSelectable(spk)}
+                                                onChange={() => {}}
+                                                onClick={(e) =>
+                                                    e.stopPropagation()
+                                                }
+                                                className={`mt-1 h-4 w-4 rounded border-neutral-300 ${
+                                                    isSpkSelectable(spk)
+                                                        ? 'pointer-events-none'
+                                                        : 'cursor-not-allowed opacity-40'
+                                                }`}
+                                            />
+                                        )}
                                     <div className="flex-1 space-y-3">
                                         <div className="flex items-start justify-between">
                                             <div>
@@ -590,70 +608,116 @@ export default function CreateForMonth({
                                             )}
                                         </div>
 
-                                        {spk.is_sensus_ekonomi && !isDetailMode && (
-                                            <div
-                                                className="space-y-3 rounded-md border border-blue-200 bg-blue-50/70 p-3 dark:border-blue-900/50 dark:bg-blue-950/20"
-                                                onClick={(e) => e.stopPropagation()}
-                                            >
-                                                <div className="flex items-start gap-2 text-sm text-blue-800 dark:text-blue-200">
-                                                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                                                    <p>
-                                                        BAST SE2026 tidak digenerate oleh SIMANTIK. Unggah PDF final yang sudah disiapkan secara manual.
-                                                    </p>
+                                        {spk.is_sensus_ekonomi &&
+                                            !isDetailMode && (
+                                                <div
+                                                    className="space-y-3 rounded-md border border-blue-200 bg-blue-50/70 p-3 dark:border-blue-900/50 dark:bg-blue-950/20"
+                                                    onClick={(e) =>
+                                                        e.stopPropagation()
+                                                    }
+                                                >
+                                                    <div className="flex items-start gap-2 text-sm text-blue-800 dark:text-blue-200">
+                                                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                                                        <p>
+                                                            BAST SE2026 tidak
+                                                            digenerate oleh
+                                                            SIMANTIK. Unggah PDF
+                                                            final yang sudah
+                                                            disiapkan secara
+                                                            manual.
+                                                        </p>
+                                                    </div>
+                                                    <div className="grid gap-2 md:grid-cols-[1fr_180px]">
+                                                        <input
+                                                            type="text"
+                                                            value={
+                                                                manualNomor[
+                                                                    spk.spk_id
+                                                                ] ?? ''
+                                                            }
+                                                            onChange={(e) =>
+                                                                setManualNomor(
+                                                                    (
+                                                                        current,
+                                                                    ) => ({
+                                                                        ...current,
+                                                                        [spk.spk_id]:
+                                                                            e
+                                                                                .target
+                                                                                .value,
+                                                                    }),
+                                                                )
+                                                            }
+                                                            placeholder="Nomor BAST (opsional)"
+                                                            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                                                        />
+                                                        <input
+                                                            type="date"
+                                                            value={
+                                                                manualTanggal[
+                                                                    spk.spk_id
+                                                                ] ?? ''
+                                                            }
+                                                            onChange={(e) =>
+                                                                setManualTanggal(
+                                                                    (
+                                                                        current,
+                                                                    ) => ({
+                                                                        ...current,
+                                                                        [spk.spk_id]:
+                                                                            e
+                                                                                .target
+                                                                                .value,
+                                                                    }),
+                                                                )
+                                                            }
+                                                            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-2 sm:flex-row">
+                                                        <input
+                                                            type="file"
+                                                            accept="application/pdf,.pdf"
+                                                            onChange={(e) =>
+                                                                setManualFiles(
+                                                                    (
+                                                                        current,
+                                                                    ) => ({
+                                                                        ...current,
+                                                                        [spk.spk_id]:
+                                                                            e
+                                                                                .target
+                                                                                .files?.[0] ??
+                                                                            null,
+                                                                    }),
+                                                                )
+                                                            }
+                                                            className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                                        />
+                                                        <Button
+                                                            type="button"
+                                                            disabled={
+                                                                !manualFiles[
+                                                                    spk.spk_id
+                                                                ] ||
+                                                                uploadingManualSpk ===
+                                                                    spk.spk_id
+                                                            }
+                                                            onClick={() =>
+                                                                handleManualSensusUpload(
+                                                                    spk,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Upload className="mr-2 h-4 w-4" />
+                                                            {uploadingManualSpk ===
+                                                            spk.spk_id
+                                                                ? 'Mengunggah...'
+                                                                : 'Upload BAST'}
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                                <div className="grid gap-2 md:grid-cols-[1fr_180px]">
-                                                    <input
-                                                        type="text"
-                                                        value={manualNomor[spk.spk_id] ?? ''}
-                                                        onChange={(e) =>
-                                                            setManualNomor((current) => ({
-                                                                ...current,
-                                                                [spk.spk_id]: e.target.value,
-                                                            }))
-                                                        }
-                                                        placeholder="Nomor BAST (opsional)"
-                                                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                                                    />
-                                                    <input
-                                                        type="date"
-                                                        value={manualTanggal[spk.spk_id] ?? ''}
-                                                        onChange={(e) =>
-                                                            setManualTanggal((current) => ({
-                                                                ...current,
-                                                                [spk.spk_id]: e.target.value,
-                                                            }))
-                                                        }
-                                                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                                                    />
-                                                </div>
-                                                <div className="flex flex-col gap-2 sm:flex-row">
-                                                    <input
-                                                        type="file"
-                                                        accept="application/pdf,.pdf"
-                                                        onChange={(e) =>
-                                                            setManualFiles((current) => ({
-                                                                ...current,
-                                                                [spk.spk_id]: e.target.files?.[0] ?? null,
-                                                            }))
-                                                        }
-                                                        className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                                    />
-                                                    <Button
-                                                        type="button"
-                                                        disabled={
-                                                            !manualFiles[spk.spk_id] ||
-                                                            uploadingManualSpk === spk.spk_id
-                                                        }
-                                                        onClick={() => handleManualSensusUpload(spk)}
-                                                    >
-                                                        <Upload className="mr-2 h-4 w-4" />
-                                                        {uploadingManualSpk === spk.spk_id
-                                                            ? 'Mengunggah...'
-                                                            : 'Upload BAST'}
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )}
+                                            )}
 
                                         <div className="mt-3 flex justify-end gap-2">
                                             {!isDetailMode &&
@@ -683,31 +747,32 @@ export default function CreateForMonth({
                                                         Preview BAST
                                                     </Button>
                                                 )}
-                                            {!isDetailMode && !spk.is_sensus_ekonomi && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    disabled={
-                                                        spk.is_sensus_ekonomi &&
-                                                        !spk.bapp_termin_ii_complete
-                                                    }
-                                                    title={
-                                                        spk.is_sensus_ekonomi &&
-                                                        !spk.bapp_termin_ii_complete
-                                                            ? 'Preview lampiran belum tersedia — BAPP Termin I dan II belum lengkap'
-                                                            : undefined
-                                                    }
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handlePreviewLampiranClick(
-                                                            spk,
-                                                        );
-                                                    }}
-                                                >
-                                                    <FileText className="mr-1 h-3 w-3" />
-                                                    Preview Lampiran
-                                                </Button>
-                                            )}
+                                            {!isDetailMode &&
+                                                !spk.is_sensus_ekonomi && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        disabled={
+                                                            spk.is_sensus_ekonomi &&
+                                                            !spk.bapp_termin_ii_complete
+                                                        }
+                                                        title={
+                                                            spk.is_sensus_ekonomi &&
+                                                            !spk.bapp_termin_ii_complete
+                                                                ? 'Preview lampiran belum tersedia — BAPP Termin I dan II belum lengkap'
+                                                                : undefined
+                                                        }
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handlePreviewLampiranClick(
+                                                                spk,
+                                                            );
+                                                        }}
+                                                    >
+                                                        <FileText className="mr-1 h-3 w-3" />
+                                                        Preview Lampiran
+                                                    </Button>
+                                                )}
                                             {isDetailMode &&
                                                 spk.existing_bast_hashed_id && (
                                                     <Button

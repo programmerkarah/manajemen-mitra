@@ -387,10 +387,7 @@ export default function DasarHukumFormPage({
             <Head title={pageTitle} />
 
             <div className="space-y-6">
-                <PageHeader
-                    title={pageTitle}
-                    description={pageDescription}
-                >
+                <PageHeader title={pageTitle} description={pageDescription}>
                     <Button
                         variant="outline"
                         size="sm"

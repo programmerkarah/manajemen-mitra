@@ -1,10 +1,10 @@
+import { type SharedData } from '@/types';
+import { usePage } from '@inertiajs/react';
 import AlertCircle from 'lucide-react/icons/alert-circle';
 import AlertTriangle from 'lucide-react/icons/alert-triangle';
 import CheckCircle2 from 'lucide-react/icons/check-circle2';
 import Info from 'lucide-react/icons/info';
 import X from 'lucide-react/icons/x';
-import { type SharedData } from '@/types';
-import { usePage } from '@inertiajs/react';
 
 import { useEffect, useState } from 'react';
 
@@ -40,9 +40,7 @@ export function FlashMessage() {
                 }
               : null;
 
-    const messageKey = message
-        ? `${message.type}:${message.text}`
-        : '';
+    const messageKey = message ? `${message.type}:${message.text}` : '';
     const visible = Boolean(message && dismissedKey !== messageKey);
 
     useEffect(() => {

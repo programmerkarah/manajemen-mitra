@@ -1,4 +1,3 @@
-import LogOut from 'lucide-react/icons/log-out';
 import {
     DropdownMenuItem,
     DropdownMenuLabel,
@@ -7,6 +6,7 @@ import {
 import { UserInfo } from '@/components/user-info';
 import { type User } from '@/types';
 import { router } from '@inertiajs/react';
+import LogOut from 'lucide-react/icons/log-out';
 
 interface UserMenuContentProps {
     user: User;

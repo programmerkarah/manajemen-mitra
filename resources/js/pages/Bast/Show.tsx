@@ -1,15 +1,3 @@
-import AlertCircle from 'lucide-react/icons/alert-circle';
-import ArrowLeft from 'lucide-react/icons/arrow-left';
-import CheckCircle2 from 'lucide-react/icons/check-circle2';
-import Clock3 from 'lucide-react/icons/clock3';
-import Download from 'lucide-react/icons/download';
-import Eye from 'lucide-react/icons/eye';
-import FileArchive from 'lucide-react/icons/file-archive';
-import FileCheck2 from 'lucide-react/icons/file-check2';
-import FileText from 'lucide-react/icons/file-text';
-import FolderDown from 'lucide-react/icons/folder-down';
-import PenLine from 'lucide-react/icons/pen-line';
-import Upload from 'lucide-react/icons/upload';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +17,18 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import { openFastDownload, previewFileFromPost } from '@/utils/downloadUtils';
 import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import AlertCircle from 'lucide-react/icons/alert-circle';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import Clock3 from 'lucide-react/icons/clock3';
+import Download from 'lucide-react/icons/download';
+import Eye from 'lucide-react/icons/eye';
+import FileArchive from 'lucide-react/icons/file-archive';
+import FileCheck2 from 'lucide-react/icons/file-check2';
+import FileText from 'lucide-react/icons/file-text';
+import FolderDown from 'lucide-react/icons/folder-down';
+import PenLine from 'lucide-react/icons/pen-line';
+import Upload from 'lucide-react/icons/upload';
 
 import { useEffect, useRef, useState } from 'react';
 

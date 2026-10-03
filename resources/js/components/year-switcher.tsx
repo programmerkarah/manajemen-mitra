@@ -1,5 +1,3 @@
-import AlertCircle from 'lucide-react/icons/alert-circle';
-import Calendar1 from 'lucide-react/icons/calendar1';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -11,6 +9,8 @@ import {
 import { SidebarMenuButton } from '@/components/ui/sidebar';
 import { type SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
+import AlertCircle from 'lucide-react/icons/alert-circle';
+import Calendar1 from 'lucide-react/icons/calendar1';
 
 export function YearSwitcher() {
     const { activeYear, availableYears, hasAvailableYears } =

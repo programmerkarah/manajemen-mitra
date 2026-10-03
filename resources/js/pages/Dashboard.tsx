@@ -1,3 +1,18 @@
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import AppLayout from '@/layouts/app-layout';
+import { buildNavItems } from '@/lib/nav-items';
+import { dashboard } from '@/routes';
+import { index as bastIndex } from '@/routes/bast';
+import { index as kegiatanIndex } from '@/routes/kegiatan';
+import { index as petugasIndex } from '@/routes/petugas';
+import { SharedData, type BreadcrumbItem } from '@/types';
+import { Head, Link, usePage } from '@inertiajs/react';
 import AlertCircle from 'lucide-react/icons/alert-circle';
 import AlertTriangle from 'lucide-react/icons/alert-triangle';
 import ArrowRight from 'lucide-react/icons/arrow-right';
@@ -15,21 +30,6 @@ import Star from 'lucide-react/icons/star';
 import TrendingUp from 'lucide-react/icons/trending-up';
 import Users from 'lucide-react/icons/users';
 import XCircle from 'lucide-react/icons/x-circle';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
-import AppLayout from '@/layouts/app-layout';
-import { buildNavItems } from '@/lib/nav-items';
-import { dashboard } from '@/routes';
-import { index as bastIndex } from '@/routes/bast';
-import { index as kegiatanIndex } from '@/routes/kegiatan';
-import { index as petugasIndex } from '@/routes/petugas';
-import { SharedData, type BreadcrumbItem } from '@/types';
-import { Head, Link, usePage } from '@inertiajs/react';
 
 import { useMemo, useState } from 'react';
 import {

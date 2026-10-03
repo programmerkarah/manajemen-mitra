@@ -1,7 +1,3 @@
-import Check from 'lucide-react/icons/check';
-import Eye from 'lucide-react/icons/eye';
-import EyeOff from 'lucide-react/icons/eye-off';
-import User from 'lucide-react/icons/user';
 import { Button } from '@/components/ui/button';
 import {
     Command,
@@ -18,6 +14,10 @@ import {
 } from '@/components/ui/popover';
 import { type SharedData } from '@/types';
 import { router, usePage } from '@inertiajs/react';
+import Check from 'lucide-react/icons/check';
+import Eye from 'lucide-react/icons/eye';
+import EyeOff from 'lucide-react/icons/eye-off';
+import User from 'lucide-react/icons/user';
 
 import { useEffect, useState } from 'react';
 

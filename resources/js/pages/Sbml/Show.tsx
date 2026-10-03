@@ -1,12 +1,12 @@
-import ArrowLeft from 'lucide-react/icons/arrow-left';
-import Pencil from 'lucide-react/icons/pencil';
-import Trash2 from 'lucide-react/icons/trash2';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem, Sbml, SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import Pencil from 'lucide-react/icons/pencil';
+import Trash2 from 'lucide-react/icons/trash2';
 
 interface ShowProps {
     tahun: number;

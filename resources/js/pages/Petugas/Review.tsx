@@ -1,9 +1,3 @@
-import CheckCircle2 from 'lucide-react/icons/check-circle2';
-import ClipboardCheck from 'lucide-react/icons/clipboard-check';
-import Clock3 from 'lucide-react/icons/clock3';
-import Search from 'lucide-react/icons/search';
-import Star from 'lucide-react/icons/star';
-import Users from 'lucide-react/icons/users';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { SummaryCard } from '@/components/summary-card';
@@ -22,6 +16,12 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import ClipboardCheck from 'lucide-react/icons/clipboard-check';
+import Clock3 from 'lucide-react/icons/clock3';
+import Search from 'lucide-react/icons/search';
+import Star from 'lucide-react/icons/star';
+import Users from 'lucide-react/icons/users';
 
 import { useEffect, useMemo, useState } from 'react';
 

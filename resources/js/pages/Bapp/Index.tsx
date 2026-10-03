@@ -1,6 +1,3 @@
-import AlertCircle from 'lucide-react/icons/alert-circle';
-import ArrowLeft from 'lucide-react/icons/arrow-left';
-import FileUp from 'lucide-react/icons/file-up';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +5,9 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
+import AlertCircle from 'lucide-react/icons/alert-circle';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import FileUp from 'lucide-react/icons/file-up';
 
 interface TerminData {
     termin: number;
@@ -29,7 +29,11 @@ interface IndexProps {
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'BAPP SE2026', href: '/bapp' }];
 
-export default function Index({ tahun, termin_data, has_kegiatan }: IndexProps) {
+export default function Index({
+    tahun,
+    termin_data,
+    has_kegiatan,
+}: IndexProps) {
     if (!has_kegiatan) {
         return (
             <AppLayout breadcrumbs={breadcrumbs}>
@@ -46,7 +50,8 @@ export default function Index({ tahun, termin_data, has_kegiatan }: IndexProps) 
                                 Kegiatan Sensus Ekonomi tidak ditemukan
                             </p>
                             <p className="text-sm text-muted-foreground">
-                                Pastikan kegiatan Sensus Ekonomi sudah dikonfigurasi.
+                                Pastikan kegiatan Sensus Ekonomi sudah
+                                dikonfigurasi.
                             </p>
                         </div>
                     </ContentCard>
@@ -74,9 +79,9 @@ export default function Index({ tahun, termin_data, has_kegiatan }: IndexProps) 
                 <ContentCard>
                     <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-4 text-sm text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-200">
                         BAPP Termin I dan Termin II sekarang dikelola sebagai
-                        dokumen manual. Pilih termin, lalu unggah PDF final untuk
-                        masing-masing petugas. File yang belum diunggah akan
-                        tampil sebagai tidak tersedia pada halaman /mitra.
+                        dokumen manual. Pilih termin, lalu unggah PDF final
+                        untuk masing-masing petugas. File yang belum diunggah
+                        akan tampil sebagai tidak tersedia pada halaman /mitra.
                     </div>
                 </ContentCard>
 

@@ -1,9 +1,3 @@
-import ArrowLeft from 'lucide-react/icons/arrow-left';
-import CheckCircle2 from 'lucide-react/icons/check-circle2';
-import Download from 'lucide-react/icons/download';
-import Eye from 'lucide-react/icons/eye';
-import FileEdit from 'lucide-react/icons/file-edit';
-import Loader2 from 'lucide-react/icons/loader2';
 import { ContentCard } from '@/components/content-card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -13,6 +7,12 @@ import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { previewFileFromPost } from '@/utils/downloadUtils';
 import { Head, Link, router } from '@inertiajs/react';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import Download from 'lucide-react/icons/download';
+import Eye from 'lucide-react/icons/eye';
+import FileEdit from 'lucide-react/icons/file-edit';
+import Loader2 from 'lucide-react/icons/loader2';
 
 import { useState } from 'react';
 

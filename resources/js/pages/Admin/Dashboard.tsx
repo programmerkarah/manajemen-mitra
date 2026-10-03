@@ -1,3 +1,9 @@
+import { ContentCard } from '@/components/content-card';
+import { PageHeader } from '@/components/page-header';
+import { Badge } from '@/components/ui/badge';
+import AppLayout from '@/layouts/app-layout';
+import { BreadcrumbItem } from '@/types';
+import { Head, Link, usePage } from '@inertiajs/react';
 import ActivitySquare from 'lucide-react/icons/activity-square';
 import AlertCircle from 'lucide-react/icons/alert-circle';
 import AlertTriangle from 'lucide-react/icons/alert-triangle';
@@ -11,12 +17,6 @@ import HardDrive from 'lucide-react/icons/hard-drive';
 import Settings from 'lucide-react/icons/settings';
 import UserCheck from 'lucide-react/icons/user-check';
 import Users from 'lucide-react/icons/users';
-import { ContentCard } from '@/components/content-card';
-import { PageHeader } from '@/components/page-header';
-import { Badge } from '@/components/ui/badge';
-import AppLayout from '@/layouts/app-layout';
-import { BreadcrumbItem } from '@/types';
-import { Head, Link, usePage } from '@inertiajs/react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Administrasi', href: '#' }];
 

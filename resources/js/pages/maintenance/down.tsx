@@ -1,11 +1,11 @@
-import AlertTriangle from 'lucide-react/icons/alert-triangle';
-import Key from 'lucide-react/icons/key';
-import LoaderCircle from 'lucide-react/icons/loader-circle';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Head } from '@inertiajs/react';
+import AlertTriangle from 'lucide-react/icons/alert-triangle';
+import Key from 'lucide-react/icons/key';
+import LoaderCircle from 'lucide-react/icons/loader-circle';
 
 import { FormEvent, useState } from 'react';
 

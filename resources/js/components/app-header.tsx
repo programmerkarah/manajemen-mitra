@@ -1,8 +1,3 @@
-import BookOpen from 'lucide-react/icons/book-open';
-import Folder from 'lucide-react/icons/folder';
-import LayoutGrid from 'lucide-react/icons/layout-grid';
-import Menu from 'lucide-react/icons/menu';
-import Search from 'lucide-react/icons/search';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { Icon } from '@/components/icon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -37,6 +32,11 @@ import { cn, isSameUrl, resolveUrl } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
+import BookOpen from 'lucide-react/icons/book-open';
+import Folder from 'lucide-react/icons/folder';
+import LayoutGrid from 'lucide-react/icons/layout-grid';
+import Menu from 'lucide-react/icons/menu';
+import Search from 'lucide-react/icons/search';
 
 import AppLogo from './app-logo';
 import AppLogoIcon from './app-logo-icon';
