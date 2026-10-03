@@ -151,14 +151,22 @@ class PenandatanganController extends Controller
                 ->with('error', 'Data penandatangan tidak ditemukan.');
         }
 
-        return $this->edit(Penandatangan::findOrFail($id));
+        return $this->edit($request, Penandatangan::findOrFail($id));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Penandatangan $penandatangan): Response
+    public function edit(Request $request, Penandatangan $penandatangan): Response|RedirectResponse
     {
+        if ($request->routeIs('penandatangan.edit')) {
+            $request->session()->put('penandatangan.edit.context', [
+                'id' => (int) $penandatangan->id,
+            ]);
+
+            return redirect()->route('penandatangan.edit-context');
+        }
+
         return Inertia::render('Penandatangan/Edit', [
             'Penandatangan' => $penandatangan,
         ]);
