@@ -2758,12 +2758,6 @@ export default function Dashboard({
                                     const hasBast =
                                         !kegiatan.bast.requires_document ||
                                         kegiatan.bast.is_complete;
-                                    const bastCreateHref = `/berita-acara/create?bulan=${currentMonth}&tahun=${currentYear}`;
-                                    const bastActionHref = kegiatan.bast
-                                        .is_complete
-                                        ? (kegiatan.bast.detail_url ??
-                                          bastCreateHref)
-                                        : bastCreateHref;
                                     const completionCount = [
                                         hasAlokasi,
                                         hasSk,
@@ -3193,21 +3187,20 @@ export default function Dashboard({
                                                                 {canViewMonthlyDocuments &&
                                                                     kegiatan
                                                                         .periode_alokasi
-                                                                        ?.has_alokasi &&
-                                                                    bastActionHref && (
-                                                                        <Link
-                                                                            href={
-                                                                                bastActionHref
+                                                                        ?.has_alokasi && (
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            onClick={() =>
+                                                                                openBastCreate(
+                                                                                    currentMonth,
+                                                                                    currentYear,
+                                                                                )
                                                                             }
                                                                         >
-                                                                            <Button
-                                                                                size="sm"
-                                                                                variant="ghost"
-                                                                            >
-                                                                                <Plus className="mr-1 size-3" />
-                                                                                Buat
-                                                                            </Button>
-                                                                        </Link>
+                                                                            <Plus className="mr-1 size-3" />
+                                                                            Buat
+                                                                        </Button>
                                                                     )}
                                                             </>
                                                         ) : (
@@ -3220,19 +3213,19 @@ export default function Dashboard({
                                                                     kegiatan
                                                                         .periode_alokasi
                                                                         ?.has_alokasi && (
-                                                                        <Link
-                                                                            href={
-                                                                                bastActionHref
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            onClick={() =>
+                                                                                openBastCreate(
+                                                                                    currentMonth,
+                                                                                    currentYear,
+                                                                                )
                                                                             }
                                                                         >
-                                                                            <Button
-                                                                                size="sm"
-                                                                                variant="ghost"
-                                                                            >
-                                                                                <Plus className="mr-1 size-3" />
-                                                                                Buat
-                                                                            </Button>
-                                                                        </Link>
+                                                                            <Plus className="mr-1 size-3" />
+                                                                            Buat
+                                                                        </Button>
                                                                     )}
                                                             </>
                                                         )}
