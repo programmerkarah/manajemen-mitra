@@ -2956,7 +2956,7 @@ class SpkController extends Controller
                 'spk.alokasiPetugas.periodeAlokasi.kegiatan',
             ])
             ->whereNull('deleted_at')
-            ->get(['id', 'spk_id', 'file_path', 'signed_file_path', 'main_signed_file_path']);
+            ->get(['id', 'spk_id', 'file_path', 'signed_file_path', 'main_signed_file_path', 'compiled_file_path']);
 
         /** @var array<string, Bast|null> $bastStatusByKey */
         $bastStatusByKey = [];
@@ -3019,9 +3019,24 @@ class SpkController extends Controller
                     'honor' => (float) $alokasi->getEffectiveCombinedHonor(),
                     'honor_label' => 'Rp '.number_format((float) $alokasi->getEffectiveCombinedHonor(), 0, ',', '.'),
                     'document_status' => $documentStatus,
-                    'bast_status' => $this->getBastStatusLabel($bast),
-                    'bapp_termin_i_status' => $isSensus ? $this->getBappStatusLabel($bappByTermin->get(1)) : null,
-                    'bapp_termin_ii_status' => $isSensus ? $this->getBappStatusLabel($bappByTermin->get(2)) : null,
+                    'bast_status' => $isSensus
+                        ? ($bast?->signed_file_path ? 'BAST tersedia' : 'Tidak tersedia')
+                        : $this->getBastStatusLabel($bast),
+                    'bast_available' => $isSensus
+                        ? (bool) $bast?->signed_file_path
+                        : (bool) ($bast?->compiled_file_path || $bast?->signed_file_path || $bast?->main_signed_file_path || $bast?->file_path),
+                    'bapp_termin_i_status' => $isSensus
+                        ? ($bappByTermin->get(1)?->signed_file_path ? 'BAPP tersedia' : 'Tidak tersedia')
+                        : null,
+                    'bapp_termin_ii_status' => $isSensus
+                        ? ($bappByTermin->get(2)?->signed_file_path ? 'BAPP tersedia' : 'Tidak tersedia')
+                        : null,
+                    'bapp_termin_i_available' => $isSensus
+                        ? (bool) $bappByTermin->get(1)?->signed_file_path
+                        : null,
+                    'bapp_termin_ii_available' => $isSensus
+                        ? (bool) $bappByTermin->get(2)?->signed_file_path
+                        : null,
                 ];
             })
             ->filter()
@@ -3242,10 +3257,20 @@ class SpkController extends Controller
             return response()->json(['message' => 'BAST belum tersedia untuk penugasan ini.'], 422);
         }
 
-        $filePath = $bast->signed_file_path ?: ($bast->main_signed_file_path ?: $bast->file_path);
+        $isSensusEkonomi = mb_strtolower($jenisKegiatan) === 'sensus';
+
+        // SE2026 hanya tersedia jika PDF manual sudah diunggah. Untuk BAST
+        // reguler prioritaskan file gabungan agar preview memuat main + lampiran.
+        $filePath = $isSensusEkonomi
+            ? $bast->signed_file_path
+            : ($bast->compiled_file_path ?: ($bast->signed_file_path ?: ($bast->main_signed_file_path ?: $bast->file_path)));
 
         if (! $filePath) {
-            return response()->json(['message' => 'File BAST belum dibuat.'], 422);
+            return response()->json([
+                'message' => $isSensusEkonomi
+                    ? 'BAST SE2026 belum diunggah.'
+                    : 'File BAST belum dibuat.',
+            ], 422);
         }
 
         $absolutePath = public_path(ltrim(str_replace('\\', '/', $filePath), '/'));
@@ -3277,10 +3302,12 @@ class SpkController extends Controller
             return response()->json(['message' => "BAPP Termin {$terminLabel} belum tersedia."], 422);
         }
 
-        $filePath = $bapp->signed_file_path ?: $bapp->file_path;
+        // BAPP SE2026 tidak lagi digenerate. Hanya PDF manual/final yang
+        // sudah diunggah yang boleh ditampilkan pada halaman publik.
+        $filePath = $bapp->signed_file_path;
 
         if (! $filePath) {
-            return response()->json(['message' => "File BAPP Termin {$terminLabel} belum dibuat."], 422);
+            return response()->json(['message' => "BAPP Termin {$terminLabel} belum diunggah."], 422);
         }
 
         $absolutePath = Storage::disk('public')->path($filePath);
