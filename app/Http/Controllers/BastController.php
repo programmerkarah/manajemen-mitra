@@ -3001,25 +3001,29 @@ class BastController extends Controller
      */
     public function create(Request $request): Response|RedirectResponse
     {
+        $filters = $request->session()->get('bast_create_filters');
 
-        $bulan = $request->input('bulan');
-        $tahun = $request->input('tahun', ActiveYearService::get());
-        $requestedMode = (string) $request->input('mode', 'regular');
+        if (! is_array($filters) || ! isset($filters['bulan'], $filters['tahun'])) {
+            return redirect()->route('bast.index')
+                ->with('error', 'Pilih periode BAST dari halaman Berita Acara.');
+        }
+
+        $bulan = (int) $filters['bulan'];
+        $tahun = (int) $filters['tahun'];
+        $requestedMode = (string) ($filters['mode'] ?? 'regular');
         $user = $this->getRequestUser($request);
-        $canAccessSensusMode = $this->canAccessSensusMode($user, (int) $tahun);
+        $canAccessSensusMode = $this->canAccessSensusMode($user, $tahun);
         $mode = $requestedMode === 'sensus-ekonomi' && $canAccessSensusMode
             ? 'sensus-ekonomi'
             : 'regular';
         $isSensusEkonomiMode = $mode === 'sensus-ekonomi';
-        $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
-        if (! $bulan) {
-            return redirect()->route('bast.index')
-                ->with('error', 'Bulan harus diisi');
-        }
+        $bulanFormatted = str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
 
-        if ($isSensusEkonomiMode && (int) $bulan !== 8) {
-            return redirect()->route('bast.index', ['mode' => 'sensus-ekonomi'])
-                ->with('info', 'BAST Sensus Ekonomi hanya dapat dibuat pada bulan Agustus sesuai akhir pelaksanaan PK.');
+        if ($isSensusEkonomiMode && $bulan !== 8) {
+            $request->session()->put('bast_index_mode', 'sensus-ekonomi');
+
+            return redirect()->route('bast.index')
+                ->with('info', 'BAST Sensus Ekonomi dikelola pada periode Agustus sesuai akhir pelaksanaan PK.');
         }
 
         if ($isSensusEkonomiMode) {
