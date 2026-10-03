@@ -1,4 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
+import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/page-header';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import Activity from 'lucide-react/icons/activity';
@@ -368,18 +370,13 @@ export default function AnalisisUmum({
             <Head title="Analisis Umum" />
             <div className="flex flex-1 flex-col gap-6 p-4">
                 {/* Header */}
-                <div className="flex items-start justify-between rounded-2xl border border-neutral-200/70 bg-white/80 p-6 shadow-lg dark:border-neutral-800 dark:bg-neutral-900/80">
-                    <div>
-                        <h1 className="text-xl font-bold text-neutral-900 dark:text-white">
-                            Analisis Umum
-                        </h1>
-                        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-                            Ringkasan anggaran, beban kerja, dan tren alokasi ·
-                            Tahun {currentYear}
-                        </p>
-                    </div>
-                    <button
+                <PageHeader
+                    title="Analisis Umum"
+                    description={`Ringkasan anggaran, beban kerja, dan tren alokasi · Tahun ${currentYear}`}
+                >
+                    <Button
                         type="button"
+                        variant="outline"
                         onClick={() =>
                             window.open(
                                 '/analisis/umum/export-pdf',
@@ -387,12 +384,11 @@ export default function AnalisisUmum({
                                 'noopener,noreferrer',
                             )
                         }
-                        className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
                     >
                         <Download className="h-4 w-4" />
                         Export PDF
-                    </button>
-                </div>
+                    </Button>
+                </PageHeader>
 
                 {/* KPI Cards */}
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
