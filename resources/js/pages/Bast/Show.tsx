@@ -2,6 +2,7 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { FileUpload } from '@/components/ui/file-upload';
 import {
     Dialog,
     DialogContent,
@@ -486,10 +487,7 @@ export default function Show({
         window.location.href = `/berita-acara/download-all?bulan=${bulan}&tahun=${tahun}`;
     };
 
-    const handleUploadMainSigned = (
-        event: React.ChangeEvent<HTMLInputElement>,
-    ) => {
-        const file = event.target.files?.[0];
+    const handleUploadMainSigned = (file: File | null) => {
         if (!file) {
             return;
         }
@@ -635,9 +633,8 @@ export default function Show({
 
     const handleUploadLampiranSigned = (
         item: LampiranItem,
-        event: React.ChangeEvent<HTMLInputElement>,
+        file: File | null,
     ) => {
-        const file = event.target.files?.[0];
         if (!file) {
             return;
         }
@@ -1171,30 +1168,26 @@ export default function Show({
                                         </p>
                                     </div>
 
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <Label
-                                            htmlFor="main-signed-file"
-                                            className="inline-flex h-11 cursor-pointer items-center justify-center gap-2.5 rounded-xl border-2 border-input bg-white/50 px-5 text-base font-semibold shadow-lg backdrop-blur-sm transition-[color,box-shadow,transform] hover:border-accent-foreground/20 hover:bg-accent hover:text-accent-foreground hover:shadow-xl active:scale-[0.98] dark:bg-neutral-800/60"
-                                        >
-                                            <Upload className="size-5 shrink-0" />
-                                            {uploadingTarget === 'main'
-                                                ? 'Mengunggah...'
-                                                : bast.main_signed_file_path
-                                                  ? 'Ganti File BAST Bertanda Tangan'
-                                                  : 'Pilih File BAST Bertanda Tangan'}
-                                        </Label>
-                                        <Input
-                                            id="main-signed-file"
-                                            type="file"
-                                            accept="application/pdf"
+                                    <div className="space-y-3">
+                                        <FileUpload
+                                            disabled={uploadingTarget === 'main'}
+                                            maxSizeMb={20}
+                                            label={
+                                                bast.main_signed_file_path
+                                                    ? 'Pilih PDF pengganti BAST bertanda tangan'
+                                                    : 'Pilih atau jatuhkan PDF BAST bertanda tangan'
+                                            }
+                                            helperText={
+                                                uploadingTarget === 'main'
+                                                    ? 'Sedang mengunggah...'
+                                                    : 'PDF BAST utama bertanda tangan'
+                                            }
                                             onChange={handleUploadMainSigned}
-                                            className="hidden"
                                         />
                                         {bast.main_signed_file_path && (
                                             <div className="inline-flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
                                                 <CheckCircle2 className="h-4 w-4" />
-                                                File BAST bertanda tangan
-                                                tersimpan
+                                                File BAST bertanda tangan tersimpan
                                             </div>
                                         )}
                                     </div>
@@ -1425,37 +1418,29 @@ export default function Show({
                                                             </Button>
 
                                                             {item.can_upload_signed && (
-                                                                <>
-                                                                    <Label
-                                                                        htmlFor={
-                                                                            uploadId
+                                                                <div className="min-w-[280px] flex-1">
+                                                                    <FileUpload
+                                                                        id={uploadId}
+                                                                        disabled={isUploadingThis}
+                                                                        maxSizeMb={20}
+                                                                        label={
+                                                                            item.signed_file_path
+                                                                                ? 'Pilih PDF pengganti lampiran'
+                                                                                : 'Pilih atau jatuhkan PDF lampiran'
                                                                         }
-                                                                        className="inline-flex h-11 cursor-pointer items-center justify-center gap-2.5 rounded-xl border-2 border-input bg-white/50 px-5 text-base font-semibold shadow-lg backdrop-blur-sm transition-[color,box-shadow,transform] hover:border-accent-foreground/20 hover:bg-accent hover:text-accent-foreground hover:shadow-xl active:scale-[0.98] dark:bg-neutral-800/60"
-                                                                    >
-                                                                        <Upload className="size-5 shrink-0" />
-                                                                        {isUploadingThis
-                                                                            ? 'Mengunggah...'
-                                                                            : item.signed_file_path
-                                                                              ? 'Ganti Lampiran Bertanda Tangan'
-                                                                              : 'Unggah Lampiran Bertanda Tangan'}
-                                                                    </Label>
-                                                                    <Input
-                                                                        id={
-                                                                            uploadId
+                                                                        helperText={
+                                                                            isUploadingThis
+                                                                                ? 'Sedang mengunggah...'
+                                                                                : 'PDF lampiran bertanda tangan'
                                                                         }
-                                                                        type="file"
-                                                                        accept="application/pdf"
-                                                                        onChange={(
-                                                                            event,
-                                                                        ) =>
+                                                                        onChange={(file) =>
                                                                             handleUploadLampiranSigned(
                                                                                 item,
-                                                                                event,
+                                                                                file,
                                                                             )
                                                                         }
-                                                                        className="hidden"
                                                                     />
-                                                                </>
+                                                                </div>
                                                             )}
 
                                                             {!item.can_upload_signed &&
