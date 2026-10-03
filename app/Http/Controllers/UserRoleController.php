@@ -66,24 +66,23 @@ class UserRoleController extends Controller
                 'encrypted' => encryptFilters($validated),
                 'decrypted' => $validated,
             ],
+            'allRoles' => Role::query()
+                ->select('id', 'name', 'display_name', 'description')
+                ->orderBy('display_name')
+                ->get(),
         ]);
     }
 
     /**
      * Show the form for editing user roles.
      */
-    public function edit(User $user): Response
+    public function edit(User $user): RedirectResponse
     {
         $this->authorize('update', $user);
 
-        $user->load('roles');
-
-        $allRoles = Role::orderBy('name')->get();
-
-        return Inertia::render('Users/Edit', [
-            'user' => $user,
-            'allRoles' => $allRoles,
-        ]);
+        // Role editing now lives on /users. Keep this route only as a
+        // backwards-compatible entry point and use a GET-safe redirect.
+        return redirect()->route('users.index', ['edit' => $user->id], 303);
     }
 
     /**
