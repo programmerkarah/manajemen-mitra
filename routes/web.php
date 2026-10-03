@@ -60,9 +60,12 @@ use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
 Route::get('/csrf-token', function (Request $request) {
-    $request->session()->regenerateToken();
-
-    return response()->json(['token' => csrf_token()]);
+    // Return the token owned by the current session. Rotating the token here
+    // creates a race condition when multiple Inertia mutations refresh CSRF
+    // at nearly the same time: the last refresh invalidates earlier requests.
+    return response()->json([
+        'token' => $request->session()->token(),
+    ]);
 })->name('csrf.token');
 
 Route::get('/auth/sso/redirect', [SsoOAuthController::class, 'redirect'])->name('sso.redirect');
