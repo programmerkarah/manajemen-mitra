@@ -687,16 +687,26 @@ class SpkController extends Controller
             ];
         })->values()->all();
 
-        // Build petugas list for sidebar
-        $petugasList = $allSpks->map(function ($s) {
-            // Get the latest SPK document (including addendums) for this petugas
-            $originalSpkId = $s->parent_spk_id ?: $s->id;
-            $latestSpkDoc = Spk::where(function ($q) use ($originalSpkId) {
-                $q->where('id', $originalSpkId)
-                    ->orWhere('parent_spk_id', $originalSpkId);
+        // Build petugas list for sidebar without one SPK query per row.
+        $rootSpkIds = $allSpks
+            ->map(fn (Spk $item): int => (int) ($item->parent_spk_id ?: $item->id))
+            ->unique()
+            ->values();
+
+        $latestDocumentsByRoot = Spk::query()
+            ->where(function ($query) use ($rootSpkIds): void {
+                $query->whereIn('id', $rootSpkIds->all())
+                    ->orWhereIn('parent_spk_id', $rootSpkIds->all());
             })
-                ->orderBy('addendum_number', 'desc')
-                ->first();
+            ->orderByDesc('addendum_number')
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy(fn (Spk $item): int => (int) ($item->parent_spk_id ?: $item->id))
+            ->map(fn ($documents) => $documents->first());
+
+        $petugasList = $allSpks->map(function ($s) use ($latestDocumentsByRoot) {
+            $originalSpkId = (int) ($s->parent_spk_id ?: $s->id);
+            $latestSpkDoc = $latestDocumentsByRoot->get($originalSpkId);
 
             return [
                 'id' => $s->id,
@@ -711,32 +721,33 @@ class SpkController extends Controller
             ];
         })->sortBy('petugas_nama')->values()->all();
 
-        // Get all unique kegiatan in this month with SPK count
+        // Get all unique kegiatan and petugas mappings in two queries rather
+        // than issuing another query for every kegiatan card.
         $allKegiatanIds = AlokasiPetugas::whereIn('periode_alokasi_id', $allPeriodeInMonth)
             ->distinct()
             ->pluck('periode_alokasi_id');
+
+        $petugasByKegiatan = DB::table('alokasi_petugas')
+            ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
+            ->whereIn('periode_alokasi.id', $allPeriodeInMonth)
+            ->whereIn('periode_alokasi.status', ['dikirim', 'disetujui', 'perubahan', 'direvisi'])
+            ->select('periode_alokasi.kegiatan_id', 'alokasi_petugas.petugas_id')
+            ->distinct()
+            ->get()
+            ->groupBy('kegiatan_id')
+            ->map(fn ($rows) => $rows->pluck('petugas_id')->map(fn ($id) => (int) $id));
 
         $uniqueKegiatanList = PeriodeAlokasi::whereIn('id', $allKegiatanIds)
             ->with('kegiatan')
             ->get()
             ->groupBy('kegiatan_id')
-            ->map(function ($periodeGroup) use ($allSpks, $bulanFormatted, $tahun) {
+            ->map(function ($periodeGroup) use ($allSpks, $petugasByKegiatan) {
                 $kegiatan = $periodeGroup->first()->kegiatan;
-
-                // Get all petugas who are allocated to this kegiatan in this month/year
-                // This matches the download logic
-                $petugasIdsInKegiatan = DB::table('alokasi_petugas')
-                    ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
-                    ->where('periode_alokasi.kegiatan_id', $kegiatan->id)
-                    ->where('periode_alokasi.bulan', $bulanFormatted)
-                    ->where('periode_alokasi.tahun', $tahun)
-                    ->whereIn('periode_alokasi.status', ['dikirim', 'disetujui', 'perubahan', 'direvisi'])
-                    ->distinct()
-                    ->pluck('alokasi_petugas.petugas_id');
+                $petugasIdsInKegiatan = $petugasByKegiatan->get($kegiatan->id, collect());
 
                 // Get SPKs for these petugas in this month
                 $spksForKegiatan = $allSpks->filter(function ($spk) use ($petugasIdsInKegiatan) {
-                    return $petugasIdsInKegiatan->contains($spk->petugas_id);
+                    return $petugasIdsInKegiatan->contains((int) $spk->petugas_id);
                 })->unique('petugas_id');
 
                 $spkCount = $spksForKegiatan->count();
