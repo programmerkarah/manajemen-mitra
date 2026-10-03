@@ -25,6 +25,7 @@ import FileText from 'lucide-react/icons/file-text';
 import Plus from 'lucide-react/icons/plus';
 import RefreshCw from 'lucide-react/icons/refresh-cw';
 import Trash2 from 'lucide-react/icons/trash2';
+import UsersRound from 'lucide-react/icons/users-round';
 
 import { useCallback, useMemo, useState } from 'react';
 
@@ -355,6 +356,17 @@ export default function Index({
                                 >
                                     Sensus Ekonomi
                                 </Button>
+                                {mode === 'sensus-ekonomi' && (
+                                    <Button variant="outline" asChild>
+                                        <Link
+                                            href="/spk/petugas-pengganti"
+                                            prefetch
+                                        >
+                                            <UsersRound className="mr-2 h-4 w-4" />
+                                            Pergantian Petugas SE2026
+                                        </Link>
+                                    </Button>
+                                )}
                             </>
                         )}
                     </div>
