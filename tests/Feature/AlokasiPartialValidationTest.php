@@ -1123,9 +1123,9 @@ class AlokasiPartialValidationTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Alokasi/ShowPeriode')
-            ->where('periode.kegiatan.frame_metadata_columns.0.code', 'kdkec')
+            ->where('periode.kegiatan.frame_metadata_columns.0.code', 'kode_kecamatan')
             ->where('periode.kegiatan.frame_metadata_columns.0.label', 'Kecamatan')
-            ->where('periode.kegiatan.frame_metadata_columns.1.code', 'kddes')
+            ->where('periode.kegiatan.frame_metadata_columns.1.code', 'kode_desa')
             ->has('periode.kegiatan.kegiatan_frame_sampel')
         );
     }
