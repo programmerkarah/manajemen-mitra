@@ -453,10 +453,15 @@ export default function Index({
                                                         item.termination_type,
                                                     )}
                                                 </Badge>
+                                                <Badge variant="outline">
+                                                    {statusLabel(item.status)}
+                                                </Badge>
                                             </div>
                                             <p className="mt-1 text-sm text-muted-foreground">
                                                 {item.spk_lama_nomor ?? '-'} ·{' '}
-                                                {item.tanggal_berhenti ?? '-'}
+                                                {formatDate(
+                                                    item.tanggal_berhenti,
+                                                )}
                                             </p>
                                         </div>
                                         <div className="flex flex-wrap gap-2">
@@ -508,8 +513,9 @@ export default function Index({
                                                             item.termination_type,
                                                         )}{' '}
                                                         pada{' '}
-                                                        {item.tanggal_berhenti ??
-                                                            '-'}
+                                                        {formatDate(
+                                                            item.tanggal_berhenti,
+                                                        )}
                                                     </p>
                                                 </div>
                                             </div>
