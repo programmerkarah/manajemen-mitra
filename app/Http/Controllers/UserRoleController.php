@@ -82,7 +82,7 @@ class UserRoleController extends Controller
 
         // Role editing now lives on /users. Keep this route only as a
         // backwards-compatible entry point and use a GET-safe redirect.
-        return redirect()->route('users.index', status: 303);
+        return redirect()->route('users.index', [], 303);
     }
 
     /**
