@@ -18,6 +18,7 @@ use App\Models\Spk;
 use App\Models\User;
 use App\Services\ActiveYearService;
 use App\Services\PdfMergerService;
+use App\Services\SensusEkonomiReplacementReadService;
 use App\Services\SpkActionDecisionService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -2462,7 +2463,13 @@ class SpkController extends Controller
             })
             ->exists();
 
-        if (! $hasMatchingAlokasi) {
+        $replacementAssignment = app(SensusEkonomiReplacementReadService::class)
+            ->assignments((int) $periode->tahun, (int) $petugas->id)
+            ->first(fn (array $assignment): bool =>
+                (int) $assignment['kegiatan_id'] === (int) ($selectedKegiatanId ?? 0)
+            );
+
+        if (! $hasMatchingAlokasi && ! $replacementAssignment) {
             return response()->json([
                 'message' => 'Petugas tidak memiliki alokasi Perjanjian Kerja yang sesuai kriteria.',
             ], 422);
@@ -2472,6 +2479,15 @@ class SpkController extends Controller
         $bappTermin = max(1, min(2, (int) ($validated['bapp_termin'] ?? 1)));
 
         if ($dokumenTipe === 'bast') {
+            if ($replacementAssignment) {
+                return $this->servePublicPreviewReplacementDocument(
+                    (string) ($replacementAssignment['bast_file_path'] ?? ''),
+                    'BAST_Pengganti_SE2026_'.$petugas->nama.'.pdf',
+                    $validated,
+                    'BAST petugas pengganti belum diunggah.',
+                );
+            }
+
             return $this->servePublicPreviewBast($petugas, $periode, $selectedKegiatanId, $jenisKegiatan, $validated);
         }
 
@@ -2481,6 +2497,15 @@ class SpkController extends Controller
             }
 
             return $this->servePublicPreviewBapp($petugas, ActiveYearService::get(), $bappTermin, $validated);
+        }
+
+        if ($replacementAssignment) {
+            return $this->servePublicPreviewReplacementDocument(
+                (string) ($replacementAssignment['pk_file_path'] ?? ''),
+                'PK_Pengganti_SE2026_'.$petugas->nama.'.pdf',
+                $validated,
+                'PK petugas pengganti final belum diunggah.',
+            );
         }
 
         $finalSignedPdf = $this->resolveFinalSignedSpkPdfBinaryForPublicPreview(
@@ -2596,6 +2621,55 @@ class SpkController extends Controller
         ]);
 
         return $this->appendPublicPreviewDownloadCookie($response, $disposition, $downloadToken);
+    }
+
+    /**
+     * Serve a manually uploaded replacement document using the same preview/download
+     * contract as the regular /mitra documents.
+     *
+     * @param array<string,mixed> $validated
+     */
+    private function servePublicPreviewReplacementDocument(
+        string $relativePath,
+        string $filename,
+        array $validated,
+        string $missingMessage,
+    ): mixed {
+        $relativePath = ltrim(str_replace('storage/', '', trim($relativePath)), '/');
+
+        if ($relativePath === '' || ! Storage::disk('public')->exists($relativePath)) {
+            return response()->json(['message' => $missingMessage], 422);
+        }
+
+        $absolutePath = Storage::disk('public')->path($relativePath);
+        $safeFilename = preg_replace('/[^A-Za-z0-9._-]+/', '_', $filename) ?: 'Dokumen_Pengganti.pdf';
+        $disposition = ($validated['aksi'] ?? 'preview') === 'download' ? 'attachment' : 'inline';
+        $responseMode = (string) ($validated['response_mode'] ?? 'binary');
+        $downloadToken = (string) ($validated['download_token'] ?? '');
+
+        if ($responseMode === 'url' && $disposition === 'inline') {
+            $previewUrl = $this->buildPublicPreviewSignedFileUrl(
+                $absolutePath,
+                $safeFilename,
+                'inline',
+            );
+
+            if ($previewUrl === null) {
+                return response()->json(['message' => 'URL preview tidak tersedia.'], 422);
+            }
+
+            return response()->json([
+                'preview_url' => $previewUrl,
+                'filename' => $safeFilename,
+            ]);
+        }
+
+        return $this->buildPublicPreviewFileResponse(
+            $absolutePath,
+            $safeFilename,
+            $disposition,
+            $downloadToken,
+        );
     }
 
     private function buildPublicPreviewSessionSignature(string $nama, string $nik, string $telepon4Digit): string
@@ -2961,6 +3035,9 @@ class SpkController extends Controller
             })
             ->get();
 
+        $replacementAssignments = app(SensusEkonomiReplacementReadService::class)
+            ->assignments($activeYear, (int) $petugas->id);
+
         $documentStatusMap = $this->resolvePublicPreviewDocumentStatusMap(
             (int) $petugas->id,
             $alokasiCollection,
@@ -3072,6 +3149,46 @@ class SpkController extends Controller
                 ];
             })
             ->filter()
+            ->values();
+
+        $replacementPenugasan = $replacementAssignments->map(
+            function (array $assignment) use ($bappByTermin): array {
+                $periodKey = sprintf(
+                    '%d-%02d',
+                    (int) $assignment['tahun'],
+                    (int) $assignment['bulan'],
+                );
+                $target = (float) ($assignment['target_sisa'] ?? 0);
+                $honor = (float) ($assignment['total_honor'] ?? 0);
+
+                return [
+                    'id' => -1000000 - (int) $assignment['contract_id'],
+                    'jenis_kegiatan' => 'sensus',
+                    'kegiatan_hashed_id' => $assignment['kegiatan_hashed_id'],
+                    'periode_key' => $periodKey,
+                    'periode_label' => $this->getBulanLabel((int) $assignment['bulan']).' '.(int) $assignment['tahun'],
+                    'nama_kegiatan' => $assignment['nama_kegiatan'].' · Petugas Pengganti',
+                    'target_pekerjaan' => number_format($target, 0, ',', '.').' target sisa · '.number_format((float) $assignment['honor_ob'], 2, ',', '.').' OB',
+                    'honor' => $honor,
+                    'honor_label' => 'Rp '.number_format($honor, 0, ',', '.'),
+                    'document_status' => $assignment['pk_available'] ? 'PK Pengganti Final' : 'PK Pengganti belum diunggah',
+                    'bast_status' => $assignment['bast_available'] ? 'BAST tersedia' : 'Tidak tersedia',
+                    'bast_available' => (bool) $assignment['bast_available'],
+                    'bapp_termin_i_status' => $bappByTermin->get(1)?->signed_file_path ? 'BAPP tersedia' : 'Tidak tersedia',
+                    'bapp_termin_ii_status' => ((int) $assignment['termin_count'] === 2)
+                        ? ($bappByTermin->get(2)?->signed_file_path ? 'BAPP tersedia' : 'Tidak tersedia')
+                        : null,
+                    'bapp_termin_i_available' => (bool) $bappByTermin->get(1)?->signed_file_path,
+                    'bapp_termin_ii_available' => ((int) $assignment['termin_count'] === 2)
+                        ? (bool) $bappByTermin->get(2)?->signed_file_path
+                        : null,
+                ];
+            },
+        );
+
+        $penugasanList = $penugasanList
+            ->concat($replacementPenugasan)
+            ->unique(fn (array $item) => $item['jenis_kegiatan'].'|'.$item['kegiatan_hashed_id'].'|'.$item['id'])
             ->values()
             ->all();
 
@@ -3132,6 +3249,18 @@ class SpkController extends Controller
                 ];
             })
             ->filter()
+            ->unique('value')
+            ->sortBy('label')
+            ->values();
+
+        $replacementSensusKegiatans = $replacementAssignments
+            ->map(fn (array $assignment): array => [
+                'value' => $assignment['kegiatan_hashed_id'],
+                'label' => $assignment['nama_kegiatan'],
+            ]);
+
+        $sensusKegiatans = $sensusKegiatans
+            ->concat($replacementSensusKegiatans)
             ->unique('value')
             ->sortBy('label')
             ->values()
