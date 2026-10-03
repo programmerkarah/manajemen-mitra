@@ -197,10 +197,12 @@ class AuthenticationTest extends TestCase
         );
         RateLimiter::increment($throttleKey, amount: 5);
 
-        $response = $this->post(route('login'), [
-            'username' => $user->username,
-            'password' => 'wrong-password',
-        ]);
+        $response = $this
+            ->withServerVariables(['REMOTE_ADDR' => '127.0.0.1'])
+            ->post(route('login'), [
+                'username' => $user->username,
+                'password' => 'wrong-password',
+            ]);
 
         $response->assertRedirect();
         $response->assertSessionHasErrors('username');
