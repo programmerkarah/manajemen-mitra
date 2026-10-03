@@ -4,11 +4,7 @@ namespace App\Http\Controllers\Analisis;
 
 use App\Http\Controllers\Analisis\Concerns\BuildsAnalisisQueries;
 use App\Http\Controllers\Controller;
-use App\Models\Kegiatan;
-use App\Models\PengajuanPulsa;
 use App\Models\Petugas;
-use App\Models\SkKpa;
-use App\Models\Spk;
 use App\Services\SensusEkonomiReplacementReadService;
 use App\Traits\EffectivePeriodeScope;
 use Carbon\Carbon;
