@@ -157,6 +157,18 @@ class KegiatanController extends Controller
      */
     public function copy(Request $request, Kegiatan $kegiatan): Response
     {
+        if ($request->routeIs('kegiatan.edit')) {
+            $step = (string) $request->query('step', 'metadata');
+            $request->session()->put('kegiatan.edit.context', [
+                'kegiatan' => $kegiatan->hashed_id,
+                'step' => in_array($step, ['metadata', 'lapangan', 'pelatihan', 'ketua'], true)
+                    ? $step
+                    : 'metadata',
+            ]);
+
+            return redirect()->route('kegiatan.edit-context');
+        }
+
         // Authorization via policy
         $this->authorize('view', $kegiatan);
 
@@ -447,10 +459,50 @@ class KegiatanController extends Controller
         ]);
     }
 
+    public function editContext(Request $request): Response|RedirectResponse
+    {
+        if ($request->isMethod('post')) {
+            $encryptedState = $request->input('state')
+                ?? $request->input('encrypted_filters');
+
+            $context = filled($encryptedState)
+                ? decryptFilters((string) $encryptedState)
+                : $request->only(['kegiatan', 'step']);
+
+            if (empty($context['kegiatan'])) {
+                return redirect()->route('kegiatan.index')
+                    ->with('error', 'Kegiatan yang akan diedit tidak ditemukan.');
+            }
+
+            $step = in_array(($context['step'] ?? null), ['metadata', 'lapangan', 'pelatihan', 'ketua'], true)
+                ? (string) $context['step']
+                : 'metadata';
+
+            $request->session()->put('kegiatan.edit.context', [
+                'kegiatan' => (string) $context['kegiatan'],
+                'step' => $step,
+            ]);
+        }
+
+        $context = (array) $request->session()->get('kegiatan.edit.context', []);
+        if (empty($context['kegiatan'])) {
+            return redirect()->route('kegiatan.index')
+                ->with('error', 'Kegiatan yang akan diedit tidak ditemukan.');
+        }
+
+        $kegiatan = (new Kegiatan)->resolveRouteBinding((string) $context['kegiatan']);
+        if (! $kegiatan) {
+            return redirect()->route('kegiatan.index')
+                ->with('error', 'Kegiatan yang akan diedit tidak ditemukan.');
+        }
+
+        return $this->edit($request, $kegiatan);
+    }
+
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Request $request, Kegiatan $kegiatan): Response
+    public function edit(Request $request, Kegiatan $kegiatan): Response|RedirectResponse
     {
         // Authorization via policy
         $this->authorize('update', $kegiatan);
@@ -497,6 +549,11 @@ class KegiatanController extends Controller
                 ->select('id', 'tahapan', 'nama_target', 'sample_role', 'is_active', 'target_unit_sampel', 'identitas_tambahan')
                 ->orderBy('id')
                 ->get(),
+            'initialStep' => (string) data_get(
+                $request->session()->get('kegiatan.edit.context', []),
+                'step',
+                'metadata',
+            ),
         ]);
     }
 
