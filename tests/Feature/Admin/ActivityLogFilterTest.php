@@ -98,8 +98,8 @@ class ActivityLogFilterTest extends TestCase
             ->component('Admin/ActivityLog')
             ->where('pagination.total', 2)
             ->where('filters.decrypted.user', (string) $selectedUser->id)
-            ->where('filters.decrypted.date_from', '2026-06-03')
-            ->where('filters.decrypted.date_to', '2026-06-01')
+            ->where('filters.decrypted.date_from', '2026-06-01')
+            ->where('filters.decrypted.date_to', '2026-06-03')
         );
 
         $logs = collect(decryptData($response->inertiaProps('logs')));
@@ -221,7 +221,7 @@ class ActivityLogFilterTest extends TestCase
         $this->assertCount(2, $logs);
     }
 
-    public function test_admin_can_filter_activity_log_with_date_to_only_using_previous_day_as_start_date(): void
+    public function test_admin_can_filter_activity_log_with_date_to_only_using_year_start_as_start_date(): void
     {
         ActivityLog::query()->insert([
             [
@@ -274,14 +274,14 @@ class ActivityLogFilterTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->component('Admin/ActivityLog')
-            ->where('pagination.total', 2)
-            ->where('filters.decrypted.date_from', '2026-06-06')
+            ->where('pagination.total', 3)
+            ->where('filters.decrypted.date_from', '2026-01-01')
             ->where('filters.decrypted.date_to', '2026-06-07')
         );
 
         $logs = collect(decryptData($response->inertiaProps('logs')));
 
-        $this->assertCount(2, $logs);
+        $this->assertCount(3, $logs);
     }
 
     public function test_admin_can_export_activity_log_with_the_same_filter_inputs(): void
