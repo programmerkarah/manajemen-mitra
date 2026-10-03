@@ -318,10 +318,9 @@ class SpkShowByMonthPeriodContextTest extends TestCase
 
         $response->assertOk();
         $response->assertHeader('content-disposition');
-        $this->assertStringContainsString(
-            'attachment; filename=SPK_',
-            (string) $response->headers->get('content-disposition')
-        );
+        $contentDisposition = (string) $response->headers->get('content-disposition');
+        $this->assertStringStartsWith('attachment; filename=', $contentDisposition);
+        $this->assertStringContainsString('SPK_', $contentDisposition);
     }
 
     public function test_download_all_for_month_includes_non_survey_activities(): void
@@ -407,9 +406,8 @@ class SpkShowByMonthPeriodContextTest extends TestCase
 
         $response->assertOk();
         $response->assertHeader('content-disposition');
-        $this->assertStringContainsString(
-            'attachment; filename=SPK_',
-            (string) $response->headers->get('content-disposition')
-        );
+        $contentDisposition = (string) $response->headers->get('content-disposition');
+        $this->assertStringStartsWith('attachment; filename=', $contentDisposition);
+        $this->assertStringContainsString('SPK_', $contentDisposition);
     }
 }
