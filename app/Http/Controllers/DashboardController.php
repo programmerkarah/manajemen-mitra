@@ -15,6 +15,7 @@ use App\Models\Sbml;
 use App\Models\SkKpa;
 use App\Models\Spk;
 use App\Services\SpkActionDecisionService;
+use App\Services\SensusEkonomiReplacementReadService;
 use App\Traits\EffectivePeriodeScope;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -35,6 +36,8 @@ class DashboardController extends Controller
         $currentMonth = Carbon::now()->month;
         $currentYear = Carbon::now()->year;
         $currentMonthFormatted = str_pad((string) $currentMonth, 2, '0', STR_PAD_LEFT);
+        $replacementAssignments = app(SensusEkonomiReplacementReadService::class)
+            ->assignments($currentYear);
 
         // Basic stats
         $stats = [
@@ -751,9 +754,22 @@ class DashboardController extends Controller
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->whereRaw($this->allocationOrHonorExistsClause());
             $this->applySensusEkonomiMonthFilter($totalPetugasAlokasi, $month, 'kegiatan');
-            $totalPetugasAlokasi = $totalPetugasAlokasi
-                ->distinct('alokasi_petugas.petugas_id')
-                ->count('alokasi_petugas.petugas_id');
+            $totalPetugasAlokasiIds = $totalPetugasAlokasi
+                ->distinct()
+                ->pluck('alokasi_petugas.petugas_id')
+                ->map(fn ($id) => (int) $id);
+
+            $replacementPetugasBulan = $replacementAssignments
+                ->filter(fn (array $assignment): bool =>
+                    ((float) ($assignment['monthly_honor'][$month] ?? 0)) > 0
+                )
+                ->pluck('petugas_id')
+                ->map(fn ($id) => (int) $id);
+
+            $totalPetugasAlokasi = $totalPetugasAlokasiIds
+                ->concat($replacementPetugasBulan)
+                ->unique()
+                ->count();
 
             // Count kegiatan for this month
             $kegiatanCount = DB::table('periode_alokasi')
@@ -783,6 +799,28 @@ class DashboardController extends Controller
                 ->select('alokasi_petugas.petugas_id', DB::raw('COUNT(*) as jumlah_kegiatan'), DB::raw('SUM(COALESCE(alokasi_petugas.jumlah_satuan, 0) + COALESCE(alokasi_petugas.jumlah_satuan_listing, 0)) as total_satuan'))
                 ->groupBy('alokasi_petugas.petugas_id')
                 ->get();
+
+            $replacementWorkloadRows = $replacementAssignments
+                ->filter(fn (array $assignment): bool =>
+                    ((float) ($assignment['monthly_honor'][$month] ?? 0)) > 0
+                )
+                ->map(fn (array $assignment) => (object) [
+                    'petugas_id' => (int) $assignment['petugas_id'],
+                    'jumlah_kegiatan' => 1,
+                    'total_satuan' => (float) ($assignment['target_sisa'] ?? 0),
+                ]);
+
+            $alokasiThisMonth = $alokasiThisMonth
+                ->concat($replacementWorkloadRows)
+                ->groupBy('petugas_id')
+                ->map(function ($rows) {
+                    return (object) [
+                        'petugas_id' => (int) $rows->first()->petugas_id,
+                        'jumlah_kegiatan' => (int) $rows->sum(fn ($row) => (int) $row->jumlah_kegiatan),
+                        'total_satuan' => (float) $rows->sum(fn ($row) => (float) $row->total_satuan),
+                    ];
+                })
+                ->values();
 
             // Count by categories
             $petugasTidakDialokasikan = $totalNonOrganikAktif - $alokasiThisMonth->count();
@@ -930,6 +968,19 @@ class DashboardController extends Controller
                     $petugasHonor[$pid] = 0;
                 }
                 $petugasHonor[$pid] += $honor;
+            }
+
+            foreach ($replacementAssignments as $assignment) {
+                $replacementHonor = (float) ($assignment['monthly_honor'][$month] ?? 0);
+                if ($replacementHonor <= 0) {
+                    continue;
+                }
+
+                $pid = (int) $assignment['petugas_id'];
+                if (! isset($petugasHonor[$pid])) {
+                    $petugasHonor[$pid] = 0;
+                }
+                $petugasHonor[$pid] += $replacementHonor;
             }
 
             // Accumulate per-petugas monthly totals
