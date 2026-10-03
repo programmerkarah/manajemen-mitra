@@ -45,10 +45,15 @@ class SensusEkonomiReplacementController extends Controller
                     'petugasBerhenti:id,nama',
                     'petugasPengganti:id,nama',
                     'pmlCoverPetugas:id,nama',
+                    'pkppContracts.spk:id,signed_file_path,status',
                 ])
                 ->latest('id')
                 ->get()
                 ->map(function (SensusEkonomiPetugasReplacement $replacement): array {
+                    $pkpp = Schema::hasTable('sensus_ekonomi_pkpp_contracts')
+                        ? $replacement->pkppContracts->sortByDesc('id')->first()
+                        : null;
+
                     return [
                         'id' => $replacement->id,
                         'hashed_id' => $replacement->hashed_id,
@@ -58,9 +63,17 @@ class SensusEkonomiReplacementController extends Controller
                         'tanggal_berhenti' => $replacement->tanggal_berhenti?->format('Y-m-d'),
                         'tanggal_mulai_pkpp' => $replacement->tanggal_mulai_pkpp?->format('Y-m-d'),
                         'status' => $replacement->status,
-                        'has_pkpp_contract' => Schema::hasTable('sensus_ekonomi_pkpp_contracts')
-                            ? $replacement->pkppContracts()->exists()
-                            : false,
+                        'has_pkpp_contract' => $pkpp !== null,
+                        'pkpp' => $pkpp ? [
+                            'nomor' => $pkpp->nomor_pkpp,
+                            'skema_kode' => $pkpp->skema_kode,
+                            'termin_count' => (int) $pkpp->termin_count,
+                            'honor_ob' => (float) $pkpp->honor_ob,
+                            'tanggal_kontrak' => $pkpp->tanggal_kontrak?->format('Y-m-d'),
+                            'tanggal_mulai_lapangan' => $pkpp->tanggal_mulai_lapangan?->format('Y-m-d'),
+                            'has_spk' => $pkpp->spk !== null,
+                            'pk_uploaded' => filled($pkpp->spk?->signed_file_path),
+                        ] : null,
                     ];
                 });
         }
