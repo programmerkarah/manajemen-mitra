@@ -285,6 +285,52 @@ class BappController extends Controller
         return $map;
     }
 
+    private function formatManualBappNumber(
+        string $sequence,
+        int $termin,
+        int $tahun,
+        string $documentType,
+        int $replacementTerminCount,
+    ): string {
+        $cleanSequence = preg_replace('/\D+/', '', $sequence) ?: '';
+
+        if ($cleanSequence === '') {
+            throw new \InvalidArgumentException('Nomor BAPP wajib berupa angka.');
+        }
+
+        if ($documentType === 'replacement_pkpp' && $replacementTerminCount === 1) {
+            return sprintf(
+                'B-%s/BAPP-SE2026/1373/PL.200/%d',
+                $cleanSequence,
+                $tahun,
+            );
+        }
+
+        $roman = self::TERMIN_CONFIG[$termin]['roman'] ?? ($termin === 2 ? 'II' : 'I');
+
+        return sprintf(
+            'B-%s/BAPP-%s-SE2026/1373/PL.200/%d',
+            $cleanSequence,
+            $roman,
+            $tahun,
+        );
+    }
+
+    private function extractManualDocumentSequence(?string $number): ?string
+    {
+        if (blank($number)) {
+            return null;
+        }
+
+        if (preg_match('/^B-(\d+)\//', (string) $number, $matches) === 1) {
+            return $matches[1];
+        }
+
+        return preg_match('/^\d+$/', trim((string) $number)) === 1
+            ? trim((string) $number)
+            : null;
+    }
+
     /**
      * Determine the "jenis_pihak_kedua" based on peran.
      */
@@ -1281,6 +1327,7 @@ class BappController extends Controller
                 'signed_file_path' => $existing?->signed_file_path,
                 'signed_uploaded_at' => $existing?->signed_uploaded_at?->format('d M Y H:i'),
                 'nomor_bapp' => $existing?->nomor_bapp,
+                'nomor_bapp_urut' => $this->extractManualDocumentSequence($existing?->nomor_bapp),
                 'fasih_screenshot_path' => $existing?->fasih_screenshot_path,
             ];
         })->values()->all();
@@ -1326,6 +1373,9 @@ class BappController extends Controller
             'spk_list' => $spkList,
             'document_type' => $documentType,
             'replacement_termin_count' => $contextReplacementTerminCount,
+            'nomor_bapp_suffix' => $documentType === 'replacement_pkpp' && $contextReplacementTerminCount === 1
+                ? '/BAPP-SE2026/1373/PL.200/'.$tahun
+                : '/BAPP-'.$config['roman'].'-SE2026/1373/PL.200/'.$tahun,
             'unit_sampel_items' => $unitSampelItems,
             'ketua_tim' => [
                 'nama' => $kegiatan->ketuaTim?->name,
@@ -1940,7 +1990,7 @@ class BappController extends Controller
             'spk_hashed_id' => ['required', 'string'],
             'termin' => ['required', 'integer', 'in:1,2'],
             'file' => ['required', 'file', 'mimes:pdf', 'max:20480'],
-            'nomor_bapp' => ['required', 'string', 'max:255'],
+            'nomor_bapp' => ['required', 'string', 'regex:/^\d+$/', 'max:12'],
             'tanggal_bapp' => ['nullable', 'date'],
             'document_type' => ['required', 'in:regular,stopped_petugas,replacement_pkpp'],
             'replacement_termin_count' => ['nullable', 'integer', 'in:0,1,2'],
@@ -1993,7 +2043,13 @@ class BappController extends Controller
         $petugas = $spk->petugas;
         $kegiatan = $this->getSensusEkonomiKegiatan();
         $ppk = $this->getPpk();
-        $nomorBapp = trim((string) $validated['nomor_bapp']);
+        $nomorBapp = $this->formatManualBappNumber(
+            trim((string) $validated['nomor_bapp']),
+            $termin,
+            $tahun,
+            $documentType,
+            $contextReplacementTerminCount,
+        );
 
         $safeName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $nomorBapp);
         $path = $request->file('file')->storeAs(
