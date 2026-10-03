@@ -179,7 +179,10 @@ class PengajuanPulsaTest extends TestCase
             'tahun_anggaran' => date('Y'),
         ]);
 
-        $petugas = Petugas::factory()->create();
+        $petugas = Petugas::factory()->create([
+            'jenis_petugas' => 'non-organik',
+            'status' => 'aktif',
+        ]);
 
         $this->createPeriodeWithPetugas($kegiatan->id, '06', (int) date('Y'), $petugas->id);
 
