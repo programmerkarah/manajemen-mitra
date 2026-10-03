@@ -160,10 +160,10 @@ export default function Index({
             <AppLayout breadcrumbs={breadcrumbs}>
                 <Head title="BAST SE2026" />
 
-                <div className="space-y-5">
+                <div className="space-y-4">
                     <PageHeader
                         title="BAST SE2026"
-                        description={`Inventaris dokumen BAST manual Sensus Ekonomi · ${active_year}`}
+                        description={`Inventaris BAST manual Sensus Ekonomi · ${active_year}`}
                     >
                         <div className="flex flex-wrap gap-2">
                             <Button
@@ -176,65 +176,28 @@ export default function Index({
                         </div>
                     </PageHeader>
 
-                    <div className="grid gap-3 md:grid-cols-3">
-                        <ContentCard>
-                            <p className="text-xs font-medium text-muted-foreground">
-                                Petugas
-                            </p>
-                            <p className="mt-1 text-2xl font-semibold">
-                                {totalSpk}
-                            </p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                                PK SE2026
-                            </p>
-                        </ContentCard>
-                        <ContentCard>
-                            <p className="text-xs font-medium text-muted-foreground">
-                                BAST tersedia
-                            </p>
-                            <p className="mt-1 text-2xl font-semibold text-emerald-600">
-                                {uploaded}
-                            </p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                                PDF sudah diinventaris
-                            </p>
-                        </ContentCard>
-                        <ContentCard>
-                            <p className="text-xs font-medium text-muted-foreground">
-                                Belum upload
-                            </p>
-                            <p className="mt-1 text-2xl font-semibold text-amber-600">
-                                {pending}
-                            </p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                                dokumen tersisa
-                            </p>
-                        </ContentCard>
-                    </div>
-
                     <ContentCard>
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                            <div>
+                        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                            <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <h2 className="text-lg font-semibold">
-                                        BAST Sensus Ekonomi 2026
+                                    <h2 className="text-base font-semibold">
+                                        Dokumen BAST Sensus Ekonomi 2026
                                     </h2>
                                     <Badge variant="secondary">Manual</Badge>
                                 </div>
-                                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-                                    BAST SE2026 tidak digenerate oleh SIMANTIK.
-                                    Gunakan satu workspace untuk mengisi nomor,
-                                    tanggal, dan mengunggah PDF final per
-                                    petugas.
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Isi nomor, tanggal, lalu unggah PDF final per
+                                    petugas. SIMANTIK tidak melakukan generate
+                                    untuk BAST SE2026.
                                 </p>
-                                <p className="mt-2 font-mono text-xs text-muted-foreground">
-                                    B-{'{nomor}'}/BAST-SE2026/1373/PL.200/
-                                    {active_year}
+                                <p className="mt-2 truncate font-mono text-xs text-muted-foreground">
+                                    B-{'{nomor}'}/BAST-SE2026/1373/PL.200/{active_year}
                                 </p>
                             </div>
 
                             {canManageMain && sePeriod && (
                                 <Button
+                                    className="shrink-0"
                                     onClick={() =>
                                         openCreate(
                                             sePeriod.bulan,
@@ -248,42 +211,31 @@ export default function Index({
                                 </Button>
                             )}
                         </div>
-                    </ContentCard>
 
-                    <ContentCard>
-                        <div className="grid gap-4 md:grid-cols-3">
-                            <div className="rounded-xl border border-border bg-muted/20 p-4">
-                                <p className="text-xs font-medium text-muted-foreground">
-                                    1
-                                </p>
-                                <p className="mt-1 text-sm font-semibold">
-                                    Isi nomor
-                                </p>
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                    Cukup nomor urut; kode surat otomatis.
-                                </p>
+                        <div className="mt-4 grid gap-2 border-t border-border pt-4 sm:grid-cols-3">
+                            <div className="flex items-center justify-between rounded-lg bg-muted/25 px-3 py-2">
+                                <span className="text-xs text-muted-foreground">
+                                    Petugas
+                                </span>
+                                <span className="text-sm font-semibold">
+                                    {totalSpk}
+                                </span>
                             </div>
-                            <div className="rounded-xl border border-border bg-muted/20 p-4">
-                                <p className="text-xs font-medium text-muted-foreground">
-                                    2
-                                </p>
-                                <p className="mt-1 text-sm font-semibold">
-                                    Pilih tanggal
-                                </p>
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                    Menggunakan DatePicker aplikasi.
-                                </p>
+                            <div className="flex items-center justify-between rounded-lg bg-muted/25 px-3 py-2">
+                                <span className="text-xs text-muted-foreground">
+                                    Sudah upload
+                                </span>
+                                <span className="text-sm font-semibold text-emerald-600">
+                                    {uploaded}
+                                </span>
                             </div>
-                            <div className="rounded-xl border border-border bg-muted/20 p-4">
-                                <p className="text-xs font-medium text-muted-foreground">
-                                    3
-                                </p>
-                                <p className="mt-1 text-sm font-semibold">
-                                    Upload PDF
-                                </p>
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                    Drag & drop atau pilih PDF final.
-                                </p>
+                            <div className="flex items-center justify-between rounded-lg bg-muted/25 px-3 py-2">
+                                <span className="text-xs text-muted-foreground">
+                                    Belum upload
+                                </span>
+                                <span className="text-sm font-semibold text-amber-600">
+                                    {pending}
+                                </span>
                             </div>
                         </div>
                     </ContentCard>
