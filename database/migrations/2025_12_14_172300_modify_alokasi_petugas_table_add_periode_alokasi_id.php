@@ -65,25 +65,74 @@ return new class extends Migration
         }
 
         // Step 3: Now modify the table structure.
-        // SQLite cannot drop named foreign keys the same way as MySQL, but
-        // Laravel can rebuild the table for column drops. Keep the resulting
-        // test schema aligned with production so legacy columns do not remain
-        // NOT NULL during factories.
+        // SQLite cannot safely drop legacy columns that are still referenced
+        // by foreign keys. Rebuild the table once with the final schema used
+        // after this migration, then restore the relevant constraints.
         if (DB::getDriverName() === 'sqlite') {
-            Schema::table('alokasi_petugas', function (Blueprint $table) {
-                $table->dropColumn([
-                    'kegiatan_id',
-                    'bulan',
-                    'tahun',
-                    'jenis_kegiatan',
-                    'status',
-                    'submitted_by',
-                    'submitted_at',
-                    'approved_by',
-                    'approved_at',
-                    'catatan_approval',
-                ]);
-            });
+            DB::statement('PRAGMA foreign_keys=OFF');
+
+            DB::statement('
+                CREATE TABLE alokasi_petugas_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    periode_alokasi_id INTEGER,
+                    petugas_id INTEGER NOT NULL,
+                    rate_honor_id INTEGER NOT NULL,
+                    jumlah_satuan INTEGER NOT NULL DEFAULT 0,
+                    total_honor NUMERIC NOT NULL DEFAULT 0,
+                    peran VARCHAR NOT NULL DEFAULT "pcl_ppl",
+                    status_kepegawaian VARCHAR NOT NULL DEFAULT "non_organik",
+                    catatan TEXT NULL,
+                    created_at DATETIME NULL,
+                    updated_at DATETIME NULL,
+                    deleted_at DATETIME NULL,
+                    FOREIGN KEY (periode_alokasi_id)
+                        REFERENCES periode_alokasi(id)
+                        ON DELETE CASCADE,
+                    FOREIGN KEY (petugas_id)
+                        REFERENCES petugas(id)
+                        ON DELETE CASCADE,
+                    FOREIGN KEY (rate_honor_id)
+                        REFERENCES rate_honor(id)
+                        ON DELETE CASCADE
+                )
+            ');
+
+            DB::statement('
+                INSERT INTO alokasi_petugas_new (
+                    id,
+                    periode_alokasi_id,
+                    petugas_id,
+                    rate_honor_id,
+                    jumlah_satuan,
+                    total_honor,
+                    peran,
+                    status_kepegawaian,
+                    catatan,
+                    created_at,
+                    updated_at,
+                    deleted_at
+                )
+                SELECT
+                    id,
+                    periode_alokasi_id,
+                    petugas_id,
+                    rate_honor_id,
+                    jumlah_satuan,
+                    total_honor,
+                    peran,
+                    status_kepegawaian,
+                    catatan,
+                    created_at,
+                    updated_at,
+                    deleted_at
+                FROM alokasi_petugas
+            ');
+
+            Schema::drop('alokasi_petugas');
+            Schema::rename(
+                'alokasi_petugas_new',
+                'alokasi_petugas',
+            );
 
             Schema::table('alokasi_petugas', function (Blueprint $table) {
                 $table->unique(
@@ -91,6 +140,8 @@ return new class extends Migration
                     'unique_petugas_per_periode',
                 );
             });
+
+            DB::statement('PRAGMA foreign_keys=ON');
 
             return;
         }
