@@ -445,15 +445,26 @@ class SpkController extends Controller
      */
     public function showByMonthGet(Request $request): Response|RedirectResponse
     {
-        $decrypted = [];
+        // Canonical URL is intentionally clean: /spk/month.
+        // The encrypted navigation payload is persisted in session so a hard
+        // refresh does not lose the selected month/petugas/period.
+        $context = (array) $request->session()->get('spk.month.context', []);
+
+        // Backward compatibility for old bookmarked URLs containing ?state=...
         if ($request->filled('state')) {
-            $decrypted = decryptFilters((string) $request->query('state'));
+            $legacyState = decryptFilters((string) $request->query('state'));
+            if (! empty($legacyState)) {
+                $context = array_merge($context, $legacyState);
+                $request->session()->put('spk.month.context', $context);
+
+                return redirect()->route('spk.show-by-month-get');
+            }
         }
 
-        $bulan = $decrypted['bulan'] ?? $request->query('bulan');
-        $tahun = $decrypted['tahun'] ?? $request->query('tahun');
-        $spkHashedId = $decrypted['spk'] ?? $request->query('spk');
-        $periodeHashedId = $decrypted['periode_hashed_id'] ?? $request->query('periode_hashed_id');
+        $bulan = $context['bulan'] ?? null;
+        $tahun = $context['tahun'] ?? null;
+        $spkHashedId = $context['spk'] ?? null;
+        $periodeHashedId = $context['periode_hashed_id'] ?? null;
 
         return $this->renderShowByMonth($request, $bulan, $tahun, $spkHashedId, $periodeHashedId);
     }
@@ -463,20 +474,34 @@ class SpkController extends Controller
      */
     public function showByMonth(Request $request): Response|RedirectResponse
     {
-        // Decrypt payload
-        $decrypted = [];
-        if ($request->has('encrypted_filters')) {
-            $decrypted = decryptFilters($request->input('encrypted_filters'));
+        $encryptedState = $request->input('state')
+            ?? $request->input('encrypted_filters');
+
+        $context = filled($encryptedState)
+            ? decryptFilters((string) $encryptedState)
+            : $request->only(['bulan', 'tahun', 'spk', 'periode_hashed_id']);
+
+        if (empty($context['bulan']) || empty($context['tahun'])) {
+            return redirect()->route('spk.index')
+                ->with('error', 'Periode Perjanjian Kerja tidak ditemukan.');
         }
 
-        $request->merge($decrypted);
+        $context = [
+            'bulan' => (int) $context['bulan'],
+            'tahun' => (int) $context['tahun'],
+            'spk' => $context['spk'] ?? null,
+            'periode_hashed_id' => $context['periode_hashed_id'] ?? null,
+        ];
 
-        $bulan = $request->input('bulan');
-        $tahun = $request->input('tahun');
-        $spkHashedId = $request->input('spk');
-        $periodeHashedId = $request->input('periode_hashed_id');
+        $request->session()->put('spk.month.context', $context);
 
-        return $this->renderShowByMonth($request, $bulan, $tahun, $spkHashedId, $periodeHashedId);
+        return $this->renderShowByMonth(
+            $request,
+            (string) $context['bulan'],
+            (string) $context['tahun'],
+            $context['spk'],
+            $context['periode_hashed_id'],
+        );
     }
 
     /**
