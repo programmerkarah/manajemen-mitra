@@ -201,7 +201,7 @@ export default function CreatePkppContract({
                                 <div className="text-sm text-emerald-700 dark:text-emerald-300">
                                     Nomor {existing_contract.nomor_pkpp} |
                                     Tanggal kontrak{' '}
-                                    {existing_contract.tanggal_kontrak ?? '-'}
+                                    {formatDate(existing_contract.tanggal_kontrak)}
                                 </div>
                             </div>
                         </div>
@@ -216,7 +216,7 @@ export default function CreatePkppContract({
                                     Replacement #{replacement.id}
                                 </Badge>
                                 <Badge variant="outline">
-                                    {replacement.status}
+                                    {statusLabel(replacement.status)}
                                 </Badge>
                             </div>
 
@@ -241,18 +241,10 @@ export default function CreatePkppContract({
                                 </div>
                                 <div>
                                     <div className="text-neutral-500">
-                                        PML cover
-                                    </div>
-                                    <div className="font-medium text-neutral-900 dark:text-neutral-100">
-                                        {replacement.pml_cover_nama ?? '-'}
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="text-neutral-500">
                                         Tanggal berhenti
                                     </div>
                                     <div className="font-medium text-neutral-900 dark:text-neutral-100">
-                                        {replacement.tanggal_berhenti ?? '-'}
+                                        {formatDate(replacement.tanggal_berhenti)}
                                     </div>
                                 </div>
                                 <div>
@@ -260,7 +252,7 @@ export default function CreatePkppContract({
                                         Mulai PKPP
                                     </div>
                                     <div className="font-medium text-neutral-900 dark:text-neutral-100">
-                                        {replacement.tanggal_mulai_pkpp ?? '-'}
+                                        {formatDate(replacement.tanggal_mulai_pkpp)}
                                     </div>
                                 </div>
                                 <div>
@@ -316,9 +308,12 @@ export default function CreatePkppContract({
                                             </p>
                                             <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
                                                 Kontrak paling lambat{' '}
-                                                {schemePreview.deadline} · mulai
-                                                lapangan paling lambat{' '}
-                                                {schemePreview.field}
+                                                {formatDate(
+                                                    schemePreview.deadline,
+                                                )} · mulai lapangan paling lambat{' '}
+                                                {formatDate(
+                                                    schemePreview.field,
+                                                )}
                                             </p>
                                         </div>
                                         <Badge variant="secondary">
