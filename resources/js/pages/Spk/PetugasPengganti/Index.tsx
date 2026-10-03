@@ -497,7 +497,10 @@ export default function Index({
                                             {!replacementAssigned &&
                                                 can_manage && (
                                                     <div className="space-y-2">
-                                                        <Select
+                                                        <SearchableSelect
+                                                            options={
+                                                                replacementOptions
+                                                            }
                                                             value={
                                                                 form.petugasId
                                                             }
@@ -518,34 +521,12 @@ export default function Index({
                                                                     }),
                                                                 )
                                                             }
-                                                        >
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder="Pilih petugas pengganti" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {replacement_candidates.map(
-                                                                    (
-                                                                        candidate,
-                                                                    ) => (
-                                                                        <SelectItem
-                                                                            key={
-                                                                                candidate.id
-                                                                            }
-                                                                            value={String(
-                                                                                candidate.id,
-                                                                            )}
-                                                                        >
-                                                                            {
-                                                                                candidate.nama
-                                                                            }{' '}
-                                                                            ·{' '}
-                                                                            {candidate.nik ??
-                                                                                '-'}
-                                                                        </SelectItem>
-                                                                    ),
-                                                                )}
-                                                            </SelectContent>
-                                                        </Select>
+                                                            placeholder="Cari petugas pengganti"
+                                                            searchPlaceholder="Cari nama petugas..."
+                                                            defaultVisibleCount={
+                                                                10
+                                                            }
+                                                        />
                                                         <DatePicker
                                                             value={
                                                                 form.startDate
