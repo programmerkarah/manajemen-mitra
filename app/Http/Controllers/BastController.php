@@ -2186,12 +2186,16 @@ class BastController extends Controller
     {
         $search = $request->input('search');
         $activeYear = ActiveYearService::get();
-        $requestedMode = (string) $request->input('mode', 'regular');
         $user = $this->getRequestUser($request);
         $canAccessSensusMode = $this->canAccessSensusMode($user, $activeYear);
+        $requestedMode = (string) $request->session()->get('bast_index_mode', 'regular');
         $mode = $requestedMode === 'sensus-ekonomi' && $canAccessSensusMode
             ? 'sensus-ekonomi'
             : 'regular';
+
+        if ($mode !== $requestedMode) {
+            $request->session()->put('bast_index_mode', $mode);
+        }
         $isSensusEkonomiMode = $mode === 'sensus-ekonomi';
         $sensusPetugasByMonth = collect();
 
