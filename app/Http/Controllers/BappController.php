@@ -11,6 +11,7 @@ use App\Models\MasterUnitSampel;
 use App\Models\Penandatangan;
 use App\Models\Petugas;
 use App\Models\SensusEkonomiPetugasReplacement;
+use App\Models\SensusEkonomiPkppContract;
 use App\Models\Spk;
 use App\Services\ActiveYearService;
 use App\Services\SensusEkonomiBappNumberService;
@@ -463,24 +464,107 @@ class BappController extends Controller
     /**
      * @return Collection<int, Spk>
      */
-    protected function getSpksForBappContext(int $tahun, int $terminNumber, string $documentType): Collection
-    {
-        if ($documentType !== 'stopped_petugas') {
-            return $this->getSensusEkonomiSpks($tahun);
+    protected function getSpksForBappContext(
+        int $tahun,
+        int $terminNumber,
+        string $documentType,
+        int $replacementTerminCount = 0,
+    ): Collection {
+        if ($documentType === 'stopped_petugas') {
+            return $this->getStoppedPetugasEligibleReplacementsForTermin($terminNumber, $tahun)
+                ->map(fn (SensusEkonomiPetugasReplacement $replacement) => $replacement->spkLama)
+                ->filter(fn ($spk) => $spk instanceof Spk)
+                ->unique('id')
+                ->values();
         }
 
-        return SensusEkonomiPetugasReplacement::query()
+        if ($documentType === 'replacement_pkpp') {
+            if (
+                ! Schema::hasTable('sensus_ekonomi_pkpp_contracts')
+                || ! Schema::hasTable('sensus_ekonomi_petugas_replacements')
+            ) {
+                return new Collection;
+            }
+
+            $terminCount = $replacementTerminCount === 1 ? 1 : 2;
+            if ($terminCount === 1 && $terminNumber !== 1) {
+                return new Collection;
+            }
+
+            return SensusEkonomiPkppContract::query()
+                ->where('termin_count', $terminCount)
+                ->whereNotNull('spk_id')
+                ->whereHas('replacement', fn ($query) => $query->where('status', '!=', 'dibatalkan'))
+                ->with([
+                    'spk.petugas',
+                    'spk.alokasiPetugas.periodeAlokasi.kegiatan',
+                ])
+                ->get()
+                ->map(fn (SensusEkonomiPkppContract $contract) => $contract->spk)
+                ->filter(function ($spk) use ($tahun): bool {
+                    if (! $spk instanceof Spk) {
+                        return false;
+                    }
+
+                    $kegiatan = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan;
+
+                    return (int) ($spk->alokasiPetugas?->periodeAlokasi?->tahun ?? 0) === $tahun
+                        && $kegiatan?->jenis_kegiatan === 'sensus'
+                        && str_contains(mb_strtolower((string) $kegiatan?->nama_kegiatan), 'sensus ekonomi');
+                })
+                ->unique('id')
+                ->values();
+        }
+
+        $spks = $this->getSensusEkonomiSpks($tahun);
+
+        if (! Schema::hasTable('sensus_ekonomi_petugas_replacements')) {
+            return $spks;
+        }
+
+        // Petugas yang sudah masuk workflow berhenti/pengganti dikelola di konteks
+        // tersendiri agar BAPP reguler tidak tetap menagih Termin II untuk petugas lama.
+        $stoppedSpkIds = SensusEkonomiPetugasReplacement::query()
             ->whereNotNull('spk_lama_id')
             ->where('status', '!=', 'dibatalkan')
-            ->with([
-                'spkLama.petugas',
-                'spkLama.alokasiPetugas.periodeAlokasi.kegiatan',
-            ])
-            ->latest('id')
-            ->get()
-            ->map(fn (SensusEkonomiPetugasReplacement $replacement) => $replacement->spkLama)
-            ->filter(fn ($spk) => $spk instanceof Spk)
+            ->pluck('spk_lama_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id);
+
+        $replacementSpkIds = Schema::hasTable('sensus_ekonomi_pkpp_contracts')
+            ? SensusEkonomiPkppContract::query()
+                ->whereNotNull('spk_id')
+                ->pluck('spk_id')
+                ->filter()
+                ->map(fn ($id) => (int) $id)
+            : collect();
+
+        $excludedIds = $stoppedSpkIds->merge($replacementSpkIds)->unique();
+
+        return $spks
+            ->reject(fn (Spk $spk) => $excludedIds->contains((int) $spk->id))
             ->values();
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function getReplacementIdByReplacementSpkId(int $replacementTerminCount): array
+    {
+        if (! Schema::hasTable('sensus_ekonomi_pkpp_contracts')) {
+            return [];
+        }
+
+        $terminCount = $replacementTerminCount === 1 ? 1 : 2;
+
+        return SensusEkonomiPkppContract::query()
+            ->where('termin_count', $terminCount)
+            ->whereNotNull('spk_id')
+            ->get(['replacement_id', 'spk_id'])
+            ->mapWithKeys(fn (SensusEkonomiPkppContract $contract) => [
+                (int) $contract->spk_id => (int) $contract->replacement_id,
+            ])
+            ->all();
     }
 
     /**
@@ -987,48 +1071,102 @@ class BappController extends Controller
         $tahun = ActiveYearService::get();
         $currentMonth = (int) now()->format('m');
         $hasBappTerminTable = $this->hasBappTerminTable();
-        // BAPP SE2026 hanya memakai alur reguler manual.
-        $documentType = 'regular';
-        $contextReplacementTerminCount = 2;
         $kegiatan = $this->getSensusEkonomiKegiatan();
         $unitSampelItems = $this->getUnitSampelItems($kegiatan);
 
-        $terminData = [];
-        foreach (self::TERMIN_CONFIG as $terminNumber => $config) {
-            $canGenerate = $currentMonth >= $config['bulan'];
-            $contextSpks = $this->getSpksForBappContext($tahun, $terminNumber, $documentType);
-            $bappCount = 0;
-            if ($hasBappTerminTable) {
-                $bappCount = $this->applyBappDocumentContextScope(
-                    BappSeTermin::query()
-                        ->where('termin', $terminNumber)
-                        ->where('tahun', $tahun)
-                        ->whereNotNull('signed_file_path'),
+        $workflowContexts = [
+            [
+                'key' => 'regular',
+                'label' => 'Petugas utama',
+                'description' => 'BAPP petugas utama yang tidak masuk workflow penggantian.',
+                'document_type' => 'regular',
+                'replacement_termin_count' => 0,
+            ],
+            [
+                'key' => 'stopped',
+                'label' => 'Petugas berhenti',
+                'description' => 'BAPP terakhir petugas yang berhenti. Termin yang tidak lagi berlaku tidak diwajibkan.',
+                'document_type' => 'stopped_petugas',
+                'replacement_termin_count' => 0,
+            ],
+            [
+                'key' => 'replacement_2',
+                'label' => 'Petugas pengganti · 2 termin',
+                'description' => 'BAPP PKPP skema dua termin.',
+                'document_type' => 'replacement_pkpp',
+                'replacement_termin_count' => 2,
+            ],
+            [
+                'key' => 'replacement_1',
+                'label' => 'Petugas pengganti · 1 termin',
+                'description' => 'BAPP PKPP skema satu termin.',
+                'document_type' => 'replacement_pkpp',
+                'replacement_termin_count' => 1,
+            ],
+        ];
+
+        $workflowData = collect($workflowContexts)->map(function (array $context) use ($tahun, $currentMonth, $hasBappTerminTable): array {
+            $documentType = (string) $context['document_type'];
+            $replacementTerminCount = (int) $context['replacement_termin_count'];
+            $contextReplacementTerminCount = $this->getContextReplacementTerminCount($documentType, $replacementTerminCount);
+
+            $terminData = [];
+            foreach (self::TERMIN_CONFIG as $terminNumber => $config) {
+                if ($documentType === 'replacement_pkpp' && $replacementTerminCount === 1 && $terminNumber === 2) {
+                    continue;
+                }
+
+                $contextSpks = $this->getSpksForBappContext(
+                    $tahun,
+                    $terminNumber,
                     $documentType,
                     $contextReplacementTerminCount,
-                )->count();
-            }
-            $spkCount = $contextSpks->count();
+                );
+                $spkIds = $contextSpks->pluck('id')->filter()->values();
+                $bappCount = 0;
 
-            $terminData[] = [
-                'termin' => $terminNumber,
-                'termin_hashed' => Hashids::encode($terminNumber),
-                'termin_roman' => $config['roman'],
-                'bulan' => $config['bulan'],
-                'bulan_label' => $config['bulan_label'],
-                'persentase' => $config['persentase'],
-                'can_generate' => $canGenerate,
-                'bapp_count' => $bappCount,
-                'spk_count' => $spkCount,
-                'is_complete' => $spkCount > 0 && $bappCount >= $spkCount,
+                if ($hasBappTerminTable && $spkIds->isNotEmpty()) {
+                    $bappCount = $this->applyBappDocumentContextScope(
+                        BappSeTermin::query()
+                            ->where('termin', $terminNumber)
+                            ->where('tahun', $tahun)
+                            ->whereIn('spk_id', $spkIds)
+                            ->whereNotNull('signed_file_path'),
+                        $documentType,
+                        $contextReplacementTerminCount,
+                    )->count();
+                }
+
+                $spkCount = $contextSpks->count();
+
+                $terminData[] = [
+                    'termin' => $terminNumber,
+                    'termin_hashed' => Hashids::encode($terminNumber),
+                    'termin_roman' => $config['roman'],
+                    'bulan' => $config['bulan'],
+                    'bulan_label' => $config['bulan_label'],
+                    'persentase' => $config['persentase'],
+                    'can_generate' => $currentMonth >= $config['bulan'],
+                    'bapp_count' => $bappCount,
+                    'spk_count' => $spkCount,
+                    'is_complete' => $spkCount > 0 && $bappCount >= $spkCount,
+                ];
+            }
+
+            return [
+                ...$context,
+                'termin_data' => $terminData,
+                'total_spk' => collect($terminData)->sum('spk_count'),
+                'total_uploaded' => collect($terminData)->sum('bapp_count'),
             ];
-        }
+        })->values()->all();
 
         return Inertia::render('Bapp/Index', [
             'tahun' => $tahun,
-            'termin_data' => $terminData,
-            'document_type' => $documentType,
-            'replacement_termin_count' => $contextReplacementTerminCount,
+            'workflow_data' => $workflowData,
+            'termin_data' => $workflowData[0]['termin_data'] ?? [],
+            'document_type' => 'regular',
+            'replacement_termin_count' => 0,
             'has_kegiatan' => $kegiatan !== null,
             'unit_sampel_items' => $unitSampelItems,
         ]);
@@ -1055,9 +1193,17 @@ class BappController extends Controller
         $config = self::TERMIN_CONFIG[$terminNumber];
         $currentMonth = (int) now()->format('m');
         $hasBappTerminTable = $this->hasBappTerminTable();
-        // BAPP SE2026 sekarang hanya menggunakan alur reguler dan diunggah manual.
-        $documentType = 'regular';
-        $contextReplacementTerminCount = 2;
+        $documentType = $this->resolveDocumentType($request);
+        $replacementTerminCount = $this->resolveReplacementTerminCount($request);
+        $contextReplacementTerminCount = $this->getContextReplacementTerminCount(
+            $documentType,
+            $replacementTerminCount,
+        );
+
+        if ($documentType === 'replacement_pkpp' && $contextReplacementTerminCount === 1 && $terminNumber === 2) {
+            return redirect()->route('bapp.index')
+                ->with('error', 'PKPP skema 1 termin hanya memiliki satu BAPP.');
+        }
 
         $kegiatan = $this->getSensusEkonomiKegiatan();
         if (! $kegiatan) {
@@ -1065,7 +1211,7 @@ class BappController extends Controller
         }
 
         $unitSampelItems = $this->getUnitSampelItems($kegiatan);
-        $spks = $this->getSpksForBappContext($tahun, $terminNumber, $documentType);
+        $spks = $this->getSpksForBappContext($tahun, $terminNumber, $documentType, $contextReplacementTerminCount);
         $ppk = $this->getPpk();
         $nomorBappMap = $this->generateNomorBappMap(
             $spks,
@@ -1778,8 +1924,10 @@ class BappController extends Controller
             'spk_hashed_id' => ['required', 'string'],
             'termin' => ['required', 'integer', 'in:1,2'],
             'file' => ['required', 'file', 'mimes:pdf', 'max:20480'],
-            'nomor_bapp' => ['nullable', 'string', 'max:255'],
+            'nomor_bapp' => ['required', 'string', 'max:255'],
             'tanggal_bapp' => ['nullable', 'date'],
+            'document_type' => ['required', 'in:regular,stopped_petugas,replacement_pkpp'],
+            'replacement_termin_count' => ['nullable', 'integer', 'in:0,1,2'],
         ]);
 
         $spkId = Hashids::decode((string) $validated['spk_hashed_id'])[0] ?? null;
@@ -1790,20 +1938,37 @@ class BappController extends Controller
         $tahun = ActiveYearService::get();
         $termin = (int) $validated['termin'];
         $config = self::TERMIN_CONFIG[$termin];
+        $documentType = $this->resolveDocumentType($request);
+        $replacementTerminCount = $this->resolveReplacementTerminCount($request);
+        $contextReplacementTerminCount = $this->getContextReplacementTerminCount(
+            $documentType,
+            $replacementTerminCount,
+        );
+
+        if ($documentType === 'replacement_pkpp' && $contextReplacementTerminCount === 1 && $termin === 2) {
+            return back()->with('error', 'PKPP skema 1 termin tidak memiliki BAPP Termin II.');
+        }
         $spk = Spk::query()
             ->with(['petugas', 'alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim'])
             ->find($spkId);
 
-        if (! $spk || ! $this->getSpksForBappContext($tahun, $termin, 'regular')->contains('id', $spk->id)) {
-            return back()->with('error', 'Perjanjian Kerja tidak termasuk alur BAPP SE2026 reguler.');
+        if (! $spk || ! $this->getSpksForBappContext(
+            $tahun,
+            $termin,
+            $documentType,
+            $contextReplacementTerminCount,
+        )->contains('id', $spk->id)) {
+            return back()->with('error', 'Perjanjian Kerja tidak termasuk alur BAPP SE2026 yang dipilih.');
         }
 
-        $existing = BappSeTermin::query()
-            ->where('spk_id', $spk->id)
-            ->where('termin', $termin)
-            ->where('tahun', $tahun)
-            ->where('document_type', 'regular')
-            ->first();
+        $existing = $this->applyBappDocumentContextScope(
+            BappSeTermin::query()
+                ->where('spk_id', $spk->id)
+                ->where('termin', $termin)
+                ->where('tahun', $tahun),
+            $documentType,
+            $contextReplacementTerminCount,
+        )->first();
 
         if ($existing && filled($existing->signed_file_path)) {
             Storage::disk('public')->delete($existing->signed_file_path);
@@ -1812,10 +1977,7 @@ class BappController extends Controller
         $petugas = $spk->petugas;
         $kegiatan = $this->getSensusEkonomiKegiatan();
         $ppk = $this->getPpk();
-        $nomorBapp = trim((string) ($validated['nomor_bapp'] ?? ''));
-        if ($nomorBapp === '') {
-            $nomorBapp = $existing?->nomor_bapp ?: 'BAPP-SE2026-T'.$termin.'-'.$spk->id;
-        }
+        $nomorBapp = trim((string) $validated['nomor_bapp']);
 
         $safeName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $nomorBapp);
         $path = $request->file('file')->storeAs(
@@ -1828,8 +1990,13 @@ class BappController extends Controller
         $bapp->spk_id = $spk->id;
         $bapp->petugas_id = $petugas?->id;
         $bapp->termin = $termin;
-        $bapp->document_type = 'regular';
-        $bapp->replacement_termin_count = null;
+        $bapp->document_type = $documentType;
+        $bapp->replacement_termin_count = $contextReplacementTerminCount;
+        $bapp->replacement_id = $documentType === 'stopped_petugas'
+            ? ($this->getStoppedReplacementIdBySpkId($termin, $tahun)[$spk->id] ?? null)
+            : ($documentType === 'replacement_pkpp'
+                ? ($this->getReplacementIdByReplacementSpkId($contextReplacementTerminCount)[$spk->id] ?? null)
+                : null);
         $bapp->bulan = $config['bulan'];
         $bapp->tahun = $tahun;
         $bapp->persentase = $config['persentase'];
