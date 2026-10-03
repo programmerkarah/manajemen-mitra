@@ -303,7 +303,7 @@ class SensusEkonomiReplacementController extends Controller
             'status' => 'pengganti_ditetapkan',
         ]);
 
-        return back()->with('success', 'Petugas pengganti berhasil ditetapkan. Selanjutnya tentukan skema PKPP.');
+        return back()->with('success', 'Petugas pengganti berhasil ditetapkan. Selanjutnya lengkapi data perjanjian kerjanya.');
     }
 
     public function uploadReplacementBast(
@@ -545,10 +545,7 @@ class SensusEkonomiReplacementController extends Controller
             return $replacement;
         });
 
-        return back()->with('success', sprintf(
-            'Replacement petugas berhasil dibuat (ID: %s).',
-            $replacement->hashed_id,
-        ));
+        return back()->with('success', 'Data pergantian petugas berhasil disimpan.');
     }
 
     public function uploadSignedPkpp(Request $request, SensusEkonomiPetugasReplacement $replacement): RedirectResponse
@@ -672,9 +669,6 @@ class SensusEkonomiReplacementController extends Controller
             ],
         );
 
-        return back()->with('success', sprintf(
-            'Kontrak PKPP berhasil disimpan (ID: %s).',
-            $contract->hashed_id,
-        ));
+        return back()->with('success', 'Data perjanjian kerja petugas pengganti berhasil disimpan.');
     }
 }
