@@ -14,6 +14,7 @@ use App\Models\ReviewPetugas;
 use App\Models\Sbml;
 use App\Models\SkKpa;
 use App\Models\Spk;
+use App\Services\SpkActionDecisionService;
 use App\Traits\EffectivePeriodeScope;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -313,19 +314,27 @@ class DashboardController extends Controller
         }
 
         if (in_array($activeRole, ['admin', 'approver'], true)) {
-            $spkAttentionCount = $kegiatanBulanIni->filter(function ($kegiatan) {
-                return ($kegiatan['periode_alokasi']['has_alokasi'] ?? false)
-                    && ($kegiatan['spk']['requires_document'] ?? false)
-                    && ! ($kegiatan['spk']['is_complete'] ?? false);
-            })->count();
+            // Gunakan sumber keputusan yang sama dengan halaman PK agar angka dashboard
+            // merepresentasikan aksi dokumen nyata, bukan jumlah kegiatan yang belum lengkap.
+            $spkActionCounts = app(SpkActionDecisionService::class)
+                ->resolveForMonth($currentYear, $currentMonth)
+                ->countBy('final_action');
+
+            $spkAttentionCount =
+                (int) ($spkActionCounts['generate_pk'] ?? 0)
+                + (int) ($spkActionCounts['generate_addendum'] ?? 0);
 
             if ($spkAttentionCount > 0) {
                 $attentionItems->push([
                     'key' => 'spk_missing',
-                    'label' => 'perjanjian kerja belum dibuat',
+                    'label' => 'PK / addendum perlu dibuat',
                     'count' => $spkAttentionCount,
                     'url' => route('spk.index'),
-                    'description' => 'Sudah ada SK dan alokasi, SPK perlu digenerate',
+                    'description' => sprintf(
+                        '%d PK baru dan %d addendum perlu dibuat',
+                        (int) ($spkActionCounts['generate_pk'] ?? 0),
+                        (int) ($spkActionCounts['generate_addendum'] ?? 0),
+                    ),
                     'severity' => 'warning',
                 ]);
             }
@@ -453,6 +462,12 @@ class DashboardController extends Controller
             $spkBastQuery = Spk::query()
                 ->with(['alokasiPetugas:id,periode_alokasi_id'])
                 ->whereYear('tanggal_spk', $currentYear)
+                // BAST SE2026 memakai alur upload manual, jadi tidak termasuk
+                // pengingat BAST generate. Pengingat ini khusus BAST reguler.
+                ->whereDoesntHave('alokasiPetugas.periodeAlokasi.kegiatan', function ($query) {
+                    $query->where('jenis_kegiatan', 'sensus')
+                        ->where('nama_kegiatan', 'like', '%Sensus Ekonomi%');
+                })
                 ->whereDoesntHave('bast');
 
             if ($activeRole === 'ketua_tim') {
