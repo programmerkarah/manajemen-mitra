@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class UserRoleManagementTest extends TestCase
@@ -92,6 +93,14 @@ class UserRoleManagementTest extends TestCase
     {
         $this->seedRoles();
         $admin = User::factory()->admin()->create();
+
+        // Keep this assertion deterministic even when another legacy test
+        // leaves users behind in the shared MySQL test database.
+        $adminRole = Role::where('name', 'admin')->firstOrFail();
+        DB::table('role_user')
+            ->where('role_id', $adminRole->id)
+            ->where('user_id', '!=', $admin->id)
+            ->delete();
 
         // This is the only admin
         $guestRole = Role::where('name', 'guest')->first();
