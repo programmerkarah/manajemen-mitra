@@ -379,7 +379,7 @@ class AlokasiPartialValidationTest extends TestCase
             ->withSession(['active_role_id' => $adminRole->id])
             ->put("/alokasi/periode/{$kegiatan->hashed_id}/{$tahun}/03", $payload);
 
-        $response->assertSessionHasErrors(['error']);
+        $response->assertSessionHasErrors(['validation']);
 
         $this->assertDatabaseHas('alokasi_petugas', [
             'id' => $existingCurrentAlokasi->id,
