@@ -7,6 +7,8 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import AlertCircle from 'lucide-react/icons/alert-circle';
 import ArrowLeft from 'lucide-react/icons/arrow-left';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import FileText from 'lucide-react/icons/file-text';
 import FileUp from 'lucide-react/icons/file-up';
 import UserRoundCheck from 'lucide-react/icons/user-round-check';
 import UserRoundMinus from 'lucide-react/icons/user-round-minus';
@@ -79,18 +81,30 @@ export default function Index({
                   },
               ];
 
+    const totalRequired = workflows.reduce(
+        (sum, workflow) => sum + workflow.total_spk,
+        0,
+    );
+    const totalUploaded = workflows.reduce(
+        (sum, workflow) => sum + workflow.total_uploaded,
+        0,
+    );
+    const activeFlows = workflows.filter((workflow) =>
+        workflow.termin_data.some((item) => item.spk_count > 0),
+    ).length;
+
     if (!has_kegiatan) {
         return (
             <AppLayout breadcrumbs={breadcrumbs}>
                 <Head title="BAPP SE2026" />
-                <div className="flex flex-col gap-6 p-6">
+                <div className="space-y-5">
                     <PageHeader
                         title="BAPP SE2026"
-                        description="Berita Acara Pemeriksaan Pekerjaan Sensus Ekonomi 2026"
+                        description="Inventaris Berita Acara Pemeriksaan Pekerjaan Sensus Ekonomi 2026"
                     />
                     <ContentCard>
                         <div className="flex flex-col items-center gap-3 py-12 text-center">
-                            <AlertCircle className="h-12 w-12 text-yellow-500" />
+                            <AlertCircle className="h-10 w-10 text-amber-500" />
                             <p className="text-lg font-medium">
                                 Kegiatan Sensus Ekonomi tidak ditemukan
                             </p>
@@ -108,10 +122,11 @@ export default function Index({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="BAPP SE2026" />
-            <div className="flex flex-col gap-6 p-6">
+
+            <div className="space-y-5">
                 <PageHeader
                     title="BAPP SE2026"
-                    description={`Inventaris dokumen manual BAPP Sensus Ekonomi 2026 · Tahun ${tahun}`}
+                    description={`Kelola upload BAPP manual per jenis petugas · ${tahun}`}
                 >
                     <Button variant="outline" asChild>
                         <Link href="/dashboard" prefetch>
@@ -121,41 +136,92 @@ export default function Index({
                     </Button>
                 </PageHeader>
 
+                <div className="grid gap-3 md:grid-cols-3">
+                    <ContentCard>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs font-medium text-muted-foreground">
+                                    Dokumen tersedia
+                                </p>
+                                <p className="mt-1 text-2xl font-semibold">
+                                    {totalUploaded}/{totalRequired}
+                                </p>
+                            </div>
+                            <FileText className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                    </ContentCard>
+                    <ContentCard>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs font-medium text-muted-foreground">
+                                    Alur aktif
+                                </p>
+                                <p className="mt-1 text-2xl font-semibold">
+                                    {activeFlows}
+                                </p>
+                            </div>
+                            <UsersRound className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                    </ContentCard>
+                    <ContentCard>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs font-medium text-muted-foreground">
+                                    Penomoran
+                                </p>
+                                <p className="mt-1 text-sm font-semibold">
+                                    Input nomor saja
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Kode surat dibuat otomatis
+                                </p>
+                            </div>
+                            <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                        </div>
+                    </ContentCard>
+                </div>
+
                 <ContentCard>
-                    <div className="space-y-2 rounded-xl border border-blue-200 bg-blue-50/70 p-4 text-sm text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-200">
-                        <p className="font-medium">
-                            Alur dokumen dipisahkan agar tidak saling
-                            mengganggu.
-                        </p>
-                        <p>
-                            Petugas utama, petugas berhenti, dan petugas
-                            pengganti disimpan sebagai konteks berbeda. Jika
-                            petugas lama berhenti sebelum Termin II wajib,
-                            Termin II tidak lagi dihitung sebagai dokumen yang
-                            harus tersedia.
-                        </p>
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h2 className="font-semibold">Alur dokumen</h2>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Petugas utama, petugas berhenti, dan petugas
+                                pengganti dikelola terpisah sehingga kewajiban
+                                dokumennya tidak saling memengaruhi.
+                            </p>
+                        </div>
+                        <Button variant="outline" asChild>
+                            <Link href="/spk/petugas-pengganti" prefetch>
+                                <UserRoundCheck className="mr-2 h-4 w-4" />
+                                Pergantian Petugas
+                            </Link>
+                        </Button>
                     </div>
                 </ContentCard>
 
-                <div className="space-y-5">
+                <div className="grid gap-4 xl:grid-cols-2">
                     {workflows.map((workflow) => {
                         const Icon = getWorkflowIcon(workflow.document_type);
-                        const hasItems = workflow.termin_data.some(
+                        const availableTermins = workflow.termin_data.filter(
                             (item) => item.spk_count > 0,
                         );
+                        const complete =
+                            workflow.total_spk > 0 &&
+                            workflow.total_uploaded >= workflow.total_spk;
 
                         return (
                             <ContentCard key={workflow.key}>
-                                <div className="space-y-5">
-                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                        <div className="flex items-start gap-3">
-                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted">
+                                <div className="space-y-4">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex min-w-0 items-start gap-3">
+                                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted">
                                                 <Icon className="h-5 w-5 text-muted-foreground" />
-                                            </div>
-                                            <div>
-                                                <h2 className="text-lg font-semibold">
+                                            </span>
+                                            <div className="min-w-0">
+                                                <h3 className="font-semibold">
                                                     {workflow.label}
-                                                </h2>
+                                                </h3>
                                                 <p className="mt-1 text-sm text-muted-foreground">
                                                     {workflow.description}
                                                 </p>
@@ -163,93 +229,87 @@ export default function Index({
                                         </div>
                                         <Badge
                                             variant={
-                                                hasItems
-                                                    ? 'secondary'
-                                                    : 'outline'
+                                                complete
+                                                    ? 'default'
+                                                    : 'secondary'
                                             }
                                         >
-                                            {workflow.total_uploaded} upload ·{' '}
-                                            {workflow.total_spk} kewajiban
+                                            {workflow.total_uploaded}/
+                                            {workflow.total_spk}
                                         </Badge>
                                     </div>
 
-                                    {hasItems ? (
-                                        <div className="grid gap-4 lg:grid-cols-2">
-                                            {workflow.termin_data.map(
-                                                (termin) => {
-                                                    const uploaded = Math.min(
-                                                        termin.bapp_count,
-                                                        termin.spk_count,
-                                                    );
-                                                    const complete =
-                                                        termin.spk_count > 0 &&
-                                                        uploaded >=
-                                                            termin.spk_count;
+                                    {availableTermins.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {availableTermins.map((termin) => {
+                                                const uploaded = Math.min(
+                                                    termin.bapp_count,
+                                                    termin.spk_count,
+                                                );
+                                                const terminComplete =
+                                                    termin.spk_count > 0 &&
+                                                    uploaded >= termin.spk_count;
+                                                const href =
+                                                    `/bapp/create?termin=${termin.termin_hashed}` +
+                                                    `&document_type=${workflow.document_type}` +
+                                                    `&replacement_termin_count=${workflow.replacement_termin_count}`;
 
-                                                    const href =
-                                                        `/bapp/create?termin=${termin.termin_hashed}` +
-                                                        `&document_type=${workflow.document_type}` +
-                                                        `&replacement_termin_count=${workflow.replacement_termin_count}`;
-
-                                                    return (
-                                                        <div
-                                                            key={`${workflow.key}-${termin.termin}`}
-                                                            className="rounded-xl border border-border bg-muted/20 p-4"
-                                                        >
-                                                            <div className="flex items-start justify-between gap-3">
-                                                                <div>
-                                                                    <p className="text-sm font-medium text-muted-foreground">
-                                                                        Termin{' '}
-                                                                        {
-                                                                            termin.termin_roman
-                                                                        }{' '}
-                                                                        ·{' '}
-                                                                        {
-                                                                            termin.bulan_label
-                                                                        }
-                                                                    </p>
-                                                                    <p className="mt-1 text-base font-semibold">
-                                                                        BAPP{' '}
-                                                                        {
-                                                                            termin.persentase
-                                                                        }
-                                                                        %
-                                                                    </p>
-                                                                </div>
+                                                return (
+                                                    <div
+                                                        key={`${workflow.key}-${termin.termin}`}
+                                                        className="flex flex-col gap-3 rounded-xl border border-border bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between"
+                                                    >
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-sm font-medium">
+                                                                    Termin{' '}
+                                                                    {
+                                                                        termin.termin_roman
+                                                                    }
+                                                                </p>
                                                                 <Badge
                                                                     variant={
-                                                                        complete
+                                                                        terminComplete
                                                                             ? 'default'
-                                                                            : 'secondary'
+                                                                            : 'outline'
                                                                     }
                                                                 >
-                                                                    {complete
+                                                                    {terminComplete
                                                                         ? 'Lengkap'
                                                                         : `${uploaded}/${termin.spk_count}`}
                                                                 </Badge>
                                                             </div>
-
-                                                            <Button
-                                                                asChild
-                                                                className="mt-4 w-full"
-                                                            >
-                                                                <Link
-                                                                    href={href}
-                                                                    prefetch
-                                                                >
-                                                                    <FileUp className="mr-2 h-4 w-4" />
-                                                                    Kelola
-                                                                    Upload
-                                                                </Link>
-                                                            </Button>
+                                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                                {
+                                                                    termin.bulan_label
+                                                                }{' '}
+                                                                ·{' '}
+                                                                {
+                                                                    termin.persentase
+                                                                }
+                                                                %
+                                                            </p>
                                                         </div>
-                                                    );
-                                                },
-                                            )}
+
+                                                        <Button
+                                                            size="sm"
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={href}
+                                                                prefetch
+                                                            >
+                                                                <FileUp className="mr-2 h-4 w-4" />
+                                                                Kelola
+                                                            </Link>
+                                                        </Button>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     ) : (
                                         <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-                                            Belum ada dokumen pada alur ini.
+                                            Belum ada petugas pada alur ini.
                                         </div>
                                     )}
                                 </div>
