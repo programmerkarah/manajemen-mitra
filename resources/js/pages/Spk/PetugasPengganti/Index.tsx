@@ -461,6 +461,18 @@ export default function Index({
                                                 {formatDate(
                                                     item.tanggal_berhenti,
                                                 )}
+                                                {item.termination_type ===
+                                                    'mengundurkan_diri' && (
+                                                    <>
+                                                        {' '}· Termin I{' '}
+                                                        {item.termin_i_paid ===
+                                                        null
+                                                            ? 'belum dicatat'
+                                                            : item.termin_i_paid
+                                                              ? 'sudah dibayar'
+                                                              : 'belum dibayar'}
+                                                    </>
+                                                )}
                                             </p>
                                         </div>
                                         {item.requires_old_documents ? (
@@ -496,11 +508,10 @@ export default function Index({
 
                                     {item.requires_old_documents && (
                                         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
-                                            Petugas diberhentikan: BAPP dan BAST
-                                            petugas lama tetap wajib
-                                            diinventaris. Kelengkapan upload
-                                            tidak menghalangi penetapan petugas
-                                            pengganti.
+                                            BAPP dan BAST petugas lama tetap
+                                            wajib diinventaris. Kelengkapan
+                                            upload tidak menghalangi penetapan
+                                            petugas pengganti.
                                         </div>
                                     )}
 
