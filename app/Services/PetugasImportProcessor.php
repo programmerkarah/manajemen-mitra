@@ -109,34 +109,6 @@ class PetugasImportProcessor
 
             $existingPetugas = $existingByNik ?? $existingByEmail;
 
-            if ($data['jenis_petugas'] !== 'non-organik') {
-                $message = 'Data organik tidak valid pada halaman Mitra. Hanya petugas non-organik yang dapat diproses.';
-
-                if ($persist) {
-                    $errors[] = "Baris {$rowNumber}: {$message}";
-                    $skippedCount++;
-
-                    continue;
-                }
-
-                $rowWarnings[] = $message;
-                $canImport = false;
-            }
-
-            if ($existingPetugas && $existingPetugas->jenis_petugas === 'organik') {
-                $message = 'NIK/email terdaftar sebagai petugas organik sehingga tidak valid untuk halaman Mitra.';
-
-                if ($persist) {
-                    $errors[] = "Baris {$rowNumber}: {$message}";
-                    $skippedCount++;
-
-                    continue;
-                }
-
-                $rowWarnings[] = $message;
-                $canImport = false;
-            }
-
             $validator = Validator::make($data, [
                 'nama' => ['required', 'string', 'max:255'],
                 'nik' => ['required', 'string', 'max:18'],
@@ -151,7 +123,7 @@ class PetugasImportProcessor
                 'pendidikan' => ['required', Rule::in(['SD', 'SMP', 'SMA', 'D1', 'D2', 'D3', 'D4', 'S1', 'S2', 'S3'])],
                 'tahun_bergabung' => ['nullable', 'integer', 'min:1900', 'max:'.(now()->year + 1)],
                 'status' => ['nullable', Rule::in(['aktif', 'nonaktif'])],
-                'jenis_petugas' => ['required', Rule::in(['non-organik'])],
+                'jenis_petugas' => ['required', Rule::in(['organik', 'non-organik'])],
                 'jabatan' => ['nullable', 'string', 'max:255'],
                 'golongan' => ['nullable', 'string', 'max:50'],
                 'npwp' => ['nullable', 'string', 'max:24'],
@@ -176,7 +148,7 @@ class PetugasImportProcessor
                 'tahun_bergabung.min' => 'Tahun bergabung tidak valid',
                 'tahun_bergabung.max' => 'Tahun bergabung tidak valid',
                 'status.in' => 'Status harus aktif atau nonaktif',
-                'jenis_petugas.in' => 'Data organik tidak valid pada halaman Mitra',
+                'jenis_petugas.in' => 'Jenis petugas harus organik atau non-organik',
                 'npwp.max' => 'NPWP maksimal 24 karakter',
                 'tanggal_lahir.date' => 'Tanggal lahir harus format tanggal yang valid',
             ]);
