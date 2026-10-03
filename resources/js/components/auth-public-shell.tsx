@@ -29,7 +29,7 @@ export function AuthPublicShell({
         <div className="flex min-h-svh flex-col bg-background text-foreground">
             <header className="border-b border-border bg-card/95 backdrop-blur">
                 <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-                    <Link href="/" className="flex min-w-0 items-center">
+                    <Link href="/" prefetch className="flex min-w-0 items-center">
                         <AppLogo />
                     </Link>
                     <div className="flex shrink-0 items-center gap-2">
