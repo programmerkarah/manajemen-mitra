@@ -48,11 +48,19 @@ class UpdateKegiatanRequest extends FormRequest
             'pagu_pencacahan' => ['nullable', 'numeric', 'min:0'],
             'pagu_listing' => ['nullable', 'numeric', 'min:0'],
             'has_listing_updating' => ['nullable', 'boolean'],
-            'frame_sampel_listing_id' => ['required_if:has_listing_updating,true', 'nullable', 'exists:master_frame_sampel,id'],
-            'frame_sampel_pencacahan_id' => ['required', 'exists:master_frame_sampel,id'],
-            'unit_sampel_listing_ids' => ['required_if:has_listing_updating,true', 'nullable', 'array', 'min:1'],
+            'frame_sampel_listing_id' => [
+                Rule::requiredIf(fn (): bool => $this->requiresMasterFrameForTahapan('listing')),
+                'nullable',
+                'exists:master_frame_sampel,id',
+            ],
+            'frame_sampel_pencacahan_id' => [
+                Rule::requiredIf(fn (): bool => $this->requiresMasterFrameForTahapan('pencacahan')),
+                'nullable',
+                'exists:master_frame_sampel,id',
+            ],
+            'unit_sampel_listing_ids' => ['nullable', 'array', 'min:1'],
             'unit_sampel_listing_ids.*' => ['integer', 'exists:master_unit_sampel,id'],
-            'unit_sampel_pencacahan_ids' => ['required', 'nullable', 'array', 'min:1'],
+            'unit_sampel_pencacahan_ids' => ['nullable', 'array', 'min:1'],
             'unit_sampel_pencacahan_ids.*' => ['integer', 'exists:master_unit_sampel,id'],
             'kegiatan_frame_sampel' => ['nullable', 'array'],
             'kegiatan_frame_sampel.*.id' => ['nullable', 'integer', 'exists:kegiatan_frame_sampel,id'],
@@ -107,6 +115,34 @@ class UpdateKegiatanRequest extends FormRequest
         $this->merge([
             'kegiatan_frame_sampel' => $normalizedRows,
         ]);
+    }
+
+
+    private function requiresMasterFrameForTahapan(string $tahapan): bool
+    {
+        if ($tahapan === 'listing' && ! $this->boolean('has_listing_updating')) {
+            return false;
+        }
+
+        $rows = $this->input('kegiatan_frame_sampel', []);
+        if (! is_array($rows)) {
+            return false;
+        }
+
+        foreach ($rows as $row) {
+            if (! is_array($row) || ($row['tahapan'] ?? null) !== $tahapan) {
+                continue;
+            }
+
+            $identitas = $row['identitas_tambahan'] ?? null;
+            if (is_array($identitas) && collect($identitas)->filter(
+                fn ($value): bool => $value !== null && trim((string) $value) !== ''
+            )->isNotEmpty()) {
+                return true;
+            }
+        }
+
+        return $this->input('metode_sampling') === 'purpossive';
     }
 
     /**
