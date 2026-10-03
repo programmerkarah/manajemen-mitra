@@ -672,6 +672,19 @@ class AnalisisController extends Controller
         $kegiatanAktif = Kegiatan::query()
             ->where('tahun_anggaran', $currentYear)
             ->whereNotIn('status', ['dibatalkan'])
+            // SK baru menjadi kewajiban setelah minimal satu periode alokasi
+            // benar-benar dikirim. Draft yang belum pernah dikirim tidak boleh
+            // muncul sebagai "Belum Ada SK" di Analisis Dokumen.
+            ->whereHas('periodeAlokasi', function ($query) use ($currentYear): void {
+                $query->where('tahun', $currentYear)
+                    ->whereNotNull('submitted_at')
+                    ->whereIn('status', [
+                        'dikirim',
+                        'perubahan',
+                        'direvisi',
+                        'disetujui',
+                    ]);
+            })
             ->select('id', 'nama_kegiatan', 'kode_kegiatan', 'jenis_kegiatan')
             ->orderBy('nama_kegiatan')
             ->get();
