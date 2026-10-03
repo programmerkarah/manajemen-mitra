@@ -3080,12 +3080,54 @@ class BastController extends Controller
             return $this->getAlokasiLatestTanggalSelesai($alokasi);
         })->filter()->max();
 
+        // SE2026 sebelumnya menjalankan query alokasi berulang di comparator sort dan
+        // di setiap card. Ambil seluruh alokasi SE untuk petugas yang tampil satu kali,
+        // lalu kelompokkan di memory. Ini menghilangkan pola N+1/O(n log n) query.
+        $sensusAlokasiByPetugas = collect();
+
+        if ($isSensusEkonomiMode) {
+            $sensusPetugasIds = $spks
+                ->map(fn (Spk $spk) => (int) ($spk->alokasiPetugas?->petugas_id ?? $spk->petugas_id ?? 0))
+                ->filter(fn (int $id) => $id > 0)
+                ->unique()
+                ->values();
+
+            if ($sensusPetugasIds->isNotEmpty()) {
+                $allSensusAlokasi = AlokasiPetugas::query()
+                    ->whereIn('petugas_id', $sensusPetugasIds->all())
+                    ->whereHas('periodeAlokasi', function ($query) use ($tahun): void {
+                        $query->where('tahun', $tahun)
+                            ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
+                            ->whereHas('kegiatan', function ($kegiatanQuery): void {
+                                $kegiatanQuery->where('nama_kegiatan', 'like', '%Sensus Ekonomi%');
+                            });
+                    })
+                    ->where(function ($query): void {
+                        $query->where('total_honor', '>', 0)
+                            ->orWhere('total_honor_listing', '>', 0)
+                            ->orWhere('jumlah_satuan', '>', 0)
+                            ->orWhere('jumlah_satuan_listing', '>', 0);
+                    })
+                    ->with([
+                        'periodeAlokasi:id,kegiatan_id,status,created_at,tanggal_selesai,tanggal_selesai_listing,jadwal_pengolahan_listing_selesai,jadwal_pengolahan_pencacahan_selesai',
+                        'periodeAlokasi.kegiatan',
+                        'frameSampelAllocations.kegiatanFrameSampel',
+                        'spk' => fn ($query) => $query->orderByDesc('addendum_number'),
+                    ])
+                    ->get();
+
+                $sensusAlokasiByPetugas = $allSensusAlokasi
+                    ->groupBy('petugas_id')
+                    ->map(fn (Collection $items) => $this->getEffectiveAlokasiByKegiatan($items)->values());
+            }
+        }
+
         // Urutkan SPKs berdasarkan tanggal_berakhir_paling_akhir kemudian nama petugas (A-Z)
-        $spks = $spks->sort(function ($a, $b) use ($bulanFormatted, $tahun, $isSensusEkonomiMode) {
+        $spks = $spks->sort(function ($a, $b) use ($bulanFormatted, $tahun, $isSensusEkonomiMode, $sensusAlokasiByPetugas) {
             // Get tanggal berakhir untuk SPK A
             $petugasA = $a->alokasiPetugas?->petugas;
             $allAlokasiA = $isSensusEkonomiMode
-                ? $this->getSensusEkonomiAlokasiForPetugasInYear((int) ($petugasA?->id ?? 0), (int) $tahun)
+                ? ($sensusAlokasiByPetugas->get((int) ($petugasA?->id ?? 0)) ?? collect())
                 : $this->getEffectiveAlokasiForPetugasInMonth((int) ($petugasA?->id ?? 0), $bulanFormatted, (int) $tahun)
                     ->filter(function ($alokasi) {
                         return (int) ($alokasi->jumlah_satuan ?? 0) > 0 || (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
@@ -3102,7 +3144,7 @@ class BastController extends Controller
             // Get tanggal berakhir untuk SPK B
             $petugasB = $b->alokasiPetugas?->petugas;
             $allAlokasiB = $isSensusEkonomiMode
-                ? $this->getSensusEkonomiAlokasiForPetugasInYear((int) ($petugasB?->id ?? 0), (int) $tahun)
+                ? ($sensusAlokasiByPetugas->get((int) ($petugasB?->id ?? 0)) ?? collect())
                 : $this->getEffectiveAlokasiForPetugasInMonth((int) ($petugasB?->id ?? 0), $bulanFormatted, (int) $tahun)
                     ->filter(function ($alokasi) {
                         return (int) ($alokasi->jumlah_satuan ?? 0) > 0 || (int) ($alokasi->jumlah_satuan_listing ?? 0) > 0;
@@ -3127,13 +3169,12 @@ class BastController extends Controller
         })->values();
 
         // Format data SPK dengan detail kegiatan yang diikuti petugas
-        $spkList = $spks->map(function ($spk, $index) use ($bulanFormatted, $tahun, $nomorUrutStart, $isSensusEkonomiMode) {
+        $spkList = $spks->map(function ($spk, $index) use ($bulanFormatted, $tahun, $nomorUrutStart, $isSensusEkonomiMode, $sensusAlokasiByPetugas) {
             $petugas = $spk->alokasiPetugas?->petugas;
 
             // Ambil SEMUA alokasi petugas untuk bulan ini (semua kegiatan yang diikuti petugas di bulan yang sama)
             $allAlokasi = $isSensusEkonomiMode
-                ? $this->getSensusEkonomiAlokasiForPetugasInYear((int) ($petugas?->id ?? 0), (int) $tahun)
-                    ->values()
+                ? ($sensusAlokasiByPetugas->get((int) ($petugas?->id ?? 0)) ?? collect())->values()
                 : $this->getEffectiveAlokasiForPetugasInMonth((int) ($petugas?->id ?? 0), $bulanFormatted, (int) $tahun)
                     ->filter(function ($alokasi) {
                         return
