@@ -1,4 +1,6 @@
 import { ContentCard } from '@/components/content-card';
+import { FilterField, FilterPanel } from '@/components/filter-panel';
+import { SummaryCard } from '@/components/summary-card';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -395,208 +397,57 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                 <PageHeader
                     title="SK KPA"
                     description="Kelola Surat Keputusan Kuasa Pengguna Anggaran untuk setiap kegiatan"
-                />
+                >
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRefresh}
+                        disabled={isRefreshing}
+                    >
+                        <RefreshCw
+                            className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                        />
+                        Perbarui Data
+                    </Button>
+                </PageHeader>
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <button
-                        type="button"
+                    <SummaryCard
+                        label="Kegiatan Aktif"
+                        value={summary.total_kegiatan_aktif}
+                        icon={<FileText className="h-5 w-5" />}
+                        accent="blue"
                         onClick={() => openSummaryModal('active')}
-                        className="cursor-pointer text-left"
-                    >
-                        <ContentCard className="border border-blue-200/60 bg-gradient-to-br from-blue-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-blue-900/40 dark:from-blue-950/30 dark:to-neutral-900">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-sm text-blue-700 dark:text-blue-300">
-                                        Kegiatan Aktif
-                                    </p>
-                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                                        {summary.total_kegiatan_aktif}
-                                    </p>
-                                </div>
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
-                                    <FileText className="h-5 w-5" />
-                                </span>
-                            </div>
-                        </ContentCard>
-                    </button>
-                    <button
-                        type="button"
+                    />
+                    <SummaryCard
+                        label="SK Belum Dibuat"
+                        value={summary.total_sk_belum_dibuat}
+                        icon={<Plus className="h-5 w-5" />}
+                        accent="orange"
                         onClick={() => openSummaryModal('not_created')}
-                        className="cursor-pointer text-left"
-                    >
-                        <ContentCard className="border border-amber-200/60 bg-gradient-to-br from-amber-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-amber-900/40 dark:from-amber-950/30 dark:to-neutral-900">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-sm text-amber-700 dark:text-amber-300">
-                                        SK Belum Dibuat
-                                    </p>
-                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                                        {summary.total_sk_belum_dibuat}
-                                    </p>
-                                </div>
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
-                                    <Plus className="h-5 w-5" />
-                                </span>
-                            </div>
-                        </ContentCard>
-                    </button>
-                    <button
-                        type="button"
+                    />
+                    <SummaryCard
+                        label="SK Digenerate"
+                        value={summary.total_sk_digenerate}
+                        icon={<Eye className="h-5 w-5" />}
+                        accent="violet"
                         onClick={() => openSummaryModal('generated')}
-                        className="cursor-pointer text-left"
-                    >
-                        <ContentCard className="border border-indigo-200/60 bg-gradient-to-br from-indigo-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-indigo-900/40 dark:from-indigo-950/30 dark:to-neutral-900">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-sm text-indigo-700 dark:text-indigo-300">
-                                        SK di Generate
-                                    </p>
-                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                                        {summary.total_sk_digenerate}
-                                    </p>
-                                </div>
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
-                                    <Eye className="h-5 w-5" />
-                                </span>
-                            </div>
-                        </ContentCard>
-                    </button>
-                    <button
-                        type="button"
+                    />
+                    <SummaryCard
+                        label="SK Disahkan"
+                        value={summary.total_sk_disahkan}
+                        icon={<FileCheck className="h-5 w-5" />}
+                        accent="green"
                         onClick={() => openSummaryModal('signed')}
-                        className="cursor-pointer text-left"
-                    >
-                        <ContentCard className="border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                                        SK Disahkan
-                                    </p>
-                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                                        {summary.total_sk_disahkan}
-                                    </p>
-                                </div>
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
-                                    <FileCheck className="h-5 w-5" />
-                                </span>
-                            </div>
-                        </ContentCard>
-                    </button>
+                    />
                 </div>
 
                 {/* Filter & Search */}
-                <ContentCard>
-                    <div className="space-y-3">
-                        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.8fr)_minmax(0,0.9fr)_minmax(0,0.55fr)]">
-                            <div>
-                                <label
-                                    htmlFor="search"
-                                    className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
-                                >
-                                    Cari Kegiatan
-                                </label>
-                                <Input
-                                    id="search"
-                                    type="text"
-                                    value={search}
-                                    onChange={(e) => {
-                                        setSearch(e.target.value);
-                                        setCurrentPage(1);
-                                    }}
-                                    placeholder="Nama kegiatan..."
-                                    className="w-full"
-                                />
-                            </div>
-
-                            <div>
-                                <label
-                                    htmlFor="jenis_kegiatan"
-                                    className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
-                                >
-                                    Jenis Kegiatan
-                                </label>
-                                <Select
-                                    value={jenisKegiatan}
-                                    onValueChange={(value) => {
-                                        setJenisKegiatan(value);
-                                        setCurrentPage(1);
-                                    }}
-                                >
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Semua Jenis" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">
-                                            Semua
-                                        </SelectItem>
-                                        <SelectItem value="sensus">
-                                            Sensus
-                                        </SelectItem>
-                                        <SelectItem value="survei">
-                                            Survei
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div>
-                                <label
-                                    htmlFor="status_sk"
-                                    className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
-                                >
-                                    Status SK
-                                </label>
-                                <Select
-                                    value={skStatusFilter}
-                                    onValueChange={(value) => {
-                                        setSkStatusFilter(
-                                            value as typeof skStatusFilter,
-                                        );
-                                        setCurrentPage(1);
-                                    }}
-                                >
-                                    <SelectTrigger
-                                        id="status_sk"
-                                        className="w-full"
-                                    >
-                                        <SelectValue placeholder="Semua Status" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">
-                                            Semua Status
-                                        </SelectItem>
-                                        <SelectItem value="not_created">
-                                            Belum Dibuat
-                                        </SelectItem>
-                                        <SelectItem value="draft">
-                                            Draft / Belum Ditandatangani
-                                        </SelectItem>
-                                        <SelectItem value="signed">
-                                            Ditandatangani
-                                        </SelectItem>
-                                        <SelectItem value="cancelled">
-                                            Dibatalkan
-                                        </SelectItem>
-                                        <SelectItem value="needs_revision">
-                                            Perlu Perubahan
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="flex items-end">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={handleReset}
-                                    className="w-full"
-                                >
-                                    Reset Filter
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-neutral-200/80 bg-neutral-50/70 px-4 py-2.5 text-sm text-neutral-600 dark:border-neutral-700/70 dark:bg-neutral-900/40 dark:text-neutral-300">
+                <FilterPanel
+                    fieldsClassName="lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,0.95fr)]"
+                    footer={
+                        <>
                             <p>
                                 Menampilkan{' '}
                                 {filteredAndSortedKegiatan.length === 0
@@ -612,22 +463,89 @@ export default function Index({ kegiatan, summary }: IndexProps) {
                                     allKegiatan.length &&
                                     ` (difilter dari ${allKegiatan.length} total)`}
                             </p>
+                            {(search ||
+                                jenisKegiatan !== 'all' ||
+                                skStatusFilter !== 'all') && (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleReset}
+                                    className="h-8 px-2 text-muted-foreground"
+                                >
+                                    Reset filter
+                                </Button>
+                            )}
+                        </>
+                    }
+                >
+                    <FilterField label="Cari Kegiatan">
+                        <Input
+                            id="search"
+                            type="text"
+                            value={search}
+                            onChange={(e) => {
+                                setSearch(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                            placeholder="Nama atau kode kegiatan..."
+                            className="h-10 w-full"
+                        />
+                    </FilterField>
 
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={handleRefresh}
-                                disabled={isRefreshing}
-                            >
-                                <RefreshCw
-                                    className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
-                                />
-                                Refresh
-                            </Button>
-                        </div>
-                    </div>
-                </ContentCard>
+                    <FilterField label="Jenis Kegiatan">
+                        <Select
+                            value={jenisKegiatan}
+                            onValueChange={(value) => {
+                                setJenisKegiatan(value);
+                                setCurrentPage(1);
+                            }}
+                        >
+                            <SelectTrigger className="h-10 w-full">
+                                <SelectValue placeholder="Semua Jenis" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua</SelectItem>
+                                <SelectItem value="sensus">Sensus</SelectItem>
+                                <SelectItem value="survei">Survei</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </FilterField>
+
+                    <FilterField label="Status SK">
+                        <Select
+                            value={skStatusFilter}
+                            onValueChange={(value) => {
+                                setSkStatusFilter(
+                                    value as typeof skStatusFilter,
+                                );
+                                setCurrentPage(1);
+                            }}
+                        >
+                            <SelectTrigger id="status_sk" className="h-10 w-full">
+                                <SelectValue placeholder="Semua Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Status</SelectItem>
+                                <SelectItem value="not_created">
+                                    Belum Dibuat
+                                </SelectItem>
+                                <SelectItem value="draft">
+                                    Draft / Belum Ditandatangani
+                                </SelectItem>
+                                <SelectItem value="signed">
+                                    Ditandatangani
+                                </SelectItem>
+                                <SelectItem value="cancelled">
+                                    Dibatalkan
+                                </SelectItem>
+                                <SelectItem value="needs_revision">
+                                    Perlu Perubahan
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </FilterField>
+                </FilterPanel>
 
                 {/* Active SK status filter indicator */}
                 {skStatusFilter !== 'all' && (
