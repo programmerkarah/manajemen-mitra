@@ -12,6 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('mitra', function (Blueprint $table) {
+            // NIK is encrypted with non-deterministic ciphertext, so the
+            // original VARCHAR unique index cannot be preserved on TEXT and
+            // would not enforce plaintext uniqueness anyway.
+            $table->dropUnique('mitra_nik_unique');
+
             // Ubah kolom yang dienkripsi menjadi text untuk menampung encrypted string
             $table->text('nik')->change();
             $table->text('npwp')->nullable()->change();
@@ -29,6 +34,7 @@ return new class extends Migration
             $table->string('nik', 16)->change();
             $table->string('npwp', 20)->nullable()->change();
             $table->string('no_rekening')->nullable()->change();
+            $table->unique('nik', 'mitra_nik_unique');
         });
     }
 };
