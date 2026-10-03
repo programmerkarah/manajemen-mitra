@@ -2,6 +2,9 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
+import { FileUpload } from '@/components/ui/file-upload';
+import { Input } from '@/components/ui/input';
 import {
     Dialog,
     DialogContent,
@@ -309,7 +312,13 @@ export default function CreateForMonth({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Generate BAST - ${bulan_label} ${tahun}`} />
+            <Head
+                title={
+                    isSensusEkonomiMode
+                        ? `Upload BAST SE2026 - ${tahun}`
+                        : `Generate BAST - ${bulan_label} ${tahun}`
+                }
+            />
 
             <Dialog
                 open={modalAlert.open}
@@ -391,11 +400,17 @@ export default function CreateForMonth({
             </Dialog>
 
             <PageHeader
-                title={`${isDetailMode ? 'Detail BAST' : 'Generate BAST'} - ${bulan_label} ${tahun}`}
+                title={
+                    isSensusEkonomiMode
+                        ? `${isDetailMode ? 'Detail' : 'Upload'} BAST SE2026`
+                        : `${isDetailMode ? 'Detail BAST' : 'Generate BAST'} - ${bulan_label} ${tahun}`
+                }
                 description={
-                    isDetailMode
-                        ? 'Daftar petugas, status BAST, dan lampiran periode ini (termasuk yang belum digenerate).'
-                        : 'Pilih perjanjian kerja yang akan dibuatkan dokumen BAST'
+                    isSensusEkonomiMode
+                        ? 'BAST Sensus Ekonomi dikelola sebagai dokumen manual per petugas. Tidak ada proses generate.'
+                        : isDetailMode
+                          ? 'Daftar petugas, status BAST, dan lampiran periode ini (termasuk yang belum digenerate).'
+                          : 'Pilih perjanjian kerja yang akan dibuatkan dokumen BAST'
                 }
             >
                 <div className="flex items-center gap-2">
@@ -527,7 +542,9 @@ export default function CreateForMonth({
                                                     <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
                                                         BAST:{' '}
                                                         {spk.existing_bast_nomor ??
-                                                            'Belum digenerate'}
+                                                            (spk.is_sensus_ekonomi
+                                                                ? 'Belum diunggah'
+                                                                : 'Belum digenerate')}
                                                     </p>
                                                 )}
                                             </div>
@@ -551,8 +568,12 @@ export default function CreateForMonth({
                                                             }
                                                         >
                                                             {spk.has_bast
-                                                                ? `Lampiran ${spk.lampiran_generated ?? 0}/${spk.lampiran_total ?? 0}`
-                                                                : 'BAST belum digenerate'}
+                                                                ? spk.is_sensus_ekonomi
+                                                                    ? 'BAST tersedia'
+                                                                    : `Lampiran ${spk.lampiran_generated ?? 0}/${spk.lampiran_total ?? 0}`
+                                                                : spk.is_sensus_ekonomi
+                                                                  ? 'BAST belum diunggah'
+                                                                  : 'BAST belum digenerate'}
                                                         </Badge>
                                                     </div>
                                                 )}
@@ -627,72 +648,73 @@ export default function CreateForMonth({
                                                             manual.
                                                         </p>
                                                     </div>
-                                                    <div className="grid gap-2 md:grid-cols-[1fr_180px]">
-                                                        <input
-                                                            type="text"
-                                                            value={
-                                                                manualNomor[
-                                                                    spk.spk_id
-                                                                ] ?? ''
-                                                            }
-                                                            onChange={(e) =>
-                                                                setManualNomor(
-                                                                    (
-                                                                        current,
-                                                                    ) => ({
-                                                                        ...current,
-                                                                        [spk.spk_id]:
-                                                                            e
-                                                                                .target
-                                                                                .value,
-                                                                    }),
-                                                                )
-                                                            }
-                                                            placeholder="Nomor BAST (opsional)"
-                                                            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                                                        />
-                                                        <input
-                                                            type="date"
-                                                            value={
-                                                                manualTanggal[
-                                                                    spk.spk_id
-                                                                ] ?? ''
-                                                            }
-                                                            onChange={(e) =>
-                                                                setManualTanggal(
-                                                                    (
-                                                                        current,
-                                                                    ) => ({
-                                                                        ...current,
-                                                                        [spk.spk_id]:
-                                                                            e
-                                                                                .target
-                                                                                .value,
-                                                                    }),
-                                                                )
-                                                            }
-                                                            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                                                        />
+                                                    <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
+                                                        <div className="space-y-1.5">
+                                                            <p className="text-xs font-medium text-muted-foreground">
+                                                                Nomor BAST
+                                                            </p>
+                                                            <Input
+                                                                value={
+                                                                    manualNomor[
+                                                                        spk.spk_id
+                                                                    ] ?? ''
+                                                                }
+                                                                onChange={(event) =>
+                                                                    setManualNomor(
+                                                                        (current) => ({
+                                                                            ...current,
+                                                                            [spk.spk_id]:
+                                                                                event
+                                                                                    .target
+                                                                                    .value,
+                                                                        }),
+                                                                    )
+                                                                }
+                                                                placeholder="Nomor lengkap sesuai dokumen"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1.5">
+                                                            <p className="text-xs font-medium text-muted-foreground">
+                                                                Tanggal BAST
+                                                            </p>
+                                                            <DatePicker
+                                                                value={
+                                                                    manualTanggal[
+                                                                        spk.spk_id
+                                                                    ] ?? ''
+                                                                }
+                                                                onChange={(value) =>
+                                                                    setManualTanggal(
+                                                                        (current) => ({
+                                                                            ...current,
+                                                                            [spk.spk_id]:
+                                                                                value,
+                                                                        }),
+                                                                    )
+                                                                }
+                                                                placeholder="Pilih tanggal"
+                                                            />
+                                                        </div>
                                                     </div>
-                                                    <div className="flex flex-col gap-2 sm:flex-row">
-                                                        <input
-                                                            type="file"
-                                                            accept="application/pdf,.pdf"
-                                                            onChange={(e) =>
+                                                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                                                        <FileUpload
+                                                            value={
+                                                                manualFiles[
+                                                                    spk.spk_id
+                                                                ] ?? null
+                                                            }
+                                                            maxSizeMb={20}
+                                                            label="Pilih atau jatuhkan PDF BAST"
+                                                            helperText="PDF final BAST SE2026"
+                                                            onChange={(file) =>
                                                                 setManualFiles(
-                                                                    (
-                                                                        current,
-                                                                    ) => ({
+                                                                    (current) => ({
                                                                         ...current,
                                                                         [spk.spk_id]:
-                                                                            e
-                                                                                .target
-                                                                                .files?.[0] ??
-                                                                            null,
+                                                                            file,
                                                                     }),
                                                                 )
                                                             }
-                                                            className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
                                                         />
                                                         <Button
                                                             type="button"
@@ -713,7 +735,9 @@ export default function CreateForMonth({
                                                             {uploadingManualSpk ===
                                                             spk.spk_id
                                                                 ? 'Mengunggah...'
-                                                                : 'Upload BAST'}
+                                                                : spk.has_bast
+                                                                  ? 'Ganti PDF BAST'
+                                                                  : 'Upload BAST'}
                                                         </Button>
                                                     </div>
                                                 </div>
