@@ -140,6 +140,40 @@ class DipaController extends Controller
         //
     }
 
+    public function editContext(Request $request): Response|RedirectResponse
+    {
+        if ($request->isMethod('post')) {
+            $encryptedState = $request->input('state')
+                ?? $request->input('encrypted_filters');
+
+            $context = filled($encryptedState)
+                ? decryptFilters((string) $encryptedState)
+                : $request->only(['id']);
+
+            if (empty($context['id'])) {
+                return redirect()->route('dipa.index')
+                    ->with('error', 'Data DIPA tidak ditemukan.');
+            }
+
+            $request->session()->put('dipa.edit.context', [
+                'id' => (int) $context['id'],
+            ]);
+        }
+
+        $id = (int) data_get(
+            $request->session()->get('dipa.edit.context', []),
+            'id',
+            0,
+        );
+
+        if ($id <= 0) {
+            return redirect()->route('dipa.index')
+                ->with('error', 'Data DIPA tidak ditemukan.');
+        }
+
+        return $this->edit(Dipa::findOrFail($id));
+    }
+
     /**
      * Show the form for editing the specified resource.
      */
