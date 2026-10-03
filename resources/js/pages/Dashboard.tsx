@@ -512,6 +512,16 @@ export default function Dashboard({
         return filteredKegiatanBulanIni.slice(start, start + kegiatanPerPage);
     }, [filteredKegiatanBulanIni, currentKegiatanPage]);
 
+    const openBastCreate = (bulan: number, tahun: number) => {
+        router.post('/berita-acara/create', {
+            encrypted_filters: encryptFilters({
+                bulan,
+                tahun,
+                mode: 'regular',
+            }),
+        });
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
