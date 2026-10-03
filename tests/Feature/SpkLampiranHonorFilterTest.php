@@ -302,9 +302,21 @@ class SpkLampiranHonorFilterTest extends TestCase
     {
         $user = User::factory()->create();
         $petugas = Petugas::factory()->create();
+        $kegiatan = Kegiatan::factory()->create([
+            'jenis_kegiatan' => 'survei',
+            'tahun_anggaran' => 2026,
+            'status' => 'divalidasi',
+        ]);
+        $periode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'bulan' => '09',
+            'tahun' => 2026,
+            'status' => 'dikirim',
+            'jenis_kegiatan' => 'survei',
+        ]);
         $alokasi = AlokasiPetugas::factory()->create([
             'petugas_id' => $petugas->id,
-            'periode_alokasi_id' => 1,
+            'periode_alokasi_id' => $periode->id,
             'jumlah_satuan' => 10,
             'total_honor' => 20000,
             'peran' => 'pcl_ppl',
