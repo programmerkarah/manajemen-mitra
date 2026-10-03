@@ -98,6 +98,26 @@ const stopLabel = (value: ReplacementItem['termination_type']): string => {
     return 'Berhenti';
 };
 
+const formatDate = (value: string | null | undefined): string => {
+    if (!value) return '-';
+
+    const date = new Date(`${value.slice(0, 10)}T00:00:00`);
+
+    return Number.isNaN(date.getTime())
+        ? value
+        : date.toLocaleDateString('id-ID', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+          });
+};
+
+const statusLabel = (value: string): string =>
+    value
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+
 export default function Index({
     replacements,
     stopped_candidates,
@@ -109,6 +129,7 @@ export default function Index({
         'diberhentikan' | 'mengundurkan_diri'
     >('mengundurkan_diri');
     const [stopDate, setStopDate] = useState('');
+    const [terminIPaid, setTerminIPaid] = useState<'yes' | 'no'>('no');
     const [savingStop, setSavingStop] = useState(false);
     const [replacementForm, setReplacementForm] = useState<
         Record<
@@ -139,6 +160,10 @@ export default function Index({
             {
                 spk_id: Number(stoppedSpkId),
                 termination_type: terminationType,
+                termin_i_paid:
+                    terminationType === 'mengundurkan_diri'
+                        ? terminIPaid === 'yes'
+                        : true,
                 tanggal_berhenti: stopDate,
             },
             {
@@ -147,6 +172,7 @@ export default function Index({
                 onSuccess: () => {
                     setStoppedSpkId('');
                     setStopDate('');
+                    setTerminIPaid('no');
                 },
             },
         );
