@@ -400,6 +400,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
     // Kegiatan modification routes (Admin, Operator, Ketua Tim only)
     Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
         Route::get('kegiatan/create', [KegiatanController::class, 'create'])->name('kegiatan.create');
+        Route::match(['get', 'post'], 'kegiatan/edit', [KegiatanController::class, 'editContext'])->name('kegiatan.edit-context');
         Route::get('kegiatan/{kegiatan}/copy', [KegiatanController::class, 'copy'])->name('kegiatan.copy');
         Route::post('kegiatan/frame-sampel/template', [KegiatanController::class, 'exportFrameSampelTemplate'])->name('kegiatan.frame-sampel.template');
         Route::post('kegiatan/frame-sampel/import-preview', [KegiatanController::class, 'importFrameSampelPreview'])->name('kegiatan.frame-sampel.import-preview');
@@ -586,6 +587,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         // Penandatangan
         Route::get('penandatangan/create', [PenandatanganController::class, 'create'])->name('penandatangan.create');
         Route::post('penandatangan/store', [PenandatanganController::class, 'store'])->name('penandatangan.store');
+        Route::match(['get', 'post'], 'penandatangan/edit', [PenandatanganController::class, 'editContext'])->name('penandatangan.edit-context');
         Route::get('penandatangan/{penandatangan}/edit', [PenandatanganController::class, 'edit'])->name('penandatangan.edit');
         Route::match(['put', 'patch'], 'penandatangan/{penandatangan}/edit', [PenandatanganController::class, 'update']);
         Route::put('penandatangan/{penandatangan}', [PenandatanganController::class, 'update'])->name('penandatangan.update');
@@ -595,6 +597,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         // DIPA
         Route::get('dipa/create', [DipaController::class, 'create'])->name('dipa.create');
         Route::post('dipa/store', [DipaController::class, 'store'])->name('dipa.store');
+        Route::match(['get', 'post'], 'dipa/edit', [DipaController::class, 'editContext'])->name('dipa.edit-context');
         Route::get('dipa/{dipa}/edit', [DipaController::class, 'edit'])->name('dipa.edit');
         Route::match(['put', 'patch'], 'dipa/{dipa}/edit', [DipaController::class, 'update']);
         Route::put('dipa/{dipa}', [DipaController::class, 'update'])->name('dipa.update');
@@ -770,6 +773,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
 
     // SPK Routes - Admin, Approver can generate/manage SPK
     Route::middleware(['active.role:admin,approver'])->group(function () {
+        Route::match(['get', 'post'], 'spk/generate', [SpkController::class, 'createContext'])->name('spk.generate-page');
         Route::get('spk/periode/{periodeHashedId}/generate', [SpkController::class, 'create'])->name('spk.create');
         // Addendum route: only available for regular (non-sensus) periodes — controller will guard as well.
         Route::match(['get', 'post'], 'spk/periode/{periodeHashedId}/addendum', [SpkController::class, 'createAddendum'])->name('spk.create-addendum');
