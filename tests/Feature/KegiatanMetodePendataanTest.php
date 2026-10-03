@@ -1159,7 +1159,7 @@ class KegiatanMetodePendataanTest extends TestCase
             'petugas_id' => $petugas->id,
             'jumlah_satuan' => 2,
             'total_honor' => 100000,
-            'peran' => 'PCL',
+            'peran' => 'pcl_ppl',
             'status_kepegawaian' => 'non_organik',
             'catatan' => null,
             'non_response' => 0,
