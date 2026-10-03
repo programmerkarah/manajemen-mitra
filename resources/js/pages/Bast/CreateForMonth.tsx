@@ -78,6 +78,8 @@ interface SpkItem {
     has_bast?: boolean;
     existing_bast_hashed_id?: string | null;
     existing_bast_nomor?: string | null;
+    existing_bast_nomor_urut?: string | null;
+    existing_bast_tanggal?: string | null;
     lampiran_total?: number;
     lampiran_generated?: number;
     lampiran_signed?: number;
@@ -430,7 +432,10 @@ export default function CreateForMonth({
                     <div className="space-y-3">
                         {filteredSensusSpks.map((spk) => {
                             const file = manualFiles[spk.spk_id] ?? null;
-                            const number = manualNomor[spk.spk_id] ?? '';
+                            const number =
+                                manualNomor[spk.spk_id] ??
+                                spk.existing_bast_nomor_urut ??
+                                '';
 
                             return (
                                 <ContentCard key={spk.spk_id}>
@@ -523,7 +528,9 @@ export default function CreateForMonth({
                                                     value={
                                                         manualTanggal[
                                                             spk.spk_id
-                                                        ] ?? ''
+                                                        ] ??
+                                                        spk.existing_bast_tanggal ??
+                                                        ''
                                                     }
                                                     onChange={(value) =>
                                                         setManualTanggal(
