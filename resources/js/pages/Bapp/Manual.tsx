@@ -34,6 +34,21 @@ interface SpkItem {
     signed_uploaded_at?: string | null;
 }
 
+const formatDateTime = (value: string | null | undefined): string => {
+    if (!value) return '-';
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+
+    return date.toLocaleString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+};
+
 interface Props {
     tahun: number;
     termin: number;
@@ -232,7 +247,9 @@ export default function Manual({
                                         {item.signed_uploaded_at && (
                                             <p className="mt-1 text-xs text-muted-foreground">
                                                 Terakhir{' '}
-                                                {item.signed_uploaded_at}
+                                                {formatDateTime(
+                                                    item.signed_uploaded_at,
+                                                )}
                                             </p>
                                         )}
                                         {available && item.bapp_hashed_id && (
