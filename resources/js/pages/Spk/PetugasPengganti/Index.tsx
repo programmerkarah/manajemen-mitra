@@ -464,29 +464,35 @@ export default function Index({
                                                 )}
                                             </p>
                                         </div>
-                                        <div className="flex flex-wrap gap-2">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                asChild
-                                            >
-                                                <Link href="/bapp" prefetch>
-                                                    BAPP Petugas Lama
-                                                </Link>
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                asChild
-                                            >
-                                                <Link
-                                                    href="/berita-acara?mode=sensus-ekonomi"
-                                                    prefetch
+                                        {item.requires_old_documents ? (
+                                            <div className="flex flex-wrap gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    asChild
                                                 >
-                                                    BAST Petugas Lama
-                                                </Link>
-                                            </Button>
-                                        </div>
+                                                    <Link href="/bapp" prefetch>
+                                                        BAPP Petugas Lama
+                                                    </Link>
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    asChild
+                                                >
+                                                    <Link
+                                                        href="/berita-acara"
+                                                        prefetch
+                                                    >
+                                                        BAST Petugas Lama
+                                                    </Link>
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <Badge variant="outline">
+                                                Tanpa BAPP/BAST petugas lama
+                                            </Badge>
+                                        )}
                                     </div>
 
                                     {item.termination_type ===
