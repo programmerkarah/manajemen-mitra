@@ -3,41 +3,26 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import Activity from 'lucide-react/icons/activity';
-import Banknote from 'lucide-react/icons/banknote';
 import BarChart2 from 'lucide-react/icons/bar-chart2';
 import Download from 'lucide-react/icons/download';
-import TrendingDown from 'lucide-react/icons/trending-down';
-import TrendingUp from 'lucide-react/icons/trending-up';
-import Users from 'lucide-react/icons/users';
 
 import { useState } from 'react';
-import {
-    CartesianGrid,
-    Cell,
-    Tooltip as ChartTooltip,
-    Legend,
-    Line,
-    LineChart,
-    Pie,
+import {    Cell,
+    Tooltip as ChartTooltip,    Pie,
     PieChart,
     type PieSectorShapeProps,
-    ResponsiveContainer,
-    XAxis,
-    YAxis,
-} from 'recharts';
+    ResponsiveContainer,} from 'recharts';
 import {
     buildPieLegendItems,
     COLORS,
     formatRupiah,
-    formatRupiahCompact,
-    glassTooltipClass,
-    monthNames,
-    PieLegendList,
+    formatRupiahCompact,    PieLegendList,
     renderActivePieShape,
     serapanBarColor,
     serapanColor,
 } from './Umum/helpers';
+import { AllocationTrendChart } from './Umum/components/AllocationTrendChart';
+import { GeneralKpiGrid } from './Umum/components/GeneralKpiGrid';
 import type { AnalisisUmumProps } from './Umum/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -58,12 +43,6 @@ export default function AnalisisUmum({
         undefined,
     );
 
-    const trenChartData = trenAlokasi.map((item) => ({
-        ...item,
-        name: monthNames[item.bulan - 1],
-        total_honor_jt: Math.round((item.total_honor / 1_000_000) * 10) / 10,
-    }));
-
     const filteredUtilisasi = utilisasiAnggaran.filter((u) => u.total_pagu > 0);
     const distribusiBebanKerjaChartData = distribusiBebanKerja.filter(
         (item) => item.count > 0,
@@ -79,64 +58,6 @@ export default function AnalisisUmum({
     );
 
     const maxTopHonor = topPetugas.length > 0 ? topPetugas[0].total_honor : 1;
-
-    const kpiCards = [
-        {
-            label: 'Total Pagu',
-            value: formatRupiahCompact(ringkasanKPI.total_pagu),
-            sub: formatRupiah(ringkasanKPI.total_pagu),
-            icon: Banknote,
-            color: 'text-blue-600 dark:text-blue-400',
-            bg: 'bg-blue-50 dark:bg-blue-900/20',
-        },
-        {
-            label: 'Total Terpakai',
-            value: formatRupiahCompact(ringkasanKPI.total_terpakai),
-            sub: formatRupiah(ringkasanKPI.total_terpakai),
-            icon: TrendingUp,
-            color: 'text-green-600 dark:text-green-400',
-            bg: 'bg-green-50 dark:bg-green-900/20',
-        },
-        {
-            label: 'Penyerapan Anggaran',
-            value: `${ringkasanKPI.serapan_persen}%`,
-            sub:
-                ringkasanKPI.serapan_persen >= 90
-                    ? 'Mendekati batas'
-                    : ringkasanKPI.serapan_persen >= 70
-                      ? 'Sedang'
-                      : 'Masih rendah',
-            icon: ringkasanKPI.serapan_persen >= 70 ? TrendingUp : TrendingDown,
-            color:
-                ringkasanKPI.serapan_persen >= 90
-                    ? 'text-red-600 dark:text-red-400'
-                    : ringkasanKPI.serapan_persen >= 70
-                      ? 'text-amber-600 dark:text-amber-400'
-                      : 'text-green-600 dark:text-green-400',
-            bg:
-                ringkasanKPI.serapan_persen >= 90
-                    ? 'bg-red-50 dark:bg-red-900/20'
-                    : ringkasanKPI.serapan_persen >= 70
-                      ? 'bg-amber-50 dark:bg-amber-900/20'
-                      : 'bg-green-50 dark:bg-green-900/20',
-        },
-        {
-            label: 'Petugas Aktif',
-            value: ringkasanKPI.total_petugas_aktif.toLocaleString('id-ID'),
-            sub: 'Non-organik teralokasi',
-            icon: Users,
-            color: 'text-purple-600 dark:text-purple-400',
-            bg: 'bg-purple-50 dark:bg-purple-900/20',
-        },
-        {
-            label: 'Kegiatan Aktif',
-            value: ringkasanKPI.total_kegiatan_aktif.toLocaleString('id-ID'),
-            sub: `Tahun ${currentYear}`,
-            icon: Activity,
-            color: 'text-orange-600 dark:text-orange-400',
-            bg: 'bg-orange-50 dark:bg-orange-900/20',
-        },
-    ];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -163,149 +84,12 @@ export default function AnalisisUmum({
                     </Button>
                 </PageHeader>
 
-                {/* KPI Cards */}
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-                    {kpiCards.map((card) => (
-                        <div
-                            key={card.label}
-                            className="rounded-2xl border border-neutral-200/70 bg-white/80 p-4 shadow-lg dark:border-neutral-800 dark:bg-neutral-900/80"
-                        >
-                            <div
-                                className={`mb-3 inline-flex rounded-lg p-2 ${card.bg}`}
-                            >
-                                <card.icon
-                                    className={`h-4 w-4 ${card.color}`}
-                                />
-                            </div>
-                            <div className={`text-2xl font-bold ${card.color}`}>
-                                {card.value}
-                            </div>
-                            <div className="mt-0.5 text-xs font-medium text-neutral-700 dark:text-neutral-300">
-                                {card.label}
-                            </div>
-                            <div className="mt-0.5 truncate text-xs text-neutral-400 dark:text-neutral-500">
-                                {card.sub}
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                <GeneralKpiGrid
+                    ringkasan={ringkasanKPI}
+                    currentYear={currentYear}
+                />
 
-                {/* Tren Alokasi Bulanan - full width */}
-                <div className="rounded-2xl border border-white/20 bg-white/40 p-5 shadow-2xl backdrop-blur-2xl dark:border-neutral-700/30 dark:bg-neutral-800/50">
-                    <h3 className="mb-1 text-sm font-semibold text-neutral-900 dark:text-white">
-                        Tren Alokasi Bulanan
-                    </h3>
-                    <p className="mb-4 text-xs text-neutral-500 dark:text-neutral-400">
-                        Total honor terbayar, jumlah kegiatan aktif, dan petugas
-                        teralokasi per bulan
-                    </p>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={trenChartData}>
-                            <CartesianGrid
-                                strokeDasharray="3 3"
-                                stroke="rgba(156,163,175,0.2)"
-                            />
-                            <XAxis
-                                dataKey="name"
-                                fontSize={12}
-                                tick={{
-                                    fill: 'currentColor',
-                                    className: 'text-neutral-500',
-                                }}
-                            />
-                            <YAxis
-                                yAxisId="honor"
-                                orientation="left"
-                                fontSize={11}
-                                tickFormatter={(v) =>
-                                    formatRupiahCompact(v as number)
-                                }
-                                tick={{ fill: '#22c55e' }}
-                                width={60}
-                            />
-                            <YAxis
-                                yAxisId="count"
-                                orientation="right"
-                                fontSize={11}
-                                allowDecimals={false}
-                                tick={{ fill: '#3b82f6' }}
-                                width={36}
-                            />
-                            <ChartTooltip
-                                content={({ active, payload, label }) => {
-                                    if (!active || !payload?.length)
-                                        return null;
-                                    return (
-                                        <div className={glassTooltipClass}>
-                                            <p className="mb-2 text-xs font-semibold text-neutral-900 dark:text-white">
-                                                {label}
-                                            </p>
-                                            {payload.map((entry, i) => (
-                                                <p
-                                                    key={i}
-                                                    className="text-xs text-neutral-600 dark:text-neutral-400"
-                                                >
-                                                    <span
-                                                        style={{
-                                                            color: entry.color,
-                                                        }}
-                                                    >
-                                                        ●
-                                                    </span>{' '}
-                                                    {entry.name}:{' '}
-                                                    {entry.dataKey ===
-                                                    'total_honor'
-                                                        ? formatRupiah(
-                                                              entry.value as number,
-                                                          )
-                                                        : entry.value}
-                                                </p>
-                                            ))}
-                                        </div>
-                                    );
-                                }}
-                            />
-                            <Legend
-                                formatter={(value) => (
-                                    <span className="text-xs text-neutral-600 dark:text-neutral-300">
-                                        {value}
-                                    </span>
-                                )}
-                            />
-                            <Line
-                                type="monotone"
-                                dataKey="total_honor"
-                                stroke="#22c55e"
-                                name="Total Honor"
-                                strokeWidth={2}
-                                dot={{ r: 3 }}
-                                activeDot={{ r: 5 }}
-                                yAxisId="honor"
-                            />
-                            <Line
-                                type="monotone"
-                                dataKey="total_kegiatan"
-                                stroke="#3b82f6"
-                                name="Jumlah Kegiatan"
-                                strokeWidth={2}
-                                dot={{ r: 3 }}
-                                activeDot={{ r: 5 }}
-                                yAxisId="count"
-                            />
-                            <Line
-                                type="monotone"
-                                dataKey="jumlah_petugas"
-                                stroke="#f59e0b"
-                                name="Jumlah Petugas"
-                                strokeWidth={2}
-                                strokeDasharray="5 3"
-                                dot={{ r: 3 }}
-                                activeDot={{ r: 5 }}
-                                yAxisId="count"
-                            />
-                        </LineChart>
-                    </ResponsiveContainer>
-                </div>
+                <AllocationTrendChart data={trenAlokasi} />
 
                 {/* Charts Row: Beban Kerja + Jenis Kegiatan */}
                 <div className="grid gap-6 lg:grid-cols-2">
