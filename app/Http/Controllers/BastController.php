@@ -3028,11 +3028,13 @@ class BastController extends Controller
 
         if ($isSensusEkonomiMode) {
             $allPetugasIds = Spk::query()
+                ->where('addendum_number', 0)
+                ->whereHas('alokasiPetugas.periodeAlokasi', function ($query) use ($tahun): void {
+                    $query->where('tahun', $tahun);
+                })
                 ->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($q) {
                     $q->where('nama_kegiatan', 'like', '%Sensus Ekonomi%');
                 })
-                ->whereYear('tanggal_selesai_kerja', (int) $tahun)
-                ->whereMonth('tanggal_selesai_kerja', (int) $bulan)
                 ->pluck('petugas_id')
                 ->filter()
                 ->unique();
@@ -3075,11 +3077,14 @@ class BastController extends Controller
         $spks = collect();
         foreach ($eligiblePetugasIds as $petugasId) {
             $latestSpk = Spk::where('petugas_id', $petugasId)
-                ->when($isSensusEkonomiMode, function ($query) use ($tahun, $bulan) {
-                    $query->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($q) {
-                        $q->where('nama_kegiatan', 'like', '%Sensus Ekonomi%');
-                    })->whereYear('tanggal_selesai_kerja', (int) $tahun)
-                        ->whereMonth('tanggal_selesai_kerja', (int) $bulan);
+                ->when($isSensusEkonomiMode, function ($query) use ($tahun) {
+                    $query->where('addendum_number', 0)
+                        ->whereHas('alokasiPetugas.periodeAlokasi', function ($periodeQuery) use ($tahun): void {
+                            $periodeQuery->where('tahun', $tahun);
+                        })
+                        ->whereHas('alokasiPetugas.periodeAlokasi.kegiatan', function ($q) {
+                            $q->where('nama_kegiatan', 'like', '%Sensus Ekonomi%');
+                        });
                 }, function ($query) use ($tahun, $bulanFormatted) {
                     $query->whereHas('alokasiPetugas.periodeAlokasi', function ($q) use ($tahun, $bulanFormatted) {
                         $q->where('tahun', $tahun)
