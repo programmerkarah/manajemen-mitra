@@ -107,7 +107,7 @@ export default function Index({
             default:
                 return 'Semua Periode Dengan Perjanjian Kerja';
         }
-    }, [summaryModalType]);
+    }, [mode, summaryModalType]);
 
     const openSummaryModal = (type: SummaryModalType) => {
         setSummaryModalType(type);
@@ -355,6 +355,7 @@ export default function Index({
                                                         >
                                                             <Link
                                                                 href={`/berita-acara/create?bulan=${item.bulan}&tahun=${item.tahun}&mode=${mode}`}
+                                                                prefetch
                                                             >
                                                                 <Plus className="mr-1 h-4 w-4" />
                                                                 {mode ===
@@ -377,14 +378,17 @@ export default function Index({
                                                             isApril2026OrLater ||
                                                             item.spk_with_bast >
                                                                 0;
-                                                        const isSensusOffMonth =
+                                                        const isSensusMode =
                                                             mode ===
-                                                                'sensus-ekonomi' &&
+                                                            'sensus-ekonomi';
+                                                        const isSensusOffMonth =
+                                                            isSensusMode &&
                                                             item.bulan !== 8;
 
                                                         if (
                                                             !shouldShowDetail ||
-                                                            isSensusOffMonth
+                                                            isSensusOffMonth ||
+                                                            isSensusMode
                                                         ) {
                                                             return null;
                                                         }
@@ -478,8 +482,17 @@ export default function Index({
                                                     <Button size="sm" asChild>
                                                         <Link
                                                             href={`/berita-acara/create?bulan=${item.bulan}&tahun=${item.tahun}&mode=${mode}`}
+                                                            prefetch
                                                         >
-                                                            <Plus className="h-3.5 w-3.5" />
+                                                            {mode ===
+                                                            'sensus-ekonomi' ? (
+                                                                <>
+                                                                    <FileText className="mr-1 h-3.5 w-3.5" />
+                                                                    Kelola BAST
+                                                                </>
+                                                            ) : (
+                                                                <Plus className="h-3.5 w-3.5" />
+                                                            )}
                                                         </Link>
                                                     </Button>
                                                 )}
@@ -496,14 +509,17 @@ export default function Index({
                                                         (isApril2026OrLater ||
                                                             item.spk_with_bast >
                                                                 0);
-                                                    const isSensusOffMonth =
+                                                    const isSensusMode =
                                                         mode ===
-                                                            'sensus-ekonomi' &&
+                                                        'sensus-ekonomi';
+                                                    const isSensusOffMonth =
+                                                        isSensusMode &&
                                                         item.bulan !== 8;
 
                                                     if (
                                                         !shouldShowDetail ||
-                                                        isSensusOffMonth
+                                                        isSensusOffMonth ||
+                                                        isSensusMode
                                                     ) {
                                                         return null;
                                                     }
