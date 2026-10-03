@@ -1,5 +1,6 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
+import { SummaryCard } from '@/components/summary-card';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -381,50 +382,30 @@ export default function PenggunaanAplikasi({
                 </PageHeader>
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <ContentCard className="border border-blue-200/60 bg-gradient-to-br from-blue-50 to-white dark:border-blue-900/40 dark:from-blue-950/30 dark:to-neutral-900">
-                        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
-                            Jumlah pengguna layanan
-                        </p>
-                        <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">
-                            {formatNumber(summary.active_users)}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                            Pengguna unik yang aktif pada bulan terpilih
-                        </p>
-                    </ContentCard>
-                    <ContentCard className="border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-white dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
-                        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
-                            Total akses
-                        </p>
-                        <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">
-                            {formatNumber(summary.total_logs)}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                            Seluruh aktivitas yang terekam di bulan terpilih
-                        </p>
-                    </ContentCard>
-                    <ContentCard className="border border-amber-200/60 bg-gradient-to-br from-amber-50 to-white dark:border-amber-900/40 dark:from-amber-950/30 dark:to-neutral-900">
-                        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
-                            Hari aktif
-                        </p>
-                        <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">
-                            {formatNumber(summary.active_days)}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                            Hari yang memiliki minimal satu aktivitas
-                        </p>
-                    </ContentCard>
-                    <ContentCard className="border border-violet-200/60 bg-gradient-to-br from-violet-50 to-white dark:border-violet-900/40 dark:from-violet-950/30 dark:to-neutral-900">
-                        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
-                            Rata-rata akses per hari aktif
-                        </p>
-                        <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">
-                            {summary.average_logs_per_day.toFixed(1)}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                            Menggambarkan intensitas penggunaan aplikasi
-                        </p>
-                    </ContentCard>
+                    <SummaryCard
+                        label="Jumlah pengguna layanan"
+                        value={formatNumber(summary.active_users)}
+                        meta="Pengguna unik yang aktif pada bulan terpilih"
+                        accent="blue"
+                    />
+                    <SummaryCard
+                        label="Total akses"
+                        value={formatNumber(summary.total_logs)}
+                        meta="Seluruh aktivitas yang terekam di bulan terpilih"
+                        accent="green"
+                    />
+                    <SummaryCard
+                        label="Hari aktif"
+                        value={formatNumber(summary.active_days)}
+                        meta="Hari yang memiliki minimal satu aktivitas"
+                        accent="orange"
+                    />
+                    <SummaryCard
+                        label="Rata-rata akses per hari aktif"
+                        value={summary.average_logs_per_day.toFixed(1)}
+                        meta="Menggambarkan intensitas penggunaan aplikasi"
+                        accent="violet"
+                    />
                 </div>
 
                 <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
@@ -503,24 +484,12 @@ export default function PenggunaanAplikasi({
                         </div>
                         <div className="space-y-3">
                             {impact_summary.map((item) => (
-                                <div
+                                <SummaryCard
                                     key={item.label}
-                                    className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-neutral-900/60"
-                                >
-                                    <div className="flex items-center justify-between gap-3">
-                                        <div>
-                                            <p className="font-medium text-slate-900 dark:text-white">
-                                                {item.label}
-                                            </p>
-                                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                                {item.description}
-                                            </p>
-                                        </div>
-                                        <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                                            {formatNumber(item.count)}
-                                        </p>
-                                    </div>
-                                </div>
+                                    label={item.label}
+                                    value={formatNumber(item.count)}
+                                    meta={item.description}
+                                />
                             ))}
                         </div>
                     </ContentCard>
