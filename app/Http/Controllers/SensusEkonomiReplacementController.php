@@ -43,6 +43,13 @@ class SensusEkonomiReplacementController extends Controller
         }
 
         $replacements = collect();
+        $replacementBastByReplacementId = Schema::hasTable('sensus_ekonomi_replacement_documents')
+            ? DB::table('sensus_ekonomi_replacement_documents')
+                ->where('document_type', 'bast')
+                ->get()
+                ->keyBy('replacement_id')
+            : collect();
+
         if (Schema::hasTable('sensus_ekonomi_petugas_replacements')) {
             $replacements = SensusEkonomiPetugasReplacement::query()
                 ->with([
@@ -54,10 +61,12 @@ class SensusEkonomiReplacementController extends Controller
                 ])
                 ->latest('id')
                 ->get()
-                ->map(function (SensusEkonomiPetugasReplacement $replacement): array {
+                ->map(function (SensusEkonomiPetugasReplacement $replacement) use ($replacementBastByReplacementId): array {
                     $pkpp = Schema::hasTable('sensus_ekonomi_pkpp_contracts')
                         ? $replacement->pkppContracts->sortByDesc('id')->first()
                         : null;
+
+                    $replacementBast = $replacementBastByReplacementId->get($replacement->id);
 
                     return [
                         'id' => $replacement->id,
@@ -72,6 +81,14 @@ class SensusEkonomiReplacementController extends Controller
                         'tanggal_mulai_pkpp' => $replacement->tanggal_mulai_pkpp?->format('Y-m-d'),
                         'status' => $replacement->status,
                         'has_pkpp_contract' => $pkpp !== null,
+                        'replacement_bast' => $replacementBast ? [
+                            'nomor' => $replacementBast->nomor_dokumen,
+                            'nomor_urut' => preg_match('/^B-(\\d+)\\/BAST-SE2026\\//', (string) $replacementBast->nomor_dokumen, $matches) === 1
+                                ? $matches[1]
+                                : null,
+                            'tanggal' => $replacementBast->tanggal_dokumen,
+                            'uploaded_at' => $replacementBast->uploaded_at,
+                        ] : null,
                         'pkpp' => $pkpp ? [
                             'nomor' => $pkpp->nomor_pkpp,
                             'skema_kode' => $pkpp->skema_kode,
@@ -278,6 +295,86 @@ class SensusEkonomiReplacementController extends Controller
         ]);
 
         return back()->with('success', 'Petugas pengganti berhasil ditetapkan. Selanjutnya tentukan skema PKPP.');
+    }
+
+    public function uploadReplacementBast(
+        Request $request,
+        SensusEkonomiPetugasReplacement $replacement,
+    ): RedirectResponse {
+        if (! $request->user()?->isAdmin() && ! $request->user()?->isOperator()) {
+            abort(403);
+        }
+
+        if (! Schema::hasTable('sensus_ekonomi_replacement_documents')) {
+            return back()->with('error', 'Tabel dokumen pengganti belum tersedia. Jalankan migration terlebih dahulu.');
+        }
+
+        if (! $replacement->petugas_pengganti_id) {
+            return back()->with('error', 'Tetapkan petugas pengganti terlebih dahulu.');
+        }
+
+        $contract = SensusEkonomiPkppContract::query()
+            ->where('replacement_id', $replacement->id)
+            ->where('petugas_id', $replacement->petugas_pengganti_id)
+            ->first();
+
+        if (! $contract) {
+            return back()->with('error', 'Tetapkan skema PK petugas pengganti terlebih dahulu.');
+        }
+
+        $validated = $request->validate([
+            'nomor_bast' => ['required', 'string', 'regex:/^\\d+$/', 'max:12'],
+            'tanggal_bast' => ['nullable', 'date'],
+            'file' => ['required', 'file', 'mimes:pdf', 'max:20480'],
+        ]);
+
+        $tahun = (int) ($contract->tanggal_kontrak?->year ?? now()->year);
+        $sequence = preg_replace('/\\D+/', '', (string) $validated['nomor_bast']);
+        $fullNumber = sprintf(
+            'B-%s/BAST-SE2026/1373/PL.200/%d',
+            $sequence,
+            $tahun,
+        );
+
+        $existing = DB::table('sensus_ekonomi_replacement_documents')
+            ->where('replacement_id', $replacement->id)
+            ->where('document_type', 'bast')
+            ->whereNull('termin')
+            ->first();
+
+        if ($existing && filled($existing->file_path)) {
+            Storage::disk('public')->delete((string) $existing->file_path);
+        }
+
+        $safePetugas = preg_replace(
+            '/[^A-Za-z0-9_-]+/',
+            '_',
+            (string) ($replacement->petugasPengganti?->nama ?: 'petugas')
+        );
+        $stored = $request->file('file')->storeAs(
+            'replacement-documents/se2026/'.$tahun,
+            'BAST_'.$sequence.'_'.$safePetugas.'_'.time().'.pdf',
+            'public',
+        );
+
+        DB::table('sensus_ekonomi_replacement_documents')->updateOrInsert(
+            [
+                'replacement_id' => $replacement->id,
+                'document_type' => 'bast',
+                'termin' => null,
+            ],
+            [
+                'nomor_dokumen' => $fullNumber,
+                'tanggal_dokumen' => $validated['tanggal_bast'] ?? now()->toDateString(),
+                'file_path' => $stored,
+                'uploaded_at' => now(),
+                'created_by' => $existing?->created_by ?: $request->user()?->id,
+                'created_at' => $existing?->created_at ?: now(),
+                'updated_at' => now(),
+            ],
+        );
+
+        return back()->with('success', 'BAST petugas pengganti berhasil diunggah.');
     }
 
     public function createPkppContract(SensusEkonomiPetugasReplacement $replacement): Response|RedirectResponse
