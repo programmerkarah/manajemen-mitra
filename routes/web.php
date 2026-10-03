@@ -653,7 +653,8 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::match(['get', 'post'], 'sk-kpa', [SkKpaController::class, 'index'])->name('sk-kpa.index');
         Route::get('sk-kpa/kegiatan/{kegiatanHashedId}', [SkKpaController::class, 'listByKegiatan'])->name('sk-kpa.list-by-kegiatan');
         Route::get('sk-kpa/{skKpa}', [SkKpaController::class, 'show'])->name('sk-kpa.show');
-        Route::match(['get', 'post'], 'spk', [SpkController::class, 'index'])->name('spk.index');
+        Route::get('spk', [SpkController::class, 'index'])->name('spk.index');
+        Route::post('spk/mode', [SpkController::class, 'switchIndexMode'])->name('spk.mode');
         Route::post('spk/petugas-names', [SpkController::class, 'getPetugasNames'])->name('spk.petugas-names');
         Route::get('spk/list-by-month', [SpkController::class, 'listByMonth'])->name('spk.list-by-month');
         Route::post('spk/download-all', [SpkController::class, 'downloadAll'])->name('spk.download-all');
