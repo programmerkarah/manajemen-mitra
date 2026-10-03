@@ -41,9 +41,11 @@ use App\Http\Controllers\Concerns\BastAllocationQuerySupport;
 use App\Http\Controllers\Concerns\BastPdfSupport;
 use App\Http\Controllers\Concerns\BastIndexActions;
 use App\Http\Controllers\Concerns\BastGenerationActions;
+use App\Http\Controllers\Concerns\BastCrudActions;
 
 class BastController extends Controller
 {
+    use BastCrudActions;
     use BastGenerationActions;
     use BastIndexActions;
     use BastPdfSupport;
@@ -314,26 +316,17 @@ class BastController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Bast $bast)
-    {
-        //
-    }
+
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Bast $bast)
-    {
-        //
-    }
+
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Bast $bast)
-    {
-        //
-    }
+
 
     /**
      * Generate nomor BAST
