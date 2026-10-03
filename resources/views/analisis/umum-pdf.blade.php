@@ -10,6 +10,55 @@
     <p class="meta">Dicetak: {{ $tanggalCetak }}</p>
 
     <div class="section-block">
+        <h2>Ringkasan</h2>
+        <table class="striped">
+            <tbody>
+                <tr>
+                    <td class="font-bold">Total Pagu</td>
+                    <td class="amount">Rp {{ number_format($ringkasanKPI['total_pagu'], 0, ',', '.') }}</td>
+                    <td class="font-bold">Total Terpakai</td>
+                    <td class="amount">Rp {{ number_format($ringkasanKPI['total_terpakai'], 0, ',', '.') }}</td>
+                    <td class="font-bold">Serapan</td>
+                    <td class="text-center">{{ $ringkasanKPI['serapan_persen'] }}%</td>
+                </tr>
+                <tr>
+                    <td class="font-bold">Petugas Aktif</td>
+                    <td class="text-center">{{ $ringkasanKPI['total_petugas_aktif'] }}</td>
+                    <td class="font-bold">Kegiatan Aktif</td>
+                    <td class="text-center">{{ $ringkasanKPI['total_kegiatan_aktif'] }}</td>
+                    <td colspan="2"></td>
+                </tr>
+            </tbody>
+        </table>
+
+        @if(count($ringkasanJenisKegiatan) > 0)
+            <h2>Ringkasan per Jenis Kegiatan</h2>
+            <table class="striped">
+                <thead>
+                    <tr>
+                        <th>Jenis</th>
+                        <th class="text-center">Kegiatan</th>
+                        <th class="amount">Pagu</th>
+                        <th class="amount">Terpakai</th>
+                        <th class="text-center">Serapan</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($ringkasanJenisKegiatan as $item)
+                        <tr>
+                            <td class="font-bold">{{ $item['label'] }}</td>
+                            <td class="text-center">{{ $item['jumlah_kegiatan'] }}</td>
+                            <td class="amount">Rp {{ number_format($item['total_pagu'], 0, ',', '.') }}</td>
+                            <td class="amount">Rp {{ number_format($item['total_terpakai'], 0, ',', '.') }}</td>
+                            <td class="text-center">{{ $item['serapan_persen'] }}%</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
+
+    <div class="section-block">
         <h2>Visualisasi Ringkas</h2>
         <table class="chart-grid chart-grid-two">
             <tbody>
