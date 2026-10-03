@@ -362,7 +362,7 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                         label="Ditolak"
                         value={summaryGroups.ditolak.length}
                         icon={<XCircle className="h-5 w-5" />}
-                        accent="violet"
+                        accent="red"
                         onClick={() => openSummaryModal('ditolak')}
                     />
                 </div>
