@@ -22,6 +22,7 @@ class SensusEkonomiPetugasReplacement extends Model
         'petugas_pengganti_id',
         'pml_cover_petugas_id',
         'spk_lama_id',
+        'termination_type',
         'tanggal_berhenti',
         'tanggal_mulai_cover',
         'tanggal_mulai_pkpp',
