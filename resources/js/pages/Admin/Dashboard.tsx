@@ -361,7 +361,7 @@ export default function AdminDashboard() {
                                 Aktivitas Terbaru
                             </h3>
                             <Link
-                                href="/activity-log"
+                                href="/admin/activity-log"
                                 className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                             >
                                 Lihat Semua
