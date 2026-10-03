@@ -181,9 +181,19 @@ class BappController extends Controller
             return $query;
         }
 
-        return $query
-            ->where('document_type', $documentType)
-            ->where('replacement_termin_count', $contextReplacementTerminCount);
+        $query->where('document_type', $documentType);
+
+        if ($documentType === 'replacement_pkpp') {
+            return $query->where('replacement_termin_count', $contextReplacementTerminCount);
+        }
+
+        // Data reguler/stopped lama pernah disimpan dengan NULL. Perlakukan NULL
+        // dan 0 sebagai konteks non-PKPP yang sama agar upload lama tetap terbaca.
+        return $query->where(function ($contextQuery): void {
+            $contextQuery
+                ->whereNull('replacement_termin_count')
+                ->orWhere('replacement_termin_count', 0);
+        });
     }
 
     /**
