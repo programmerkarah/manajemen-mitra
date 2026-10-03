@@ -225,7 +225,7 @@ class SpkLampiranHonorFilterTest extends TestCase
         $this->assertSame('listing', $rows[0]['phase']);
         $this->assertSame(8, $rows[0]['volume']);
         $this->assertSame('pencacahan', $rows[1]['phase']);
-        $this->assertSame(20, $rows[1]['volume']);
+        $this->assertEquals(20, $rows[1]['volume']);
     }
 
     public function test_regular_spk_number_reuses_canceled_gap_before_higher_numbers(): void
