@@ -47,16 +47,18 @@ class SpkController extends Controller
     {
         $validated = $request->validated();
         $activeYear = ActiveYearService::get();
-        $requestedMode = (string) $request->input('mode', 'regular');
         $canAccessSensusMode = $this->canAccessSensusMode($this->getRequestUser($request), $activeYear);
 
-        if ($requestedMode === 'sensus-ekonomi' && ! $canAccessSensusMode) {
-            return redirect()->route('spk.index', ['mode' => 'regular']);
-        }
-
+        // Mode halaman disimpan di session. URL tetap /spk sehingga refresh browser
+        // tidak mengulang POST dan tidak mengekspos parameter mode.
+        $requestedMode = (string) $request->session()->get('spk_index_mode', 'regular');
         $mode = $requestedMode === 'sensus-ekonomi' && $canAccessSensusMode
             ? 'sensus-ekonomi'
             : 'regular';
+
+        if ($mode !== $requestedMode) {
+            $request->session()->put('spk_index_mode', $mode);
+        }
 
         // Get periode alokasi yang sudah validated grouped by month
         $query = PeriodeAlokasi::query()
@@ -329,6 +331,28 @@ class SpkController extends Controller
             'mode' => $mode,
             'can_access_sensus_mode' => $canAccessSensusMode,
         ]);
+    }
+
+    public function switchIndexMode(Request $request): RedirectResponse
+    {
+        $decrypted = decryptFilters((string) $request->input('encrypted_filters', ''));
+        $mode = (string) ($decrypted['mode'] ?? 'regular');
+
+        if (! in_array($mode, ['regular', 'sensus-ekonomi'], true)) {
+            return back()->with('error', 'Mode Perjanjian Kerja tidak valid.');
+        }
+
+        $activeYear = ActiveYearService::get();
+        if (
+            $mode === 'sensus-ekonomi'
+            && ! $this->canAccessSensusMode($this->getRequestUser($request), $activeYear)
+        ) {
+            return back()->with('error', 'Anda tidak memiliki akses ke mode Sensus Ekonomi.');
+        }
+
+        $request->session()->put('spk_index_mode', $mode);
+
+        return redirect()->route('spk.index');
     }
 
     /**
