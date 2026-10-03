@@ -305,7 +305,7 @@ export default function Index({
                                 </p>
                             </div>
 
-                            <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_220px_220px_auto] lg:items-end">
+                            <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_190px_190px_210px_auto] xl:items-end">
                                 <div className="space-y-1.5">
                                     <p className="text-xs font-medium text-muted-foreground">
                                         Petugas / PK Sensus Ekonomi
@@ -374,6 +374,38 @@ export default function Index({
                                     />
                                 </div>
 
+                                {terminationType === 'mengundurkan_diri' ? (
+                                    <div className="space-y-1.5">
+                                        <p className="text-xs font-medium text-muted-foreground">
+                                            Termin I sudah dibayar?
+                                        </p>
+                                        <Select
+                                            value={terminIPaid}
+                                            onValueChange={(value) =>
+                                                setTerminIPaid(
+                                                    value as 'yes' | 'no',
+                                                )
+                                            }
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="no">
+                                                    Belum dibayar
+                                                </SelectItem>
+                                                <SelectItem value="yes">
+                                                    Sudah dibayar
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                ) : (
+                                    <div className="rounded-lg border border-border bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
+                                        BAPP dan BAST petugas lama wajib.
+                                    </div>
+                                )}
+
                                 <Button
                                     onClick={registerStop}
                                     disabled={
@@ -383,6 +415,14 @@ export default function Index({
                                     Simpan Status
                                 </Button>
                             </div>
+                            {terminationType === 'mengundurkan_diri' && (
+                                <p className="text-xs text-muted-foreground">
+                                    Status pembayaran Termin I dicatat eksplisit.
+                                    Jika sudah dibayar, BAPP dan BAST petugas lama
+                                    tetap wajib. Jika belum dibayar, keduanya
+                                    tidak menjadi kewajiban.
+                                </p>
+                            )}
                         </div>
                     </ContentCard>
                 )}
