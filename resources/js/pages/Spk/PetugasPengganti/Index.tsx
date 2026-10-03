@@ -237,7 +237,7 @@ export default function Index({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Pergantian Petugas SE2026" />
 
-            <div className="space-y-5">
+            <div className="space-y-4">
                 <PageHeader
                     title="Pergantian Petugas SE2026"
                     description="Satu alur untuk mencatat petugas berhenti, menentukan pengganti, menetapkan skema, lalu menginventaris PK, BAPP, dan BAST."
@@ -290,7 +290,7 @@ export default function Index({
 
                 {can_manage && (
                     <ContentCard>
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                             <div>
                                 <h2 className="flex items-center gap-2 text-base font-semibold">
                                     <UserRoundMinus className="h-4 w-4" />
@@ -439,7 +439,7 @@ export default function Index({
 
                         return (
                             <ContentCard key={item.id}>
-                                <div className="space-y-5">
+                                <div className="space-y-3">
                                     <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                                         <div>
                                             <div className="flex flex-wrap items-center gap-2">
