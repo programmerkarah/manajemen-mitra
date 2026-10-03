@@ -18,6 +18,11 @@ abstract class TestCase extends BaseTestCase
 
         Cache::flush();
 
+        // Native-auth tests must not inherit production SSO configuration.
+        // SSO-specific tests opt in explicitly with config()->set(...).
+        config()->set('services.sso.base_url', '');
+        config()->set('services.sso.client_id', null);
+
         $this->withoutMiddleware([
             EnforceFeatureDeadlines::class,
             EnsureSingleActiveSession::class,
