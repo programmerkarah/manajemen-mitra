@@ -1057,7 +1057,7 @@ class SpkPublicPreviewTest extends TestCase
         $response->assertJsonCount(1, 'penugasan_list');
         $response->assertJsonPath(
             'penugasan_list.0.target_pekerjaan',
-            '1 SLS/sub-SLS dan/atau 2 rumah tangga/1 usaha',
+            '1 SLS/sub-SLS',
         );
     }
 
@@ -1114,9 +1114,9 @@ class SpkPublicPreviewTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonCount(1, 'penugasan_list');
-        $response->assertJsonPath('penugasan_list.0.bast_status', 'Belum ada BAST');
-        $response->assertJsonPath('penugasan_list.0.bapp_termin_i_status', 'Belum ada BAPP');
-        $response->assertJsonPath('penugasan_list.0.bapp_termin_ii_status', 'Belum ada BAPP');
+        $response->assertJsonPath('penugasan_list.0.bast_status', 'Tidak tersedia');
+        $response->assertJsonPath('penugasan_list.0.bapp_termin_i_status', 'Tidak tersedia');
+        $response->assertJsonPath('penugasan_list.0.bapp_termin_ii_status', 'Tidak tersedia');
     }
 
     public function test_public_options_survei_does_not_include_bapp_status(): void
@@ -1331,7 +1331,13 @@ class SpkPublicPreviewTest extends TestCase
         try {
             Bast::query()->create([
                 'spk_id' => $spk->id,
+                'periode_alokasi_id' => $periode->id,
+                'kegiatan_id' => $kegiatan->id,
                 'nomor_bast' => 'BAST-TEST-001',
+                'tanggal_bast' => now()->toDateString(),
+                'tanggal_serah_terima' => now()->toDateString(),
+                'menggunakan_fasih' => false,
+                'uraian_pekerjaan' => 'BAST test',
                 'file_path' => $bastRelativePath,
                 'status' => 'draft',
                 'created_by' => User::factory()->create()->id,
@@ -1448,7 +1454,7 @@ class SpkPublicPreviewTest extends TestCase
             'jenis_petugas' => 'non-organik',
         ]);
 
-        AlokasiPetugas::factory()->create([
+        $alokasi = AlokasiPetugas::factory()->create([
             'periode_alokasi_id' => $periode->id,
             'petugas_id' => $petugas->id,
             'peran' => 'pcl_ppl',
@@ -1457,6 +1463,24 @@ class SpkPublicPreviewTest extends TestCase
             'total_honor' => 150000,
             'jumlah_satuan_listing' => 0,
             'total_honor_listing' => 0,
+        ]);
+
+        $spk = Spk::query()->create([
+            'nomor_spk' => 'B-001/SPK-SE2026/1373/PL.200/'.$tahun,
+            'petugas_id' => $petugas->id,
+            'alokasi_petugas_id' => $alokasi->id,
+            'alokasi_petugas_ids' => [$alokasi->id],
+            'addendum_number' => 0,
+            'nomor_urut_base' => 1,
+            'tanggal_spk' => now()->toDateString(),
+            'tanggal_mulai_kerja' => now()->startOfMonth()->toDateString(),
+            'tanggal_selesai_kerja' => now()->endOfMonth()->toDateString(),
+            'uraian_pekerjaan' => 'Perjanjian kerja BAPP test',
+            'nilai_kontrak' => 150000,
+            'nama_ppk' => 'PPK BAPP',
+            'nip_ppk' => '198001012010011002',
+            'status' => 'diterbitkan',
+            'created_by' => User::factory()->create()->id,
         ]);
 
         Storage::fake('public');
@@ -1468,6 +1492,7 @@ class SpkPublicPreviewTest extends TestCase
 
         try {
             BappSeTermin::query()->create([
+                'spk_id' => $spk->id,
                 'petugas_id' => $petugas->id,
                 'termin' => 1,
                 'bulan' => 6,
