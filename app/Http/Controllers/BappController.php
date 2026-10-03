@@ -1054,9 +1054,9 @@ class BappController extends Controller
         $config = self::TERMIN_CONFIG[$terminNumber];
         $currentMonth = (int) now()->format('m');
         $hasBappTerminTable = $this->hasBappTerminTable();
-        $documentType = $this->resolveDocumentType($request);
-        $replacementTerminCount = $this->resolveReplacementTerminCount($request);
-        $contextReplacementTerminCount = $this->getContextReplacementTerminCount($documentType, $replacementTerminCount);
+        // BAPP SE2026 sekarang hanya menggunakan alur reguler dan diunggah manual.
+        $documentType = 'regular';
+        $contextReplacementTerminCount = 2;
 
         $kegiatan = $this->getSensusEkonomiKegiatan();
         if (! $kegiatan) {
@@ -1115,6 +1115,9 @@ class BappController extends Controller
                 'realisasi_sls' => $existing?->realisasi_sls,
                 'realisasi_unit_sampel' => $existing?->realisasi_unit_sampel ?? [],
                 'file_path' => $existing?->file_path,
+                'signed_file_path' => $existing?->signed_file_path,
+                'signed_uploaded_at' => $existing?->signed_uploaded_at?->format('d M Y H:i'),
+                'nomor_bapp' => $existing?->nomor_bapp,
                 'fasih_screenshot_path' => $existing?->fasih_screenshot_path,
             ];
         })->values()->all();
@@ -1143,7 +1146,7 @@ class BappController extends Controller
         $tanggalMin = sprintf($config['tanggal_min'], $tahunStr);
         $canInputRealisasi = $activeRoleName !== 'ketua_tim' || now()->format('Y-m-d') >= $tanggalMin;
 
-        return Inertia::render('Bapp/Create', [
+        return Inertia::render('Bapp/Manual', [
             'tahun' => $tahun,
             'termin' => $terminNumber,
             'termin_hashed' => Hashids::encode($terminNumber),
@@ -1759,6 +1762,90 @@ class BappController extends Controller
                 'signed' => $signedCount,
             ],
         ]);
+    }
+
+    /**
+     * Upload BAPP SE2026 sebagai dokumen manual.
+     */
+    public function uploadManual(Request $request): RedirectResponse
+    {
+        if (! $this->userCanAccessBapp($request)) {
+            return redirect()->route('dashboard')->with('error', 'Anda tidak memiliki akses.');
+        }
+
+        $validated = $request->validate([
+            'spk_hashed_id' => ['required', 'string'],
+            'termin' => ['required', 'integer', 'in:1,2'],
+            'file' => ['required', 'file', 'mimes:pdf', 'max:20480'],
+            'nomor_bapp' => ['nullable', 'string', 'max:255'],
+            'tanggal_bapp' => ['nullable', 'date'],
+        ]);
+
+        $spkId = Hashids::decode((string) $validated['spk_hashed_id'])[0] ?? null;
+        if (! $spkId) {
+            return back()->with('error', 'Perjanjian Kerja tidak valid.');
+        }
+
+        $tahun = ActiveYearService::get();
+        $termin = (int) $validated['termin'];
+        $config = self::TERMIN_CONFIG[$termin];
+        $spk = Spk::query()
+            ->with(['petugas', 'alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim'])
+            ->find($spkId);
+
+        if (! $spk || ! $this->getSpksForBappContext($tahun, $termin, 'regular')->contains('id', $spk->id)) {
+            return back()->with('error', 'Perjanjian Kerja tidak termasuk alur BAPP SE2026 reguler.');
+        }
+
+        $existing = BappSeTermin::query()
+            ->where('spk_id', $spk->id)
+            ->where('termin', $termin)
+            ->where('tahun', $tahun)
+            ->where('document_type', 'regular')
+            ->first();
+
+        if ($existing && filled($existing->signed_file_path)) {
+            Storage::disk('public')->delete($existing->signed_file_path);
+        }
+
+        $petugas = $spk->petugas;
+        $kegiatan = $this->getSensusEkonomiKegiatan();
+        $ppk = $this->getPpk();
+        $nomorBapp = trim((string) ($validated['nomor_bapp'] ?? ''));
+        if ($nomorBapp === '') {
+            $nomorBapp = $existing?->nomor_bapp ?: 'BAPP-SE2026-T'.$termin.'-'.$spk->id;
+        }
+
+        $safeName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $nomorBapp);
+        $path = $request->file('file')->storeAs(
+            'bapp-se/manual/'.$tahun.'/termin-'.$termin,
+            'BAPP_'.$safeName.'_'.time().'.pdf',
+            'public'
+        );
+
+        $bapp = $existing ?? new BappSeTermin();
+        $bapp->spk_id = $spk->id;
+        $bapp->petugas_id = $petugas?->id;
+        $bapp->termin = $termin;
+        $bapp->document_type = 'regular';
+        $bapp->replacement_termin_count = null;
+        $bapp->bulan = $config['bulan'];
+        $bapp->tahun = $tahun;
+        $bapp->persentase = $config['persentase'];
+        $bapp->nomor_bapp = $nomorBapp;
+        $bapp->tanggal_bapp = $validated['tanggal_bapp'] ?? ($existing?->tanggal_bapp ?? now()->toDateString());
+        $bapp->nama_ketua_tim = $kegiatan?->ketuaTim?->name;
+        $bapp->nip_ketua_tim = $this->getNipKetuaTim($kegiatan);
+        $bapp->nama_ppk = $ppk ? $this->stripGelar($ppk->nama) : null;
+        $bapp->nip_ppk = $ppk?->nip;
+        $bapp->jabatan_ppk = $ppk?->jabatan;
+        $bapp->nama_kabkota = config('app.instansi_kabupaten', '');
+        $bapp->signed_file_path = $path;
+        $bapp->signed_uploaded_at = now();
+        $bapp->created_by = $bapp->created_by ?: Auth::id();
+        $bapp->save();
+
+        return back()->with('success', 'BAPP Termin '.$config['roman'].' berhasil diunggah manual.');
     }
 
     /**
