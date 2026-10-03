@@ -3275,30 +3275,106 @@ class SpkController extends Controller
 
         $isSensusEkonomi = mb_strtolower($jenisKegiatan) === 'sensus';
 
-        // SE2026 hanya tersedia jika PDF manual sudah diunggah. Untuk BAST
-        // reguler prioritaskan file gabungan agar preview memuat main + lampiran.
-        $filePath = $isSensusEkonomi
-            ? $bast->signed_file_path
-            : ($bast->compiled_file_path ?: ($bast->signed_file_path ?: ($bast->main_signed_file_path ?: $bast->file_path)));
+        // SE2026 hanya tersedia jika PDF manual sudah diunggah.
+        if ($isSensusEkonomi) {
+            $filePath = $bast->signed_file_path;
+            if (! $filePath) {
+                return response()->json(['message' => 'BAST SE2026 belum diunggah.'], 422);
+            }
 
-        if (! $filePath) {
-            return response()->json([
-                'message' => $isSensusEkonomi
-                    ? 'BAST SE2026 belum diunggah.'
-                    : 'File BAST belum dibuat.',
-            ], 422);
+            $absolutePath = $this->resolvePublicBastAbsolutePath($filePath);
+            if (! $absolutePath || ! is_file($absolutePath)) {
+                return response()->json(['message' => 'File BAST tidak dapat diakses.'], 422);
+            }
+
+            $content = (string) file_get_contents($absolutePath);
+        } else {
+            // Pada workflow reguler, dokumen utama dan lampiran memang disimpan
+            // terpisah selama masih draft. /mitra tetap harus memperlihatkan satu
+            // dokumen utuh, jadi gabungkan on-demand bila compiled_file_path belum ada.
+            $preferredPath = $bast->compiled_file_path
+                ?: ($bast->signed_file_path ?: $bast->main_signed_file_path);
+
+            $preferredAbsolutePath = $this->resolvePublicBastAbsolutePath($preferredPath);
+            if ($preferredAbsolutePath && is_file($preferredAbsolutePath)) {
+                $content = (string) file_get_contents($preferredAbsolutePath);
+            } else {
+                $mainPath = $this->resolvePublicBastAbsolutePath($bast->file_path);
+                if (! $mainPath || ! is_file($mainPath)) {
+                    return response()->json(['message' => 'File BAST belum dibuat.'], 422);
+                }
+
+                $bast->loadMissing('bastKegiatan');
+                $sourcePaths = [$mainPath];
+
+                foreach ($bast->bastKegiatan as $lampiran) {
+                    $lampiranPath = $lampiran->signed_file_path ?: $lampiran->file_path;
+                    $lampiranAbsolutePath = $this->resolvePublicBastAbsolutePath($lampiranPath);
+
+                    if ($lampiranAbsolutePath && is_file($lampiranAbsolutePath)) {
+                        $sourcePaths[] = $lampiranAbsolutePath;
+                    }
+                }
+
+                if (count($sourcePaths) === 1) {
+                    $content = (string) file_get_contents($mainPath);
+                } else {
+                    $temporaryPath = tempnam(sys_get_temp_dir(), 'simantik-bast-public-');
+                    if (! is_string($temporaryPath) || $temporaryPath === '') {
+                        return response()->json(['message' => 'File gabungan BAST tidak dapat dibuat.'], 500);
+                    }
+
+                    try {
+                        $merged = PdfMergerService::mergePdfFiles(
+                            $sourcePaths,
+                            $temporaryPath,
+                            'BAST public preview',
+                        );
+
+                        if (! $merged || ! is_file($temporaryPath)) {
+                            return response()->json(['message' => 'Lampiran BAST belum dapat digabungkan.'], 500);
+                        }
+
+                        $content = (string) file_get_contents($temporaryPath);
+                    } finally {
+                        if (is_file($temporaryPath)) {
+                            @unlink($temporaryPath);
+                        }
+                    }
+                }
+            }
         }
 
-        $absolutePath = public_path(ltrim(str_replace('\\', '/', $filePath), '/'));
-
-        if (! file_exists($absolutePath)) {
-            return response()->json(['message' => 'File BAST tidak dapat diakses.'], 422);
-        }
-
-        $content = (string) file_get_contents($absolutePath);
         $nomor = preg_replace('/[^A-Za-z0-9_\-]/', '-', (string) ($bast->nomor_bast ?? 'BAST'));
 
         return $this->serveProtectedPublicPreviewContent($content, 'BAST_'.$nomor.'.pdf', $validated);
+    }
+
+    private function resolvePublicBastAbsolutePath(?string $path): ?string
+    {
+        if (blank($path)) {
+            return null;
+        }
+
+        $normalized = ltrim(str_replace('\\\\', '/', (string) $path), '/');
+
+        if (str_starts_with($normalized, 'storage/')) {
+            $storageRelativePath = substr($normalized, strlen('storage/'));
+            $storagePath = Storage::disk('public')->path($storageRelativePath);
+
+            if (is_file($storagePath)) {
+                return $storagePath;
+            }
+        }
+
+        $publicPath = public_path($normalized);
+        if (is_file($publicPath)) {
+            return $publicPath;
+        }
+
+        $storagePath = Storage::disk('public')->path($normalized);
+
+        return is_file($storagePath) ? $storagePath : null;
     }
 
     /**
