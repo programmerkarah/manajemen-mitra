@@ -1157,6 +1157,20 @@ class SpkController extends Controller
      */
     public function downloadAllByKegiatan(Request $request, string $periodeHashedId, string $kegiatanHashedId)
     {
+        // Legacy URL compatibility. Move the resource identifier/action into
+        // session context and canonicalize the browser URL to /spk/generate.
+        if ($request->routeIs('spk.create')) {
+            $requestedAction = (string) $request->query('action', '');
+            $request->session()->put('spk.generate.context', [
+                'periode' => $periodeHashedId,
+                'action' => in_array($requestedAction, ['generate_pk', 'regenerate_pk'], true)
+                    ? $requestedAction
+                    : null,
+            ]);
+
+            return redirect()->route('spk.generate-page');
+        }
+
         $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
         $kegiatanId = Hashids::decode($kegiatanHashedId)[0] ?? null;
 
@@ -3949,6 +3963,46 @@ class SpkController extends Controller
     /**
      * Show the form to generate SPKs for a periode
      */
+    public function createContext(Request $request): Response|RedirectResponse
+    {
+        if ($request->isMethod('post')) {
+            $encryptedState = $request->input('state')
+                ?? $request->input('encrypted_filters');
+
+            $context = filled($encryptedState)
+                ? decryptFilters((string) $encryptedState)
+                : $request->only(['periode', 'action']);
+
+            if (empty($context['periode'])) {
+                return redirect()->route('spk.index')
+                    ->with('error', 'Periode Perjanjian Kerja tidak ditemukan.');
+            }
+
+            $context = [
+                'periode' => (string) $context['periode'],
+                'action' => in_array(($context['action'] ?? null), ['generate_pk', 'regenerate_pk'], true)
+                    ? (string) $context['action']
+                    : null,
+            ];
+
+            $request->session()->put('spk.generate.context', $context);
+        }
+
+        $context = (array) $request->session()->get('spk.generate.context', []);
+        if (empty($context['periode'])) {
+            return redirect()->route('spk.index')
+                ->with('error', 'Periode Perjanjian Kerja tidak ditemukan.');
+        }
+
+        if (! empty($context['action'])) {
+            $request->query->set('action', (string) $context['action']);
+        } else {
+            $request->query->remove('action');
+        }
+
+        return $this->create($request, (string) $context['periode']);
+    }
+
     public function create(Request $request, string $periodeHashedId): Response|RedirectResponse
     {
         $periodeId = Hashids::decode($periodeHashedId)[0] ?? null;
