@@ -43,15 +43,24 @@ export function normalizePersonNames<T>(value: T, parentKey?: string): T {
 
     const record = value as Record<string, unknown>;
     const normalized: Record<string, unknown> = {};
+    const looksLikeUser =
+        ('email' in record || 'username' in record) && 'name' in record;
+    const looksLikePetugas =
+        ('nik' in record || 'jenis_petugas' in record || 'petugas_id' in record) &&
+        'nama' in record;
 
     for (const [key, child] of Object.entries(record)) {
         const isDirectNameKey = PERSON_NAME_KEYS.has(key);
         const isNestedPersonName =
             PERSON_OBJECT_KEYS.has(parentKey ?? '') &&
             (key === 'name' || key === 'nama');
+        const isEntityName =
+            (looksLikeUser && key === 'name') ||
+            (looksLikePetugas && key === 'nama');
 
         normalized[key] =
-            typeof child === 'string' && (isDirectNameKey || isNestedPersonName)
+            typeof child === 'string' &&
+            (isDirectNameKey || isNestedPersonName || isEntityName)
                 ? formatPersonName(child)
                 : normalizePersonNames(child, key);
     }
