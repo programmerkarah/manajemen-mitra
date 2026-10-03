@@ -27,7 +27,7 @@ class SystemSettingsSsoSyncTest extends TestCase
 
         $response = $this->actingAs($admin)
             ->withSession(['active_role_id' => $adminRole->id])
-            ->postJson('/system-settings/sso-sync', [
+            ->postJson('/admin/system-settings/sso-sync', [
                 'enabled' => false,
             ]);
 
