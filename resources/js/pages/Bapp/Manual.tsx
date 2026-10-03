@@ -164,35 +164,34 @@ export default function Manual({
                     </Button>
                 </PageHeader>
 
-                <div className="grid gap-3 md:grid-cols-3">
-                    <ContentCard>
-                        <p className="text-xs font-medium text-muted-foreground">
-                            Dokumen
-                        </p>
-                        <p className="mt-1 text-2xl font-semibold">
-                            {uploadedCount}/{spk_list.length}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                            BAPP sudah diunggah
-                        </p>
-                    </ContentCard>
-                    <ContentCard className="md:col-span-2">
-                        <p className="text-xs font-medium text-muted-foreground">
-                            Format nomor
-                        </p>
-                        <p className="mt-1 font-mono text-sm font-semibold break-all">
-                            B-{'{nomor}'}
-                            {nomor_bapp_suffix}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                            Anda cukup mengisi bagian nomor. SIMANTIK menyusun
-                            kode BAPP secara otomatis.
-                        </p>
-                    </ContentCard>
-                </div>
-
                 <ContentCard>
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="flex flex-col gap-3 border-b border-border pb-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex min-w-0 items-center gap-4">
+                            <div className="shrink-0">
+                                <p className="text-xs font-medium text-muted-foreground">
+                                    Dokumen tersedia
+                                </p>
+                                <p className="mt-1 text-xl font-semibold">
+                                    {uploadedCount}/{spk_list.length}
+                                </p>
+                            </div>
+                            <div className="hidden h-9 w-px bg-border sm:block" />
+                            <div className="min-w-0">
+                                <p className="text-xs font-medium text-muted-foreground">
+                                    Format nomor
+                                </p>
+                                <p className="mt-1 truncate font-mono text-sm font-semibold">
+                                    B-{'{nomor}'}
+                                    {nomor_bapp_suffix}
+                                </p>
+                            </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Isi nomor saja; kode BAPP dilengkapi otomatis.
+                        </p>
+                    </div>
+
+                    <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div>
                             <h2 className="font-semibold">Daftar petugas</h2>
                             <p className="text-sm text-muted-foreground">
