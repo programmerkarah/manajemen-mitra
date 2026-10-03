@@ -359,11 +359,18 @@ export default function CreatePkppContract({
                                                 {schemePreview.code}
                                             </p>
                                             <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
-                                                Kontrak paling lambat {schemePreview.deadline} · mulai lapangan paling lambat {schemePreview.field}
+                                                Kontrak paling lambat{' '}
+                                                {schemePreview.deadline} · mulai
+                                                lapangan paling lambat{' '}
+                                                {schemePreview.field}
                                             </p>
                                         </div>
                                         <Badge variant="secondary">
-                                            {schemePreview.terms} termin · {schemePreview.honor.toLocaleString('id-ID')} OB
+                                            {schemePreview.terms} termin ·{' '}
+                                            {schemePreview.honor.toLocaleString(
+                                                'id-ID',
+                                            )}{' '}
+                                            OB
                                         </Badge>
                                     </div>
                                     <p className="mt-2 text-xs text-blue-700 dark:text-blue-300">
@@ -379,7 +386,9 @@ export default function CreatePkppContract({
                                             PDF PK final
                                         </p>
                                         <p className="mt-1 text-xs text-muted-foreground">
-                                            Upload dokumen PK yang sudah ditandatangani. File disimpan pada record PK yang terhubung.
+                                            Upload dokumen PK yang sudah
+                                            ditandatangani. File disimpan pada
+                                            record PK yang terhubung.
                                         </p>
                                     </div>
                                     {existing_contract.spk_hashed_id ? (
@@ -409,7 +418,10 @@ export default function CreatePkppContract({
                                     ) : (
                                         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
                                             <UploadCloud className="mt-0.5 h-4 w-4 shrink-0" />
-                                            Record PK belum terhubung. Pastikan alokasi petugas pengganti sudah tercatat, lalu simpan ulang data PK sebelum upload PDF.
+                                            Record PK belum terhubung. Pastikan
+                                            alokasi petugas pengganti sudah
+                                            tercatat, lalu simpan ulang data PK
+                                            sebelum upload PDF.
                                         </div>
                                     )}
                                 </div>
@@ -461,14 +473,15 @@ export default function CreatePkppContract({
                             </h3>
                             <div className="space-y-2 text-sm text-neutral-600 dark:text-neutral-400">
                                 <p>
-                                    Tanggal kontrak menentukan Skema 1–5 secara otomatis.
-                                    Skema 1–2 memakai 2 termin; Skema 3–5 memakai 1 termin.
+                                    Tanggal kontrak menentukan Skema 1–5 secara
+                                    otomatis. Skema 1–2 memakai 2 termin; Skema
+                                    3–5 memakai 1 termin.
                                 </p>
                                 <p>
                                     BAPP dan BAST tidak diunggah di halaman ini.
-                                    Setelah PK tercatat, kelola BAPP pada menu BAPP
-                                    dan BAST pada menu Berita Acara dengan konteks
-                                    petugas pengganti.
+                                    Setelah PK tercatat, kelola BAPP pada menu
+                                    BAPP dan BAST pada menu Berita Acara dengan
+                                    konteks petugas pengganti.
                                 </p>
                             </div>
                         </div>

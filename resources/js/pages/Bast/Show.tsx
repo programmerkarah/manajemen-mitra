@@ -2,7 +2,6 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FileUpload } from '@/components/ui/file-upload';
 import {
     Dialog,
     DialogContent,
@@ -11,6 +10,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { FileUpload } from '@/components/ui/file-upload';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
@@ -1170,7 +1170,9 @@ export default function Show({
 
                                     <div className="space-y-3">
                                         <FileUpload
-                                            disabled={uploadingTarget === 'main'}
+                                            disabled={
+                                                uploadingTarget === 'main'
+                                            }
                                             maxSizeMb={20}
                                             label={
                                                 bast.main_signed_file_path
@@ -1187,7 +1189,8 @@ export default function Show({
                                         {bast.main_signed_file_path && (
                                             <div className="inline-flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
                                                 <CheckCircle2 className="h-4 w-4" />
-                                                File BAST bertanda tangan tersimpan
+                                                File BAST bertanda tangan
+                                                tersimpan
                                             </div>
                                         )}
                                     </div>
@@ -1420,9 +1423,15 @@ export default function Show({
                                                             {item.can_upload_signed && (
                                                                 <div className="min-w-[280px] flex-1">
                                                                     <FileUpload
-                                                                        id={uploadId}
-                                                                        disabled={isUploadingThis}
-                                                                        maxSizeMb={20}
+                                                                        id={
+                                                                            uploadId
+                                                                        }
+                                                                        disabled={
+                                                                            isUploadingThis
+                                                                        }
+                                                                        maxSizeMb={
+                                                                            20
+                                                                        }
                                                                         label={
                                                                             item.signed_file_path
                                                                                 ? 'Pilih PDF pengganti lampiran'
@@ -1433,7 +1442,9 @@ export default function Show({
                                                                                 ? 'Sedang mengunggah...'
                                                                                 : 'PDF lampiran bertanda tangan'
                                                                         }
-                                                                        onChange={(file) =>
+                                                                        onChange={(
+                                                                            file,
+                                                                        ) =>
                                                                             handleUploadLampiranSigned(
                                                                                 item,
                                                                                 file,

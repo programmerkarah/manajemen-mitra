@@ -98,7 +98,9 @@ export default function Index({
     const summaryModalTitle = useMemo(() => {
         switch (summaryModalType) {
             case 'need_bast':
-                return mode === 'sensus-ekonomi' ? 'Periode Perlu Upload BAST' : 'Periode Perlu Generate BAST';
+                return mode === 'sensus-ekonomi'
+                    ? 'Periode Perlu Upload BAST'
+                    : 'Periode Perlu Generate BAST';
             case 'completed':
                 return 'Periode BAST Selesai';
             case 'without_spk':
@@ -343,8 +345,7 @@ export default function Index({
 
                                                 {canManageMain &&
                                                     item.has_spk &&
-                                                    (mode ===
-                                                    'sensus-ekonomi'
+                                                    (mode === 'sensus-ekonomi'
                                                         ? item.bulan === 8
                                                         : !item.all_completed) && (
                                                         <Button

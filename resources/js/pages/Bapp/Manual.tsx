@@ -124,9 +124,13 @@ export default function Manual({
                 <ContentCard>
                     <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-4 text-sm text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-200">
                         SIMANTIK menyimpan BAPP sebagai dokumen manual. Isi
-                        <strong> nomor BAPP lengkap persis seperti yang tercetak pada surat</strong>,
-                        termasuk kode/klasifikasi surat bila memang tercantum. Nomor ini wajib
-                        diisi agar dokumen mudah ditelusuri.
+                        <strong>
+                            {' '}
+                            nomor BAPP lengkap persis seperti yang tercetak pada
+                            surat
+                        </strong>
+                        , termasuk kode/klasifikasi surat bila memang tercantum.
+                        Nomor ini wajib diisi agar dokumen mudah ditelusuri.
                     </div>
                 </ContentCard>
 
@@ -186,7 +190,8 @@ export default function Manual({
                                             required
                                         />
                                         <p className="mt-1 text-xs text-muted-foreground">
-                                            Wajib · gunakan nomor lengkap, bukan nomor urut saja.
+                                            Wajib · gunakan nomor lengkap, bukan
+                                            nomor urut saja.
                                         </p>
                                     </div>
 
@@ -229,7 +234,11 @@ export default function Manual({
                                         value={selected}
                                         maxSizeMb={20}
                                         className="min-w-0 flex-1"
-                                        label={available ? 'Pilih PDF pengganti' : 'Pilih atau jatuhkan PDF BAPP'}
+                                        label={
+                                            available
+                                                ? 'Pilih PDF pengganti'
+                                                : 'Pilih atau jatuhkan PDF BAPP'
+                                        }
                                         helperText="PDF final BAPP"
                                         onChange={(file) =>
                                             setFiles((current) => ({
@@ -242,7 +251,11 @@ export default function Manual({
                                         onClick={() => upload(item)}
                                         disabled={
                                             !selected ||
-                                            !(nomor[item.spk_id] ?? item.nomor_bapp ?? '').trim() ||
+                                            !(
+                                                nomor[item.spk_id] ??
+                                                item.nomor_bapp ??
+                                                ''
+                                            ).trim() ||
                                             uploading === item.spk_id
                                         }
                                     >

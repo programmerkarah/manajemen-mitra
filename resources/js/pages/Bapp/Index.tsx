@@ -123,12 +123,16 @@ export default function Index({
 
                 <ContentCard>
                     <div className="space-y-2 rounded-xl border border-blue-200 bg-blue-50/70 p-4 text-sm text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-200">
-                        <p className="font-medium">Alur dokumen dipisahkan agar tidak saling mengganggu.</p>
+                        <p className="font-medium">
+                            Alur dokumen dipisahkan agar tidak saling
+                            mengganggu.
+                        </p>
                         <p>
-                            Petugas utama, petugas berhenti, dan petugas pengganti
-                            disimpan sebagai konteks berbeda. Jika petugas lama
-                            berhenti sebelum Termin II wajib, Termin II tidak lagi
-                            dihitung sebagai dokumen yang harus tersedia.
+                            Petugas utama, petugas berhenti, dan petugas
+                            pengganti disimpan sebagai konteks berbeda. Jika
+                            petugas lama berhenti sebelum Termin II wajib,
+                            Termin II tidak lagi dihitung sebagai dokumen yang
+                            harus tersedia.
                         </p>
                     </div>
                 </ContentCard>
@@ -157,57 +161,91 @@ export default function Index({
                                                 </p>
                                             </div>
                                         </div>
-                                        <Badge variant={hasItems ? 'secondary' : 'outline'}>
-                                            {workflow.total_uploaded} upload · {workflow.total_spk} kewajiban
+                                        <Badge
+                                            variant={
+                                                hasItems
+                                                    ? 'secondary'
+                                                    : 'outline'
+                                            }
+                                        >
+                                            {workflow.total_uploaded} upload ·{' '}
+                                            {workflow.total_spk} kewajiban
                                         </Badge>
                                     </div>
 
                                     {hasItems ? (
                                         <div className="grid gap-4 lg:grid-cols-2">
-                                            {workflow.termin_data.map((termin) => {
-                                                const uploaded = Math.min(
-                                                    termin.bapp_count,
-                                                    termin.spk_count,
-                                                );
-                                                const complete =
-                                                    termin.spk_count > 0 &&
-                                                    uploaded >= termin.spk_count;
+                                            {workflow.termin_data.map(
+                                                (termin) => {
+                                                    const uploaded = Math.min(
+                                                        termin.bapp_count,
+                                                        termin.spk_count,
+                                                    );
+                                                    const complete =
+                                                        termin.spk_count > 0 &&
+                                                        uploaded >=
+                                                            termin.spk_count;
 
-                                                const href =
-                                                    `/bapp/create?termin=${termin.termin_hashed}` +
-                                                    `&document_type=${workflow.document_type}` +
-                                                    `&replacement_termin_count=${workflow.replacement_termin_count}`;
+                                                    const href =
+                                                        `/bapp/create?termin=${termin.termin_hashed}` +
+                                                        `&document_type=${workflow.document_type}` +
+                                                        `&replacement_termin_count=${workflow.replacement_termin_count}`;
 
-                                                return (
-                                                    <div
-                                                        key={`${workflow.key}-${termin.termin}`}
-                                                        className="rounded-xl border border-border bg-muted/20 p-4"
-                                                    >
-                                                        <div className="flex items-start justify-between gap-3">
-                                                            <div>
-                                                                <p className="text-sm font-medium text-muted-foreground">
-                                                                    Termin {termin.termin_roman} · {termin.bulan_label}
-                                                                </p>
-                                                                <p className="mt-1 text-base font-semibold">
-                                                                    BAPP {termin.persentase}%
-                                                                </p>
+                                                    return (
+                                                        <div
+                                                            key={`${workflow.key}-${termin.termin}`}
+                                                            className="rounded-xl border border-border bg-muted/20 p-4"
+                                                        >
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <div>
+                                                                    <p className="text-sm font-medium text-muted-foreground">
+                                                                        Termin{' '}
+                                                                        {
+                                                                            termin.termin_roman
+                                                                        }{' '}
+                                                                        ·{' '}
+                                                                        {
+                                                                            termin.bulan_label
+                                                                        }
+                                                                    </p>
+                                                                    <p className="mt-1 text-base font-semibold">
+                                                                        BAPP{' '}
+                                                                        {
+                                                                            termin.persentase
+                                                                        }
+                                                                        %
+                                                                    </p>
+                                                                </div>
+                                                                <Badge
+                                                                    variant={
+                                                                        complete
+                                                                            ? 'default'
+                                                                            : 'secondary'
+                                                                    }
+                                                                >
+                                                                    {complete
+                                                                        ? 'Lengkap'
+                                                                        : `${uploaded}/${termin.spk_count}`}
+                                                                </Badge>
                                                             </div>
-                                                            <Badge variant={complete ? 'default' : 'secondary'}>
-                                                                {complete
-                                                                    ? 'Lengkap'
-                                                                    : `${uploaded}/${termin.spk_count}`}
-                                                            </Badge>
-                                                        </div>
 
-                                                        <Button asChild className="mt-4 w-full">
-                                                            <Link href={href} prefetch>
-                                                                <FileUp className="mr-2 h-4 w-4" />
-                                                                Kelola Upload
-                                                            </Link>
-                                                        </Button>
-                                                    </div>
-                                                );
-                                            })}
+                                                            <Button
+                                                                asChild
+                                                                className="mt-4 w-full"
+                                                            >
+                                                                <Link
+                                                                    href={href}
+                                                                    prefetch
+                                                                >
+                                                                    <FileUp className="mr-2 h-4 w-4" />
+                                                                    Kelola
+                                                                    Upload
+                                                                </Link>
+                                                            </Button>
+                                                        </div>
+                                                    );
+                                                },
+                                            )}
                                         </div>
                                     ) : (
                                         <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">

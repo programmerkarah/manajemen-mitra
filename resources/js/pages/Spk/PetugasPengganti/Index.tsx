@@ -91,8 +91,8 @@ export default function Index({ replacements }: IndexProps) {
                                 Alur dokumen pergantian
                             </h2>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                Data pergantian menjadi pengikat dokumen. BAPP dan
-                                BAST tetap diinventaris pada menu dokumennya
+                                Data pergantian menjadi pengikat dokumen. BAPP
+                                dan BAST tetap diinventaris pada menu dokumennya
                                 masing-masing agar arsip tidak terduplikasi.
                             </p>
                         </div>
@@ -102,7 +102,8 @@ export default function Index({ replacements }: IndexProps) {
                                     1 · Petugas berhenti
                                 </p>
                                 <p className="mt-1 text-sm font-medium">
-                                    Upload BAPP sesuai tanggal berhenti, lalu BAST
+                                    Upload BAPP sesuai tanggal berhenti, lalu
+                                    BAST
                                 </p>
                                 <div className="mt-3 flex gap-2">
                                     <Button size="sm" variant="outline" asChild>
@@ -125,7 +126,8 @@ export default function Index({ replacements }: IndexProps) {
                                     2 · Petugas pengganti
                                 </p>
                                 <p className="mt-1 text-sm font-medium">
-                                    Tetapkan skema kontrak dan inventaris PK pengganti
+                                    Tetapkan skema kontrak dan inventaris PK
+                                    pengganti
                                 </p>
                                 <p className="mt-2 text-xs text-muted-foreground">
                                     Skema otomatis mengikuti tanggal kontrak:
@@ -137,7 +139,8 @@ export default function Index({ replacements }: IndexProps) {
                                     3 · Penyelesaian pengganti
                                 </p>
                                 <p className="mt-1 text-sm font-medium">
-                                    Upload BAPP sesuai jumlah termin skema, lalu BAST
+                                    Upload BAPP sesuai jumlah termin skema, lalu
+                                    BAST
                                 </p>
                                 <div className="mt-3 flex gap-2">
                                     <Button size="sm" variant="outline" asChild>
@@ -185,9 +188,9 @@ export default function Index({ replacements }: IndexProps) {
                                     Belum ada data pergantian
                                 </p>
                                 <p className="max-w-xl text-sm text-muted-foreground">
-                                    Pergantian akan muncul setelah petugas berhenti
-                                    dan petugas pengganti dicatat pada workflow
-                                    SE2026.
+                                    Pergantian akan muncul setelah petugas
+                                    berhenti dan petugas pengganti dicatat pada
+                                    workflow SE2026.
                                 </p>
                             </div>
                         </ContentCard>
@@ -211,7 +214,9 @@ export default function Index({ replacements }: IndexProps) {
                                                 </h3>
                                             </div>
                                             <Badge variant="outline">
-                                                {formatStatus(replacement.status)}
+                                                {formatStatus(
+                                                    replacement.status,
+                                                )}
                                             </Badge>
                                         </div>
 

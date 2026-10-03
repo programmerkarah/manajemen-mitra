@@ -3,8 +3,6 @@ import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
-import { FileUpload } from '@/components/ui/file-upload';
-import { Input } from '@/components/ui/input';
 import {
     Dialog,
     DialogContent,
@@ -13,6 +11,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { FileUpload } from '@/components/ui/file-upload';
+import { Input } from '@/components/ui/input';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -656,12 +656,17 @@ export default function CreateForMonth({
                                                             <Input
                                                                 value={
                                                                     manualNomor[
-                                                                        spk.spk_id
+                                                                        spk
+                                                                            .spk_id
                                                                     ] ?? ''
                                                                 }
-                                                                onChange={(event) =>
+                                                                onChange={(
+                                                                    event,
+                                                                ) =>
                                                                     setManualNomor(
-                                                                        (current) => ({
+                                                                        (
+                                                                            current,
+                                                                        ) => ({
                                                                             ...current,
                                                                             [spk.spk_id]:
                                                                                 event
@@ -680,12 +685,17 @@ export default function CreateForMonth({
                                                             <DatePicker
                                                                 value={
                                                                     manualTanggal[
-                                                                        spk.spk_id
+                                                                        spk
+                                                                            .spk_id
                                                                     ] ?? ''
                                                                 }
-                                                                onChange={(value) =>
+                                                                onChange={(
+                                                                    value,
+                                                                ) =>
                                                                     setManualTanggal(
-                                                                        (current) => ({
+                                                                        (
+                                                                            current,
+                                                                        ) => ({
                                                                             ...current,
                                                                             [spk.spk_id]:
                                                                                 value,
@@ -708,7 +718,9 @@ export default function CreateForMonth({
                                                             helperText="PDF final BAST SE2026"
                                                             onChange={(file) =>
                                                                 setManualFiles(
-                                                                    (current) => ({
+                                                                    (
+                                                                        current,
+                                                                    ) => ({
                                                                         ...current,
                                                                         [spk.spk_id]:
                                                                             file,
