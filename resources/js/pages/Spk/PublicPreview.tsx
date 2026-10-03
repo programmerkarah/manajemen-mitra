@@ -762,14 +762,14 @@ export default function PublicPreview({
             <Head title={`Portal Dokumen Mitra ${active_year}`} />
 
             <div className="min-h-screen bg-background text-foreground">
-                <header className="border-b border-border bg-card/95 backdrop-blur dark:bg-[#18211E]/95">
+                <header className="border-b border-border bg-card/95 backdrop-blur">
                     <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
                         <div className="flex min-w-0 items-center">
                             <AppLogo />
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="hidden text-right sm:block">
-                                <p className="text-xs font-medium text-muted-foreground dark:text-neutral-300">
+                                <p className="text-xs font-medium text-muted-foreground">
                                     Layanan Mitra Statistik
                                 </p>
                                 <p className="text-sm font-semibold text-foreground">
@@ -786,12 +786,12 @@ export default function PublicPreview({
                 </header>
 
                 <div className="mx-auto max-w-6xl space-y-6 px-5 py-8 sm:px-8 sm:py-10">
-                    <div className="relative overflow-hidden rounded-xl border border-border bg-card dark:border-[#3B5048] dark:bg-[#18211E] px-5 py-5 shadow-sm sm:px-6 sm:py-6">
+                    <div className="relative overflow-hidden rounded-xl border border-border bg-card px-5 py-5 shadow-sm sm:px-6 sm:py-6">
                         <div className="absolute inset-y-0 left-0 w-1 bg-primary" />
                         <h1 className="text-2xl font-semibold tracking-[-0.025em] text-foreground sm:text-3xl">
                             Akses Dokumen Mitra
                         </h1>
-                        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground dark:text-neutral-300 sm:text-base">
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">
                             Verifikasi identitas, pilih kegiatan, lalu buka atau
                             unduh dokumen penugasan Anda.
                         </p>
@@ -805,13 +805,13 @@ export default function PublicPreview({
                     )}
 
                     {/* ── Step 1 · Identitas ──────────────────────────────────── */}
-                    <div className="overflow-hidden rounded-xl border border-border bg-card dark:border-[#3B5048] dark:bg-[#18211E] shadow-sm dark:bg-[#18211E]">
+                    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                         <button
                             type="button"
                             onClick={() =>
                                 setExpandedStep((v) => (v === 1 ? null : 1))
                             }
-                            className="flex w-full cursor-pointer items-center gap-3 border-b border-border bg-muted/45 dark:bg-white/[0.055] px-6 py-4 text-left transition-colors hover:bg-muted dark:hover:bg-white/[0.085]"
+                            className="flex w-full cursor-pointer items-center gap-3 border-b border-border bg-muted/45 px-6 py-4 text-left transition-colors hover:bg-muted"
                         >
                             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground shadow-sm">
                                 1
@@ -827,12 +827,12 @@ export default function PublicPreview({
                             )}
                             {isOptionsLoaded ? (
                                 <ChevronDown
-                                    className={`ml-auto h-4 w-4 shrink-0 text-muted-foreground dark:text-neutral-300 transition-transform duration-200 ${
+                                    className={`ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
                                         expandedStep !== 1 ? '' : 'rotate-180'
                                     }`}
                                 />
                             ) : (
-                                <ChevronDown className="ml-auto h-4 w-4 shrink-0 rotate-180 text-muted-foreground dark:text-neutral-300" />
+                                <ChevronDown className="ml-auto h-4 w-4 shrink-0 rotate-180 text-muted-foreground" />
                             )}
                         </button>
 
@@ -854,7 +854,7 @@ export default function PublicPreview({
                                             }
                                             placeholder="Contoh: Sena Susanto"
                                             autoComplete="name"
-                                            className="h-11 bg-card text-sm dark:border-[#486057] dark:bg-[#101715] dark:text-neutral-100 dark:placeholder:text-neutral-500"
+                                            className="h-11 bg-card text-sm"
                                         />
                                     </div>
 
@@ -874,7 +874,7 @@ export default function PublicPreview({
                                             placeholder="16 digit NIK"
                                             inputMode="numeric"
                                             autoComplete="off"
-                                            className="h-11 bg-card text-sm dark:border-[#486057] dark:bg-[#101715] dark:text-neutral-100 dark:placeholder:text-neutral-500"
+                                            className="h-11 bg-card text-sm"
                                         />
                                     </div>
 
@@ -899,12 +899,12 @@ export default function PublicPreview({
                                             inputMode="numeric"
                                             maxLength={4}
                                             autoComplete="off"
-                                            className="h-11 bg-card text-sm dark:border-[#486057] dark:bg-[#101715] dark:text-neutral-100 dark:placeholder:text-neutral-500"
+                                            className="h-11 bg-card text-sm"
                                         />
                                     </div>
                                 </div>
 
-                                <p className="mt-3 text-sm text-muted-foreground dark:text-neutral-300">
+                                <p className="mt-3 text-sm text-muted-foreground">
                                     Nomor HP yang terdaftar di SOBAT/sistem BPS.
                                 </p>
 
@@ -936,7 +936,7 @@ export default function PublicPreview({
                                     </Button>
 
                                     {isOptionsLoaded && loadedPetugasName && (
-                                        <div className="flex items-center gap-2 rounded-lg border border-[var(--pastel-green)]/70 bg-[var(--pastel-green)]/15 px-3 py-2 text-sm font-medium text-emerald-800">
+                                        <div className="flex items-center gap-2 rounded-lg border border-[var(--pastel-green)]/70 bg-[var(--pastel-green)]/15 px-3 py-2 text-sm font-medium text-emerald-800 dark:text-emerald-200">
                                             <CheckCircle2 className="h-4 w-4 shrink-0" />
                                             <span>{loadedPetugasName}</span>
                                         </div>
@@ -948,21 +948,15 @@ export default function PublicPreview({
 
                     {/* ── Step 2 · Pilih Kegiatan ─────────────────────────────── */}
                     {isOptionsLoaded && (
-                        <div className="overflow-hidden rounded-xl border border-border bg-card dark:border-[#3B5048] dark:bg-[#18211E] shadow-sm dark:bg-[#18211E]">
+                        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                             <button
                                 type="button"
                                 onClick={() =>
-                                    canSubmit
-                                        ? setExpandedStep((v) =>
-                                              v === 2 ? null : 2,
-                                          )
-                                        : undefined
+                                    setExpandedStep((v) =>
+                                        v === 2 ? null : 2,
+                                    )
                                 }
-                                className={`flex w-full items-center gap-3 bg-muted/70 px-6 py-4 text-left ${
-                                    canSubmit
-                                        ? 'cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800'
-                                        : 'cursor-default'
-                                } ${
+                                className={`flex w-full cursor-pointer items-center gap-3 bg-muted/70 px-6 py-4 text-left hover:bg-slate-100 dark:hover:bg-slate-800 ${
                                     expandedStep === 2
                                         ? 'border-b border-neutral-200/60 dark:border-white/10'
                                         : ''
@@ -995,7 +989,7 @@ export default function PublicPreview({
                                 )}
                                 {canSubmit && (
                                     <ChevronDown
-                                        className={`ml-auto h-4 w-4 shrink-0 text-muted-foreground dark:text-neutral-300 transition-transform duration-200 ${
+                                        className={`ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
                                             expandedStep !== 2
                                                 ? ''
                                                 : 'rotate-180'
@@ -1026,7 +1020,7 @@ export default function PublicPreview({
                                             >
                                                 <SelectTrigger
                                                     id="jenis-kegiatan"
-                                                    className="h-11 bg-card text-sm dark:border-[#486057] dark:bg-[#101715] dark:text-neutral-100 dark:placeholder:text-neutral-500"
+                                                    className="h-11 bg-card text-sm"
                                                 >
                                                     <SelectValue placeholder="Pilih jenis kegiatan" />
                                                 </SelectTrigger>
@@ -1073,7 +1067,7 @@ export default function PublicPreview({
                                                     >
                                                         <SelectTrigger
                                                             id="opsi-kegiatan"
-                                                            className="h-11 bg-card text-sm dark:border-[#486057] dark:bg-[#101715] dark:text-neutral-100 dark:placeholder:text-neutral-500"
+                                                            className="h-11 bg-card text-sm"
                                                         >
                                                             <SelectValue placeholder="Pilih periode survei" />
                                                         </SelectTrigger>
@@ -1109,7 +1103,7 @@ export default function PublicPreview({
                                                     >
                                                         <SelectTrigger
                                                             id="opsi-kegiatan"
-                                                            className="h-11 bg-card text-sm dark:border-[#486057] dark:bg-[#101715] dark:text-neutral-100 dark:placeholder:text-neutral-500"
+                                                            className="h-11 bg-card text-sm"
                                                         >
                                                             <SelectValue placeholder="Pilih kegiatan sensus" />
                                                         </SelectTrigger>
@@ -1143,7 +1137,7 @@ export default function PublicPreview({
 
                     {/* ── Step 3 · Penugasan & Dokumen ────────────────────────── */}
                     {canSubmit && selectedPenugasanList.length > 0 && (
-                        <div className="overflow-hidden rounded-xl border border-border bg-card dark:border-[#3B5048] dark:bg-[#18211E] shadow-sm dark:bg-[#18211E]">
+                        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                             {/* Step 3 header */}
                             <button
                                 type="button"
@@ -1169,7 +1163,7 @@ export default function PublicPreview({
                                     </span>
                                 )}
                                 <ChevronDown
-                                    className={`ml-auto h-4 w-4 shrink-0 text-muted-foreground dark:text-neutral-300 transition-transform duration-200 ${
+                                    className={`ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
                                         expandedStep !== 3 ? '' : 'rotate-180'
                                     }`}
                                 />
@@ -1188,7 +1182,7 @@ export default function PublicPreview({
                                                         }
                                                     </h2>
                                                     {selectedPenugasanPeriodLabel && (
-                                                        <p className="mt-1 text-sm text-muted-foreground dark:text-neutral-300">
+                                                        <p className="mt-1 text-sm text-muted-foreground">
                                                             {jenisKegiatan ===
                                                             'sensus'
                                                                 ? `Periode: ${selectedPenugasanPeriodLabel}`
@@ -1258,7 +1252,7 @@ export default function PublicPreview({
                                                         (item) => (
                                                             <tr
                                                                 key={item.id}
-                                                                className="transition-colors hover:bg-muted dark:hover:bg-white/[0.085] dark:hover:bg-slate-800/60"
+                                                                className="transition-colors hover:bg-muted dark:hover:bg-slate-800/60"
                                                             >
                                                                 <td className="px-6 py-4">
                                                                     <div className="font-semibold text-foreground">
@@ -1285,7 +1279,7 @@ export default function PublicPreview({
                                                     <tr className="border-t border-border bg-muted/50">
                                                         <td
                                                             colSpan={2}
-                                                            className="px-6 py-4 text-sm font-medium text-muted-foreground dark:text-neutral-300"
+                                                            className="px-6 py-4 text-sm font-medium text-muted-foreground"
                                                         >
                                                             Total{' '}
                                                             {
@@ -1320,7 +1314,7 @@ export default function PublicPreview({
                                                 className={`rounded-xl border p-4 text-left shadow-sm transition-all ${
                                                     dokumenTipe === 'pk'
                                                         ? 'border-blue-300 bg-[linear-gradient(180deg,#eff6ff_0%,#ffffff_100%)] shadow-sm ring-1 shadow-blue-600/10 ring-blue-200 dark:border-blue-800 dark:bg-[linear-gradient(180deg,rgba(30,58,138,.22)_0%,rgba(15,23,42,.9)_100%)] dark:ring-blue-900'
-                                                        : 'border-border bg-card hover:bg-muted dark:hover:bg-white/[0.085]'
+                                                        : 'border-border bg-card hover:bg-muted'
                                                 }`}
                                             >
                                                 <div className="text-[11px] font-bold tracking-widest text-neutral-500 uppercase"></div>
@@ -1333,7 +1327,7 @@ export default function PublicPreview({
                                                 >
                                                     Perjanjian Kerja
                                                 </div>
-                                                <div className="mt-1 text-xs text-muted-foreground dark:text-neutral-300">
+                                                <div className="mt-1 text-xs text-muted-foreground">
                                                     Kontrak penugasan resmi
                                                 </div>
                                             </button>
@@ -1353,7 +1347,7 @@ export default function PublicPreview({
                                                     className={`rounded-xl border p-4 text-left shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-45 ${
                                                         dokumenTipe === 'bapp_i'
                                                             ? 'border-violet-300 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] shadow-sm ring-1 shadow-violet-500/10 ring-violet-200 dark:border-violet-700 dark:bg-[linear-gradient(180deg,rgba(76,29,149,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-violet-900'
-                                                            : 'border-border bg-card hover:bg-muted dark:hover:bg-white/[0.085]'
+                                                            : 'border-border bg-card hover:bg-muted'
                                                     }`}
                                                 >
                                                     <div
@@ -1366,7 +1360,7 @@ export default function PublicPreview({
                                                     >
                                                         Pemeriksaan Tahap I
                                                     </div>
-                                                    <div className="mt-1 text-xs text-muted-foreground dark:text-neutral-300">
+                                                    <div className="mt-1 text-xs text-muted-foreground">
                                                         {selectedPenugasanList[0]
                                                             ?.bapp_termin_i_available
                                                             ? 'Realisasi 40%'
@@ -1393,7 +1387,7 @@ export default function PublicPreview({
                                                         dokumenTipe ===
                                                         'bapp_ii'
                                                             ? 'border-violet-300 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] shadow-sm ring-1 shadow-violet-500/10 ring-violet-200 dark:border-violet-700 dark:bg-[linear-gradient(180deg,rgba(76,29,149,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-violet-900'
-                                                            : 'border-border bg-card hover:bg-muted dark:hover:bg-white/[0.085]'
+                                                            : 'border-border bg-card hover:bg-muted'
                                                     }`}
                                                 >
                                                     <div
@@ -1406,7 +1400,7 @@ export default function PublicPreview({
                                                     >
                                                         Pemeriksaan Tahap II
                                                     </div>
-                                                    <div className="mt-1 text-xs text-muted-foreground dark:text-neutral-300">
+                                                    <div className="mt-1 text-xs text-muted-foreground">
                                                         {selectedPenugasanList[0]
                                                             ?.bapp_termin_ii_available
                                                             ? 'Realisasi 60%'
@@ -1429,7 +1423,7 @@ export default function PublicPreview({
                                                 className={`rounded-xl border p-4 text-left shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-45 ${
                                                     dokumenTipe === 'bast'
                                                         ? 'border-sky-300 bg-[linear-gradient(180deg,#f0f9ff_0%,#ffffff_100%)] shadow-sm ring-1 shadow-sky-500/10 ring-sky-200 dark:border-sky-700 dark:bg-[linear-gradient(180deg,rgba(12,74,110,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-sky-900'
-                                                        : 'border-border bg-card hover:bg-muted dark:hover:bg-white/[0.085]'
+                                                        : 'border-border bg-card hover:bg-muted'
                                                 }`}
                                             >
                                                 <div
@@ -1441,7 +1435,7 @@ export default function PublicPreview({
                                                 >
                                                     Serah Terima
                                                 </div>
-                                                <div className="mt-1 text-xs text-muted-foreground dark:text-neutral-300">
+                                                <div className="mt-1 text-xs text-muted-foreground">
                                                     {selectedPenugasanList[0]
                                                         ?.bast_available
                                                         ? jenisKegiatan ===
@@ -1497,7 +1491,7 @@ export default function PublicPreview({
                     )}
 
                     <div className="rounded-xl border border-border bg-muted/35 px-5 py-4 text-center">
-                        <p className="text-sm leading-6 text-muted-foreground dark:text-neutral-300">
+                        <p className="text-sm leading-6 text-muted-foreground">
                             Data dan dokumen hanya ditampilkan setelah identitas
                             petugas berhasil diverifikasi.
                         </p>
@@ -1512,7 +1506,7 @@ export default function PublicPreview({
                         <h3 className="text-base font-semibold text-foreground">
                             {documentProgressTitle}
                         </h3>
-                        <p className="mt-1.5 text-sm text-muted-foreground dark:text-neutral-300">
+                        <p className="mt-1.5 text-sm text-muted-foreground">
                             {documentProgressStatus}
                         </p>
                         <div className="mt-5 flex justify-center">
@@ -1555,13 +1549,13 @@ export default function PublicPreview({
                                     <span className="text-3xl font-semibold text-foreground">
                                         {documentProgressPercent}%
                                     </span>
-                                    <span className="mt-1 text-[11px] font-medium tracking-[0.2em] text-muted-foreground dark:text-neutral-300 uppercase">
+                                    <span className="mt-1 text-[11px] font-medium tracking-[0.2em] text-muted-foreground uppercase">
                                         Progress
                                     </span>
                                 </div>
                             </div>
                         </div>
-                        <p className="mt-4 text-xs text-muted-foreground dark:text-neutral-300">
+                        <p className="mt-4 text-xs text-muted-foreground">
                             Mohon tunggu. Browser akan membuka tab preview atau
                             memulai unduh PDF sesuai aksi yang dipilih.
                         </p>
