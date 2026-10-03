@@ -37,8 +37,11 @@ interface PenugasanItem {
     honor_label: string;
     document_status: string;
     bast_status: string;
+    bast_available: boolean;
     bapp_termin_i_status: string | null;
     bapp_termin_ii_status: string | null;
+    bapp_termin_i_available: boolean | null;
+    bapp_termin_ii_available: boolean | null;
 }
 
 interface PublicPreviewProps {
@@ -403,6 +406,28 @@ export default function PublicPreview({
 
         return [];
     }, [ownedPenugasanList, jenisKegiatan, surveiPeriode, sensusKegiatan]);
+
+    const selectedDocumentAvailability = useMemo(() => {
+        const selected = selectedPenugasanList[0];
+
+        if (!selected || dokumenTipe === 'pk') {
+            return true;
+        }
+
+        if (dokumenTipe === 'bast') {
+            return selected.bast_available;
+        }
+
+        if (dokumenTipe === 'bapp_i') {
+            return selected.bapp_termin_i_available === true;
+        }
+
+        if (dokumenTipe === 'bapp_ii') {
+            return selected.bapp_termin_ii_available === true;
+        }
+
+        return true;
+    }, [dokumenTipe, selectedPenugasanList]);
 
     const selectedPenugasanTotalHonor = useMemo(() => {
         return selectedPenugasanList.reduce(
@@ -1317,10 +1342,15 @@ export default function PublicPreview({
                                             {jenisKegiatan === 'sensus' && (
                                                 <button
                                                     type="button"
+                                                    disabled={
+                                                        selectedPenugasanList[0]
+                                                            ?.bapp_termin_i_available !==
+                                                        true
+                                                    }
                                                     onClick={() =>
                                                         setDokumenTipe('bapp_i')
                                                     }
-                                                    className={`rounded-xl border p-4 text-left shadow-sm transition-all ${
+                                                    className={`rounded-xl border p-4 text-left shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-45 ${
                                                         dokumenTipe === 'bapp_i'
                                                             ? 'border-violet-300 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] shadow-sm ring-1 shadow-violet-500/10 ring-violet-200 dark:border-violet-700 dark:bg-[linear-gradient(180deg,rgba(76,29,149,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-violet-900'
                                                             : 'border-border bg-card hover:bg-muted'
@@ -1337,7 +1367,10 @@ export default function PublicPreview({
                                                         Pemeriksaan Tahap I
                                                     </div>
                                                     <div className="mt-1 text-xs text-muted-foreground">
-                                                        Realisasi 40%
+                                                        {selectedPenugasanList[0]
+                                                            ?.bapp_termin_i_available
+                                                            ? 'Realisasi 40%'
+                                                            : 'Tidak tersedia'}
                                                     </div>
                                                 </button>
                                             )}
@@ -1346,12 +1379,17 @@ export default function PublicPreview({
                                             {jenisKegiatan === 'sensus' && (
                                                 <button
                                                     type="button"
+                                                    disabled={
+                                                        selectedPenugasanList[0]
+                                                            ?.bapp_termin_ii_available !==
+                                                        true
+                                                    }
                                                     onClick={() =>
                                                         setDokumenTipe(
                                                             'bapp_ii',
                                                         )
                                                     }
-                                                    className={`rounded-xl border p-4 text-left shadow-sm transition-all ${
+                                                    className={`rounded-xl border p-4 text-left shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-45 ${
                                                         dokumenTipe ===
                                                         'bapp_ii'
                                                             ? 'border-violet-300 bg-[linear-gradient(180deg,#f5f3ff_0%,#ffffff_100%)] shadow-sm ring-1 shadow-violet-500/10 ring-violet-200 dark:border-violet-700 dark:bg-[linear-gradient(180deg,rgba(76,29,149,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-violet-900'
@@ -1369,7 +1407,10 @@ export default function PublicPreview({
                                                         Pemeriksaan Tahap II
                                                     </div>
                                                     <div className="mt-1 text-xs text-muted-foreground">
-                                                        Realisasi 60%
+                                                        {selectedPenugasanList[0]
+                                                            ?.bapp_termin_ii_available
+                                                            ? 'Realisasi 60%'
+                                                            : 'Tidak tersedia'}
                                                     </div>
                                                 </button>
                                             )}
@@ -1377,10 +1418,14 @@ export default function PublicPreview({
                                             {/* BAST */}
                                             <button
                                                 type="button"
+                                                disabled={
+                                                    selectedPenugasanList[0]
+                                                        ?.bast_available !== true
+                                                }
                                                 onClick={() =>
                                                     setDokumenTipe('bast')
                                                 }
-                                                className={`rounded-xl border p-4 text-left shadow-sm transition-all ${
+                                                className={`rounded-xl border p-4 text-left shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-45 ${
                                                     dokumenTipe === 'bast'
                                                         ? 'border-sky-300 bg-[linear-gradient(180deg,#f0f9ff_0%,#ffffff_100%)] shadow-sm ring-1 shadow-sky-500/10 ring-sky-200 dark:border-sky-700 dark:bg-[linear-gradient(180deg,rgba(12,74,110,.20)_0%,rgba(15,23,42,.9)_100%)] dark:ring-sky-900'
                                                         : 'border-border bg-card hover:bg-muted'
@@ -1396,7 +1441,13 @@ export default function PublicPreview({
                                                     Serah Terima
                                                 </div>
                                                 <div className="mt-1 text-xs text-muted-foreground">
-                                                    Penyelesaian pekerjaan
+                                                    {selectedPenugasanList[0]
+                                                        ?.bast_available
+                                                        ? jenisKegiatan ===
+                                                          'sensus'
+                                                            ? 'Dokumen manual tersedia'
+                                                            : 'BAST + lampiran'
+                                                        : 'Tidak tersedia'}
                                                 </div>
                                             </button>
                                         </div>
@@ -1408,7 +1459,9 @@ export default function PublicPreview({
                                                     void requestPdf('preview');
                                                 }}
                                                 disabled={
-                                                    processing || !canSubmit
+                                                    processing ||
+                                                    !canSubmit ||
+                                                    !selectedDocumentAvailability
                                                 }
                                                 className="h-11 gap-2 rounded-lg shadow-sm transition-all"
                                             >
@@ -1424,7 +1477,9 @@ export default function PublicPreview({
                                                     void requestPdf('download');
                                                 }}
                                                 disabled={
-                                                    processing || !canSubmit
+                                                    processing ||
+                                                    !canSubmit ||
+                                                    !selectedDocumentAvailability
                                                 }
                                                 className="h-11 gap-2 rounded-lg shadow-sm transition-all"
                                             >
