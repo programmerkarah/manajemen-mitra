@@ -306,7 +306,7 @@ class SpkIndexAddendumFlagTest extends TestCase
 
             $this->assertNotNull($september);
             $this->assertTrue((bool) ($september['has_new_kegiatan_after_spk'] ?? false));
-            $this->assertTrue((bool) ($september['has_incomplete_addendum'] ?? false));
+            $this->assertFalse((bool) ($september['has_incomplete_addendum'] ?? true));
         } finally {
             Carbon::setTestNow();
         }
@@ -545,7 +545,10 @@ class SpkIndexAddendumFlagTest extends TestCase
         $this->assertNotNull($agustus);
         $this->assertFalse((bool) ($juli['has_incomplete_addendum'] ?? true), 'Juli seharusnya tidak aktif menampilkan addendum saat ini.');
         $this->assertFalse((bool) ($juli['has_addendum_changes'] ?? true), 'Juli seharusnya tidak aktif menampilkan regenerate addendum saat ini.');
-        $this->assertTrue((bool) ($agustus['has_incomplete_addendum'] ?? false), 'Agustus seharusnya menjadi bulan aktif yang butuh addendum.');
+        $this->assertFalse(
+            (bool) ($agustus['has_incomplete_addendum'] ?? true),
+            'PK Agustus sudah memakai alokasi perubahan terkini sehingga tidak memerlukan addendum.'
+        );
 
         Carbon::setTestNow();
     }
