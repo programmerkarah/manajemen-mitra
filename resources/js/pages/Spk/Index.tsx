@@ -362,21 +362,39 @@ export default function Index({
                                 >
                                     Sensus Ekonomi
                                 </Button>
-                                {mode === 'sensus-ekonomi' && (
-                                    <Button variant="outline" asChild>
-                                        <Link
-                                            href="/spk/petugas-pengganti"
-                                            prefetch
-                                        >
-                                            <UsersRound className="mr-2 h-4 w-4" />
-                                            Pergantian Petugas SE2026
-                                        </Link>
-                                    </Button>
-                                )}
+
                             </>
                         )}
                     </div>
                 </PageHeader>
+
+                {mode === 'sensus-ekonomi' && (
+                    <ContentCard>
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex items-start gap-3">
+                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted">
+                                    <UsersRound className="h-5 w-5 text-muted-foreground" />
+                                </span>
+                                <div>
+                                    <h2 className="font-semibold">
+                                        Pergantian Petugas SE2026
+                                    </h2>
+                                    <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                                        Catat petugas berhenti atau mengundurkan diri,
+                                        tentukan pengganti tanpa menunggu upload dokumen,
+                                        lalu tetapkan skema PKPP dan lengkapi PK, BAPP,
+                                        serta BAST.
+                                    </p>
+                                </div>
+                            </div>
+                            <Button asChild>
+                                <Link href="/spk/petugas-pengganti" prefetch>
+                                    Kelola Pergantian
+                                </Link>
+                            </Button>
+                        </div>
+                    </ContentCard>
+                )}
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <button
