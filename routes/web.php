@@ -727,6 +727,10 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
 
         Route::post('sensus-ekonomi/replacements', [SensusEkonomiReplacementController::class, 'storeReplacement'])
             ->name('se-replacements.store');
+        Route::post('sensus-ekonomi/replacements/register-stop', [SensusEkonomiReplacementController::class, 'registerStop'])
+            ->name('se-replacements.register-stop');
+        Route::post('sensus-ekonomi/replacements/{replacement}/assign', [SensusEkonomiReplacementController::class, 'assignReplacement'])
+            ->name('se-replacements.assign');
         Route::post('sensus-ekonomi/replacements/{replacement}/pkpp-contracts', [SensusEkonomiReplacementController::class, 'storePkppContract'])
             ->name('se-replacements.pkpp-contracts.store');
         Route::post('sensus-ekonomi/replacements/{replacement}/pkpp-contracts/upload-signed', [SensusEkonomiReplacementController::class, 'uploadSignedPkpp'])
