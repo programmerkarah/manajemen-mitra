@@ -44,7 +44,7 @@ class AnalisisExportController extends Controller
                 $this->applyEffectivePeriode($totalHonorQuery);
 
                 $totalHonor = $totalHonorQuery
-                    ->selectRaw('COALESCE(SUM('.$this->effectiveCombinedHonorSqlExpression().'), 0) as total')
+                    ->selectRaw('COALESCE(SUM('.$this->sensusEkonomiHonorSqlCase().'), 0) as total')
                     ->value('total');
 
                 return [
