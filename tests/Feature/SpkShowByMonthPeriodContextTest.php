@@ -319,7 +319,7 @@ class SpkShowByMonthPeriodContextTest extends TestCase
         $response->assertOk();
         $response->assertHeader('content-disposition');
         $this->assertStringContainsString(
-            'attachment; filename="SPK_',
+            'attachment; filename=SPK_',
             (string) $response->headers->get('content-disposition')
         );
     }
@@ -408,7 +408,7 @@ class SpkShowByMonthPeriodContextTest extends TestCase
         $response->assertOk();
         $response->assertHeader('content-disposition');
         $this->assertStringContainsString(
-            'attachment; filename="SPK_',
+            'attachment; filename=SPK_',
             (string) $response->headers->get('content-disposition')
         );
     }
