@@ -190,7 +190,7 @@ class MonitoringPenggunaanAplikasiTest extends TestCase
         );
     }
 
-    public function test_it_redirects_legacy_query_urls_to_an_encrypted_state_url(): void
+    public function test_it_accepts_legacy_query_urls_and_exposes_encrypted_state_url(): void
     {
         $this->withoutMiddleware();
 
@@ -198,8 +198,12 @@ class MonitoringPenggunaanAplikasiTest extends TestCase
 
         $response = $this->get(route('monitoring.penggunaan-aplikasi', ['bulan' => '06']));
 
-        $response->assertRedirect();
-        $this->assertStringContainsString('state=', $response->headers->get('Location') ?? '');
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('Monitoring/PenggunaanAplikasi')
+            ->where('filters.bulan', '06')
+            ->where('state_url', fn (string $url): bool => str_contains($url, 'state='))
+        );
     }
 
     /**
