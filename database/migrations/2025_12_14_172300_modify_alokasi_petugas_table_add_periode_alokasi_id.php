@@ -76,7 +76,6 @@ return new class extends Migration
                     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                     periode_alokasi_id INTEGER,
                     petugas_id INTEGER NOT NULL,
-                    rate_honor_id INTEGER NOT NULL,
                     jumlah_satuan INTEGER NOT NULL DEFAULT 0,
                     total_honor NUMERIC NOT NULL DEFAULT 0,
                     peran VARCHAR NOT NULL DEFAULT "pcl_ppl",
@@ -90,9 +89,6 @@ return new class extends Migration
                         ON DELETE CASCADE,
                     FOREIGN KEY (petugas_id)
                         REFERENCES petugas(id)
-                        ON DELETE CASCADE,
-                    FOREIGN KEY (rate_honor_id)
-                        REFERENCES rate_honor(id)
                         ON DELETE CASCADE
                 )
             ');
@@ -102,7 +98,6 @@ return new class extends Migration
                     id,
                     periode_alokasi_id,
                     petugas_id,
-                    rate_honor_id,
                     jumlah_satuan,
                     total_honor,
                     peran,
@@ -116,7 +111,6 @@ return new class extends Migration
                     id,
                     periode_alokasi_id,
                     petugas_id,
-                    rate_honor_id,
                     jumlah_satuan,
                     total_honor,
                     peran,
