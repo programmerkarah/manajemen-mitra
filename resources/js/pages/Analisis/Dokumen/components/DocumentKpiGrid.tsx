@@ -1,4 +1,3 @@
-import CheckCircle2 from 'lucide-react/icons/check-circle2';
 import FileCheck2 from 'lucide-react/icons/file-check2';
 import FileText from 'lucide-react/icons/file-text';
 import type { ReactNode } from 'react';
@@ -119,7 +118,7 @@ export default function DocumentKpiGrid({
             subColor: spkTone.text,
             pct: spkPctDiterbitkan,
             barColor: spkTone.bar,
-            icon: <CheckCircle2 className="h-5 w-5 text-blue-500" />,
+            icon: <FileCheck2 className="h-5 w-5 text-blue-500" />,
             draft: null,
         },
     ];
