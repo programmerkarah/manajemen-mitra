@@ -696,9 +696,12 @@ class AnalisisController extends Controller
                 }
             }
 
+            // PK petugas pengganti masuk ke bulan PK dicatat/dibuat,
+            // bukan bulan alokasi SE2026 (Juni) atau bulan pelaksanaan/honor.
             $replacementForMonth = $replacementAssignments
                 ->filter(fn (array $assignment): bool =>
-                    (int) ($assignment['bulan'] ?? 0) === $bulan
+                    (int) ($assignment['pk_created_year'] ?? 0) === $currentYear
+                    && (int) ($assignment['pk_created_month'] ?? 0) === $bulan
                 );
 
             $sensusReplacementPublished = $replacementForMonth
@@ -706,8 +709,11 @@ class AnalisisController extends Controller
                     (bool) ($assignment['pk_available'] ?? false)
                 )
                 ->count();
-            $replacementDraft = $replacementForMonth->count()
-                - $sensusReplacementPublished;
+            $replacementDraft = $replacementForMonth
+                ->reject(fn (array $assignment): bool =>
+                    (bool) ($assignment['pk_available'] ?? false)
+                )
+                ->count();
 
             $published = $regularPublished
                 + $sensusMainPublished
