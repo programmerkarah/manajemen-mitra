@@ -48,8 +48,11 @@ interface CreateProps {
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Perjanjian Kerja', href: '/spk' },
-    { title: 'PK Petugas Pengganti', href: '/spk/petugas-pengganti' },
-    { title: 'Generate PK Petugas Pengganti', href: '#' },
+    {
+        title: 'Pergantian Petugas SE2026',
+        href: '/spk/petugas-pengganti',
+    },
+    { title: 'Skema & PK Pengganti', href: '#' },
 ];
 
 export default function CreatePkppContract({
@@ -155,7 +158,7 @@ export default function CreatePkppContract({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Kelola PK Petugas Pengganti" />
+            <Head title="Skema & PK Petugas Pengganti" />
 
             <div className="space-y-6 p-6">
                 <PageHeader
