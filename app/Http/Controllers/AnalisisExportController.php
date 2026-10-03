@@ -1049,8 +1049,8 @@ class AnalisisExportController extends Controller
 
             $replacementForMonth = $replacementAssignments
                 ->filter(fn (array $assignment): bool =>
-                    (int) ($assignment['pk_created_year'] ?? 0) === $currentYear
-                    && (int) ($assignment['pk_created_month'] ?? 0) === $bulan
+                    (int) ($assignment['pk_year'] ?? 0) === $currentYear
+                    && (int) ($assignment['pk_month'] ?? 0) === $bulan
                 );
 
             $sensusReplacementPublished = $replacementForMonth
