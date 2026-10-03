@@ -505,6 +505,22 @@ class DashboardController extends Controller
 
             $spkWithoutBast = $spkBastQuery->get();
 
+            // Petugas SE2026 yang sudah dicatat berhenti/mengundurkan diri tidak
+            // memiliki kewajiban BAST pada SPK lama. Jangan biarkan SPK sumber
+            // tersebut masuk notifikasi "BAST mendekati / melewati target".
+            $stoppedSensusSpkIds = Schema::hasTable('sensus_ekonomi_petugas_replacements')
+                ? DB::table('sensus_ekonomi_petugas_replacements')
+                    ->whereNotNull('spk_lama_id')
+                    ->where(function ($query): void {
+                        $query->whereNull('status')
+                            ->orWhere('status', '!=', 'dibatalkan');
+                    })
+                    ->pluck('spk_lama_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->unique()
+                    ->flip()
+                : collect();
+
             // Pre-load all alokasi_petugas satuan data to check BAST eligibility
             // (petugas with jumlah_satuan=0 and jumlah_satuan_listing=0 are not BAST candidates)
             $allAlokasiIds = $spkWithoutBast
@@ -589,6 +605,10 @@ class DashboardController extends Controller
             $bastAttentionTargets = collect();
 
             foreach ($spkWithoutBast as $spk) {
+                if ($stoppedSensusSpkIds->has((int) $spk->id)) {
+                    continue;
+                }
+
                 $expectedBastDate = $spk->tanggal_selesai_kerja ?? $spk->tanggal_mulai_kerja;
                 if (! $expectedBastDate) {
                     continue;
