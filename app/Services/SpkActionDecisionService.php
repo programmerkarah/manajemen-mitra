@@ -319,13 +319,26 @@ class SpkActionDecisionService
     ): array {
         $documentIds = $this->getDocumentAllocationIds($document);
 
-        $documentByKegiatan = AlokasiPetugas::query()
+        $documentAllocations = AlokasiPetugas::query()
             ->whereIn('id', $documentIds)
             ->where('petugas_id', $petugasId)
             ->with('periodeAlokasi:id,kegiatan_id,status')
             ->get()
-            ->filter(fn (AlokasiPetugas $alokasi): bool => $alokasi->periodeAlokasi !== null)
-            ->keyBy(fn (AlokasiPetugas $alokasi): int => (int) $alokasi->periodeAlokasi->kegiatan_id);
+            ->filter(fn (AlokasiPetugas $alokasi): bool => $alokasi->periodeAlokasi !== null);
+
+        $primaryAllocationId = (int) ($document->alokasi_petugas_id ?? 0);
+
+        $documentByKegiatan = $documentAllocations
+            ->groupBy(fn (AlokasiPetugas $alokasi): int => (int) $alokasi->periodeAlokasi->kegiatan_id)
+            ->map(function (Collection $allocations) use ($primaryAllocationId): ?AlokasiPetugas {
+                // Legacy documents can contain stale JSON snapshots with both
+                // old and replacement allocation IDs for the same kegiatan.
+                // The primary FK is the authoritative anchor for that kegiatan.
+                return $allocations->first(
+                    fn (AlokasiPetugas $alokasi): bool => (int) $alokasi->id === $primaryAllocationId
+                ) ?? $allocations->sortBy('id')->first();
+            })
+            ->filter();
 
         $newIds = [];
         $replacementIds = [];
