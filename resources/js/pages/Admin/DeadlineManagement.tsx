@@ -1,31 +1,11 @@
 import React from 'react';
 
-import { ContentCard } from '@/components/content-card';
-import { MultiSelectCheckbox } from '@/components/multi-select-checkbox';
-import { SearchableSelect } from '@/components/searchable-select';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { DatePicker } from '@/components/ui/date-picker';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import AppLayout from '@/layouts/app-layout';
-import { BreadcrumbItem } from '@/types';
-import { Head, router, usePage } from '@inertiajs/react';
-import {
-    AlertTriangle,
-    Clock3,
-    HelpCircle,
-    ShieldCheck,
-    Sparkles,
-    TimerReset,
-} from 'lucide-react';
+import AlertTriangle from 'lucide-react/icons/alert-triangle';
+import Clock3 from 'lucide-react/icons/clock3';
+import HelpCircle from 'lucide-react/icons/help-circle';
+import ShieldCheck from 'lucide-react/icons/shield-check';
+import Sparkles from 'lucide-react/icons/sparkles';
+import TimerReset from 'lucide-react/icons/timer-reset';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Administrasi', href: '/dashboard' },
