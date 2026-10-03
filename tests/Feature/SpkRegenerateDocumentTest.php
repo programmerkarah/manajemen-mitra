@@ -178,7 +178,8 @@ class SpkRegenerateDocumentTest extends TestCase
             mkdir($publicDir, 0755, true);
         }
 
-        file_put_contents(public_path($addendum->signed_file_path), '%PDF-1.4 dummy signed addendum');
+        $addendumSignedFile = public_path($addendum->signed_file_path);
+        file_put_contents($addendumSignedFile, '%PDF-1.4 dummy signed addendum');
         file_put_contents(public_path($mainSpk->signed_file_path), '%PDF-1.4 dummy signed main');
 
         $response = $this->actingAs($admin)
@@ -192,6 +193,6 @@ class SpkRegenerateDocumentTest extends TestCase
         $this->assertNull($addendum->signed_file_path);
         $this->assertSame('draft', $addendum->status);
         $this->assertNotNull($mainSpk->signed_file_path);
-        $this->assertFileDoesNotExist(public_path($addendum->signed_file_path));
+        $this->assertFileDoesNotExist($addendumSignedFile);
     }
 }
