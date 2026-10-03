@@ -256,7 +256,7 @@ trait BappSensusSupport
         $excludedIds = $stoppedSpkIds->merge($replacementSpkIds)->unique();
 
         return $spks
-            ->reject(fn (Spk $spk) => $excludedIds->contains((int) $spk->id))
+            ->reject(fn ($spk) => $excludedIds->contains((int) ($spk->id ?? 0)))
             ->values();
     }
 
