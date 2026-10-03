@@ -98,7 +98,7 @@ export default function Index({
     const summaryModalTitle = useMemo(() => {
         switch (summaryModalType) {
             case 'need_bast':
-                return 'Periode Perlu Generate BAST';
+                return mode === 'sensus-ekonomi' ? 'Periode Perlu Upload BAST' : 'Periode Perlu Generate BAST';
             case 'completed':
                 return 'Periode BAST Selesai';
             case 'without_spk':
@@ -357,7 +357,10 @@ export default function Index({
                                                                 href={`/berita-acara/create?bulan=${item.bulan}&tahun=${item.tahun}&mode=${mode}`}
                                                             >
                                                                 <Plus className="mr-1 h-4 w-4" />
-                                                                Generate BAST
+                                                                {mode ===
+                                                                'sensus-ekonomi'
+                                                                    ? 'Kelola Upload'
+                                                                    : 'Generate BAST'}
                                                             </Link>
                                                         </Button>
                                                     )}
@@ -429,8 +432,9 @@ export default function Index({
                         <DialogHeader>
                             <DialogTitle>{summaryModalTitle}</DialogTitle>
                             <DialogDescription>
-                                Klik aksi pada periode untuk proses generate
-                                atau melihat detail BAST.
+                                {mode === 'sensus-ekonomi'
+                                    ? 'Klik aksi pada periode untuk mengelola upload BAST manual atau melihat detail.'
+                                    : 'Klik aksi pada periode untuk proses generate atau melihat detail BAST.'}
                             </DialogDescription>
                         </DialogHeader>
 
