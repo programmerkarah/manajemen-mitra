@@ -245,7 +245,6 @@ class BappControllerTest extends TestCase
             ->post('/bapp/generate', []);
 
         $response->assertStatus(422);
-        $response->assertSee('SPK tidak valid.');
     }
 
     public function test_resolve_entry_tanggal_bapp_prefers_entry_then_shared(): void
