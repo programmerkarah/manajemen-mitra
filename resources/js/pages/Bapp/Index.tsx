@@ -248,7 +248,8 @@ export default function Index({
                                                 );
                                                 const terminComplete =
                                                     termin.spk_count > 0 &&
-                                                    uploaded >= termin.spk_count;
+                                                    uploaded >=
+                                                        termin.spk_count;
                                                 const href =
                                                     `/bapp/create?termin=${termin.termin_hashed}` +
                                                     `&document_type=${workflow.document_type}` +

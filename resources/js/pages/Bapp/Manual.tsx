@@ -119,9 +119,7 @@ export default function Manual({
             [item.petugas.nama, item.petugas.nik, item.nomor_spk]
                 .filter(Boolean)
                 .some((value) =>
-                    String(value)
-                        .toLocaleLowerCase('id-ID')
-                        .includes(keyword),
+                    String(value).toLocaleLowerCase('id-ID').includes(keyword),
                 ),
         );
     }, [search, spk_list]);
@@ -167,7 +165,7 @@ export default function Manual({
                         <p className="text-xs font-medium text-muted-foreground">
                             Format nomor
                         </p>
-                        <p className="mt-1 break-all font-mono text-sm font-semibold">
+                        <p className="mt-1 font-mono text-sm font-semibold break-all">
                             B-{'{nomor}'}
                             {nomor_bapp_suffix}
                         </p>
@@ -206,9 +204,7 @@ export default function Manual({
                         const available = Boolean(item.signed_file_path);
                         const selected = files[item.spk_id] ?? null;
                         const nomorValue =
-                            nomor[item.spk_id] ??
-                            item.nomor_bapp_urut ??
-                            '';
+                            nomor[item.spk_id] ?? item.nomor_bapp_urut ?? '';
 
                         return (
                             <ContentCard key={item.spk_id}>
@@ -235,7 +231,8 @@ export default function Manual({
                                         </p>
                                         {item.signed_uploaded_at && (
                                             <p className="mt-1 text-xs text-muted-foreground">
-                                                Terakhir {item.signed_uploaded_at}
+                                                Terakhir{' '}
+                                                {item.signed_uploaded_at}
                                             </p>
                                         )}
                                         {available && item.bapp_hashed_id && (
@@ -276,11 +273,12 @@ export default function Manual({
                                                             );
                                                         setNomor((current) => ({
                                                             ...current,
-                                                            [item.spk_id]: value,
+                                                            [item.spk_id]:
+                                                                value,
                                                         }));
                                                     }}
                                                     placeholder="Nomor"
-                                                    className="h-10 min-w-[72px] w-24 bg-transparent px-3 text-sm outline-none"
+                                                    className="h-10 w-24 min-w-[72px] bg-transparent px-3 text-sm outline-none"
                                                 />
                                                 <span className="flex min-w-0 flex-1 items-center overflow-hidden border-l border-input px-3 text-xs text-muted-foreground">
                                                     <span className="truncate">

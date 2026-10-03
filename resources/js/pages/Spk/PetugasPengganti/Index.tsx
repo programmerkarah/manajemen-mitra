@@ -82,9 +82,7 @@ const prettyScheme = (code: string | null) => {
     return `Skema ${code.replace('scheme_', '')}`;
 };
 
-const stopLabel = (
-    value: ReplacementItem['termination_type'],
-): string => {
+const stopLabel = (value: ReplacementItem['termination_type']): string => {
     if (value === 'diberhentikan') return 'Diberhentikan';
     if (value === 'mengundurkan_diri') return 'Mengundurkan diri';
     return 'Berhenti';
@@ -179,8 +177,16 @@ export default function Index({
                     <div className="grid gap-3 md:grid-cols-4">
                         {[
                             ['1', 'Status petugas', 'Berhenti / mundur'],
-                            ['2', 'Petugas pengganti', 'Tidak menunggu upload dokumen'],
-                            ['3', 'Skema PKPP', 'Otomatis dari tanggal kontrak'],
+                            [
+                                '2',
+                                'Petugas pengganti',
+                                'Tidak menunggu upload dokumen',
+                            ],
+                            [
+                                '3',
+                                'Skema PKPP',
+                                'Otomatis dari tanggal kontrak',
+                            ],
                             ['4', 'Dokumen pengganti', 'PK → BAPP → BAST'],
                         ].map(([step, title, desc]) => (
                             <div
@@ -293,9 +299,7 @@ export default function Index({
                                 <Button
                                     onClick={registerStop}
                                     disabled={
-                                        !stoppedSpkId ||
-                                        !stopDate ||
-                                        savingStop
+                                        !stoppedSpkId || !stopDate || savingStop
                                     }
                                 >
                                     Simpan Status
@@ -562,15 +566,17 @@ export default function Index({
                                                 <div>
                                                     <p className="flex items-center gap-2 text-sm font-semibold">
                                                         <UsersRound className="h-4 w-4" />
-                                                        4. Dokumen petugas pengganti
+                                                        4. Dokumen petugas
+                                                        pengganti
                                                     </p>
                                                     <p className="mt-1 text-xs text-muted-foreground">
-                                                        PK {item.pkpp?.pk_uploaded
+                                                        PK{' '}
+                                                        {item.pkpp?.pk_uploaded
                                                             ? 'sudah diunggah'
                                                             : 'belum diunggah'}{' '}
                                                         · BAPP{' '}
-                                                        {item.pkpp?.termin_count ===
-                                                        2
+                                                        {item.pkpp
+                                                            ?.termin_count === 2
                                                             ? 'Termin I & II'
                                                             : '1 termin'}{' '}
                                                         · BAST final
@@ -630,8 +636,9 @@ export default function Index({
                                     Belum ada petugas berhenti
                                 </p>
                                 <p className="mt-1 text-sm text-muted-foreground">
-                                    Catat status petugas terlebih dahulu. Petugas
-                                    pengganti baru ditentukan sesudah tahap itu.
+                                    Catat status petugas terlebih dahulu.
+                                    Petugas pengganti baru ditentukan sesudah
+                                    tahap itu.
                                 </p>
                             </div>
                         </ContentCard>

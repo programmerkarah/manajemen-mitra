@@ -362,7 +362,6 @@ export default function Index({
                                 >
                                     Sensus Ekonomi
                                 </Button>
-
                             </>
                         )}
                     </div>
@@ -380,10 +379,10 @@ export default function Index({
                                         Pergantian Petugas SE2026
                                     </h2>
                                     <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-                                        Catat petugas berhenti atau mengundurkan diri,
-                                        tentukan pengganti tanpa menunggu upload dokumen,
-                                        lalu tetapkan skema PKPP dan lengkapi PK, BAPP,
-                                        serta BAST.
+                                        Catat petugas berhenti atau mengundurkan
+                                        diri, tentukan pengganti tanpa menunggu
+                                        upload dokumen, lalu tetapkan skema PKPP
+                                        dan lengkapi PK, BAPP, serta BAST.
                                     </p>
                                 </div>
                             </div>

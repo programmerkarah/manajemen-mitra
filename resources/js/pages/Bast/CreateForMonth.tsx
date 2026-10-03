@@ -24,8 +24,8 @@ import ArrowLeft from 'lucide-react/icons/arrow-left';
 import Calendar from 'lucide-react/icons/calendar';
 import Eye from 'lucide-react/icons/eye';
 import FileText from 'lucide-react/icons/file-text';
-import Upload from 'lucide-react/icons/upload';
 import Search from 'lucide-react/icons/search';
+import Upload from 'lucide-react/icons/upload';
 import User from 'lucide-react/icons/user';
 import { useMemo, useState } from 'react';
 
@@ -322,9 +322,7 @@ export default function CreateForMonth({
             [spk.petugas.nama, spk.petugas.nik, spk.nomor_spk]
                 .filter(Boolean)
                 .some((value) =>
-                    String(value)
-                        .toLocaleLowerCase('id-ID')
-                        .includes(keyword),
+                    String(value).toLocaleLowerCase('id-ID').includes(keyword),
                 ),
         );
     }, [seSearch, sortedSpkList]);
@@ -391,7 +389,7 @@ export default function CreateForMonth({
                             <p className="text-xs font-medium text-muted-foreground">
                                 Format nomor
                             </p>
-                            <p className="mt-1 break-all font-mono text-sm font-semibold">
+                            <p className="mt-1 font-mono text-sm font-semibold break-all">
                                 B-{'{nomor}'}
                                 {nomor_bast_suffix ??
                                     `/BAST-SE2026/1373/PL.200/${tahun}`}
@@ -548,7 +546,9 @@ export default function CreateForMonth({
                                                         spk.spk_id
                                                 }
                                                 onClick={() =>
-                                                    handleManualSensusUpload(spk)
+                                                    handleManualSensusUpload(
+                                                        spk,
+                                                    )
                                                 }
                                             >
                                                 <Upload className="mr-2 h-4 w-4" />
@@ -910,15 +910,23 @@ export default function CreateForMonth({
                                                             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                                                             <div>
                                                                 <p className="font-medium">
-                                                                    Dokumen manual SE2026
+                                                                    Dokumen
+                                                                    manual
+                                                                    SE2026
                                                                 </p>
                                                                 <p className="mt-0.5 text-xs opacity-90">
-                                                                    Isi nomor saja. Kode BAST ditambahkan otomatis.
+                                                                    Isi nomor
+                                                                    saja. Kode
+                                                                    BAST
+                                                                    ditambahkan
+                                                                    otomatis.
                                                                 </p>
                                                             </div>
                                                         </div>
                                                         <Badge variant="outline">
-                                                            {spk.has_bast ? 'Sudah upload' : 'Belum upload'}
+                                                            {spk.has_bast
+                                                                ? 'Sudah upload'
+                                                                : 'Belum upload'}
                                                         </Badge>
                                                     </div>
                                                     <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
@@ -935,17 +943,22 @@ export default function CreateForMonth({
                                                                     pattern="[0-9]*"
                                                                     value={
                                                                         manualNomor[
-                                                                            spk.spk_id
+                                                                            spk
+                                                                                .spk_id
                                                                         ] ?? ''
                                                                     }
-                                                                    onChange={(event) => {
+                                                                    onChange={(
+                                                                        event,
+                                                                    ) => {
                                                                         const value =
                                                                             event.target.value.replace(
                                                                                 /\D/g,
                                                                                 '',
                                                                             );
                                                                         setManualNomor(
-                                                                            (current) => ({
+                                                                            (
+                                                                                current,
+                                                                            ) => ({
                                                                                 ...current,
                                                                                 [spk.spk_id]:
                                                                                     value,
@@ -1019,9 +1032,12 @@ export default function CreateForMonth({
                                                                 !manualFiles[
                                                                     spk.spk_id
                                                                 ] ||
-                                                                !(manualNomor[
-                                                                    spk.spk_id
-                                                                ] ?? '').trim() ||
+                                                                !(
+                                                                    manualNomor[
+                                                                        spk
+                                                                            .spk_id
+                                                                    ] ?? ''
+                                                                ).trim() ||
                                                                 uploadingManualSpk ===
                                                                     spk.spk_id
                                                             }

@@ -156,9 +156,7 @@ export default function Index({
                             >
                                 BAST Reguler
                             </Button>
-                            <Button variant="default">
-                                Sensus Ekonomi
-                            </Button>
+                            <Button variant="default">Sensus Ekonomi</Button>
                         </div>
                     </PageHeader>
 
@@ -205,9 +203,7 @@ export default function Index({
                                     <h2 className="text-lg font-semibold">
                                         BAST Sensus Ekonomi 2026
                                     </h2>
-                                    <Badge variant="secondary">
-                                        Manual
-                                    </Badge>
+                                    <Badge variant="secondary">Manual</Badge>
                                 </div>
                                 <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
                                     BAST SE2026 tidak digenerate oleh SIMANTIK.
