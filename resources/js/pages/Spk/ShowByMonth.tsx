@@ -17,7 +17,7 @@ import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { openFastDownload } from '@/utils/downloadUtils';
 import { encryptFilters } from '@/utils/encryption';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import Archive from 'lucide-react/icons/archive';
 import CheckCircle2 from 'lucide-react/icons/check-circle2';
 import Download from 'lucide-react/icons/download';
@@ -502,13 +502,15 @@ export default function ShowByMonth({
 
         const state = encryptFilters(statePayload);
 
-        router.get(
+        router.post(
             '/spk/month',
             {
                 state,
             },
             {
                 preserveScroll: true,
+                preserveState: true,
+                replace: true,
             },
         );
     };
@@ -599,7 +601,13 @@ export default function ShowByMonth({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={detailTitle} />
-            <PageHeader title={detailTitle}></PageHeader>
+            <PageHeader title={detailTitle}>
+                <Button variant="outline" asChild>
+                    <Link href="/spk" prefetch>
+                        Kembali
+                    </Link>
+                </Button>
+            </PageHeader>
 
             <ContentCard>
                 <div className="space-y-4">
