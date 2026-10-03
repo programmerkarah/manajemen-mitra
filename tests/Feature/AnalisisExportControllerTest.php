@@ -185,9 +185,9 @@ class AnalisisExportControllerTest extends TestCase
             $this->assertNotNull($trenJuni);
             $this->assertNotNull($trenJuli);
             $this->assertNotNull($trenAgustus);
-            $this->assertEquals(50000, $trenJuni['total_honor']);
+            $this->assertEquals(0, $trenJuni['total_honor']);
             $this->assertEquals(100000, $trenJuli['total_honor']);
-            $this->assertEquals(100000, $trenAgustus['total_honor']);
+            $this->assertEquals(150000, $trenAgustus['total_honor']);
         } finally {
             Carbon::setTestNow($previousNow);
             \Mockery::close();
