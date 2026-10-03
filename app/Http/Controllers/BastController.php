@@ -2858,7 +2858,7 @@ class BastController extends Controller
         $validated = $request->validate([
             'spk_id' => ['required', 'integer', 'exists:spk,id'],
             'file' => ['required', 'file', 'mimes:pdf', 'max:20480'],
-            'nomor_bast' => ['nullable', 'string', 'max:255'],
+            'nomor_bast' => ['required', 'string', 'regex:/^\d+$/', 'max:12'],
             'tanggal_bast' => ['nullable', 'date'],
         ]);
 
@@ -2893,10 +2893,12 @@ class BastController extends Controller
             Storage::disk('public')->delete(substr((string) $existing->signed_file_path, 8));
         }
 
-        $nomorBast = trim((string) ($validated['nomor_bast'] ?? ''));
-        if ($nomorBast === '') {
-            $nomorBast = $existing?->nomor_bast ?: 'BAST-SE2026-'.$spk->id;
-        }
+        $nomorUrutBast = trim((string) $validated['nomor_bast']);
+        $nomorBast = sprintf(
+            'B-%s/BAST-SE2026/1373/PL.200/%d',
+            preg_replace('/\D+/', '', $nomorUrutBast),
+            (int) $periode->tahun,
+        );
 
         $safeName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $nomorBast);
         $stored = $request->file('file')->storeAs(
@@ -2935,6 +2937,17 @@ class BastController extends Controller
         $bast->save();
 
         return back()->with('success', 'BAST SE2026 berhasil diunggah manual.');
+    }
+
+    private function extractSensusBastSequence(?string $number): ?string
+    {
+        if (blank($number)) {
+            return null;
+        }
+
+        return preg_match('/^B-(\d+)\/BAST-SE2026\//', (string) $number, $matches) === 1
+            ? $matches[1]
+            : null;
     }
 
     /**
@@ -3340,6 +3353,9 @@ class BastController extends Controller
             'tahun' => $tahun,
             'bulan_label' => $this->getBulanLabel((int) $bulan),
             'index_mode' => $mode,
+            'nomor_bast_suffix' => $isSensusEkonomiMode
+                ? '/BAST-SE2026/1373/PL.200/'.(int) $tahun
+                : null,
             'spk_list' => [
                 'encrypted' => $encryptedSpkList,
             ],
