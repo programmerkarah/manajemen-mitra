@@ -11,6 +11,7 @@ use App\Models\Petugas;
 use App\Models\Spk;
 use App\Models\User;
 use App\Services\ActiveYearService;
+use App\Services\SpkActionDecisionService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -454,10 +455,8 @@ class SpkMayAddendumRegressionTest extends TestCase
             'status' => 'diterbitkan',
             'created_by' => $creator->id,
         ]);
-        $controller = app(SpkController::class);
-        $reflection = new \ReflectionMethod($controller, 'resolveRegenerateCandidatesForMonth');
-        $reflection->setAccessible(true);
-        $regenerateCandidates = $reflection->invoke($controller, $tahun, 5);
+        $regenerateCandidates = app(SpkActionDecisionService::class)
+            ->resolveRegenerateCandidatesForMonth($tahun, 5);
 
         $this->assertNotEmpty($regenerateCandidates, 'Expected regenerate candidates before addendum route');
         $response = $this->get('/spk/periode/'.$periodePerubahan->hashed_id.'/addendum?bulan=5&tahun='.$tahun);
