@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { formatPersonName } from '@/lib/person-name';
 import {
     Command,
     CommandEmpty,
@@ -145,7 +146,7 @@ export default function ViewAsUserSwitcher() {
                                             <div className="flex flex-1 flex-col">
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-medium">
-                                                        {user.name}
+                                                        {formatPersonName(user.name)}
                                                     </span>
                                                     {auth.user?.id ===
                                                         user.id && (
