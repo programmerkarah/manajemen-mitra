@@ -1,5 +1,6 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
+import { SearchableSelect } from '@/components/searchable-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -13,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
+import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router } from '@inertiajs/react';
 import ArrowLeft from 'lucide-react/icons/arrow-left';
 import CheckCircle2 from 'lucide-react/icons/check-circle2';
@@ -41,8 +43,9 @@ interface ReplacementItem {
     spk_lama_nomor: string | null;
     petugas_berhenti_nama: string | null;
     petugas_pengganti_nama: string | null;
-    pml_cover_nama: string | null;
     termination_type: 'diberhentikan' | 'mengundurkan_diri' | null;
+    termin_i_paid: boolean | null;
+    requires_old_documents: boolean;
     tanggal_berhenti: string | null;
     tanggal_mulai_pkpp: string | null;
     status: string;
