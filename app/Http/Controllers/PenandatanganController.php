@@ -120,6 +120,40 @@ class PenandatanganController extends Controller
         //
     }
 
+    public function editContext(Request $request): Response|RedirectResponse
+    {
+        if ($request->isMethod('post')) {
+            $encryptedState = $request->input('state')
+                ?? $request->input('encrypted_filters');
+
+            $context = filled($encryptedState)
+                ? decryptFilters((string) $encryptedState)
+                : $request->only(['id']);
+
+            if (empty($context['id'])) {
+                return redirect()->route('penandatangan.index')
+                    ->with('error', 'Data penandatangan tidak ditemukan.');
+            }
+
+            $request->session()->put('penandatangan.edit.context', [
+                'id' => (int) $context['id'],
+            ]);
+        }
+
+        $id = (int) data_get(
+            $request->session()->get('penandatangan.edit.context', []),
+            'id',
+            0,
+        );
+
+        if ($id <= 0) {
+            return redirect()->route('penandatangan.index')
+                ->with('error', 'Data penandatangan tidak ditemukan.');
+        }
+
+        return $this->edit(Penandatangan::findOrFail($id));
+    }
+
     /**
      * Show the form for editing the specified resource.
      */
