@@ -29,23 +29,6 @@ trait BuildsAnalisisQueries
         )';
     }
 
-    private function allocationOrHonorExistsClause(): string
-    {
-        return '(
-            COALESCE(alokasi_petugas.jumlah_satuan, 0) > 0
-            OR COALESCE(alokasi_petugas.jumlah_satuan_listing, 0) > 0
-            OR COALESCE(alokasi_petugas.total_honor, 0) > 0
-            OR COALESCE(alokasi_petugas.total_honor_listing, 0) > 0
-            OR COALESCE(alokasi_petugas.estimasi_honor_partial, 0) > 0
-            OR COALESCE(alokasi_petugas.estimasi_honor_partial_listing, 0) > 0
-            OR (
-                CAST(periode_alokasi.bulan AS UNSIGNED) IN (6, 7, 8)
-                AND COALESCE(kegiatan.jenis_kegiatan, \'\') = \'sensus\'
-                AND LOWER(COALESCE(kegiatan.nama_kegiatan, \'\')) LIKE \'%sensus ekonomi%\'
-            )
-        )';
-    }
-
     /**
      * @return array<int, string>
      */
