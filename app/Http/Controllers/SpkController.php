@@ -2980,6 +2980,13 @@ class SpkController extends Controller
             }
         }
 
+        $sensusBast = $allBasts->first(function (Bast $bast): bool {
+            $kegiatan = $bast->spk?->alokasiPetugas?->periodeAlokasi?->kegiatan;
+
+            return mb_strtolower((string) $kegiatan?->jenis_kegiatan) === 'sensus'
+                && filled($bast->signed_file_path);
+        });
+
         // Batch-query BAPP status (only needed for sensus)
         $bapps = BappSeTermin::query()
             ->where('petugas_id', $petugas->id)
@@ -2989,7 +2996,7 @@ class SpkController extends Controller
         $bappByTermin = $bapps->keyBy('termin');
 
         $penugasanList = $alokasiCollection
-            ->map(function (AlokasiPetugas $alokasi) use ($documentStatusMap, $bastStatusByKey, $bappByTermin): ?array {
+            ->map(function (AlokasiPetugas $alokasi) use ($documentStatusMap, $bastStatusByKey, $bappByTermin, $sensusBast): ?array {
                 $periode = $alokasi->periodeAlokasi;
                 $kegiatan = $periode?->kegiatan;
 
@@ -3004,9 +3011,10 @@ class SpkController extends Controller
                 );
                 $documentStatus = $documentStatusMap[$statusKey] ?? 'Belum ada PK';
 
-                $bast = $bastStatusByKey[$statusKey] ?? null;
-
                 $isSensus = mb_strtolower((string) $kegiatan->jenis_kegiatan) === 'sensus';
+                $bast = $isSensus
+                    ? $sensusBast
+                    : ($bastStatusByKey[$statusKey] ?? null);
 
                 return [
                     'id' => $alokasi->id,
@@ -3239,14 +3247,22 @@ class SpkController extends Controller
     {
         // BAST is 1 per petugas per period — look up directly via spk.petugas_id.
         $bast = Bast::query()
-            ->whereHas('spk', function ($q) use ($petugas, $periode, $jenisKegiatan): void {
+            ->whereHas('spk', function ($q) use ($petugas, $periode, $jenisKegiatan, $kegiatanId): void {
                 $q->where('petugas_id', $petugas->id)
-                    ->whereHas('alokasiPetugas.periodeAlokasi', function ($pq) use ($periode, $jenisKegiatan): void {
-                        $pq->where('tahun', $periode->tahun)
-                            ->where('bulan', $periode->bulan)
-                            ->whereHas('kegiatan', function ($kq) use ($jenisKegiatan): void {
-                                $kq->where('jenis_kegiatan', $jenisKegiatan);
-                            });
+                    ->whereHas('alokasiPetugas.periodeAlokasi', function ($pq) use ($periode, $jenisKegiatan, $kegiatanId): void {
+                        $pq->where('tahun', $periode->tahun);
+
+                        if ($jenisKegiatan !== 'sensus') {
+                            $pq->where('bulan', $periode->bulan);
+                        }
+
+                        $pq->whereHas('kegiatan', function ($kq) use ($jenisKegiatan, $kegiatanId): void {
+                            $kq->where('jenis_kegiatan', $jenisKegiatan);
+
+                            if ($kegiatanId !== null) {
+                                $kq->where('id', $kegiatanId);
+                            }
+                        });
                     });
             })
             ->whereNull('deleted_at')
