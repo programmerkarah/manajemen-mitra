@@ -13,66 +13,37 @@ use Tests\TestCase;
 
 class SpkSensusVolumeCalculationTest extends TestCase
 {
-    #[DataProvider('terminSatuVolumeCases')]
-    public function test_termin_satu_volume_uses_expected_rounding_rules(
+    #[DataProvider('milestoneCases')]
+    public function test_milestone_volume_uses_frame_load_threshold(
         int $selectedRows,
-        array $perUnitSampelTotals,
-        array $unitSampelNames,
-        string $expectedLabel,
+        array $frameMuatanTotals,
+        int $expectedTermOneRows,
+        int $expectedTermTwoRows,
     ): void {
-        $controller = new SpkController;
+        $service = app(\\App\\Services\\Spk\\SensusEkonomiSpkService::class);
 
-        $calculateMethod = new \ReflectionMethod(SpkController::class, 'calculateSensusEkonomiMilestoneMetrics');
-        $calculateMethod->setAccessible(true);
+        $termOne = $service->milestoneMetrics($selectedRows, $frameMuatanTotals, 40);
+        $termTwo = $service->milestoneMetrics($selectedRows, $frameMuatanTotals, 60);
 
-        $formatMethod = new \ReflectionMethod(SpkController::class, 'formatSensusEkonomiVolumeNarrative');
-        $formatMethod->setAccessible(true);
-
-        $terminSatuMetrics = $calculateMethod->invoke($controller, $selectedRows, $perUnitSampelTotals, 40);
-        $actualLabel = $formatMethod->invoke(
-            $controller,
-            $terminSatuMetrics['selected_rows'],
-            $terminSatuMetrics['per_unit_sampel_totals'],
-            $unitSampelNames,
+        $this->assertSame($expectedTermOneRows, $termOne['selected_rows']);
+        $this->assertSame($expectedTermTwoRows, $termTwo['selected_rows']);
+        $this->assertSame(
+            $expectedTermOneRows > 0 ? $expectedTermOneRows.' SLS/sub-SLS' : '-',
+            $service->volumeNarrative($termOne['selected_rows']),
         );
-
-        $this->assertSame($expectedLabel, $actualLabel);
     }
 
     /**
-     * @return array<string, array{0:int,1:array<int,int>,2:array<int,string>,3:string}>
+     * @return array<string, array{0:int,1:array<int,int>,2:int,3:int}>
      */
-    public static function terminSatuVolumeCases(): array
+    public static function milestoneCases(): array
     {
         return [
-            '4 sls and 40 prelist single unit' => [4, [1 => 40], [1 => 'usaha/keluarga'], '2 SLS/sub-SLS dan/atau 16 usaha/keluarga'],
-            '10 sls and 100 prelist single unit' => [10, [1 => 100], [1 => 'usaha/keluarga'], '4 SLS/sub-SLS dan/atau 40 usaha/keluarga'],
-            '2 sls and 891 prelist single unit' => [2, [1 => 891], [1 => 'usaha/keluarga'], '1 SLS/sub-SLS dan/atau 356 usaha/keluarga'],
-            '3 sls and 933 prelist single unit' => [3, [1 => 933], [1 => 'usaha/keluarga'], '1 SLS/sub-SLS dan/atau 373 usaha/keluarga'],
-            '2 sls with keluarga and usaha' => [2, [1 => 10, 2 => 5], [1 => 'Keluarga', 2 => 'Usaha'], '1 SLS/sub-SLS dan/atau 4 keluarga/2 usaha'],
-            '4 sls with large keluarga and usaha totals' => [4, [1 => 457, 2 => 112], [1 => 'Keluarga', 2 => 'Usaha'], '2 SLS/sub-SLS dan/atau 183 keluarga/45 usaha'],
+            'dominant first frame reaches 40 percent' => [4, [60, 20, 15, 5], 1, 3],
+            'two frames needed to reach threshold' => [4, [25, 20, 15, 40], 1, 3],
+            'balanced frames' => [10, array_fill(0, 10, 10), 4, 6],
+            'no frame load falls back to forty percent rows' => [3, [], 2, 1],
         ];
-    }
-
-    public function test_termin_dua_volume_uses_remainder_after_half_up_rounding(): void
-    {
-        $controller = new SpkController;
-
-        $calculateMethod = new \ReflectionMethod(SpkController::class, 'calculateSensusEkonomiMilestoneMetrics');
-        $calculateMethod->setAccessible(true);
-
-        $formatMethod = new \ReflectionMethod(SpkController::class, 'formatSensusEkonomiVolumeNarrative');
-        $formatMethod->setAccessible(true);
-
-        $terminDuaMetrics = $calculateMethod->invoke($controller, 4, [1 => 457, 2 => 112], 60);
-        $actualLabel = $formatMethod->invoke(
-            $controller,
-            $terminDuaMetrics['selected_rows'],
-            $terminDuaMetrics['per_unit_sampel_totals'],
-            [1 => 'Keluarga', 2 => 'Usaha'],
-        );
-
-        $this->assertSame('2 SLS/sub-SLS dan/atau 274 keluarga/67 usaha', $actualLabel);
     }
 
     public function test_total_volume_label_uses_only_sls_subsls_count(): void
@@ -80,7 +51,6 @@ class SpkSensusVolumeCalculationTest extends TestCase
         $controller = new SpkController;
 
         $method = new \ReflectionMethod(SpkController::class, 'formatSensusEkonomiTotalSlsVolumeLabel');
-        $method->setAccessible(true);
 
         $this->assertSame('Seluruh Muatan 4 SLS/sub-SLS', $method->invoke($controller, 4));
         $this->assertSame('-', $method->invoke($controller, 0));
@@ -102,7 +72,6 @@ class SpkSensusVolumeCalculationTest extends TestCase
         $periode->setRelation('kegiatan', $kegiatan);
 
         $method = new \ReflectionMethod(SpkController::class, 'formatNomorSpkForPeriode');
-        $method->setAccessible(true);
 
         $formatted = $method->invoke($controller, $periode, 1);
 
@@ -114,7 +83,6 @@ class SpkSensusVolumeCalculationTest extends TestCase
         $controller = new SpkController;
 
         $method = new \ReflectionMethod(SpkController::class, 'extractNomorUrut');
-        $method->setAccessible(true);
 
         $this->assertSame(1, $method->invoke($controller, 'B-001/SPK-SE2026/1373/PL.200/2026'));
     }
@@ -142,7 +110,6 @@ class SpkSensusVolumeCalculationTest extends TestCase
         $alokasi->setRelation('frameSampelAllocations', collect([$alokasiFrame]));
 
         $method = new \ReflectionMethod(SpkController::class, 'buildWilayahKerjaList');
-        $method->setAccessible(true);
 
         $rows = $method->invoke($controller, $alokasi);
 
