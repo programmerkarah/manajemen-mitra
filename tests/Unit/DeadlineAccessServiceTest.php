@@ -202,7 +202,10 @@ class DeadlineAccessServiceTest extends TestCase
             ->post('/test-alokasi-update', fn () => response()->json(['ok' => true]))
             ->name('alokasi.periode.update');
 
-        $response = $this->withSession([])->post('/test-alokasi-update');
+        $response = $this->withSession([])->post('/test-alokasi-update', [
+            'tahun' => 2026,
+            'bulan' => 7,
+        ]);
 
         $response->assertOk();
     }
