@@ -33,6 +33,7 @@ export default function Welcome({
                             {auth.user ? (
                                 <Link
                                     href={dashboard()}
+                                    prefetch
                                     className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm shadow-blue-600/20 transition-all hover:-translate-y-px hover:bg-primary/90 hover:shadow-md"
                                 >
                                     Buka Dashboard
@@ -42,6 +43,7 @@ export default function Welcome({
                                 <>
                                     <Link
                                         href={login()}
+                                        prefetch
                                         className="inline-flex h-11 items-center rounded-xl px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground dark:hover:text-primary-foreground"
                                     >
                                         Masuk
@@ -49,6 +51,7 @@ export default function Welcome({
                                     {canRegister && (
                                         <Link
                                             href={register()}
+                                            prefetch
                                             className="hidden h-11 items-center rounded-xl border border-border bg-card px-4 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted sm:inline-flex"
                                         >
                                             Daftar
@@ -86,6 +89,7 @@ export default function Welcome({
                             <div className="mt-9 flex flex-wrap items-center gap-3">
                                 <Link
                                     href={auth.user ? dashboard() : login()}
+                                    prefetch
                                     className="inline-flex h-12 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-md shadow-blue-600/20 transition-all hover:-translate-y-px hover:bg-primary/90 hover:shadow-lg"
                                 >
                                     {auth.user
@@ -97,6 +101,7 @@ export default function Welcome({
                                 {!auth.user && canRegister && (
                                     <Link
                                         href={register()}
+                                        prefetch
                                         className="inline-flex h-12 items-center rounded-xl border border-border bg-card px-6 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-muted"
                                     >
                                         Buat akun
