@@ -105,6 +105,7 @@ class SensusEkonomiReplacementReadService
                 'petugas_id' => (int) $petugas->id,
                 'petugas_nama' => (string) $petugas->nama,
                 'petugas_nik' => $petugas->nik,
+                'jenis_petugas' => (string) $petugas->jenis_petugas,
                 'periode_id' => (int) $periode->id,
                 'tahun' => (int) $periode->tahun,
                 'bulan' => (int) $periode->bulan,
