@@ -21,6 +21,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         // Case 1: BAST attached to a 'direvisi' periode's SPK.
         // Update spk_id and periode_alokasi_id to the replacement active periode.
         DB::statement("
