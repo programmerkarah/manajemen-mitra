@@ -1,28 +1,11 @@
-import { ContentCard } from '@/components/content-card';
-import { PageHeader } from '@/components/page-header';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem, Kegiatan, SharedData } from '@/types';
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import {
-    ArrowLeft,
-    Edit,
-    FileText,
-    History,
-    Save,
-    Search,
-    Users,
-    X,
-} from 'lucide-react';
+import ArrowLeft from 'lucide-react/icons/arrow-left';
+import Edit from 'lucide-react/icons/edit';
+import FileText from 'lucide-react/icons/file-text';
+import History from 'lucide-react/icons/history';
+import Save from 'lucide-react/icons/save';
+import Search from 'lucide-react/icons/search';
+import Users from 'lucide-react/icons/users';
+import X from 'lucide-react/icons/x';
 import { useMemo, useState } from 'react';
 
 interface Petugas {
