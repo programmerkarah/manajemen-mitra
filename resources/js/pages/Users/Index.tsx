@@ -106,9 +106,20 @@ interface UsersIndexProps {
             search?: string;
         };
     };
+    allRoles: Role[];
 }
 
-export default function Index({ users }: UsersIndexProps) {
+const getEditUserIdFromUrl = (): number | null => {
+    if (typeof window === 'undefined') return null;
+
+    const raw = new URLSearchParams(window.location.search).get('edit');
+    if (!raw) return null;
+
+    const parsed = Number(raw);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+export default function Index({ users, allRoles }: UsersIndexProps) {
     const allUsers = useDecryptedData<User>(users.encrypted);
 
     const [search, setSearch] = useState('');
@@ -121,6 +132,11 @@ export default function Index({ users }: UsersIndexProps) {
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage] = useState(15);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [editingUserId, setEditingUserId] = useState<number | null>(
+        getEditUserIdFromUrl,
+    );
+    const [editingRoles, setEditingRoles] = useState<number[] | null>(null);
+    const [savingRoles, setSavingRoles] = useState(false);
     const prevSearchRef = useRef(search);
 
     // Client-side filtering and sorting
@@ -197,6 +213,74 @@ export default function Index({ users }: UsersIndexProps) {
             prevSearchRef.current = search;
         }
     }, [search]);
+
+    const editingUser = useMemo(
+        () => allUsers.find((user) => user.id === editingUserId) ?? null,
+        [allUsers, editingUserId],
+    );
+
+    useEffect(() => {
+        if (!editingUser || editingRoles !== null) {
+            return;
+        }
+
+        setEditingRoles(editingUser.roles.map((role) => role.id));
+    }, [editingUser, editingRoles]);
+
+    useEffect(() => {
+        const syncEditorFromUrl = () => {
+            setEditingUserId(getEditUserIdFromUrl());
+            setEditingRoles(null);
+        };
+
+        window.addEventListener('popstate', syncEditorFromUrl);
+        return () => window.removeEventListener('popstate', syncEditorFromUrl);
+    }, []);
+
+    const openRoleEditor = (user: User) => {
+        setEditingUserId(user.id);
+        setEditingRoles(user.roles.map((role) => role.id));
+        window.history.pushState({}, '', `/users?edit=${user.id}`);
+    };
+
+    const closeRoleEditor = () => {
+        setEditingUserId(null);
+        setEditingRoles(null);
+
+        if (window.location.pathname === '/users') {
+            window.history.replaceState({}, '', '/users');
+        }
+    };
+
+    const toggleEditingRole = (roleId: number) => {
+        setEditingRoles((current) => {
+            const roles = current ?? [];
+            return roles.includes(roleId)
+                ? roles.filter((id) => id !== roleId)
+                : [...roles, roleId];
+        });
+    };
+
+    const saveUserRoles = () => {
+        if (!editingUser || !editingRoles || editingRoles.length === 0) {
+            return;
+        }
+
+        setSavingRoles(true);
+        router.patch(
+            `/users/${editingUser.id}`,
+            {
+                roles: editingRoles,
+                _return_to: '/users',
+            },
+            {
+                preserveScroll: true,
+                replace: true,
+                onSuccess: closeRoleEditor,
+                onFinish: () => setSavingRoles(false),
+            },
+        );
+    };
 
     const handleRefresh = () => {
         setIsRefreshing(true);
@@ -622,17 +706,16 @@ export default function Index({ users }: UsersIndexProps) {
                                             <td className="px-3 py-3">
                                                 <div className="flex justify-center gap-2">
                                                     <Button
+                                                        type="button"
                                                         variant="outline"
                                                         size="sm"
-                                                        asChild
                                                         className="h-9 gap-2"
+                                                        onClick={() =>
+                                                            openRoleEditor(user)
+                                                        }
                                                     >
-                                                        <Link
-                                                            href={`/users/${user.id}/edit`}
-                                                        >
-                                                            <Pencil className="h-4 w-4" />
-                                                            Edit Role
-                                                        </Link>
+                                                        <Pencil className="h-4 w-4" />
+                                                        Edit Role
                                                     </Button>
                                                     {!user.is_sso_user && (
                                                         <Dialog>
@@ -818,6 +901,102 @@ export default function Index({ users }: UsersIndexProps) {
                         </div>
                     )}
                 </ContentCard>
+
+                <Dialog
+                    open={editingUserId !== null}
+                    onOpenChange={(open) => {
+                        if (!open) closeRoleEditor();
+                    }}
+                >
+                    <DialogContent className="sm:max-w-xl">
+                        <DialogHeader>
+                            <DialogTitle>Edit Role User</DialogTitle>
+                            <DialogDescription>
+                                {editingUser
+                                    ? `Atur role dan hak akses untuk ${editingUser.name}.`
+                                    : 'Memuat data user...'}
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        {editingUser && editingRoles !== null && (
+                            <div className="space-y-4">
+                                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                                    <p className="font-medium">
+                                        {editingUser.name}
+                                    </p>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        {editingUser.username} · {editingUser.email}
+                                    </p>
+                                </div>
+
+                                <div className="max-h-[45vh] space-y-2 overflow-y-auto pr-1">
+                                    {allRoles.map((role) => {
+                                        const checked =
+                                            editingRoles.includes(role.id);
+
+                                        return (
+                                            <label
+                                                key={role.id}
+                                                htmlFor={`user-role-${role.id}`}
+                                                className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-muted/40"
+                                            >
+                                                <input
+                                                    id={`user-role-${role.id}`}
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={() =>
+                                                        toggleEditingRole(role.id)
+                                                    }
+                                                    className="mt-0.5 h-4 w-4 rounded border-input"
+                                                />
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="flex items-center gap-2">
+                                                        <StatusBadge
+                                                            status={role.name}
+                                                        />
+                                                        <span className="font-medium">
+                                                            {role.display_name}
+                                                        </span>
+                                                    </span>
+                                                    {role.description && (
+                                                        <span className="mt-1 block text-sm text-muted-foreground">
+                                                            {role.description}
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+
+                                {editingRoles.length === 0 && (
+                                    <p className="text-sm text-destructive">
+                                        Pilih minimal satu role.
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        <DialogFooter>
+                            <DialogClose asChild>
+                                <Button type="button" variant="outline">
+                                    Batal
+                                </Button>
+                            </DialogClose>
+                            <Button
+                                type="button"
+                                onClick={saveUserRoles}
+                                disabled={
+                                    savingRoles ||
+                                    editingRoles === null ||
+                                    editingRoles.length === 0
+                                }
+                            >
+                                {savingRoles ? 'Menyimpan...' : 'Simpan Perubahan'}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </AppLayout>
     );
