@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
+import { FileUpload } from '@/components/ui/file-upload';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -14,6 +15,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import ArrowLeft from 'lucide-react/icons/arrow-left';
 import CheckCircle2 from 'lucide-react/icons/check-circle2';
 import FileText from 'lucide-react/icons/file-text';
+import UploadCloud from 'lucide-react/icons/upload-cloud';
 import { useState } from 'react';
 
 interface ReplacementSummary {
@@ -38,6 +40,7 @@ type ExistingContract = {
     status: string;
     spk_hashed_id?: string | null;
     spk_nomor_spk?: string | null;
+    spk_signed_uploaded?: boolean;
 } | null;
 
 interface CreateProps {
@@ -64,6 +67,7 @@ export default function CreatePkppContract({
     const [saving, setSaving] = useState(false);
     const [previewing, setPreviewing] = useState(false);
     const [downloading, setDownloading] = useState(false);
+    const [uploading, setUploading] = useState(false);
     const [formData, setFormData] = useState({
         tanggal_kontrak: default_tanggal_kontrak,
         tanggal_mulai_lapangan:
@@ -72,6 +76,72 @@ export default function CreatePkppContract({
             '',
         status: 'draft',
     });
+
+    const schemePreview = (() => {
+        if (!formData.tanggal_kontrak) return null;
+
+        const date = formData.tanggal_kontrak;
+        const year = Number(date.slice(0, 4)) || 2026;
+        const rules = [
+            {
+                code: 'Skema 1',
+                deadline: `${year}-06-26`,
+                field: `${year}-07-01`,
+                honor: 2,
+                terms: 2,
+                insurance: 'Juli–Agustus penuh',
+            },
+            {
+                code: 'Skema 2',
+                deadline: `${year}-07-02`,
+                field: `${year}-07-06`,
+                honor: 1.75,
+                terms: 2,
+                insurance: 'Juli proporsional, Agustus penuh',
+            },
+            {
+                code: 'Skema 3',
+                deadline: `${year}-07-14`,
+                field: `${year}-07-18`,
+                honor: 1.5,
+                terms: 1,
+                insurance: 'Juli proporsional, Agustus penuh',
+            },
+            {
+                code: 'Skema 4',
+                deadline: `${year}-07-21`,
+                field: `${year}-07-25`,
+                honor: 1.25,
+                terms: 1,
+                insurance: 'Juli proporsional, Agustus penuh',
+            },
+            {
+                code: 'Skema 5',
+                deadline: `${year}-07-27`,
+                field: `${year}-08-01`,
+                honor: 1,
+                terms: 1,
+                insurance: 'Agustus penuh',
+            },
+        ];
+
+        return rules.find((rule) => date <= rule.deadline) ?? null;
+    })();
+
+    const handleSignedUpload = (file: File | null) => {
+        if (!file || !existing_contract?.spk_hashed_id) return;
+
+        setUploading(true);
+        router.post(
+            `/sensus-ekonomi/replacements/${replacement.hashed_id}/pkpp-contracts/upload-signed`,
+            { file },
+            {
+                forceFormData: true,
+                preserveScroll: true,
+                onFinish: () => setUploading(false),
+            },
+        );
+    };
 
     const handleSubmit = () => {
         setSaving(true);
@@ -149,12 +219,12 @@ export default function CreatePkppContract({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Generate PK Petugas Pengganti" />
+            <Head title="Kelola PK Petugas Pengganti" />
 
             <div className="space-y-6 p-6">
                 <PageHeader
-                    title="Generate PK Petugas Pengganti"
-                    description="Form ini dipakai untuk membuat PK baru petugas pengganti langsung dari workflow replacement."
+                    title="Kelola PK Petugas Pengganti"
+                    description="Tetapkan skema berdasarkan tanggal kontrak dan inventaris PDF PK final yang sudah disiapkan."
                 >
                     <Button variant="outline" asChild>
                         <Link href="/spk/petugas-pengganti">
@@ -281,6 +351,70 @@ export default function CreatePkppContract({
                                 </div>
                             </div>
 
+                            {schemePreview && (
+                                <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-4 dark:border-blue-900/50 dark:bg-blue-950/20">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div>
+                                            <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                                                {schemePreview.code}
+                                            </p>
+                                            <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
+                                                Kontrak paling lambat {schemePreview.deadline} · mulai lapangan paling lambat {schemePreview.field}
+                                            </p>
+                                        </div>
+                                        <Badge variant="secondary">
+                                            {schemePreview.terms} termin · {schemePreview.honor.toLocaleString('id-ID')} OB
+                                        </Badge>
+                                    </div>
+                                    <p className="mt-2 text-xs text-blue-700 dark:text-blue-300">
+                                        Asuransi: {schemePreview.insurance}
+                                    </p>
+                                </div>
+                            )}
+
+                            {existing_contract && (
+                                <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-4">
+                                    <div>
+                                        <p className="text-sm font-semibold">
+                                            PDF PK final
+                                        </p>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Upload dokumen PK yang sudah ditandatangani. File disimpan pada record PK yang terhubung.
+                                        </p>
+                                    </div>
+                                    {existing_contract.spk_hashed_id ? (
+                                        <>
+                                            <FileUpload
+                                                disabled={uploading}
+                                                maxSizeMb={10}
+                                                label={
+                                                    existing_contract.spk_signed_uploaded
+                                                        ? 'Pilih PDF pengganti PK final'
+                                                        : 'Pilih atau jatuhkan PDF PK final'
+                                                }
+                                                helperText={
+                                                    uploading
+                                                        ? 'Sedang mengunggah...'
+                                                        : 'PDF PK petugas pengganti'
+                                                }
+                                                onChange={handleSignedUpload}
+                                            />
+                                            {existing_contract.spk_signed_uploaded && (
+                                                <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+                                                    <CheckCircle2 className="h-4 w-4" />
+                                                    PDF PK final sudah tersimpan
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+                                            <UploadCloud className="mt-0.5 h-4 w-4 shrink-0" />
+                                            Record PK belum terhubung. Pastikan alokasi petugas pengganti sudah tercatat, lalu simpan ulang data PK sebelum upload PDF.
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             <div className="flex flex-wrap gap-2">
                                 <Button
                                     onClick={handleSubmit}
@@ -288,7 +422,9 @@ export default function CreatePkppContract({
                                 >
                                     {saving
                                         ? 'Menyimpan...'
-                                        : 'Generate PK Petugas Pengganti'}
+                                        : existing_contract
+                                          ? 'Perbarui Data PK'
+                                          : 'Simpan Data PK'}
                                 </Button>
                                 <Button
                                     variant="secondary"
@@ -325,14 +461,14 @@ export default function CreatePkppContract({
                             </h3>
                             <div className="space-y-2 text-sm text-neutral-600 dark:text-neutral-400">
                                 <p>
-                                    Jalur ini dipakai untuk menghasilkan PK baru
-                                    petugas pengganti dari replacement yang
-                                    sudah disetujui.
+                                    Tanggal kontrak menentukan Skema 1–5 secara otomatis.
+                                    Skema 1–2 memakai 2 termin; Skema 3–5 memakai 1 termin.
                                 </p>
                                 <p>
-                                    Data tanggal mulai lapangan mengikuti
-                                    replacement aktif, bukan input ulang dari
-                                    BAPP.
+                                    BAPP dan BAST tidak diunggah di halaman ini.
+                                    Setelah PK tercatat, kelola BAPP pada menu BAPP
+                                    dan BAST pada menu Berita Acara dengan konteks
+                                    petugas pengganti.
                                 </p>
                             </div>
                         </div>
