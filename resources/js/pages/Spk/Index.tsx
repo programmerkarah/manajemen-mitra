@@ -337,7 +337,11 @@ export default function Index({
                                             : 'outline'
                                     }
                                     onClick={() =>
-                                        router.get('/spk', { mode: 'regular' })
+                                        router.post('/spk/mode', {
+                                            encrypted_filters: encryptFilters({
+                                                mode: 'regular',
+                                            }),
+                                        })
                                     }
                                 >
                                     Reguler
@@ -349,8 +353,10 @@ export default function Index({
                                             : 'outline'
                                     }
                                     onClick={() =>
-                                        router.get('/spk', {
-                                            mode: 'sensus-ekonomi',
+                                        router.post('/spk/mode', {
+                                            encrypted_filters: encryptFilters({
+                                                mode: 'sensus-ekonomi',
+                                            }),
                                         })
                                     }
                                 >
