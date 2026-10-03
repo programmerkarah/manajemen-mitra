@@ -77,6 +77,9 @@ class SensusEkonomiReplacementController extends Controller
                         'pml_cover_nama' => $replacement->pmlCoverPetugas?->nama,
                         'tanggal_berhenti' => $replacement->tanggal_berhenti?->format('Y-m-d'),
                         'termination_type' => $replacement->termination_type,
+                        'termin_i_paid' => $replacement->termin_i_paid,
+                        'requires_old_documents' => $replacement->termination_type === 'diberhentikan'
+                            || ($replacement->termination_type === 'mengundurkan_diri' && $replacement->termin_i_paid === true),
                         'spk_lama_nomor' => $replacement->spkLama?->nomor_spk,
                         'tanggal_mulai_pkpp' => $replacement->tanggal_mulai_pkpp?->format('Y-m-d'),
                         'status' => $replacement->status,
@@ -183,6 +186,7 @@ class SensusEkonomiReplacementController extends Controller
                     ->where(fn ($query) => $query->where('status', '!=', 'dibatalkan')),
             ],
             'termination_type' => ['required', 'in:diberhentikan,mengundurkan_diri'],
+            'termin_i_paid' => ['nullable', 'boolean', 'required_if:termination_type,mengundurkan_diri'],
             'tanggal_berhenti' => ['required', 'date'],
         ]);
 
@@ -217,6 +221,9 @@ class SensusEkonomiReplacementController extends Controller
                 'pml_cover_petugas_id' => null,
                 'spk_lama_id' => $spk->id,
                 'termination_type' => $validated['termination_type'],
+                'termin_i_paid' => $validated['termination_type'] === 'mengundurkan_diri'
+                    ? (bool) $validated['termin_i_paid']
+                    : true,
                 'tanggal_berhenti' => $validated['tanggal_berhenti'],
                 'target_awal' => $targetAwal,
                 'realisasi_petugas_berhenti' => 0,
@@ -438,8 +445,10 @@ class SensusEkonomiReplacementController extends Controller
                 'nomor_spk' => $existingSpk->nomor_spk,
             ] : null,
             'action' => route('se-replacements.pkpp-contracts.store', $replacement),
-            'default_tanggal_kontrak' => now()->format('Y-m-d'),
-            'default_tanggal_mulai_lapangan' => $replacement->tanggal_mulai_pkpp?->format('Y-m-d'),
+            'default_tanggal_kontrak' => $existingContract?->tanggal_kontrak?->format('Y-m-d')
+                ?? now()->format('Y-m-d'),
+            'default_tanggal_mulai_lapangan' => $existingContract?->tanggal_mulai_lapangan?->format('Y-m-d')
+                ?? $replacement->tanggal_mulai_pkpp?->format('Y-m-d'),
         ]);
     }
 
@@ -614,8 +623,8 @@ class SensusEkonomiReplacementController extends Controller
         $kontrakYear = (int) date('Y', strtotime((string) $validated['tanggal_kontrak']));
         $nomorPkpp = $existingContract?->nomor_pkpp ?: $pkNumberService->allocateNextNumber($kontrakYear);
         $targetSisa = (float) ($replacement->target_sisa ?? 0);
-        $tanggalMulaiLapangan = $replacement->tanggal_mulai_pkpp?->format('Y-m-d')
-            ?? ($validated['tanggal_mulai_lapangan'] ?? null);
+        $tanggalMulaiLapangan = $validated['tanggal_mulai_lapangan']
+            ?? $replacement->tanggal_mulai_pkpp?->format('Y-m-d');
 
         if (! $tanggalMulaiLapangan) {
             return back()->with('error', 'Tanggal mulai lapangan belum tersedia pada replacement ini.');
