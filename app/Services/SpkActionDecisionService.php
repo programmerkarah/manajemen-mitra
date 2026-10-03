@@ -19,7 +19,7 @@ class SpkActionDecisionService
         $bulanFormatted = str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
 
         $allPeriodeInMonth = PeriodeAlokasi::query()
-            ->whereRaw('CAST(bulan AS INTEGER) = ?', [(int) $bulanFormatted])
+            ->whereIn('bulan', [$bulanFormatted, (string) ((int) $bulanFormatted)])
             ->where('tahun', $tahun)
             ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
             ->whereHas('kegiatan', fn ($q) => $q->where('jenis_kegiatan', '!=', 'sensus'))
@@ -221,7 +221,7 @@ class SpkActionDecisionService
         if ($monthAllocationIds === null) {
             $bulanFormatted = str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
             $periodeIds = PeriodeAlokasi::query()
-                ->whereRaw('CAST(bulan AS INTEGER) = ?', [(int) $bulanFormatted])
+                ->whereIn('bulan', [$bulanFormatted, (string) ((int) $bulanFormatted)])
                 ->where('tahun', $tahun)
                 ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan'])
                 ->whereHas('kegiatan', fn ($q) => $q->where('jenis_kegiatan', '!=', 'sensus'))
@@ -560,7 +560,7 @@ class SpkActionDecisionService
         $bulanFormatted = str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
 
         $allPeriodeInMonth = PeriodeAlokasi::query()
-            ->whereRaw('CAST(bulan AS INTEGER) = ?', [(int) $bulanFormatted])
+            ->whereIn('bulan', [$bulanFormatted, (string) ((int) $bulanFormatted)])
             ->where('tahun', $tahun)
             ->whereIn('status', ['dikirim', 'disetujui', 'perubahan'])
             ->whereHas('kegiatan', fn ($q) => $q->where('jenis_kegiatan', '!=', 'sensus'))
@@ -838,7 +838,7 @@ class SpkActionDecisionService
                 $q->where('jenis_petugas', 'non-organik');
             })
             ->whereHas('periodeAlokasi', function ($q) use ($bulanFormatted, $tahun, $upToCreatedAt): void {
-                $q->whereRaw('CAST(bulan AS INTEGER) = ?', [(int) $bulanFormatted])
+                $q->whereIn('bulan', [$bulanFormatted, (string) ((int) $bulanFormatted)])
                     ->where('tahun', $tahun)
                     ->whereIn('status', ['dikirim', 'disetujui', 'perubahan'])
                     ->whereHas('kegiatan', fn ($qq) => $qq->where('jenis_kegiatan', '!=', 'sensus'));
