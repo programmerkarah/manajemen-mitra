@@ -11,7 +11,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import ArrowLeft from 'lucide-react/icons/arrow-left';
 import CheckCircle2 from 'lucide-react/icons/check-circle2';
 import FileText from 'lucide-react/icons/file-text';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface ReplacementSummary {
     id: number;
@@ -83,12 +83,23 @@ export default function CreatePkppContract({
     const [uploading, setUploading] = useState(false);
     const [formData, setFormData] = useState({
         tanggal_kontrak: default_tanggal_kontrak,
-        tanggal_mulai_lapangan:
-            default_tanggal_mulai_lapangan ??
-            replacement.tanggal_mulai_pkpp ??
-            '',
+        tanggal_mulai_lapangan: default_tanggal_mulai_lapangan ?? '',
         status: 'draft',
     });
+
+    useEffect(() => {
+        setFormData((current) => ({
+            ...current,
+            tanggal_kontrak: default_tanggal_kontrak,
+            tanggal_mulai_lapangan: default_tanggal_mulai_lapangan ?? '',
+            status: existing_contract?.status ?? current.status,
+        }));
+    }, [
+        default_tanggal_kontrak,
+        default_tanggal_mulai_lapangan,
+        existing_contract?.hashed_id,
+        existing_contract?.status,
+    ]);
 
     const schemePreview = (() => {
         if (!formData.tanggal_kontrak) return null;
@@ -157,6 +168,13 @@ export default function CreatePkppContract({
     };
 
     const handleSubmit = () => {
+        if (
+            !formData.tanggal_kontrak ||
+            !formData.tanggal_mulai_lapangan
+        ) {
+            return;
+        }
+
         setSaving(true);
 
         router.post(
@@ -169,6 +187,16 @@ export default function CreatePkppContract({
             {
                 preserveScroll: true,
                 preserveState: false,
+                onSuccess: () => {
+                    router.reload({
+                        only: [
+                            'replacement',
+                            'existing_contract',
+                            'default_tanggal_kontrak',
+                            'default_tanggal_mulai_lapangan',
+                        ],
+                    });
+                },
                 onFinish: () => setSaving(false),
             },
         );
@@ -254,7 +282,7 @@ export default function CreatePkppContract({
                                 </div>
                                 <div>
                                     <div className="text-neutral-500">
-                                        Mulai PKPP
+                                        Tanggal kontrak awal
                                     </div>
                                     <div className="font-medium text-neutral-900 dark:text-neutral-100">
                                         {formatDate(
@@ -377,7 +405,11 @@ export default function CreatePkppContract({
                             <div className="flex flex-wrap gap-2">
                                 <Button
                                     onClick={handleSubmit}
-                                    disabled={saving}
+                                    disabled={
+                                        saving ||
+                                        !formData.tanggal_kontrak ||
+                                        !formData.tanggal_mulai_lapangan
+                                    }
                                 >
                                     {saving
                                         ? 'Menyimpan...'
