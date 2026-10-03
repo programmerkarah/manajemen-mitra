@@ -16,6 +16,7 @@ use App\Models\Satuan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -928,7 +929,7 @@ class KegiatanMetodePendataanTest extends TestCase
 
         foreach ($rows as $rowIndex => $columns) {
             foreach ($columns as $columnIndex => $value) {
-                $sheet->setCellValueByColumnAndRow($columnIndex + 1, $rowIndex + 1, $value);
+                $sheet->setCellValue(Coordinate::stringFromColumnIndex($columnIndex + 1).($rowIndex + 1), $value);
             }
         }
 
