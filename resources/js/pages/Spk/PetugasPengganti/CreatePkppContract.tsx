@@ -7,15 +7,10 @@ import { FileUpload } from '@/components/ui/file-upload';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import {
-    downloadFileFromPost,
-    previewFileFromPost,
-} from '@/utils/downloadUtils';
 import { Head, Link, router } from '@inertiajs/react';
 import ArrowLeft from 'lucide-react/icons/arrow-left';
 import CheckCircle2 from 'lucide-react/icons/check-circle2';
 import FileText from 'lucide-react/icons/file-text';
-import UploadCloud from 'lucide-react/icons/upload-cloud';
 import { useState } from 'react';
 
 interface ReplacementSummary {
@@ -65,8 +60,6 @@ export default function CreatePkppContract({
     default_tanggal_mulai_lapangan,
 }: CreateProps) {
     const [saving, setSaving] = useState(false);
-    const [previewing, setPreviewing] = useState(false);
-    const [downloading, setDownloading] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [formData, setFormData] = useState({
         tanggal_kontrak: default_tanggal_kontrak,
@@ -129,7 +122,7 @@ export default function CreatePkppContract({
     })();
 
     const handleSignedUpload = (file: File | null) => {
-        if (!file || !existing_contract?.spk_hashed_id) return;
+        if (!file || !existing_contract) return;
 
         setUploading(true);
         router.post(
@@ -158,63 +151,6 @@ export default function CreatePkppContract({
                 onFinish: () => setSaving(false),
             },
         );
-    };
-
-    const previewSpk = async (): Promise<void> => {
-        if (
-            !replacement.periode_hashed_id ||
-            !replacement.petugas_pengganti_hashed_id
-        ) {
-            return;
-        }
-
-        setPreviewing(true);
-
-        try {
-            await previewFileFromPost(
-                `/spk/periode/${replacement.periode_hashed_id}/petugas/${replacement.petugas_pengganti_hashed_id}/preview`,
-                {
-                    nomor_spk: replacement.petugas_pengganti_nama
-                        ? `PKPP/${replacement.petugas_pengganti_nama}`
-                        : 'PKPP',
-                    tanggal_spk: formData.tanggal_kontrak,
-                    response_mode: 'url',
-                },
-                `Preview_PKPP_${replacement.petugas_pengganti_nama ?? 'petugas'}.pdf`,
-                {
-                    responseMode: 'url',
-                },
-            );
-        } finally {
-            setPreviewing(false);
-        }
-    };
-
-    const downloadSpk = async (): Promise<void> => {
-        if (
-            !replacement.periode_hashed_id ||
-            !replacement.petugas_pengganti_hashed_id
-        ) {
-            return;
-        }
-
-        setDownloading(true);
-
-        try {
-            await downloadFileFromPost(
-                `/spk/periode/${replacement.periode_hashed_id}/petugas/${replacement.petugas_pengganti_hashed_id}/preview`,
-                {
-                    nomor_spk: replacement.petugas_pengganti_nama
-                        ? `PKPP/${replacement.petugas_pengganti_nama}`
-                        : 'PKPP',
-                    tanggal_spk: formData.tanggal_kontrak,
-                    response_mode: 'binary',
-                },
-                `PKPP_${replacement.petugas_pengganti_nama ?? 'petugas'}.pdf`,
-            );
-        } finally {
-            setDownloading(false);
-        }
     };
 
     return (
@@ -391,37 +327,25 @@ export default function CreatePkppContract({
                                             record PK yang terhubung.
                                         </p>
                                     </div>
-                                    {existing_contract.spk_hashed_id ? (
-                                        <>
-                                            <FileUpload
-                                                disabled={uploading}
-                                                maxSizeMb={10}
-                                                label={
-                                                    existing_contract.spk_signed_uploaded
-                                                        ? 'Pilih PDF pengganti PK final'
-                                                        : 'Pilih atau jatuhkan PDF PK final'
-                                                }
-                                                helperText={
-                                                    uploading
-                                                        ? 'Sedang mengunggah...'
-                                                        : 'PDF PK petugas pengganti'
-                                                }
-                                                onChange={handleSignedUpload}
-                                            />
-                                            {existing_contract.spk_signed_uploaded && (
-                                                <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
-                                                    <CheckCircle2 className="h-4 w-4" />
-                                                    PDF PK final sudah tersimpan
-                                                </div>
-                                            )}
-                                        </>
-                                    ) : (
-                                        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
-                                            <UploadCloud className="mt-0.5 h-4 w-4 shrink-0" />
-                                            Record PK belum terhubung. Pastikan
-                                            alokasi petugas pengganti sudah
-                                            tercatat, lalu simpan ulang data PK
-                                            sebelum upload PDF.
+                                    <FileUpload
+                                        disabled={uploading}
+                                        maxSizeMb={10}
+                                        label={
+                                            existing_contract.spk_signed_uploaded
+                                                ? 'Pilih PDF pengganti PK final'
+                                                : 'Pilih atau jatuhkan PDF PK final'
+                                        }
+                                        helperText={
+                                            uploading
+                                                ? 'Sedang mengunggah...'
+                                                : 'PDF PK petugas pengganti'
+                                        }
+                                        onChange={handleSignedUpload}
+                                    />
+                                    {existing_contract.spk_signed_uploaded && (
+                                        <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+                                            <CheckCircle2 className="h-4 w-4" />
+                                            PDF PK final sudah tersimpan
                                         </div>
                                     )}
                                 </div>
@@ -437,22 +361,6 @@ export default function CreatePkppContract({
                                         : existing_contract
                                           ? 'Perbarui Data PK'
                                           : 'Simpan Data PK'}
-                                </Button>
-                                <Button
-                                    variant="secondary"
-                                    onClick={previewSpk}
-                                    disabled={previewing || saving}
-                                >
-                                    {previewing
-                                        ? 'Memuat preview...'
-                                        : 'Preview PK'}
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={downloadSpk}
-                                    disabled={downloading || saving}
-                                >
-                                    {downloading ? 'Mengunduh...' : 'Unduh PK'}
                                 </Button>
                                 <Button variant="outline" asChild>
                                     <Link
@@ -475,7 +383,9 @@ export default function CreatePkppContract({
                                 <p>
                                     Tanggal kontrak menentukan Skema 1–5 secara
                                     otomatis. Skema 1–2 memakai 2 termin; Skema
-                                    3–5 memakai 1 termin.
+                                    3–5 memakai 1 termin. Setelah data skema
+                                    disimpan, unggah PDF PK final yang sudah
+                                    disiapkan.
                                 </p>
                                 <p>
                                     BAPP dan BAST tidak diunggah di halaman ini.
