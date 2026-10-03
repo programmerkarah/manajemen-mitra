@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\ActivityLog;
+use Illuminate\Database\Eloquent\Builder;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -23,7 +24,7 @@ class ActivityLogExport implements FromQuery, WithColumnWidths, WithHeadings, Wi
         $this->filters = $filters;
     }
 
-    public function query()
+    public function query(): Builder
     {
         $query = ActivityLog::query()->with('user');
 
