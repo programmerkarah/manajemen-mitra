@@ -309,8 +309,16 @@ class SbmlHonorTerendahTest extends TestCase
             'updated_at' => now(),
         ]);
 
+        $zeroHonorPeriode = PeriodeAlokasi::factory()->create([
+            'kegiatan_id' => $kegiatan->id,
+            'tahun' => $tahun,
+            'bulan' => $bulan,
+            'status' => 'draft',
+            'jenis_kegiatan' => 'sensus',
+        ]);
+
         DB::table('alokasi_petugas')->insert([
-            'periode_alokasi_id' => $periode->id,
+            'periode_alokasi_id' => $zeroHonorPeriode->id,
             'petugas_id' => $petugas->id,
             'jumlah_satuan' => 1,
             'total_honor' => 0,
