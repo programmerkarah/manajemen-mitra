@@ -2387,6 +2387,34 @@ class BastController extends Controller
 
         return redirect()->route('bast.index');
     }
+    public function openCreate(Request $request): RedirectResponse
+    {
+        $state = decryptFilters((string) $request->input('encrypted_filters'));
+        $bulan = (int) ($state['bulan'] ?? 0);
+        $tahun = (int) ($state['tahun'] ?? 0);
+        $mode = (string) ($state['mode'] ?? 'regular');
+
+        if ($bulan < 1 || $bulan > 12 || $tahun < 2000) {
+            return back()->with('error', 'Periode BAST tidak valid.');
+        }
+
+        if (! in_array($mode, ['regular', 'sensus-ekonomi'], true)) {
+            $mode = 'regular';
+        }
+
+        if ($mode === 'sensus-ekonomi'
+            && ! $this->canAccessSensusMode($this->getRequestUser($request), $tahun)) {
+            return back()->with('error', 'Anda tidak memiliki akses ke BAST Sensus Ekonomi.');
+        }
+
+        $request->session()->put('bast_create_filters', [
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'mode' => $mode,
+        ]);
+
+        return redirect()->route('bast.create');
+    }
     private function canAccessSensusMode(?User $user, ?int $tahunAnggaran = null): bool
     {
         if (! $user) {
