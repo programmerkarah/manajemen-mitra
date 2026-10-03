@@ -1167,8 +1167,8 @@ class BappController extends Controller
             ],
             [
                 'key' => 'replacement_1',
-                'label' => 'Petugas pengganti · 1 termin',
-                'description' => 'BAPP PKPP skema satu termin.',
+                'label' => 'Petugas pengganti · 1 BAPP',
+                'description' => 'Satu BAPP final untuk PKPP skema satu dokumen.',
                 'document_type' => 'replacement_pkpp',
                 'replacement_termin_count' => 1,
             ],
@@ -1271,7 +1271,7 @@ class BappController extends Controller
 
         if ($documentType === 'replacement_pkpp' && $contextReplacementTerminCount === 1 && $terminNumber === 2) {
             return redirect()->route('bapp.index')
-                ->with('error', 'PKPP skema 1 termin hanya memiliki satu BAPP.');
+                ->with('error', 'PKPP ini hanya memerlukan satu BAPP.');
         }
 
         $kegiatan = $this->getSensusEkonomiKegiatan();
@@ -2033,7 +2033,7 @@ class BappController extends Controller
         );
 
         if ($documentType === 'replacement_pkpp' && $contextReplacementTerminCount === 1 && $termin === 2) {
-            return back()->with('error', 'PKPP skema 1 termin tidak memiliki BAPP Termin II.');
+            return back()->with('error', 'PKPP ini hanya memerlukan satu BAPP.');
         }
         $spk = Spk::query()
             ->with(['petugas', 'alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim'])
