@@ -21,6 +21,7 @@ import {
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
+import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import Briefcase from 'lucide-react/icons/briefcase';
 import Calendar from 'lucide-react/icons/calendar';
@@ -596,17 +597,22 @@ export default function Index({ PenandatanganList }: PenandatanganIndexProps) {
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
-                                                                asChild
                                                                 className="h-8 gap-1.5"
+                                                                onClick={() =>
+                                                                    router.post(
+                                                                        '/penandatangan/edit',
+                                                                        {
+                                                                            state: encryptFilters({
+                                                                                id: Penandatangan.id,
+                                                                            }),
+                                                                        },
+                                                                    )
+                                                                }
                                                             >
-                                                                <Link
-                                                                    href={`/penandatangan/${Penandatangan.id}/edit`}
-                                                                >
-                                                                    <Pencil className="h-3.5 w-3.5" />
-                                                                    <span className="sr-only sm:not-sr-only">
-                                                                        Edit
-                                                                    </span>
-                                                                </Link>
+                                                                <Pencil className="h-3.5 w-3.5" />
+                                                                <span className="sr-only sm:not-sr-only">
+                                                                    Edit
+                                                                </span>
                                                             </Button>
                                                             <Button
                                                                 variant="outline"
