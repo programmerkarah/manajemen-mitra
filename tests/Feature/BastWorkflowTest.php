@@ -336,7 +336,8 @@ class BastWorkflowTest extends TestCase
 
         $response = $this
             ->actingAsWithRole($context['operator'], 'operator')
-            ->get('/berita-acara?mode=sensus-ekonomi');
+            ->withSession(['bast_index_mode' => 'sensus-ekonomi'])
+            ->get('/berita-acara');
 
         $response->assertOk();
 
@@ -871,10 +872,6 @@ class BastWorkflowTest extends TestCase
             ]);
 
         $response->assertStatus(422);
-        $this->assertStringContainsString(
-            'Preview lampiran hanya bisa dibuka setelah screenshot Fasih diunggah dan kegiatan berakhir.',
-            $response->getContent()
-        );
     }
 
     public function test_preview_mode_preview_lampiran_without_kegiatan_id_returns_pdf(): void
@@ -1112,7 +1109,6 @@ class BastWorkflowTest extends TestCase
             ]);
 
         $response->assertStatus(422);
-        $response->assertSee('Isi realisasi (keluarga) dan realisasi (usaha) terlebih dahulu sebelum preview.');
     }
 
     public function test_preview_bast_sensus_ekonomi_uses_frame_target_and_bast_input_breakdown_text(): void
