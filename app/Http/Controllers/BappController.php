@@ -33,9 +33,11 @@ use setasign\Fpdi\Tcpdf\Fpdi;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Vinkla\Hashids\Facades\Hashids;
 use App\Http\Controllers\Concerns\BappDocumentContextSupport;
+use App\Http\Controllers\Concerns\BappNumberingSupport;
 
 class BappController extends Controller
 {
+    use BappNumberingSupport;
     use BappDocumentContextSupport;
     private static ?bool $hasBappTerminTable = null;
 
@@ -83,18 +85,7 @@ class BappController extends Controller
      *
      * @param  array<string, mixed>  $entry
      */
-    protected function resolveEntryTanggalBapp(array $entry, ?string $sharedTanggalBapp): ?string
-    {
-        $entryTanggalBapp = isset($entry['tanggal_bapp']) ? trim((string) $entry['tanggal_bapp']) : '';
 
-        if ($entryTanggalBapp !== '') {
-            return $entryTanggalBapp;
-        }
-
-        $sharedTanggalBapp = $sharedTanggalBapp !== null ? trim($sharedTanggalBapp) : '';
-
-        return $sharedTanggalBapp !== '' ? $sharedTanggalBapp : null;
-    }
 
     /**
      * Build a map of spk_id → auto-generated nomor BAPP.
@@ -104,98 +95,7 @@ class BappController extends Controller
      * @param  Collection<int, Spk>  $spks
      * @return array<int, string>
      */
-    private function generateNomorBappMap(
-        Collection $spks,
-        string $roman,
-        int $tahun,
-        string $documentType = 'regular',
-        int $terminCount = 2,
-    ): array {
-        $sorted = $spks->sortBy(function (Spk $spk): string {
-            return mb_strtolower(trim($spk->petugas?->nama ?? ''));
-        })->values();
 
-        $map = [];
-        $numberService = new SensusEkonomiBappNumberService;
-        foreach ($sorted as $index => $spk) {
-            $sequence = $index + 1;
-
-            if ($documentType === 'stopped_petugas') {
-                $map[$spk->id] = $numberService->formatStoppedPetugasNumber(
-                    $sequence,
-                    $tahun,
-                );
-
-                continue;
-            }
-
-            if ($documentType === 'replacement_pkpp') {
-                $map[$spk->id] = $numberService->formatReplacementNumber(
-                    $sequence,
-                    $tahun,
-                    $terminCount,
-                    $roman,
-                );
-
-                continue;
-            }
-
-            $map[$spk->id] = sprintf(
-                'B-%03d/BAPP-%s-SE2026/1373/PL.200/%d',
-                $sequence,
-                $roman,
-                $tahun,
-            );
-        }
-
-        return $map;
-    }
-
-    private function formatManualBappNumber(
-        string $sequence,
-        int $termin,
-        int $tahun,
-        string $documentType,
-        int $replacementTerminCount,
-    ): string {
-        $cleanSequence = preg_replace('/\D+/', '', $sequence) ?: '';
-
-        if ($cleanSequence === '') {
-            throw new \InvalidArgumentException('Nomor BAPP wajib berupa angka.');
-        }
-
-        if ($documentType === 'replacement_pkpp' && $replacementTerminCount === 1) {
-            return sprintf(
-                'B-%s/BAPP-SE2026/1373/PL.200/%d',
-                $cleanSequence,
-                $tahun,
-            );
-        }
-
-        $roman = self::TERMIN_CONFIG[$termin]['roman'] ?? ($termin === 2 ? 'II' : 'I');
-
-        return sprintf(
-            'B-%s/BAPP-%s-SE2026/1373/PL.200/%d',
-            $cleanSequence,
-            $roman,
-            $tahun,
-        );
-    }
-
-    private function extractManualDocumentSequence(?string $number): ?string
-    {
-        if (blank($number)) {
-            return null;
-        }
-
-        if (preg_match('/^B-(\d+)\//', (string) $number, $matches) === 1) {
-            return $matches[1];
-        }
-
-        return preg_match('/^\d+$/', trim((string) $number)) === 1
-            ? trim((string) $number)
-            : null;
-    }
 
     /**
      * Determine the "jenis_pihak_kedua" based on peran.
