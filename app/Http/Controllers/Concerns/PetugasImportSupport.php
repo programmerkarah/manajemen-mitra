@@ -153,9 +153,7 @@ trait PetugasImportSupport
                 continue;
             }
 
-            $petugas = Petugas::query()
-                ->where('jenis_petugas', 'non-organik')
-                ->find($id);
+            $petugas = Petugas::query()->find($id);
             if (! $petugas) {
                 continue;
             }
@@ -175,9 +173,9 @@ trait PetugasImportSupport
 
         try {
             ActivityLog::log(
-                'Batch Edit Mitra',
+                'Batch Edit Petugas',
                 'mitra',
-                "Berhasil mengubah {$updated} data mitra secara batch.",
+                "Berhasil mengubah {$updated} data petugas secara batch.",
                 'success',
                 ['count' => $updated]
             );
