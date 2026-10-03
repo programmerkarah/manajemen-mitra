@@ -10,6 +10,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::table('periode_alokasi')
             ->whereRaw("bulan REGEXP '^[0-9]+$'")
             ->update([
@@ -22,6 +26,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::table('periode_alokasi')
             ->whereRaw("bulan REGEXP '^[0-9]+$'")
             ->update([
