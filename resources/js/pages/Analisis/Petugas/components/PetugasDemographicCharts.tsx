@@ -27,7 +27,7 @@ interface PetugasDemographicChartsProps {
     pendidikan: PendidikanItem[];
 }
 
-interface PieCardProps<T extends Record<string, unknown>> {
+interface PieCardProps<T extends { count: number }> {
     title: string;
     data: T[];
     labelKey: keyof T;
@@ -35,7 +35,7 @@ interface PieCardProps<T extends Record<string, unknown>> {
     suffix?: string;
 }
 
-function PieCard<T extends Record<string, unknown>>({
+function PieCard<T extends { count: number }>({
     title,
     data,
     labelKey,
@@ -48,7 +48,7 @@ function PieCard<T extends Record<string, unknown>>({
         0,
     );
     const legendItems = buildPieLegendItems(
-        data as Array<T & { count: number }>,
+        data,
         (item) => String(item[labelKey] ?? ''),
         total,
     );
