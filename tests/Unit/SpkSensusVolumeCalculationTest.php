@@ -8,6 +8,7 @@ use App\Models\AlokasiPetugasFrameSampel;
 use App\Models\Kegiatan;
 use App\Models\KegiatanFrameSampel;
 use App\Models\PeriodeAlokasi;
+use App\Services\Spk\SensusEkonomiSpkService;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -20,7 +21,7 @@ class SpkSensusVolumeCalculationTest extends TestCase
         int $expectedTermOneRows,
         int $expectedTermTwoRows,
     ): void {
-        $service = app(\\App\\Services\\Spk\\SensusEkonomiSpkService::class);
+        $service = app(SensusEkonomiSpkService::class);
 
         $termOne = $service->milestoneMetrics($selectedRows, $frameMuatanTotals, 40);
         $termTwo = $service->milestoneMetrics($selectedRows, $frameMuatanTotals, 60);
@@ -40,7 +41,7 @@ class SpkSensusVolumeCalculationTest extends TestCase
     {
         return [
             'dominant first frame reaches 40 percent' => [4, [60, 20, 15, 5], 1, 3],
-            'two frames needed to reach threshold' => [4, [25, 20, 15, 40], 1, 3],
+            'two frames needed to reach threshold' => [4, [30, 25, 25, 20], 2, 2],
             'balanced frames' => [10, array_fill(0, 10, 10), 4, 6],
             'no frame load falls back to forty percent rows' => [3, [], 2, 1],
         ];
