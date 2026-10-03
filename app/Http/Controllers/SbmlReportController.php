@@ -46,7 +46,7 @@ class SbmlReportController extends Controller
         // Only fetch allocations with jumlah > 0 to reduce data
         $petugasData = AlokasiPetugas::with([
             'petugas:id,nama,nik,jenis_petugas',
-            'periodeAlokasi:id,kegiatan_id,jenis_kegiatan,tahun,bulan,status',
+            'periodeAlokasi:id,kegiatan_id,jenis_kegiatan,tahun,bulan,status,tanggal_mulai,tanggal_selesai,tanggal_mulai_listing,tanggal_selesai_listing',
             'periodeAlokasi.kegiatan:id,nama_kegiatan,jenis_kegiatan',
         ])
             ->whereHas('periodeAlokasi', function ($query) use ($tahun) {
