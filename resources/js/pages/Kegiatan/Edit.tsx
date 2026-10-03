@@ -479,8 +479,8 @@ export default function Edit({
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Kegiatan', href: '/kegiatan' },
         {
-            title: `Edit Kegiatan`,
-            href: `/kegiatan/${kegiatan.hashed_id}/edit`,
+            title: 'Edit Kegiatan',
+            href: '/kegiatan/edit',
         },
     ];
 
