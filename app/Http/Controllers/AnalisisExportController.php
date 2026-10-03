@@ -44,7 +44,7 @@ class AnalisisExportController extends Controller
                 $this->applyEffectivePeriode($totalHonorQuery);
 
                 $totalHonor = $totalHonorQuery
-                    ->selectRaw('COALESCE(SUM('.$this->sensusEkonomiHonorSqlCase().'), 0) as total')
+                    ->selectRaw('COALESCE(SUM('.$this->effectiveCombinedHonorSqlExpression().'), 0) as total')
                     ->value('total');
 
                 return [
@@ -732,11 +732,12 @@ class AnalisisExportController extends Controller
         $trenBebanKerja = [];
         for ($bulan = 1; $bulan <= $currentMonth; $bulan++) {
             $bulanFormatted = str_pad($bulan, 2, '0', STR_PAD_LEFT);
+            $bulanCandidates = $this->resolveBulanCandidates($bulanFormatted);
 
             $data = DB::table('alokasi_petugas')
                 ->join('periode_alokasi', 'alokasi_petugas.periode_alokasi_id', '=', 'periode_alokasi.id')
                 ->join('petugas', 'alokasi_petugas.petugas_id', '=', 'petugas.id')
-                ->where('periode_alokasi.bulan', $bulanFormatted)
+                ->whereIn('periode_alokasi.bulan', $bulanCandidates)
                 ->where('periode_alokasi.tahun', $currentYear)
                 ->whereIn('periode_alokasi.status', $activeStatuses)
                 ->where('petugas.jenis_petugas', 'organik');
@@ -840,12 +841,12 @@ class AnalisisExportController extends Controller
             $pulsaStats = PengajuanPulsa::query()
                 ->where('bulan', $bulanFormatted)
                 ->where('tahun', $currentYear)
-                ->selectRaw('COUNT(DISTINCT petugas_id) as jumlah_petugas')
-                ->selectRaw('COUNT(DISTINCT kegiatan_id) as jumlah_kegiatan')
-                ->selectRaw('COUNT(*) as diajukan')
+                ->selectRaw('COUNT(*) as jumlah_kegiatan')
+                ->selectRaw("SUM(CASE WHEN status = 'diajukan' THEN 1 ELSE 0 END) as diajukan")
                 ->selectRaw("SUM(CASE WHEN status = 'diterima' THEN 1 ELSE 0 END) as disetujui")
                 ->selectRaw("SUM(CASE WHEN status = 'ditolak' THEN 1 ELSE 0 END) as ditolak")
                 ->selectRaw("SUM(CASE WHEN status = 'dikirim' THEN 1 ELSE 0 END) as menunggu")
+                ->selectRaw('COUNT(DISTINCT petugas_id) as jumlah_petugas')
                 ->first();
 
             $alokasiPulsaPerBulan[] = [
