@@ -7,6 +7,7 @@ use App\Models\PeriodeAlokasi;
 use App\Services\AlokasiPetugas\AlokasiValidationService;
 use App\Services\Bapp\BappDocumentContextService;
 use App\Services\Bapp\BappNumberService;
+use App\Services\Spk\SensusEkonomiSpkService;
 use App\Services\Spk\SpkScopeService;
 use Carbon\Carbon;
 use Tests\TestCase;
@@ -153,4 +154,31 @@ class ExtractedBusinessServicesTest extends TestCase
             $service->pencacahanWorkload($sensus, 10),
         );
     }
+    public function test_sensus_spk_service_preserves_milestone_rules(): void
+    {
+        $service = app(SensusEkonomiSpkService::class);
+
+        $termOne = $service->milestoneMetrics(
+            4,
+            [60, 20, 15, 5],
+            40,
+        );
+        $termTwo = $service->milestoneMetrics(
+            4,
+            [60, 20, 15, 5],
+            60,
+        );
+
+        $this->assertSame(1, $termOne['selected_rows']);
+        $this->assertSame(3, $termTwo['selected_rows']);
+        $this->assertSame(
+            '4 SLS/sub-SLS',
+            $service->volumeNarrative(4),
+        );
+        $this->assertSame(
+            'Seluruh Muatan 4 SLS/sub-SLS',
+            $service->totalSlsVolumeLabel(4),
+        );
+    }
+
 }
