@@ -76,6 +76,9 @@ class HandleInertiaRequests extends Middleware
             && filled(config('services.sso.client_id'))
             && $displayUser !== null;
 
+        $activeYear = ActiveYearService::get();
+        $availableYears = ActiveYearService::getAvailableYears();
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
@@ -97,9 +100,9 @@ class HandleInertiaRequests extends Middleware
                 ] : null,
                 'canViewAsUser' => ($user?->username ?? null) === 'rhmtzikri' || ($user?->username ?? null) === 'rahmat.zikri',
             ],
-            'activeYear' => ActiveYearService::get(),
-            'availableYears' => ActiveYearService::getAvailableYears(),
-            'hasAvailableYears' => ActiveYearService::hasAvailableYears(),
+            'activeYear' => $activeYear,
+            'availableYears' => $availableYears,
+            'hasAvailableYears' => $availableYears !== [],
             'isSeKetuaTim' => $this->isSeKetuaTim($displayUser, $activeRole?->name),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'flash' => [
