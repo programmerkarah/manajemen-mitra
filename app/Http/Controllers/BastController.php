@@ -2374,6 +2374,19 @@ class BastController extends Controller
         ]);
     }
 
+    public function switchIndexMode(Request $request): RedirectResponse
+    {
+        $state = decryptFilters((string) $request->input('encrypted_filters'));
+        $mode = (string) ($state['mode'] ?? 'regular');
+
+        if (! in_array($mode, ['regular', 'sensus-ekonomi'], true)) {
+            $mode = 'regular';
+        }
+
+        $request->session()->put('bast_index_mode', $mode);
+
+        return redirect()->route('bast.index');
+    }
     private function canAccessSensusMode(?User $user, ?int $tahunAnggaran = null): bool
     {
         if (! $user) {
