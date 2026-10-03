@@ -243,7 +243,10 @@ export default function Index({ users }: UsersIndexProps) {
                         .map((role) => [role.name, role]),
                 ).values(),
             ).sort((a, b) =>
-                a.display_name.localeCompare(b.display_name, 'id'),
+                (a.display_name ?? a.name ?? '').localeCompare(
+                    b.display_name ?? b.name ?? '',
+                    'id',
+                ),
             ),
         [allUsers],
     );
