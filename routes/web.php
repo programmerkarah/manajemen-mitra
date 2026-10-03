@@ -728,6 +728,8 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
             ->name('se-replacements.store');
         Route::post('sensus-ekonomi/replacements/{replacement}/pkpp-contracts', [SensusEkonomiReplacementController::class, 'storePkppContract'])
             ->name('se-replacements.pkpp-contracts.store');
+        Route::post('sensus-ekonomi/replacements/{replacement}/pkpp-contracts/upload-signed', [SensusEkonomiReplacementController::class, 'uploadSignedPkpp'])
+            ->name('se-replacements.pkpp-contracts.upload-signed');
     });
 
     Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
