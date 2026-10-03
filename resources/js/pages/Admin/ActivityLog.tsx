@@ -1,4 +1,5 @@
 import { ContentCard } from '@/components/content-card';
+import { PageHeader } from '@/components/page-header';
 import { SearchableSelect } from '@/components/searchable-select';
 import { DatePicker } from '@/components/ui/date-picker';
 import AppLayout from '@/layouts/app-layout';
@@ -451,17 +452,12 @@ export default function ActivityLog() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Activity Log" />
-            <ContentCard>
-                <div className="mb-6 flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="flex items-center gap-2 text-2xl font-bold">
-                            <Activity className="h-6 w-6" />
-                            Activity Log
-                        </h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            Monitor dan tracking aktivitas user dalam sistem
-                        </p>
-                    </div>
+
+            <div className="space-y-6">
+                <PageHeader
+                    title="Activity Log"
+                    description="Monitor dan tracking aktivitas user dalam sistem"
+                >
                     <div className="flex gap-2">
                         <Button
                             variant="outline"
@@ -484,8 +480,9 @@ export default function ActivityLog() {
                             Export Excel
                         </Button>
                     </div>
-                </div>
+                </PageHeader>
 
+                <ContentCard>
                 <form
                     className="mb-6 flex flex-wrap gap-3 rounded-lg bg-muted/30 p-4"
                     onSubmit={handleFilter}
@@ -859,7 +856,8 @@ export default function ActivityLog() {
                         </div>
                     </div>
                 )}
-            </ContentCard>
+                </ContentCard>
+            </div>
 
             <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
                 <DialogContent className="!flex max-h-[calc(100vh-2rem)] w-[min(92vw,72rem)] !max-w-[72rem] !flex-col overflow-hidden rounded-[1.75rem] border border-white/10 bg-zinc-950/95 p-5 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)] sm:p-8">
