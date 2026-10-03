@@ -1110,9 +1110,9 @@ class AnalisisExportController extends Controller
         $dokumenPieSvg = $this->buildPieChartSvg([
             ['label' => 'SK Draft', 'value' => $skDraft],
             ['label' => 'SK Diterbitkan', 'value' => $skDiterbitkan],
-            ['label' => 'SPK Draft', 'value' => $spkDraft],
-            ['label' => 'SPK Diterbitkan', 'value' => $spkDiterbitkan],
-        ], 'label', 'value', 'Status Dokumen SK & SPK');
+            ['label' => 'PK Draft', 'value' => $spkDraft],
+            ['label' => 'PK Diterbitkan', 'value' => $spkDiterbitkan],
+        ], 'label', 'value', 'Status Dokumen SK & PK');
 
         $dokumenLineSvg = $this->buildLineChartSvg(
             array_map(function ($index) use ($skPerBulan, $spkPerBulan) {
