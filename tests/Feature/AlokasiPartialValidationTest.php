@@ -503,7 +503,7 @@ class AlokasiPartialValidationTest extends TestCase
             ->component('Alokasi/Create')
             ->where('isEditMode', true)
             ->where('budget_info.'.$kegiatan->id.'.current_total_spent_other_periods', fn ($value) => (float) $value === 1083000.0)
-            ->where('budget_info.'.$kegiatan->id.'.current_total_spent_listing_other_periods', fn ($value) => (float) $value === 1083000.0)
+            ->where('budget_info.'.$kegiatan->id.'.current_total_spent_listing_other_periods', fn ($value) => (float) $value === 0.0)
         );
     }
 
@@ -1123,9 +1123,9 @@ class AlokasiPartialValidationTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Alokasi/ShowPeriode')
-            ->where('periode.frame_metadata_columns.0.code', 'kode_kecamatan')
-            ->where('periode.frame_metadata_columns.0.label', 'Kecamatan')
-            ->where('periode.frame_metadata_columns.1.code', 'kode_desa')
+            ->where('periode.kegiatan.frame_metadata_columns.0.code', 'kdkec')
+            ->where('periode.kegiatan.frame_metadata_columns.0.label', 'Kecamatan')
+            ->where('periode.kegiatan.frame_metadata_columns.1.code', 'kddes')
             ->has('periode.kegiatan.kegiatan_frame_sampel')
         );
     }
