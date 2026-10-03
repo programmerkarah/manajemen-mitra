@@ -36,7 +36,7 @@
                     </td>
                 </tr>
                 <tr>
-                    <td class="font-bold">Perjanjian Kerja (SPK)</td>
+                    <td class="font-bold">Perjanjian Kerja (PK)</td>
                     <td class="text-center">{{ $spkTotal }}</td>
                     <td class="text-center text-green">{{ $spkDiterbitkan }}</td>
                     <td class="text-center text-amber">{{ $spkDraft }}</td>
@@ -56,7 +56,7 @@
                 <tr>
                     <td>
                         <div class="chart-block">
-                            <img class="chart-image" src="data:image/svg+xml;base64,{{ base64_encode($pieChartSvg) }}" alt="Status Dokumen SK & SPK">
+                            <img class="chart-image" src="data:image/svg+xml;base64,{{ base64_encode($pieChartSvg) }}" alt="Status Dokumen SK & PK">
                         </div>
                     </td>
                     <td>
@@ -170,14 +170,28 @@
                     <td class="text-center font-bold text-amber">{{ collect($skPerBulan)->sum('draft') }}</td>
                 </tr>
                 <tr>
-                    <td class="font-bold">SPK Diterbitkan</td>
+                    <td class="font-bold">PK Reguler</td>
                     @foreach($spkPerBulan as $item)
-                        <td class="text-center" style="color:#3b82f6">{{ $item['diterbitkan'] ?: '-' }}</td>
+                        <td class="text-center" style="color:#3b82f6">{{ ($item['reguler_diterbitkan'] ?? 0) ?: '-' }}</td>
                     @endforeach
-                    <td class="text-center font-bold" style="color:#3b82f6">{{ collect($spkPerBulan)->sum('diterbitkan') }}</td>
+                    <td class="text-center font-bold" style="color:#3b82f6">{{ collect($spkPerBulan)->sum('reguler_diterbitkan') }}</td>
                 </tr>
                 <tr>
-                    <td class="font-bold">SPK Draft</td>
+                    <td class="font-bold">SE2026 Utama</td>
+                    @foreach($spkPerBulan as $item)
+                        <td class="text-center text-green">{{ ($item['sensus_utama_diterbitkan'] ?? 0) ?: '-' }}</td>
+                    @endforeach
+                    <td class="text-center font-bold text-green">{{ collect($spkPerBulan)->sum('sensus_utama_diterbitkan') }}</td>
+                </tr>
+                <tr>
+                    <td class="font-bold">SE2026 Pengganti</td>
+                    @foreach($spkPerBulan as $item)
+                        <td class="text-center" style="color:#8b5cf6">{{ ($item['sensus_pengganti_diterbitkan'] ?? 0) ?: '-' }}</td>
+                    @endforeach
+                    <td class="text-center font-bold" style="color:#8b5cf6">{{ collect($spkPerBulan)->sum('sensus_pengganti_diterbitkan') }}</td>
+                </tr>
+                <tr>
+                    <td class="font-bold">Draft / belum final</td>
                     @foreach($spkPerBulan as $item)
                         <td class="text-center text-amber">{{ $item['draft'] ?: '-' }}</td>
                     @endforeach
