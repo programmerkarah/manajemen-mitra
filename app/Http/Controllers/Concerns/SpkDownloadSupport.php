@@ -839,7 +839,7 @@ trait SpkDownloadSupport
         @unlink($mergedPath);
 
         $nomorUrut = $this->resolveDisplayNomorUrutSegment((string) $spk->nomor_spk, (int) $this->extractNomorUrut((string) $spk->nomor_spk));
-        $namaPetugas = preg_replace('/[\/\\:*?"<>|]/', '', $petugas->nama);
+        $namaPetugas = preg_replace('/[^A-Za-z0-9_-]+/', '_', trim((string) $petugas->nama)) ?: 'Petugas';
         $bulanLabel = $this->getBulanLabel($periode->bulan);
         $generatedFileName = 'SPK_'.$nomorUrut.'_'.$namaPetugas.'_'.$bulanLabel.'.pdf';
         $filePath = 'spk-export/'.$periode->tahun.'/'.str_pad((string) $periode->bulan, 2, '0', STR_PAD_LEFT).'/'.$generatedFileName;
