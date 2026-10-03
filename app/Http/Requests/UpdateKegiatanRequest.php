@@ -6,6 +6,7 @@ use App\Models\Kegiatan;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateKegiatanRequest extends FormRequest
 {
@@ -81,6 +82,26 @@ class UpdateKegiatanRequest extends FormRequest
             'metode_pelatihan' => ['required', 'in:daring,luring,hybrid,tidak_ada_pelatihan'],
             'bulan_pelatihan' => ['required_unless:metode_pelatihan,tidak_ada_pelatihan', 'nullable', 'integer', 'between:1,12'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            foreach (['listing', 'pencacahan'] as $tahapan) {
+                $field = 'frame_sampel_'.$tahapan.'_id';
+
+                if (
+                    $this->requiresMasterFrameForTahapan($tahapan)
+                    && blank($this->input($field))
+                    && ! $validator->errors()->has('kegiatan_frame_sampel')
+                ) {
+                    $validator->errors()->add(
+                        'kegiatan_frame_sampel',
+                        'Detail frame sampel belum bisa disimpan karena pilihan frame sampel per tahapan belum lengkap.'
+                    );
+                }
+            }
+        });
     }
 
     private function normalizeFrameSampelPayload(): void
