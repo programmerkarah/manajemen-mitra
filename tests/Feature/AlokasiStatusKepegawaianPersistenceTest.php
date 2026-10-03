@@ -89,6 +89,8 @@ class AlokasiStatusKepegawaianPersistenceTest extends TestCase
         $response = $this->actingAs($admin)
             ->withSession(['active_role_id' => $adminRole->id])
             ->post("/alokasi/kegiatan/{$kegiatan->hashed_id}/store-multiple", [
+                'tanggal_mulai' => "{$tahun}-03-01",
+                'tanggal_selesai' => "{$tahun}-03-31",
                 'alokasi' => [[
                     'petugas_id' => $petugasOrganik->id,
                     'peran' => 'PCL',
@@ -145,7 +147,7 @@ class AlokasiStatusKepegawaianPersistenceTest extends TestCase
 
         $response = $this->actingAs($admin)
             ->withSession(['active_role_id' => $adminRole->id])
-            ->post("/alokasi/periode/{$kegiatan->hashed_id}/{$tahun}/03", [
+            ->put("/alokasi/periode/{$kegiatan->hashed_id}/{$tahun}/03", [
                 'alokasi' => [[
                     'petugas_id' => $petugasOrganik->id,
                     'peran' => 'PCL',
