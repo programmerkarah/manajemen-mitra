@@ -25,8 +25,9 @@ import Calendar from 'lucide-react/icons/calendar';
 import Eye from 'lucide-react/icons/eye';
 import FileText from 'lucide-react/icons/file-text';
 import Upload from 'lucide-react/icons/upload';
+import Search from 'lucide-react/icons/search';
 import User from 'lucide-react/icons/user';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 interface Petugas {
     id: number;
@@ -156,6 +157,7 @@ export default function CreateForMonth({
     const [uploadingManualSpk, setUploadingManualSpk] = useState<number | null>(
         null,
     );
+    const [seSearch, setSeSearch] = useState('');
     const [modalAlert, setModalAlert] = useState<{
         open: boolean;
         title: string;
@@ -311,6 +313,270 @@ export default function CreateForMonth({
             setLampiranSelectDialog({ open: true, spk });
         }
     };
+
+    const filteredSensusSpks = useMemo(() => {
+        const keyword = seSearch.trim().toLocaleLowerCase('id-ID');
+        if (!keyword) return sortedSpkList;
+
+        return sortedSpkList.filter((spk) =>
+            [spk.petugas.nama, spk.petugas.nik, spk.nomor_spk]
+                .filter(Boolean)
+                .some((value) =>
+                    String(value)
+                        .toLocaleLowerCase('id-ID')
+                        .includes(keyword),
+                ),
+        );
+    }, [seSearch, sortedSpkList]);
+
+    if (isSensusEkonomiMode && !isDetailMode) {
+        return (
+            <AppLayout breadcrumbs={breadcrumbs}>
+                <Head title={`BAST SE2026 - ${tahun}`} />
+
+                <Dialog
+                    open={modalAlert.open}
+                    onOpenChange={(open) =>
+                        setModalAlert((prev) => ({ ...prev, open }))
+                    }
+                >
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>{modalAlert.title}</DialogTitle>
+                            <DialogDescription>
+                                {modalAlert.message}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                            <Button
+                                onClick={() =>
+                                    setModalAlert((prev) => ({
+                                        ...prev,
+                                        open: false,
+                                    }))
+                                }
+                            >
+                                Tutup
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                <div className="space-y-5">
+                    <PageHeader
+                        title="BAST SE2026"
+                        description="Inventaris PDF BAST final per petugas. SIMANTIK menyusun kode nomor secara otomatis."
+                    >
+                        <Button variant="outline" asChild>
+                            <Link href="/berita-acara">
+                                <ArrowLeft className="mr-2 h-4 w-4" />
+                                Kembali
+                            </Link>
+                        </Button>
+                    </PageHeader>
+
+                    <div className="grid gap-3 md:grid-cols-3">
+                        <ContentCard>
+                            <p className="text-xs font-medium text-muted-foreground">
+                                Petugas
+                            </p>
+                            <p className="mt-1 text-2xl font-semibold">
+                                {sortedSpkList.length}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                PK Sensus Ekonomi
+                            </p>
+                        </ContentCard>
+                        <ContentCard className="md:col-span-2">
+                            <p className="text-xs font-medium text-muted-foreground">
+                                Format nomor
+                            </p>
+                            <p className="mt-1 break-all font-mono text-sm font-semibold">
+                                B-{'{nomor}'}
+                                {nomor_bast_suffix ??
+                                    `/BAST-SE2026/1373/PL.200/${tahun}`}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Isi nomor saja, misalnya 123. Bagian B-, kode
+                                BAST, satuan kerja, klasifikasi, dan tahun
+                                ditambahkan otomatis.
+                            </p>
+                        </ContentCard>
+                    </div>
+
+                    <ContentCard>
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <h2 className="font-semibold">
+                                    Dokumen BAST petugas
+                                </h2>
+                                <p className="text-sm text-muted-foreground">
+                                    Nomor, tanggal, dan PDF berada dalam satu
+                                    baris kerja agar lebih cepat diinventaris.
+                                </p>
+                            </div>
+                            <div className="relative w-full md:w-80">
+                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    value={seSearch}
+                                    onChange={(event) =>
+                                        setSeSearch(event.target.value)
+                                    }
+                                    placeholder="Cari petugas, NIK, atau PK"
+                                    className="pl-9"
+                                />
+                            </div>
+                        </div>
+                    </ContentCard>
+
+                    <div className="space-y-3">
+                        {filteredSensusSpks.map((spk) => {
+                            const file = manualFiles[spk.spk_id] ?? null;
+                            const number = manualNomor[spk.spk_id] ?? '';
+
+                            return (
+                                <ContentCard key={spk.spk_id}>
+                                    <div className="grid gap-4 xl:grid-cols-[minmax(220px,.65fr)_minmax(430px,1.25fr)_minmax(190px,.45fr)] xl:items-start">
+                                        <div className="min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <h3 className="truncate font-semibold">
+                                                    {spk.petugas.nama}
+                                                </h3>
+                                                <Badge variant="secondary">
+                                                    {spk.has_bast
+                                                        ? 'Sudah upload'
+                                                        : 'Belum upload'}
+                                                </Badge>
+                                            </div>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                {spk.petugas.nik}
+                                            </p>
+                                            <p className="mt-2 truncate text-sm text-muted-foreground">
+                                                {spk.nomor_spk}
+                                            </p>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <div>
+                                                <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+                                                    Nomor BAST
+                                                </p>
+                                                <div className="flex min-w-0 items-stretch rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring/30">
+                                                    <span className="flex items-center border-r border-input px-3 text-sm font-medium text-muted-foreground">
+                                                        B-
+                                                    </span>
+                                                    <input
+                                                        inputMode="numeric"
+                                                        pattern="[0-9]*"
+                                                        value={number}
+                                                        onChange={(event) => {
+                                                            const value =
+                                                                event.target.value.replace(
+                                                                    /\D/g,
+                                                                    '',
+                                                                );
+                                                            setManualNomor(
+                                                                (current) => ({
+                                                                    ...current,
+                                                                    [spk.spk_id]:
+                                                                        value,
+                                                                }),
+                                                            );
+                                                        }}
+                                                        placeholder="Nomor"
+                                                        className="h-10 w-24 min-w-[72px] bg-transparent px-3 text-sm outline-none"
+                                                    />
+                                                    <span className="flex min-w-0 flex-1 items-center overflow-hidden border-l border-input px-3 text-xs text-muted-foreground">
+                                                        <span className="truncate">
+                                                            {nomor_bast_suffix ??
+                                                                `/BAST-SE2026/1373/PL.200/${tahun}`}
+                                                        </span>
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <FileUpload
+                                                value={file}
+                                                maxSizeMb={20}
+                                                label={
+                                                    spk.has_bast
+                                                        ? 'Pilih PDF pengganti BAST'
+                                                        : 'Pilih atau jatuhkan PDF BAST'
+                                                }
+                                                helperText="PDF final BAST SE2026"
+                                                onChange={(selectedFile) =>
+                                                    setManualFiles(
+                                                        (current) => ({
+                                                            ...current,
+                                                            [spk.spk_id]:
+                                                                selectedFile,
+                                                        }),
+                                                    )
+                                                }
+                                            />
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <div>
+                                                <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+                                                    Tanggal BAST
+                                                </p>
+                                                <DatePicker
+                                                    value={
+                                                        manualTanggal[
+                                                            spk.spk_id
+                                                        ] ?? ''
+                                                    }
+                                                    onChange={(value) =>
+                                                        setManualTanggal(
+                                                            (current) => ({
+                                                                ...current,
+                                                                [spk.spk_id]:
+                                                                    value,
+                                                            }),
+                                                        )
+                                                    }
+                                                    placeholder="Pilih tanggal"
+                                                />
+                                            </div>
+                                            <Button
+                                                className="w-full"
+                                                disabled={
+                                                    !file ||
+                                                    !number.trim() ||
+                                                    uploadingManualSpk ===
+                                                        spk.spk_id
+                                                }
+                                                onClick={() =>
+                                                    handleManualSensusUpload(spk)
+                                                }
+                                            >
+                                                <Upload className="mr-2 h-4 w-4" />
+                                                {uploadingManualSpk ===
+                                                spk.spk_id
+                                                    ? 'Mengunggah...'
+                                                    : spk.has_bast
+                                                      ? 'Perbarui BAST'
+                                                      : 'Simpan BAST'}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </ContentCard>
+                            );
+                        })}
+
+                        {filteredSensusSpks.length === 0 && (
+                            <ContentCard>
+                                <div className="py-10 text-center text-sm text-muted-foreground">
+                                    Petugas tidak ditemukan.
+                                </div>
+                            </ContentCard>
+                        )}
+                    </div>
+                </div>
+            </AppLayout>
+        );
+    }
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
