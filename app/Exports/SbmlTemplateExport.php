@@ -102,7 +102,7 @@ class SbmlTemplateExport implements FromArray, WithHeadings, WithStyles, WithTit
         ];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         // Set column widths
         $sheet->getColumnDimension('A')->setWidth(20);
