@@ -60,7 +60,7 @@ class SystemSettingsFeatureToggleTest extends TestCase
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->component('Admin/SystemSettings')
-            ->where('feature_toggles', function (array $featureToggles): bool {
+            ->where('feature_toggles', function ($featureToggles): bool {
                 foreach ($featureToggles as $featureToggle) {
                     if (($featureToggle['key'] ?? null) === 'kegiatan') {
                         return ($featureToggle['enabled'] ?? true) === false;
