@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/react';
+import { encryptFilters } from '@/utils/encryption';
+import { Head, router } from '@inertiajs/react';
 import ArrowRight from 'lucide-react/icons/arrow-right';
 import ChevronLeft from 'lucide-react/icons/chevron-left';
 import ChevronRight from 'lucide-react/icons/chevron-right';
@@ -220,15 +221,22 @@ export default function FrameSampelIndex({ kegiatans }: Props) {
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    asChild
                                                     className="gap-2"
+                                                    onClick={() =>
+                                                        router.post(
+                                                            '/kegiatan/edit',
+                                                            {
+                                                                state: encryptFilters({
+                                                                    kegiatan:
+                                                                        kegiatan.hashed_id,
+                                                                    step: 'lapangan',
+                                                                }),
+                                                            },
+                                                        )
+                                                    }
                                                 >
-                                                    <Link
-                                                        href={`/kegiatan/${kegiatan.hashed_id}/edit?step=lapangan`}
-                                                    >
-                                                        Kelola
-                                                        <ArrowRight className="h-4 w-4" />
-                                                    </Link>
+                                                    Kelola
+                                                    <ArrowRight className="h-4 w-4" />
                                                 </Button>
                                             </div>
                                         </div>
