@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
+import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AlertTriangle from 'lucide-react/icons/alert-triangle';
 import Check from 'lucide-react/icons/check';
@@ -865,17 +866,24 @@ export default function Index({ kegiatans }: KegiatanIndexProps) {
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
-                                                            asChild
                                                             className="gap-2"
+                                                            onClick={() =>
+                                                                router.post(
+                                                                    '/kegiatan/edit',
+                                                                    {
+                                                                        state: encryptFilters({
+                                                                            kegiatan:
+                                                                                kegiatan.hashed_id,
+                                                                            step: 'metadata',
+                                                                        }),
+                                                                    },
+                                                                )
+                                                            }
                                                         >
-                                                            <Link
-                                                                href={`/kegiatan/${kegiatan.hashed_id}/edit`}
-                                                            >
-                                                                <Pencil className="h-4 w-4" />
-                                                                <span className="sr-only sm:not-sr-only">
-                                                                    Edit
-                                                                </span>
-                                                            </Link>
+                                                            <Pencil className="h-4 w-4" />
+                                                            <span className="sr-only sm:not-sr-only">
+                                                                Edit
+                                                            </span>
                                                         </Button>
                                                     )}
                                                     {canCreate && (
