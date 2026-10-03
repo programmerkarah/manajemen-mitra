@@ -1,4 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
+import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/page-header';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import AlertTriangle from 'lucide-react/icons/alert-triangle';
@@ -265,19 +267,13 @@ export default function AnalisisPetugasOrganik({
             <Head title="Analisis Petugas Organik" />
             <div className="flex flex-1 flex-col gap-6 p-4">
                 {/* Header */}
-                <div className="app-surface flex items-start justify-between p-4 sm:p-5 md:p-6">
-                    <div>
-                        <h1 className="app-page-title">
-                            Analisis Petugas Organik
-                        </h1>
-                        <p className="app-page-description">
-                            Distribusi beban kerja pegawai organik &middot;
-                            Tahun {currentYear} (Januari &ndash;{' '}
-                            {monthNames[currentMonth - 1]})
-                        </p>
-                    </div>
-                    <button
+                <PageHeader
+                    title="Analisis Petugas Organik"
+                    description={`Distribusi beban kerja pegawai organik · Tahun ${currentYear} (Januari – ${monthNames[currentMonth - 1]})`}
+                >
+                    <Button
                         type="button"
+                        variant="outline"
                         onClick={() =>
                             window.open(
                                 '/analisis/petugas-organik/export-pdf',
@@ -285,12 +281,11 @@ export default function AnalisisPetugasOrganik({
                                 'noopener,noreferrer',
                             )
                         }
-                        className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
                     >
                         <Download className="h-4 w-4" />
                         Export PDF
-                    </button>
-                </div>
+                    </Button>
+                </PageHeader>
 
                 {/* KPI Cards */}
                 <div className="summary-grid">
