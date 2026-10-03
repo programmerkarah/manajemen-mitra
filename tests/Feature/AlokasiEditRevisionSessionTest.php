@@ -291,11 +291,17 @@ class AlokasiEditRevisionSessionTest extends TestCase
             'parent_periode_id' => $periode->id,
         ]);
 
+        $periodePerubahan = PeriodeAlokasi::query()
+            ->where('parent_periode_id', $periode->id)
+            ->where('status', 'perubahan')
+            ->latest('id')
+            ->firstOrFail();
+
         $this->assertDatabaseHas('alokasi_petugas', [
             'petugas_id' => $petugas->id,
             'is_partial_payment' => 1,
             'partial_jumlah_satuan' => 3,
-            'periode_alokasi_id' => $periode->fresh()->load('children')->children->first()->id ?? $periode->id,
+            'periode_alokasi_id' => $periodePerubahan->id,
         ]);
     }
 }
