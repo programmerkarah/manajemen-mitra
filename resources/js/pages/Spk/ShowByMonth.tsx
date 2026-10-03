@@ -1,5 +1,6 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
+import { SummaryCard } from '@/components/summary-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -618,55 +619,48 @@ export default function ShowByMonth({
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-3">
-                        <div className="group rounded-xl border border-blue-200/80 bg-linear-to-br from-blue-50 to-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-blue-900/60 dark:from-blue-950/30 dark:to-neutral-900">
-                            <div className="flex items-center justify-between">
-                                <p className="text-xs font-medium tracking-wide text-blue-700 uppercase dark:text-blue-300">
-                                    File Digenerate
-                                </p>
-                                <FileText className="h-4 w-4 text-blue-600 dark:text-blue-300" />
-                            </div>
-                            <p className="mt-3 text-3xl font-bold text-blue-900 dark:text-blue-100">
-                                {generatedFileCount}
-                            </p>
-                        </div>
-
-                        <div className="group rounded-xl border border-green-200/80 bg-linear-to-br from-green-50 to-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-green-900/60 dark:from-green-950/30 dark:to-neutral-900">
-                            <div className="flex items-center justify-between">
-                                <p className="text-xs font-medium tracking-wide text-green-700 uppercase dark:text-green-300">
-                                    Sudah Ditandatangani
-                                </p>
-                                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-300" />
-                            </div>
-                            <p className="mt-3 text-3xl font-bold text-green-900 dark:text-green-100">
-                                {signedFileCount}
-                            </p>
-                        </div>
-
-                        <div className="group rounded-xl border border-amber-200/80 bg-linear-to-br from-amber-50 to-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-amber-900/60 dark:from-amber-950/30 dark:to-neutral-900">
-                            <div className="flex items-center justify-between">
-                                <p className="text-xs font-medium tracking-wide text-amber-700 uppercase dark:text-amber-300">
-                                    Belum Ditandatangani
-                                </p>
-                                <PenLine className="h-4 w-4 text-amber-600 dark:text-amber-300" />
-                            </div>
-                            <p className="mt-3 text-3xl font-bold text-amber-900 dark:text-amber-100">
-                                {unsignedFileCount}
-                            </p>
-                        </div>
+                        <SummaryCard
+                            label="File Digenerate"
+                            value={generatedFileCount}
+                            icon={<FileText className="h-5 w-5" />}
+                            accent="blue"
+                        />
+                        <SummaryCard
+                            label="Sudah Ditandatangani"
+                            value={signedFileCount}
+                            icon={<CheckCircle2 className="h-5 w-5" />}
+                            accent="green"
+                        />
+                        <SummaryCard
+                            label="Belum Ditandatangani"
+                            value={unsignedFileCount}
+                            icon={<PenLine className="h-5 w-5" />}
+                            accent="orange"
+                        />
                     </div>
 
-                    <div>
-                        <div className="mb-1 flex items-center justify-between text-xs text-neutral-600 dark:text-neutral-400">
-                            <span>Progres tanda tangan</span>
-                            <span>
-                                {signedFileCount}/{generatedFileCount || 0}
+                    <div className="space-y-2 rounded-xl border border-border bg-muted/20 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <span className="font-medium text-foreground/80">
+                                Progres tanda tangan
+                            </span>
+                            <span className="text-muted-foreground">
+                                {signedFileCount}/{generatedFileCount || 0} dokumen
+                                · {signedProgress}% dari 100%
                             </span>
                         </div>
-                        <div className="h-2 rounded-full bg-neutral-200 dark:bg-neutral-800">
+                        <div
+                            className="relative h-2.5 overflow-hidden rounded-full border border-border bg-muted"
+                            aria-label={`Progres tanda tangan ${signedProgress}% dari 100%`}
+                        >
                             <div
-                                className="h-2 rounded-full bg-green-500 transition-all duration-500"
+                                className="absolute inset-y-0 left-0 rounded-full bg-emerald-500 transition-all duration-500"
                                 style={{ width: `${signedProgress}%` }}
                             />
+                        </div>
+                        <div className="flex justify-between text-[11px] text-muted-foreground">
+                            <span>0%</span>
+                            <span>100%</span>
                         </div>
                     </div>
                 </div>
