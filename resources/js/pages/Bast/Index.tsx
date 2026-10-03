@@ -128,6 +128,26 @@ export default function Index({
         auth.activeRole?.name === 'admin' ||
         auth.activeRole?.name === 'operator';
 
+    const switchMode = (nextMode: 'regular' | 'sensus-ekonomi') => {
+        router.post('/berita-acara/mode', {
+            encrypted_filters: encryptFilters({ mode: nextMode }),
+        });
+    };
+
+    const openCreate = (
+        bulan: number,
+        tahun: number,
+        createMode: 'regular' | 'sensus-ekonomi' = mode,
+    ) => {
+        router.post('/berita-acara/create', {
+            encrypted_filters: encryptFilters({
+                bulan,
+                tahun,
+                mode: createMode,
+            }),
+        });
+    };
+
     if (mode === 'sensus-ekonomi') {
         const sePeriod =
             decryptedData.find((item) => item.bulan === 8 && item.has_spk) ??
@@ -149,9 +169,7 @@ export default function Index({
                             <Button
                                 variant="outline"
                                 onClick={() =>
-                                    router.get('/berita-acara', {
-                                        mode: 'regular',
-                                    })
+                                    switchMode('regular')
                                 }
                             >
                                 BAST Reguler
@@ -218,14 +236,17 @@ export default function Index({
                             </div>
 
                             {canManageMain && sePeriod && (
-                                <Button asChild>
-                                    <Link
-                                        href={`/berita-acara/create?bulan=${sePeriod.bulan}&tahun=${sePeriod.tahun}&mode=sensus-ekonomi`}
-                                        prefetch
-                                    >
-                                        <FileText className="mr-2 h-4 w-4" />
-                                        Kelola BAST SE2026
-                                    </Link>
+                                <Button
+                                    onClick={() =>
+                                        openCreate(
+                                            sePeriod.bulan,
+                                            sePeriod.tahun,
+                                            'sensus-ekonomi',
+                                        )
+                                    }
+                                >
+                                    <FileText className="mr-2 h-4 w-4" />
+                                    Kelola BAST SE2026
                                 </Button>
                             )}
                         </div>
@@ -289,9 +310,7 @@ export default function Index({
                                     mode === 'regular' ? 'default' : 'outline'
                                 }
                                 onClick={() =>
-                                    router.get('/berita-acara', {
-                                        mode: 'regular',
-                                    })
+                                    switchMode('regular')
                                 }
                             >
                                 Reguler
@@ -303,9 +322,7 @@ export default function Index({
                                         : 'outline'
                                 }
                                 onClick={() =>
-                                    router.get('/berita-acara', {
-                                        mode: 'sensus-ekonomi',
-                                    })
+                                    switchMode('sensus-ekonomi')
                                 }
                             >
                                 Sensus Ekonomi
@@ -502,23 +519,23 @@ export default function Index({
                                                                     ? 'outline'
                                                                     : 'default'
                                                             }
-                                                            asChild
+                                                            onClick={() =>
+                                                                openCreate(
+                                                                    item.bulan,
+                                                                    item.tahun,
+                                                                )
+                                                            }
                                                         >
-                                                            <Link
-                                                                href={`/berita-acara/create?bulan=${item.bulan}&tahun=${item.tahun}&mode=${mode}`}
-                                                                prefetch
-                                                            >
-                                                                {mode ===
-                                                                'sensus-ekonomi' ? (
-                                                                    <FileText className="mr-1 h-4 w-4" />
-                                                                ) : (
-                                                                    <Plus className="mr-1 h-4 w-4" />
-                                                                )}
-                                                                {mode ===
-                                                                'sensus-ekonomi'
-                                                                    ? 'Kelola BAST'
-                                                                    : 'Generate BAST'}
-                                                            </Link>
+                                                            {mode ===
+                                                            'sensus-ekonomi' ? (
+                                                                <FileText className="mr-1 h-4 w-4" />
+                                                            ) : (
+                                                                <Plus className="mr-1 h-4 w-4" />
+                                                            )}
+                                                            {mode ===
+                                                            'sensus-ekonomi'
+                                                                ? 'Kelola BAST'
+                                                                : 'Generate BAST'}
                                                         </Button>
                                                     )}
 
@@ -635,21 +652,24 @@ export default function Index({
                                                     mode === 'sensus-ekonomi' &&
                                                     item.bulan !== 8
                                                 ) && (
-                                                    <Button size="sm" asChild>
-                                                        <Link
-                                                            href={`/berita-acara/create?bulan=${item.bulan}&tahun=${item.tahun}&mode=${mode}`}
-                                                            prefetch
-                                                        >
-                                                            {mode ===
-                                                            'sensus-ekonomi' ? (
-                                                                <>
-                                                                    <FileText className="mr-1 h-3.5 w-3.5" />
-                                                                    Kelola BAST
-                                                                </>
-                                                            ) : (
-                                                                <Plus className="h-3.5 w-3.5" />
-                                                            )}
-                                                        </Link>
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            openCreate(
+                                                                item.bulan,
+                                                                item.tahun,
+                                                            )
+                                                        }
+                                                    >
+                                                        {mode ===
+                                                        'sensus-ekonomi' ? (
+                                                            <>
+                                                                <FileText className="mr-1 h-3.5 w-3.5" />
+                                                                Kelola BAST
+                                                            </>
+                                                        ) : (
+                                                            <Plus className="h-3.5 w-3.5" />
+                                                        )}
                                                     </Button>
                                                 )}
 
