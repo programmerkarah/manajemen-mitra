@@ -36,16 +36,14 @@ use Inertia\Inertia;
 use Inertia\Response;
 use setasign\Fpdi\Tcpdf\Fpdi;
 use Vinkla\Hashids\Facades\Hashids;
+use App\Services\Spk\SensusEkonomiSpkService;
 
 trait SpkSensusSupport
 {
     private function isSensusEkonomi2026(Kegiatan $kegiatan): bool
     {
-        return mb_strtolower((string) $kegiatan->jenis_kegiatan) === 'sensus'
-            && str_contains(
-                mb_strtolower(trim((string) $kegiatan->nama_kegiatan)),
-                'sensus ekonomi'
-            );
+        return app(SensusEkonomiSpkService::class)
+            ->isSensusEkonomi2026($kegiatan);
     }
 
     private function canAccessSensusMode(?User $user, ?int $tahunAnggaran = null): bool
@@ -453,156 +451,42 @@ trait SpkSensusSupport
 
         return $result;
     }
-
-    private function calculateSensusEkonomiMilestoneMetrics(int $selectedRows, array $frameMuatanTotals, int $percentage): array
-    {
-        $selectedRows = max(0, $selectedRows);
-
-        $terminSatuSelectedRows = $this->calculateSensusEkonomiTermSelectedRows($selectedRows, $frameMuatanTotals);
-
-        if ($percentage === 40) {
-            return [
-                'selected_rows' => $terminSatuSelectedRows,
-            ];
-        }
-
-        return [
-            'selected_rows' => max(0, $selectedRows - $terminSatuSelectedRows),
-        ];
+    private function calculateSensusEkonomiMilestoneMetrics(
+        int $selectedRows,
+        array $frameMuatanTotals,
+        int $percentage,
+    ): array {
+        return app(SensusEkonomiSpkService::class)
+            ->milestoneMetrics(
+                $selectedRows,
+                $frameMuatanTotals,
+                $percentage,
+            );
     }
-
-    private function calculateSensusEkonomiTermSelectedRows(int $selectedRows, array $frameMuatanTotals): int
-    {
-        $selectedRows = max(0, $selectedRows);
-        $frameMuatanTotals = array_values(array_filter(
-            array_map(static fn ($value): int => max(0, (int) $value), $frameMuatanTotals),
-            static fn (int $value): bool => $value > 0,
-        ));
-
-        if ($selectedRows === 0) {
-            return 0;
-        }
-
-        if (empty($frameMuatanTotals)) {
-            return (int) ceil($selectedRows * 0.4);
-        }
-
-        $totalMuatan = array_sum($frameMuatanTotals);
-
-        if ($totalMuatan <= 0) {
-            return (int) ceil($selectedRows * 0.4);
-        }
-
-        $threshold = (int) ceil($totalMuatan * 0.4);
-        rsort($frameMuatanTotals, SORT_NUMERIC);
-
-        $accumulatedMuatan = 0;
-        $count = 0;
-
-        foreach ($frameMuatanTotals as $frameMuatan) {
-            $accumulatedMuatan += $frameMuatan;
-            $count++;
-
-            if ($accumulatedMuatan >= $threshold) {
-                break;
-            }
-        }
-
-        return max(1, min($selectedRows, $count));
+    private function calculateSensusEkonomiTermSelectedRows(
+        int $selectedRows,
+        array $frameMuatanTotals,
+    ): int {
+        return app(SensusEkonomiSpkService::class)
+            ->termSelectedRows($selectedRows, $frameMuatanTotals);
     }
-
-    private function resolveSensusEkonomiFrameVolumeMetrics(mixed $allAlokasi, mixed $alokasi): array
-    {
-        $alokasiCollection = collect();
-
-        if ($allAlokasi instanceof Collection) {
-            $alokasiCollection = $allAlokasi->filter(fn (mixed $item): bool => $item instanceof AlokasiPetugas)->values();
-        }
-
-        if ($alokasiCollection->isEmpty() && $alokasi instanceof AlokasiPetugas) {
-            $alokasiCollection = collect([$alokasi]);
-        }
-
-        if ($alokasiCollection->isEmpty()) {
-            return [
-                'selected_rows' => 0,
-                'prelist_total' => 0,
-                'total_volume' => 0,
-                'frame_muatan_totals' => [],
-                'narrative' => '-',
-            ];
-        }
-
-        $alokasiCollection->each(function (AlokasiPetugas $alokasiPetugas): void {
-            $alokasiPetugas->loadMissing('frameSampelAllocations.kegiatanFrameSampel');
-        });
-
-        $frameAllocations = $alokasiCollection
-            ->flatMap(function (AlokasiPetugas $alokasiPetugas): array {
-                return $alokasiPetugas->frameSampelAllocations->all();
-            })
-            ->filter(fn (mixed $allocation): bool => $allocation !== null)
-            ->unique('kegiatan_frame_sampel_id')
-            ->values();
-
-        $selectedRows = $frameAllocations->count();
-
-        $perUnitSampelTotals = [];
-        $frameMuatanTotals = [];
-        foreach ($frameAllocations as $frameAllocation) {
-            $targetUnitSampel = $frameAllocation?->kegiatanFrameSampel?->target_unit_sampel;
-            $frameMuatanTotal = 0;
-
-            if (is_array($targetUnitSampel)) {
-                foreach ($targetUnitSampel as $unitSampelId => $count) {
-                    $uid = (int) $unitSampelId;
-                    $countValue = max(0, (int) $count);
-                    $perUnitSampelTotals[$uid] = ($perUnitSampelTotals[$uid] ?? 0) + $countValue;
-                    $frameMuatanTotal += $countValue;
-                }
-            } elseif (is_numeric($targetUnitSampel) && (int) $targetUnitSampel > 0) {
-                $targetValue = (int) $targetUnitSampel;
-                $perUnitSampelTotals[0] = ($perUnitSampelTotals[0] ?? 0) + $targetValue;
-                $frameMuatanTotal += $targetValue;
-            }
-
-            $frameMuatanTotals[] = $frameMuatanTotal;
-        }
-
-        $unitSampelIds = array_values(array_filter(array_keys($perUnitSampelTotals), fn ($id) => $id > 0));
-        $unitSampelNames = ! empty($unitSampelIds)
-            ? MasterUnitSampel::query()->whereIn('id', $unitSampelIds)->pluck('nama', 'id')->toArray()
-            : [];
-
-        $prelistTotal = array_sum($perUnitSampelTotals);
-        $totalVolume = $selectedRows + $prelistTotal;
-
-        return [
-            'selected_rows' => $selectedRows,
-            'prelist_total' => $prelistTotal,
-            'per_unit_sampel_totals' => $perUnitSampelTotals,
-            'unit_sampel_names' => $unitSampelNames,
-            'frame_muatan_totals' => $frameMuatanTotals,
-            'total_volume' => $totalVolume,
-            'narrative' => $this->formatSensusEkonomiVolumeNarrative($selectedRows),
-        ];
+    private function resolveSensusEkonomiFrameVolumeMetrics(
+        mixed $allAlokasi,
+        mixed $alokasi,
+    ): array {
+        return app(SensusEkonomiSpkService::class)
+            ->frameVolumeMetrics($allAlokasi, $alokasi);
     }
-
-    private function formatSensusEkonomiVolumeNarrative(int $selectedRows): string
-    {
-        if ($selectedRows > 0) {
-            return number_format($selectedRows, 0, ',', '.').' SLS/sub-SLS';
-        }
-
-        return '-';
+    private function formatSensusEkonomiVolumeNarrative(
+        int $selectedRows,
+    ): string {
+        return app(SensusEkonomiSpkService::class)
+            ->volumeNarrative($selectedRows);
     }
-
-    private function formatSensusEkonomiTotalSlsVolumeLabel(int $selectedRows): string
-    {
-        if ($selectedRows <= 0) {
-            return '-';
-        }
-
-        return 'Seluruh Muatan '.number_format($selectedRows, 0, ',', '.').' SLS/sub-SLS';
+    private function formatSensusEkonomiTotalSlsVolumeLabel(
+        int $selectedRows,
+    ): string {
+        return app(SensusEkonomiSpkService::class)
+            ->totalSlsVolumeLabel($selectedRows);
     }
 }
