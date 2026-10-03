@@ -343,24 +343,34 @@ export default function Index({
 
                                                 {canManageMain &&
                                                     item.has_spk &&
-                                                    !item.all_completed &&
-                                                    !(
-                                                        mode ===
-                                                            'sensus-ekonomi' &&
-                                                        item.bulan !== 8
-                                                    ) && (
+                                                    (mode ===
+                                                    'sensus-ekonomi'
+                                                        ? item.bulan === 8
+                                                        : !item.all_completed) && (
                                                         <Button
                                                             size="sm"
+                                                            variant={
+                                                                mode ===
+                                                                    'sensus-ekonomi' &&
+                                                                item.all_completed
+                                                                    ? 'outline'
+                                                                    : 'default'
+                                                            }
                                                             asChild
                                                         >
                                                             <Link
                                                                 href={`/berita-acara/create?bulan=${item.bulan}&tahun=${item.tahun}&mode=${mode}`}
                                                                 prefetch
                                                             >
-                                                                <Plus className="mr-1 h-4 w-4" />
+                                                                {mode ===
+                                                                'sensus-ekonomi' ? (
+                                                                    <FileText className="mr-1 h-4 w-4" />
+                                                                ) : (
+                                                                    <Plus className="mr-1 h-4 w-4" />
+                                                                )}
                                                                 {mode ===
                                                                 'sensus-ekonomi'
-                                                                    ? 'Kelola Upload'
+                                                                    ? 'Kelola BAST'
                                                                     : 'Generate BAST'}
                                                             </Link>
                                                         </Button>
