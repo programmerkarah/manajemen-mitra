@@ -1,5 +1,6 @@
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
+import { SummaryCard } from '@/components/summary-card';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -336,92 +337,34 @@ export default function PengajuanPulsaIndex({ pengajuanList, filters }: Props) {
                 </ContentCard>
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <button
-                        type="button"
+                    <SummaryCard
+                        label="Nominal Diajukan"
+                        value={formatCurrency(summaryTotals.diajukan)}
+                        icon={<FileText className="h-5 w-5" />}
+                        accent="blue"
                         onClick={() => openSummaryModal('all')}
-                        className="cursor-pointer text-left"
-                    >
-                        <ContentCard className="border border-blue-200/60 bg-gradient-to-br from-blue-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-blue-900/40 dark:from-blue-950/30 dark:to-neutral-900">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-sm text-blue-700 dark:text-blue-300">
-                                        Nominal Diajukan
-                                    </p>
-                                    <p className="mt-2 text-lg font-semibold text-neutral-900 dark:text-neutral-100">
-                                        {formatCurrency(summaryTotals.diajukan)}
-                                    </p>
-                                </div>
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
-                                    <FileText className="h-5 w-5" />
-                                </span>
-                            </div>
-                        </ContentCard>
-                    </button>
-                    <button
-                        type="button"
+                    />
+                    <SummaryCard
+                        label="Menunggu Review"
+                        value={summaryGroups.menunggu.length}
+                        icon={<Clock3 className="h-5 w-5" />}
+                        accent="orange"
                         onClick={() => openSummaryModal('menunggu')}
-                        className="cursor-pointer text-left"
-                    >
-                        <ContentCard className="border border-amber-200/60 bg-gradient-to-br from-amber-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-amber-900/40 dark:from-amber-950/30 dark:to-neutral-900">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-sm text-amber-700 dark:text-amber-300">
-                                        Menunggu Review
-                                    </p>
-                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                                        {summaryGroups.menunggu.length}
-                                    </p>
-                                </div>
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
-                                    <Clock3 className="h-5 w-5" />
-                                </span>
-                            </div>
-                        </ContentCard>
-                    </button>
-                    <button
-                        type="button"
+                    />
+                    <SummaryCard
+                        label="Nominal Disetujui"
+                        value={formatCurrency(summaryTotals.disetujui)}
+                        icon={<CheckCircle className="h-5 w-5" />}
+                        accent="green"
                         onClick={() => openSummaryModal('diterima')}
-                        className="cursor-pointer text-left"
-                    >
-                        <ContentCard className="border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-neutral-900">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                                        Nominal Disetujui
-                                    </p>
-                                    <p className="mt-2 text-lg font-semibold text-neutral-900 dark:text-neutral-100">
-                                        {formatCurrency(
-                                            summaryTotals.disetujui,
-                                        )}
-                                    </p>
-                                </div>
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
-                                    <CheckCircle className="h-5 w-5" />
-                                </span>
-                            </div>
-                        </ContentCard>
-                    </button>
-                    <button
-                        type="button"
+                    />
+                    <SummaryCard
+                        label="Ditolak"
+                        value={summaryGroups.ditolak.length}
+                        icon={<XCircle className="h-5 w-5" />}
+                        accent="violet"
                         onClick={() => openSummaryModal('ditolak')}
-                        className="cursor-pointer text-left"
-                    >
-                        <ContentCard className="border border-rose-200/60 bg-gradient-to-br from-rose-50 to-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-rose-900/40 dark:from-rose-950/30 dark:to-neutral-900">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-sm text-rose-700 dark:text-rose-300">
-                                        Ditolak
-                                    </p>
-                                    <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-                                        {summaryGroups.ditolak.length}
-                                    </p>
-                                </div>
-                                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">
-                                    <XCircle className="h-5 w-5" />
-                                </span>
-                            </div>
-                        </ContentCard>
-                    </button>
+                    />
                 </div>
 
                 {/* Per-kegiatan table */}
