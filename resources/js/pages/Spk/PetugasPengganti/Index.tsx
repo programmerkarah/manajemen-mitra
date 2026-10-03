@@ -2,14 +2,25 @@ import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import ArrowLeft from 'lucide-react/icons/arrow-left';
 import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import Circle from 'lucide-react/icons/circle';
 import FileText from 'lucide-react/icons/file-text';
-import FolderOpen from 'lucide-react/icons/folder-open';
-import UploadCloud from 'lucide-react/icons/upload-cloud';
+import UserRoundCheck from 'lucide-react/icons/user-round-check';
+import UserRoundMinus from 'lucide-react/icons/user-round-minus';
+import UsersRound from 'lucide-react/icons/users-round';
+import { useMemo, useState } from 'react';
 
 interface PkppSummary {
     nomor: string | null;
@@ -25,9 +36,12 @@ interface PkppSummary {
 interface ReplacementItem {
     id: number;
     hashed_id: string;
+    spk_lama_id: number | null;
+    spk_lama_nomor: string | null;
     petugas_berhenti_nama: string | null;
     petugas_pengganti_nama: string | null;
     pml_cover_nama: string | null;
+    termination_type: 'diberhentikan' | 'mengundurkan_diri' | null;
     tanggal_berhenti: string | null;
     tanggal_mulai_pkpp: string | null;
     status: string;
@@ -35,8 +49,27 @@ interface ReplacementItem {
     pkpp: PkppSummary | null;
 }
 
+interface StoppedCandidate {
+    spk_id: number;
+    spk_hashed_id: string;
+    nomor_spk: string;
+    petugas_id: number;
+    petugas_nama: string | null;
+    petugas_nik: string | null;
+}
+
+interface ReplacementCandidate {
+    id: number;
+    hashed_id: string;
+    nama: string;
+    nik: string | null;
+}
+
 interface IndexProps {
     replacements: ReplacementItem[];
+    stopped_candidates: StoppedCandidate[];
+    replacement_candidates: ReplacementCandidate[];
+    can_manage: boolean;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -44,313 +77,564 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Pergantian Petugas SE2026', href: '#' },
 ];
 
-function formatStatus(status: string): string {
-    switch (status) {
-        case 'pengganti_ditetapkan':
-            return 'Pengganti Ditetapkan';
-        case 'pml_cover':
-            return 'PML Cover';
-        case 'selesai':
-            return 'Selesai';
-        case 'dibatalkan':
-            return 'Dibatalkan';
-        default:
-            return 'Draft';
-    }
-}
-
-function formatScheme(code: string | null): string {
+const prettyScheme = (code: string | null) => {
     if (!code) return '-';
+    return `Skema ${code.replace('scheme_', '')}`;
+};
 
-    const number = code.replace('scheme_', '');
-    return `Skema ${number}`;
-}
+const stopLabel = (
+    value: ReplacementItem['termination_type'],
+): string => {
+    if (value === 'diberhentikan') return 'Diberhentikan';
+    if (value === 'mengundurkan_diri') return 'Mengundurkan diri';
+    return 'Berhenti';
+};
 
-export default function Index({ replacements }: IndexProps) {
+export default function Index({
+    replacements,
+    stopped_candidates,
+    replacement_candidates,
+    can_manage,
+}: IndexProps) {
+    const [stoppedSpkId, setStoppedSpkId] = useState('');
+    const [terminationType, setTerminationType] = useState<
+        'diberhentikan' | 'mengundurkan_diri'
+    >('mengundurkan_diri');
+    const [stopDate, setStopDate] = useState('');
+    const [savingStop, setSavingStop] = useState(false);
+    const [replacementForm, setReplacementForm] = useState<
+        Record<
+            number,
+            {
+                petugasId: string;
+                startDate: string;
+            }
+        >
+    >({});
+    const [assigning, setAssigning] = useState<number | null>(null);
+
+    const availableStopCandidates = useMemo(
+        () => stopped_candidates,
+        [stopped_candidates],
+    );
+
+    const registerStop = () => {
+        if (!stoppedSpkId || !stopDate) return;
+
+        setSavingStop(true);
+        router.post(
+            '/sensus-ekonomi/replacements/register-stop',
+            {
+                spk_id: Number(stoppedSpkId),
+                termination_type: terminationType,
+                tanggal_berhenti: stopDate,
+            },
+            {
+                preserveScroll: true,
+                onFinish: () => setSavingStop(false),
+                onSuccess: () => {
+                    setStoppedSpkId('');
+                    setStopDate('');
+                },
+            },
+        );
+    };
+
+    const assignReplacement = (item: ReplacementItem) => {
+        const form = replacementForm[item.id];
+        if (!form?.petugasId || !form.startDate) return;
+
+        setAssigning(item.id);
+        router.post(
+            `/sensus-ekonomi/replacements/${item.hashed_id}/assign`,
+            {
+                petugas_pengganti_id: Number(form.petugasId),
+                tanggal_mulai_pkpp: form.startDate,
+            },
+            {
+                preserveScroll: true,
+                onFinish: () => setAssigning(null),
+            },
+        );
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Pergantian Petugas SE2026" />
 
-            <div className="space-y-6 p-6">
+            <div className="space-y-5">
                 <PageHeader
                     title="Pergantian Petugas SE2026"
-                    description="Inventaris alur petugas berhenti dan petugas pengganti tanpa mencampurkannya dengan kewajiban petugas utama."
+                    description="Satu alur untuk mencatat petugas berhenti, menentukan pengganti, menetapkan skema, lalu menginventaris PK, BAPP, dan BAST."
                 >
                     <Button variant="outline" asChild>
-                        <Link href="/spk?mode=sensus-ekonomi" prefetch>
+                        <Link href="/spk" prefetch>
                             <ArrowLeft className="mr-2 h-4 w-4" />
-                            Kembali ke Perjanjian Kerja
+                            Perjanjian Kerja
                         </Link>
                     </Button>
                 </PageHeader>
 
                 <ContentCard>
-                    <div className="space-y-4">
-                        <div>
-                            <h2 className="text-base font-semibold">
-                                Alur dokumen pergantian
-                            </h2>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                Data pergantian menjadi pengikat dokumen. BAPP
-                                dan BAST tetap diinventaris pada menu dokumennya
-                                masing-masing agar arsip tidak terduplikasi.
-                            </p>
-                        </div>
-                        <div className="grid gap-3 md:grid-cols-3">
-                            <div className="rounded-xl border border-border bg-muted/20 p-4">
-                                <p className="text-xs font-medium text-muted-foreground">
-                                    1 · Petugas berhenti
-                                </p>
-                                <p className="mt-1 text-sm font-medium">
-                                    Upload BAPP sesuai tanggal berhenti, lalu
-                                    BAST
-                                </p>
-                                <div className="mt-3 flex gap-2">
-                                    <Button size="sm" variant="outline" asChild>
-                                        <Link href="/bapp" prefetch>
-                                            BAPP
-                                        </Link>
-                                    </Button>
-                                    <Button size="sm" variant="outline" asChild>
-                                        <Link
-                                            href="/berita-acara?mode=sensus-ekonomi"
-                                            prefetch
-                                        >
-                                            BAST
-                                        </Link>
-                                    </Button>
+                    <div className="grid gap-3 md:grid-cols-4">
+                        {[
+                            ['1', 'Status petugas', 'Berhenti / mundur'],
+                            ['2', 'Petugas pengganti', 'Tidak menunggu upload dokumen'],
+                            ['3', 'Skema PKPP', 'Otomatis dari tanggal kontrak'],
+                            ['4', 'Dokumen pengganti', 'PK → BAPP → BAST'],
+                        ].map(([step, title, desc]) => (
+                            <div
+                                key={step}
+                                className="rounded-xl border border-border bg-muted/20 p-4"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+                                        {step}
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold">
+                                            {title}
+                                        </p>
+                                        <p className="mt-0.5 text-xs text-muted-foreground">
+                                            {desc}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="rounded-xl border border-border bg-muted/20 p-4">
-                                <p className="text-xs font-medium text-muted-foreground">
-                                    2 · Petugas pengganti
-                                </p>
-                                <p className="mt-1 text-sm font-medium">
-                                    Tetapkan skema kontrak dan inventaris PK
-                                    pengganti
-                                </p>
-                                <p className="mt-2 text-xs text-muted-foreground">
-                                    Skema otomatis mengikuti tanggal kontrak:
-                                    Skema 1–2 = 2 termin, Skema 3–5 = 1 termin.
-                                </p>
-                            </div>
-                            <div className="rounded-xl border border-border bg-muted/20 p-4">
-                                <p className="text-xs font-medium text-muted-foreground">
-                                    3 · Penyelesaian pengganti
-                                </p>
-                                <p className="mt-1 text-sm font-medium">
-                                    Upload BAPP sesuai jumlah termin skema, lalu
-                                    BAST
-                                </p>
-                                <div className="mt-3 flex gap-2">
-                                    <Button size="sm" variant="outline" asChild>
-                                        <Link href="/bapp" prefetch>
-                                            BAPP
-                                        </Link>
-                                    </Button>
-                                    <Button size="sm" variant="outline" asChild>
-                                        <Link
-                                            href="/berita-acara?mode=sensus-ekonomi"
-                                            prefetch
-                                        >
-                                            BAST
-                                        </Link>
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
+                        ))}
                     </div>
                 </ContentCard>
 
-                <ContentCard>
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div>
-                            <div className="text-sm font-medium">
-                                Inventaris pergantian aktif
+                {can_manage && (
+                    <ContentCard>
+                        <div className="space-y-4">
+                            <div>
+                                <h2 className="flex items-center gap-2 text-base font-semibold">
+                                    <UserRoundMinus className="h-4 w-4" />
+                                    Catat petugas berhenti
+                                </h2>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Tahap ini hanya mencatat status dan tanggal
+                                    berhenti. Petugas pengganti ditentukan pada
+                                    tahap berikutnya, tanpa menunggu status
+                                    upload BAPP/BAST petugas lama.
+                                </p>
                             </div>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                Status di bawah membantu melihat bagian dokumen
-                                yang masih belum lengkap.
-                            </p>
+
+                            <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_220px_220px_auto] lg:items-end">
+                                <div className="space-y-1.5">
+                                    <p className="text-xs font-medium text-muted-foreground">
+                                        Petugas / PK Sensus Ekonomi
+                                    </p>
+                                    <Select
+                                        value={stoppedSpkId}
+                                        onValueChange={setStoppedSpkId}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Pilih petugas yang berhenti" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {availableStopCandidates.map(
+                                                (candidate) => (
+                                                    <SelectItem
+                                                        key={candidate.spk_id}
+                                                        value={String(
+                                                            candidate.spk_id,
+                                                        )}
+                                                    >
+                                                        {candidate.petugas_nama}{' '}
+                                                        · {candidate.nomor_spk}
+                                                    </SelectItem>
+                                                ),
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <p className="text-xs font-medium text-muted-foreground">
+                                        Status berhenti
+                                    </p>
+                                    <Select
+                                        value={terminationType}
+                                        onValueChange={(value) =>
+                                            setTerminationType(
+                                                value as
+                                                    | 'diberhentikan'
+                                                    | 'mengundurkan_diri',
+                                            )
+                                        }
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="mengundurkan_diri">
+                                                Mengundurkan diri
+                                            </SelectItem>
+                                            <SelectItem value="diberhentikan">
+                                                Diberhentikan
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <p className="text-xs font-medium text-muted-foreground">
+                                        Tanggal berhenti
+                                    </p>
+                                    <DatePicker
+                                        value={stopDate}
+                                        onChange={setStopDate}
+                                        placeholder="Pilih tanggal"
+                                    />
+                                </div>
+
+                                <Button
+                                    onClick={registerStop}
+                                    disabled={
+                                        !stoppedSpkId ||
+                                        !stopDate ||
+                                        savingStop
+                                    }
+                                >
+                                    Simpan Status
+                                </Button>
+                            </div>
                         </div>
-                        <Badge variant="secondary" className="w-fit">
-                            {replacements.length} pergantian
-                        </Badge>
-                    </div>
-                </ContentCard>
+                    </ContentCard>
+                )}
 
-                <div className="grid gap-4 lg:grid-cols-2">
-                    {replacements.length === 0 ? (
-                        <ContentCard className="lg:col-span-2">
-                            <div className="flex flex-col items-center gap-3 py-12 text-center">
-                                <FileText className="h-12 w-12 text-muted-foreground" />
-                                <p className="text-lg font-medium">
-                                    Belum ada data pergantian
-                                </p>
-                                <p className="max-w-xl text-sm text-muted-foreground">
-                                    Pergantian akan muncul setelah petugas
-                                    berhenti dan petugas pengganti dicatat pada
-                                    workflow SE2026.
-                                </p>
-                            </div>
-                        </ContentCard>
-                    ) : (
-                        replacements.map((replacement) => {
-                            const pkpp = replacement.pkpp;
+                <div className="space-y-4">
+                    {replacements.map((item) => {
+                        const form = replacementForm[item.id] ?? {
+                            petugasId: '',
+                            startDate: item.tanggal_mulai_pkpp ?? '',
+                        };
+                        const replacementAssigned = Boolean(
+                            item.petugas_pengganti_nama,
+                        );
+                        const schemeReady = Boolean(item.pkpp);
 
-                            return (
-                                <ContentCard key={replacement.id}>
-                                    <div className="flex h-full flex-col gap-4">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div>
-                                                <p className="text-xs font-medium text-muted-foreground">
-                                                    {replacement.petugas_berhenti_nama ??
-                                                        'Petugas lama'}{' '}
-                                                    → pengganti
-                                                </p>
-                                                <h3 className="mt-1 text-lg font-semibold">
-                                                    {replacement.petugas_pengganti_nama ??
-                                                        'Belum ditetapkan'}
+                        return (
+                            <ContentCard key={item.id}>
+                                <div className="space-y-5">
+                                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                        <div>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <h3 className="text-lg font-semibold">
+                                                    {item.petugas_berhenti_nama ??
+                                                        'Petugas'}
                                                 </h3>
-                                            </div>
-                                            <Badge variant="outline">
-                                                {formatStatus(
-                                                    replacement.status,
-                                                )}
-                                            </Badge>
-                                        </div>
-
-                                        <div className="grid gap-3 rounded-xl bg-muted/30 p-4 text-sm sm:grid-cols-2">
-                                            <div>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Tanggal berhenti
-                                                </p>
-                                                <p className="font-medium">
-                                                    {replacement.tanggal_berhenti ??
-                                                        '-'}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Mulai PKPP
-                                                </p>
-                                                <p className="font-medium">
-                                                    {replacement.tanggal_mulai_pkpp ??
-                                                        '-'}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Skema
-                                                </p>
-                                                <p className="font-medium">
-                                                    {pkpp
-                                                        ? `${formatScheme(
-                                                              pkpp.skema_kode,
-                                                          )} · ${pkpp.termin_count} termin`
-                                                        : 'Belum ditetapkan'}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Nilai honor skema
-                                                </p>
-                                                <p className="font-medium">
-                                                    {pkpp
-                                                        ? `${pkpp.honor_ob.toLocaleString(
-                                                              'id-ID',
-                                                          )} OB`
-                                                        : '-'}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid gap-2 sm:grid-cols-3">
-                                            <div className="rounded-lg border border-border px-3 py-2">
-                                                <p className="text-xs text-muted-foreground">
-                                                    Kontrak PKPP
-                                                </p>
-                                                <div className="mt-1 flex items-center gap-1.5 text-sm font-medium">
-                                                    {replacement.has_pkpp_contract ? (
-                                                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                                                    ) : (
-                                                        <FolderOpen className="h-4 w-4 text-muted-foreground" />
+                                                <Badge variant="secondary">
+                                                    {stopLabel(
+                                                        item.termination_type,
                                                     )}
-                                                    {replacement.has_pkpp_contract
-                                                        ? 'Tercatat'
-                                                        : 'Belum'}
-                                                </div>
+                                                </Badge>
                                             </div>
-                                            <div className="rounded-lg border border-border px-3 py-2">
-                                                <p className="text-xs text-muted-foreground">
-                                                    PK terhubung
-                                                </p>
-                                                <div className="mt-1 flex items-center gap-1.5 text-sm font-medium">
-                                                    {pkpp?.has_spk ? (
-                                                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                                                    ) : (
-                                                        <FolderOpen className="h-4 w-4 text-muted-foreground" />
-                                                    )}
-                                                    {pkpp?.has_spk
-                                                        ? 'Tersedia'
-                                                        : 'Belum'}
-                                                </div>
-                                            </div>
-                                            <div className="rounded-lg border border-border px-3 py-2">
-                                                <p className="text-xs text-muted-foreground">
-                                                    PDF PK final
-                                                </p>
-                                                <div className="mt-1 flex items-center gap-1.5 text-sm font-medium">
-                                                    {pkpp?.pk_uploaded ? (
-                                                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                                                    ) : (
-                                                        <UploadCloud className="h-4 w-4 text-muted-foreground" />
-                                                    )}
-                                                    {pkpp?.pk_uploaded
-                                                        ? 'Sudah upload'
-                                                        : 'Belum upload'}
-                                                </div>
-                                            </div>
+                                            <p className="mt-1 text-sm text-muted-foreground">
+                                                {item.spk_lama_nomor ?? '-'} ·{' '}
+                                                {item.tanggal_berhenti ?? '-'}
+                                            </p>
                                         </div>
-
-                                        <div className="flex flex-wrap gap-2 pt-1">
-                                            <Button asChild className="flex-1">
-                                                <Link
-                                                    href={`/spk/petugas-pengganti/${replacement.hashed_id}/pkpp-contracts/create`}
-                                                    prefetch
-                                                >
-                                                    <FileText className="mr-2 h-4 w-4" />
-                                                    {replacement.has_pkpp_contract
-                                                        ? 'Kelola PK & Skema'
-                                                        : 'Tetapkan PK & Skema'}
-                                                </Link>
-                                            </Button>
+                                        <div className="flex flex-wrap gap-2">
                                             <Button
                                                 variant="outline"
+                                                size="sm"
                                                 asChild
-                                                className="flex-1"
                                             >
                                                 <Link href="/bapp" prefetch>
-                                                    Kelola BAPP
+                                                    BAPP Petugas Lama
                                                 </Link>
                                             </Button>
                                             <Button
                                                 variant="outline"
+                                                size="sm"
                                                 asChild
-                                                className="flex-1"
                                             >
                                                 <Link
                                                     href="/berita-acara?mode=sensus-ekonomi"
                                                     prefetch
                                                 >
-                                                    Kelola BAST
+                                                    BAST Petugas Lama
                                                 </Link>
                                             </Button>
                                         </div>
                                     </div>
-                                </ContentCard>
-                            );
-                        })
+
+                                    {item.termination_type ===
+                                        'diberhentikan' && (
+                                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+                                            Petugas diberhentikan: BAPP dan BAST
+                                            petugas lama tetap wajib
+                                            diinventaris. Kelengkapan upload
+                                            tidak menghalangi penetapan petugas
+                                            pengganti.
+                                        </div>
+                                    )}
+
+                                    <div className="grid gap-3 xl:grid-cols-3">
+                                        <div className="rounded-xl border border-border p-4">
+                                            <div className="flex items-start gap-3">
+                                                <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
+                                                <div>
+                                                    <p className="text-sm font-semibold">
+                                                        1. Status petugas
+                                                    </p>
+                                                    <p className="mt-1 text-xs text-muted-foreground">
+                                                        {stopLabel(
+                                                            item.termination_type,
+                                                        )}{' '}
+                                                        pada{' '}
+                                                        {item.tanggal_berhenti ??
+                                                            '-'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-xl border border-border p-4">
+                                            <div className="mb-3 flex items-start gap-3">
+                                                {replacementAssigned ? (
+                                                    <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
+                                                ) : (
+                                                    <Circle className="mt-0.5 h-5 w-5 text-muted-foreground" />
+                                                )}
+                                                <div>
+                                                    <p className="text-sm font-semibold">
+                                                        2. Petugas pengganti
+                                                    </p>
+                                                    <p className="mt-1 text-xs text-muted-foreground">
+                                                        {replacementAssigned
+                                                            ? item.petugas_pengganti_nama
+                                                            : 'Belum ditentukan'}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {!replacementAssigned &&
+                                                can_manage && (
+                                                    <div className="space-y-2">
+                                                        <Select
+                                                            value={
+                                                                form.petugasId
+                                                            }
+                                                            onValueChange={(
+                                                                value,
+                                                            ) =>
+                                                                setReplacementForm(
+                                                                    (
+                                                                        current,
+                                                                    ) => ({
+                                                                        ...current,
+                                                                        [item.id]:
+                                                                            {
+                                                                                ...form,
+                                                                                petugasId:
+                                                                                    value,
+                                                                            },
+                                                                    }),
+                                                                )
+                                                            }
+                                                        >
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Pilih petugas pengganti" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {replacement_candidates.map(
+                                                                    (
+                                                                        candidate,
+                                                                    ) => (
+                                                                        <SelectItem
+                                                                            key={
+                                                                                candidate.id
+                                                                            }
+                                                                            value={String(
+                                                                                candidate.id,
+                                                                            )}
+                                                                        >
+                                                                            {
+                                                                                candidate.nama
+                                                                            }{' '}
+                                                                            ·{' '}
+                                                                            {candidate.nik ??
+                                                                                '-'}
+                                                                        </SelectItem>
+                                                                    ),
+                                                                )}
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <DatePicker
+                                                            value={
+                                                                form.startDate
+                                                            }
+                                                            min={
+                                                                item.tanggal_berhenti ??
+                                                                undefined
+                                                            }
+                                                            onChange={(value) =>
+                                                                setReplacementForm(
+                                                                    (
+                                                                        current,
+                                                                    ) => ({
+                                                                        ...current,
+                                                                        [item.id]:
+                                                                            {
+                                                                                ...form,
+                                                                                startDate:
+                                                                                    value,
+                                                                            },
+                                                                    }),
+                                                                )
+                                                            }
+                                                            placeholder="Tanggal mulai pengganti"
+                                                        />
+                                                        <Button
+                                                            size="sm"
+                                                            className="w-full"
+                                                            disabled={
+                                                                !form.petugasId ||
+                                                                !form.startDate ||
+                                                                assigning ===
+                                                                    item.id
+                                                            }
+                                                            onClick={() =>
+                                                                assignReplacement(
+                                                                    item,
+                                                                )
+                                                            }
+                                                        >
+                                                            <UserRoundCheck className="mr-2 h-4 w-4" />
+                                                            Tetapkan Pengganti
+                                                        </Button>
+                                                    </div>
+                                                )}
+                                        </div>
+
+                                        <div className="rounded-xl border border-border p-4">
+                                            <div className="mb-3 flex items-start gap-3">
+                                                {schemeReady ? (
+                                                    <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
+                                                ) : (
+                                                    <Circle className="mt-0.5 h-5 w-5 text-muted-foreground" />
+                                                )}
+                                                <div>
+                                                    <p className="text-sm font-semibold">
+                                                        3. Skema & PK pengganti
+                                                    </p>
+                                                    <p className="mt-1 text-xs text-muted-foreground">
+                                                        {schemeReady
+                                                            ? `${prettyScheme(
+                                                                  item.pkpp
+                                                                      ?.skema_kode ??
+                                                                      null,
+                                                              )} · ${item.pkpp?.termin_count} termin`
+                                                            : replacementAssigned
+                                                              ? 'Tentukan skema berdasarkan tanggal kontrak'
+                                                              : 'Menunggu petugas pengganti'}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {replacementAssigned && (
+                                                <Button
+                                                    size="sm"
+                                                    className="w-full"
+                                                    asChild
+                                                >
+                                                    <Link
+                                                        href={`/spk/petugas-pengganti/${item.hashed_id}/pkpp-contracts/create`}
+                                                        prefetch
+                                                    >
+                                                        <FileText className="mr-2 h-4 w-4" />
+                                                        {schemeReady
+                                                            ? 'Kelola Skema & PK'
+                                                            : 'Tentukan Skema'}
+                                                    </Link>
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {schemeReady && (
+                                        <div className="rounded-xl border border-border bg-muted/20 p-4">
+                                            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                                <div>
+                                                    <p className="flex items-center gap-2 text-sm font-semibold">
+                                                        <UsersRound className="h-4 w-4" />
+                                                        4. Dokumen petugas pengganti
+                                                    </p>
+                                                    <p className="mt-1 text-xs text-muted-foreground">
+                                                        PK {item.pkpp?.pk_uploaded
+                                                            ? 'sudah diunggah'
+                                                            : 'belum diunggah'}{' '}
+                                                        · BAPP{' '}
+                                                        {item.pkpp?.termin_count ===
+                                                        2
+                                                            ? 'Termin I & II'
+                                                            : '1 termin'}{' '}
+                                                        · BAST final
+                                                    </p>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        asChild
+                                                    >
+                                                        <Link
+                                                            href={`/spk/petugas-pengganti/${item.hashed_id}/pkpp-contracts/create`}
+                                                            prefetch
+                                                        >
+                                                            PK
+                                                        </Link>
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        asChild
+                                                    >
+                                                        <Link
+                                                            href="/bapp"
+                                                            prefetch
+                                                        >
+                                                            BAPP
+                                                        </Link>
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        asChild
+                                                    >
+                                                        <Link
+                                                            href="/berita-acara?mode=sensus-ekonomi"
+                                                            prefetch
+                                                        >
+                                                            BAST
+                                                        </Link>
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </ContentCard>
+                        );
+                    })}
+
+                    {replacements.length === 0 && (
+                        <ContentCard>
+                            <div className="py-10 text-center">
+                                <UserRoundMinus className="mx-auto h-10 w-10 text-muted-foreground" />
+                                <p className="mt-3 font-medium">
+                                    Belum ada petugas berhenti
+                                </p>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Catat status petugas terlebih dahulu. Petugas
+                                    pengganti baru ditentukan sesudah tahap itu.
+                                </p>
+                            </div>
+                        </ContentCard>
                     )}
                 </div>
             </div>
