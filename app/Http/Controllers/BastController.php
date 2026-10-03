@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use setasign\Fpdi\PdfParser\StreamReader;
@@ -2847,6 +2848,93 @@ class BastController extends Controller
         $routeParams = $mode !== 'regular' ? ['mode' => $mode] : [];
 
         return redirect()->route('bast.open-detail-by-petugas', $routeParams);
+    }
+
+    /**
+     * Upload BAST Sensus Ekonomi 2026 sebagai dokumen manual.
+     */
+    public function uploadManualSensus(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'spk_id' => ['required', 'integer', 'exists:spk,id'],
+            'file' => ['required', 'file', 'mimes:pdf', 'max:20480'],
+            'nomor_bast' => ['nullable', 'string', 'max:255'],
+            'tanggal_bast' => ['nullable', 'date'],
+        ]);
+
+        $spk = Spk::query()
+            ->with([
+                'petugas',
+                'alokasiPetugas.periodeAlokasi.kegiatan.ketuaTim',
+            ])
+            ->findOrFail((int) $validated['spk_id']);
+
+        if (! $this->isSensusEkonomiSpk($spk)) {
+            return back()->with('error', 'Upload manual ini hanya untuk BAST Sensus Ekonomi 2026.');
+        }
+
+        $user = $this->getRequestUser($request);
+        if (! $user || ! in_array($user->getActiveRole()?->name, ['admin', 'operator'], true)) {
+            abort(403);
+        }
+
+        $periode = $spk->alokasiPetugas?->periodeAlokasi;
+        $kegiatan = $periode?->kegiatan;
+        if (! $periode || ! $kegiatan) {
+            return back()->with('error', 'Data alokasi Sensus Ekonomi tidak lengkap.');
+        }
+
+        $existing = Bast::query()
+            ->where('spk_id', $spk->id)
+            ->whereNull('deleted_at')
+            ->first();
+
+        if ($existing && filled($existing->signed_file_path) && str_starts_with((string) $existing->signed_file_path, 'storage/')) {
+            Storage::disk('public')->delete(substr((string) $existing->signed_file_path, 8));
+        }
+
+        $nomorBast = trim((string) ($validated['nomor_bast'] ?? ''));
+        if ($nomorBast === '') {
+            $nomorBast = $existing?->nomor_bast ?: 'BAST-SE2026-'.$spk->id;
+        }
+
+        $safeName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $nomorBast);
+        $stored = $request->file('file')->storeAs(
+            'bast-manual/se2026/'.(int) $periode->tahun,
+            'BAST_'.$safeName.'_'.time().'.pdf',
+            'public'
+        );
+        $publicPath = 'storage/'.$stored;
+
+        $tanggal = $validated['tanggal_bast']
+            ?? $spk->tanggal_selesai_kerja
+            ?? $periode->tanggal_selesai
+            ?? now()->toDateString();
+
+        $bast = $existing ?? new Bast();
+        $bast->nomor_bast = $nomorBast;
+        $bast->spk_id = $spk->id;
+        $bast->periode_alokasi_id = $periode->id;
+        $bast->kegiatan_id = $kegiatan->id;
+        $bast->tanggal_bast = $tanggal;
+        $bast->tanggal_serah_terima = $tanggal;
+        $bast->menggunakan_fasih = false;
+        $bast->uraian_pekerjaan = 'BAST Sensus Ekonomi 2026 (dokumen manual)';
+        $bast->nama_ketua_tim = $kegiatan->ketuaTim?->name ?: '-';
+        $bast->nip_ketua_tim = $kegiatan->ketuaTim?->nip;
+        $bast->nama_ppk = $spk->nama_ppk ?: '-';
+        $bast->nip_ppk = $spk->nip_ppk ?: '-';
+        $bast->hasil_pekerjaan = 'Dokumen BAST SE2026 diunggah manual.';
+        $bast->lokasi_kegiatan = 'Kota Sawahlunto';
+        $bast->file_path = null;
+        $bast->compiled_file_path = null;
+        $bast->main_signed_file_path = null;
+        $bast->signed_file_path = $publicPath;
+        $bast->status = 'draft';
+        $bast->created_by = $bast->created_by ?: Auth::id();
+        $bast->save();
+
+        return back()->with('success', 'BAST SE2026 berhasil diunggah manual.');
     }
 
     /**
