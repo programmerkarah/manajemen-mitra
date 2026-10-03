@@ -641,22 +641,87 @@ class AnalisisController extends Controller
             ];
         }
 
-        // ── SPK per bulan ─────────────────────────────────────────────────────
+        // ── PK per bulan ──────────────────────────────────────────────────────
+        // Gunakan periode alokasi sebagai sumbu bulan, sama seperti menu
+        // Perjanjian Kerja. tanggal_spk dapat berbeda dari bulan alokasinya dan
+        // sebelumnya membuat angka analisis (mis. Agustus) tidak sama dengan
+        // detail/menu PK.
+        $replacementAssignments = app(SensusEkonomiReplacementReadService::class)
+            ->assignments($currentYear);
+
         $spkPerBulan = [];
         for ($bulan = 1; $bulan <= 12; $bulan++) {
-            $data = Spk::query()
-                ->whereMonth('tanggal_spk', $bulan)
-                ->whereYear('tanggal_spk', $currentYear)
-                ->selectRaw('COUNT(*) as total')
-                ->selectRaw("SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft")
-                ->selectRaw("SUM(CASE WHEN status = 'diterbitkan' THEN 1 ELSE 0 END) as diterbitkan")
-                ->first();
+            $bulanCandidates = [
+                (string) $bulan,
+                str_pad((string) $bulan, 2, '0', STR_PAD_LEFT),
+            ];
+
+            $mainSpks = Spk::query()
+                ->with('alokasiPetugas.periodeAlokasi.kegiatan:id,nama_kegiatan,kode_kegiatan,jenis_kegiatan')
+                ->whereHas('alokasiPetugas.periodeAlokasi', function ($query) use ($currentYear, $bulanCandidates): void {
+                    $query->where('tahun', $currentYear)
+                        ->whereIn('bulan', $bulanCandidates)
+                        ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan']);
+                })
+                ->get();
+
+            $regularPublished = 0;
+            $sensusMainPublished = 0;
+            $mainDraft = 0;
+
+            foreach ($mainSpks as $spk) {
+                if ($spk->status === 'draft') {
+                    $mainDraft++;
+
+                    continue;
+                }
+
+                if ($spk->status !== 'diterbitkan') {
+                    continue;
+                }
+
+                $kegiatan = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan;
+                $activityText = strtolower(trim(
+                    (string) ($kegiatan?->nama_kegiatan ?? '').' '.
+                    (string) ($kegiatan?->kode_kegiatan ?? '')
+                ));
+                $isSensusEkonomi = str_contains($activityText, 'sensus ekonomi')
+                    || str_contains($activityText, 'se2026')
+                    || str_contains($activityText, 'se 2026');
+
+                if ($isSensusEkonomi) {
+                    $sensusMainPublished++;
+                } else {
+                    $regularPublished++;
+                }
+            }
+
+            $replacementForMonth = $replacementAssignments
+                ->filter(fn (array $assignment): bool =>
+                    (int) ($assignment['bulan'] ?? 0) === $bulan
+                );
+
+            $sensusReplacementPublished = $replacementForMonth
+                ->filter(fn (array $assignment): bool =>
+                    (bool) ($assignment['pk_available'] ?? false)
+                )
+                ->count();
+            $replacementDraft = $replacementForMonth->count()
+                - $sensusReplacementPublished;
+
+            $published = $regularPublished
+                + $sensusMainPublished
+                + $sensusReplacementPublished;
+            $draft = $mainDraft + $replacementDraft;
 
             $spkPerBulan[] = [
                 'bulan' => $bulan,
-                'total' => (int) $data->total,
-                'draft' => (int) $data->draft,
-                'diterbitkan' => (int) $data->diterbitkan,
+                'total' => $published + $draft,
+                'draft' => $draft,
+                'diterbitkan' => $published,
+                'reguler_diterbitkan' => $regularPublished,
+                'sensus_utama_diterbitkan' => $sensusMainPublished,
+                'sensus_pengganti_diterbitkan' => $sensusReplacementPublished,
             ];
         }
 
@@ -664,9 +729,9 @@ class AnalisisController extends Controller
         $skTotal = SkKpa::query()->where('tahun', $currentYear)->count();
         $skDiterbitkan = SkKpa::query()->where('tahun', $currentYear)->where('status', 'diterbitkan')->count();
         $skDraft = SkKpa::query()->where('tahun', $currentYear)->where('status', 'draft')->count();
-        $spkTotal = Spk::query()->whereYear('tanggal_spk', $currentYear)->count();
-        $spkDiterbitkan = Spk::query()->whereYear('tanggal_spk', $currentYear)->where('status', 'diterbitkan')->count();
-        $spkDraft = Spk::query()->whereYear('tanggal_spk', $currentYear)->where('status', 'draft')->count();
+        $spkTotal = (int) collect($spkPerBulan)->sum('total');
+        $spkDiterbitkan = (int) collect($spkPerBulan)->sum('diterbitkan');
+        $spkDraft = (int) collect($spkPerBulan)->sum('draft');
 
         // ── SK progress per kegiatan ──────────────────────────────────────────
         $kegiatanAktif = Kegiatan::query()
