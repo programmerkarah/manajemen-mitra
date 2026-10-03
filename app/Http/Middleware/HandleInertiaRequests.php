@@ -55,11 +55,14 @@ class HandleInertiaRequests extends Middleware
         // Use viewAsUser if available, otherwise use actual logged-in user
         $displayUser = $viewAsUser ?? $user;
 
-        // Force refresh user data from database to get latest roles
+        // Avoid a forced user refresh on every Inertia navigation. The authenticated
+        // user is already hydrated by the auth guard; only load role data when it
+        // has not been loaded yet. This removes redundant queries from every page.
         if ($displayUser) {
-            $displayUser->refresh();
-            $displayUser->load(['roles']);
+            $displayUser->loadMissing(['roles']);
         }
+
+        $activeRole = $displayUser?->getActiveRole();
 
         $ssoSyncSetting = Cache::get('settings:sso_sync_enabled');
 
@@ -82,8 +85,7 @@ class HandleInertiaRequests extends Middleware
                     $displayUser->toArray(),
                     ['active_role' => $displayUser->active_role]
                 ) : null,
-                // Always share the full Role object for activeRole, never just the name
-                'activeRole' => $displayUser && $displayUser->getActiveRole() ? $displayUser->getActiveRole()->toArray() : null,
+                'activeRole' => $activeRole?->toArray(),
                 'userRoles' => $displayUser ? $displayUser->roles->map->toArray()->all() : [],
                 'emailVerified' => $displayUser?->hasVerifiedEmail() ?? false,
                 'twoFactorEnabled' => $displayUser?->hasEnabledTwoFactorAuthentication() ?? false,
@@ -98,7 +100,7 @@ class HandleInertiaRequests extends Middleware
             'activeYear' => ActiveYearService::get(),
             'availableYears' => ActiveYearService::getAvailableYears(),
             'hasAvailableYears' => ActiveYearService::hasAvailableYears(),
-            'isSeKetuaTim' => $this->isSeKetuaTim($displayUser),
+            'isSeKetuaTim' => $this->isSeKetuaTim($displayUser, $activeRole?->name),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'flash' => [
                 'success' => $request->session()->pull('success'),
@@ -125,17 +127,20 @@ class HandleInertiaRequests extends Middleware
     /**
      * Determine whether the given user is the ketua_tim of the Sensus Ekonomi kegiatan.
      */
-    private function isSeKetuaTim(?User $user): bool
+    private function isSeKetuaTim(?User $user, ?string $activeRoleName = null): bool
     {
-        if (! $user || $user->getActiveRole()?->name !== 'ketua_tim') {
+        if (! $user || $activeRoleName !== 'ketua_tim') {
             return false;
         }
 
-        $seKegiatan = Kegiatan::query()
-            ->where('jenis_kegiatan', 'sensus')
-            ->where('nama_kegiatan', 'like', '%sensus ekonomi%')
-            ->first();
-
-        return $seKegiatan !== null && $seKegiatan->ketua_tim_user_id === $user->id;
+        return Cache::remember(
+            'inertia:is-se-ketua-tim:'.$user->id,
+            now()->addMinutes(5),
+            fn (): bool => Kegiatan::query()
+                ->where('jenis_kegiatan', 'sensus')
+                ->where('nama_kegiatan', 'like', '%sensus ekonomi%')
+                ->where('ketua_tim_user_id', $user->id)
+                ->exists(),
+        );
     }
 }
