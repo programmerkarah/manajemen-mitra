@@ -470,7 +470,7 @@ class DashboardController extends Controller
 
         if (in_array($activeRole, ['admin', 'operator', 'pj', 'approver', 'ketua_tim'], true)) {
             $spkBastQuery = Spk::query()
-                ->with(['alokasiPetugas:id,periode_alokasi_id'])
+                ->with(['petugas:id,nama', 'alokasiPetugas:id,periode_alokasi_id'])
                 ->whereYear('tanggal_spk', $currentYear)
                 ->whereDoesntHave('bast')
                 // BAST SE2026 memakai upload manual. Gunakan whereHas + NOT EXISTS
@@ -564,6 +564,7 @@ class DashboardController extends Controller
 
             $bastDueSoonCount = 0;
             $bastOverdueCount = 0;
+            $bastAttentionTargets = collect();
 
             foreach ($spkWithoutBast as $spk) {
                 $expectedBastDate = $spk->tanggal_selesai_kerja ?? $spk->tanggal_mulai_kerja;
@@ -619,22 +620,66 @@ class DashboardController extends Controller
                     $targetDate->subDay();
                 }
 
+                $attentionType = null;
                 if ($targetDate->lt($today)) {
                     $bastOverdueCount++;
+                    $attentionType = 'overdue';
                 } elseif ($targetDate->betweenIncluded($today, $today->copy()->addDays(3))) {
                     $bastDueSoonCount++;
+                    $attentionType = 'due_soon';
+                }
+
+                if ($attentionType !== null) {
+                    $effectivePeriode = $effectiveAlokasi
+                        ->pluck('periodeAlokasi')
+                        ->filter()
+                        ->sortByDesc(fn ($periode) => $statusPriority[$periode->status] ?? 0)
+                        ->first();
+
+                    $bastAttentionTargets->push([
+                        'petugas' => $spk->petugas?->nama ?: 'Petugas',
+                        'bulan' => (int) ($effectivePeriode?->bulan ?? $bastDate->month),
+                        'tahun' => (int) ($effectivePeriode?->tahun ?? $bastDate->year),
+                        'target_date' => $targetDate->toDateString(),
+                        'type' => $attentionType,
+                    ]);
                 }
             }
 
             $bastAttentionCount = $bastDueSoonCount + $bastOverdueCount;
 
             if ($bastAttentionCount > 0) {
+                $firstTarget = $bastAttentionTargets
+                    ->sortBy(fn (array $item) => $item['target_date'])
+                    ->first();
+
+                $targetUrl = $firstTarget
+                    ? route('bast.create', [
+                        'bulan' => $firstTarget['bulan'],
+                        'tahun' => $firstTarget['tahun'],
+                    ])
+                    : route('bast.index');
+
+                $targetHint = $firstTarget
+                    ? sprintf(
+                        ' · %s (%s %d)',
+                        $firstTarget['petugas'],
+                        Carbon::create((int) $firstTarget['tahun'], (int) $firstTarget['bulan'], 1)->translatedFormat('F'),
+                        (int) $firstTarget['tahun'],
+                    )
+                    : '';
+
                 $attentionItems->push([
                     'key' => 'bast_due',
                     'label' => 'BAST mendekati / melewati target',
                     'count' => $bastAttentionCount,
-                    'url' => route('bast.index'),
-                    'description' => sprintf('%d lewat target, %d mendekati target', $bastOverdueCount, $bastDueSoonCount),
+                    'url' => $targetUrl,
+                    'description' => sprintf(
+                        '%d lewat target, %d mendekati target%s',
+                        $bastOverdueCount,
+                        $bastDueSoonCount,
+                        $targetHint,
+                    ),
                     'severity' => $bastOverdueCount > 0 ? 'danger' : 'warning',
                 ]);
             }
