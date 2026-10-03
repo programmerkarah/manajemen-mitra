@@ -154,7 +154,9 @@ export default function Index({
         () =>
             replacement_candidates.map((candidate) => ({
                 value: String(candidate.id),
-                label: candidate.nama,
+                label: candidate.nik
+                    ? `${candidate.nama} · ${candidate.nik}`
+                    : candidate.nama,
             })),
         [replacement_candidates],
     );
@@ -249,44 +251,6 @@ export default function Index({
                         </Link>
                     </Button>
                 </PageHeader>
-
-                <ContentCard>
-                    <div className="grid gap-3 md:grid-cols-4">
-                        {[
-                            ['1', 'Status petugas', 'Berhenti / mundur'],
-                            [
-                                '2',
-                                'Petugas pengganti',
-                                'Tidak menunggu upload dokumen',
-                            ],
-                            [
-                                '3',
-                                'Skema PKPP',
-                                'Otomatis dari tanggal kontrak',
-                            ],
-                            ['4', 'Dokumen pengganti', 'PK → BAPP → BAST'],
-                        ].map(([step, title, desc]) => (
-                            <div
-                                key={step}
-                                className="rounded-xl border border-border bg-muted/20 p-4"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-                                        {step}
-                                    </span>
-                                    <div className="min-w-0">
-                                        <p className="text-sm font-semibold">
-                                            {title}
-                                        </p>
-                                        <p className="mt-0.5 text-xs text-muted-foreground">
-                                            {desc}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </ContentCard>
 
                 {can_manage && (
                     <ContentCard>
@@ -507,17 +471,8 @@ export default function Index({
                                         )}
                                     </div>
 
-                                    {item.requires_old_documents && (
-                                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
-                                            BAPP dan BAST petugas lama tetap
-                                            wajib diinventaris. Kelengkapan
-                                            upload tidak menghalangi penetapan
-                                            petugas pengganti.
-                                        </div>
-                                    )}
-
-                                    <div className="grid gap-3 xl:grid-cols-3">
-                                        <div className="rounded-xl border border-border p-4">
+                                    <div className="grid gap-2 lg:grid-cols-3">
+                                        <div className="rounded-xl border border-border p-3">
                                             <div className="flex items-start gap-3">
                                                 <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
                                                 <div>
@@ -537,7 +492,7 @@ export default function Index({
                                             </div>
                                         </div>
 
-                                        <div className="rounded-xl border border-border p-4">
+                                        <div className="rounded-xl border border-border p-3">
                                             <div className="mb-3 flex items-start gap-3">
                                                 {replacementAssigned ? (
                                                     <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
@@ -636,7 +591,7 @@ export default function Index({
                                                 )}
                                         </div>
 
-                                        <div className="rounded-xl border border-border p-4">
+                                        <div className="rounded-xl border border-border p-3">
                                             <div className="mb-3 flex items-start gap-3">
                                                 {schemeReady ? (
                                                     <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
