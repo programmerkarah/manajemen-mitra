@@ -206,6 +206,13 @@ class AnalisisExportController extends Controller
     public function petugas(): HttpResponse
     {
         $currentYear = (int) date('Y');
+        $replacementAssignments = app(SensusEkonomiReplacementReadService::class)
+            ->assignments($currentYear);
+        $replacementPetugasIds = $replacementAssignments
+            ->pluck('petugas_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
 
         $petugasNonOrganik = Petugas::query()
             ->where('jenis_petugas', 'non-organik')
@@ -285,6 +292,7 @@ class AnalisisExportController extends Controller
             ->where('jenis_petugas', 'non-organik')
             ->where('status', 'aktif')
             ->whereNull('deleted_at')
+            ->whereNotIn('id', $replacementPetugasIds)
             ->whereNotExists(function ($query) {
                 $query->select(DB::raw(1))
                     ->from('alokasi_petugas')
@@ -314,9 +322,22 @@ class AnalisisExportController extends Controller
                 ->whereRaw($this->allocationOrHonorExistsClause());
             $this->applySensusEkonomiMonthFilter($jumlahPetugas, $bulan, 'kegiatan');
             $this->applyEffectivePeriode($jumlahPetugas);
-            $jumlahPetugas = $jumlahPetugas
-                ->distinct('alokasi_petugas.petugas_id')
-                ->count('alokasi_petugas.petugas_id');
+            $jumlahPetugasIds = $jumlahPetugas
+                ->distinct()
+                ->pluck('alokasi_petugas.petugas_id')
+                ->map(fn ($id) => (int) $id);
+
+            $replacementPetugasBulan = $replacementAssignments
+                ->filter(fn (array $assignment): bool =>
+                    ((float) ($assignment['monthly_honor'][$bulan] ?? 0)) > 0
+                )
+                ->pluck('petugas_id')
+                ->map(fn ($id) => (int) $id);
+
+            $jumlahPetugas = $jumlahPetugasIds
+                ->concat($replacementPetugasBulan)
+                ->unique()
+                ->count();
 
             $jumlahKegiatan = DB::table('periode_alokasi')
                 ->join('kegiatan', 'periode_alokasi.kegiatan_id', '=', 'kegiatan.id')
@@ -351,6 +372,21 @@ class AnalisisExportController extends Controller
         )
             ->distinct()
             ->get();
+
+        $replacementPetugasKegiatan = $replacementAssignments->map(
+            fn (array $assignment) => (object) [
+                'petugas_id' => (int) $assignment['petugas_id'],
+                'petugas_nama' => (string) $assignment['petugas_nama'],
+                'kegiatan_id' => (int) $assignment['kegiatan_id'],
+                'nama_kegiatan' => (string) $assignment['nama_kegiatan'],
+                'kode_kegiatan' => (string) $assignment['kode_kegiatan'],
+            ],
+        );
+
+        $petugasKegiatan = $petugasKegiatan
+            ->concat($replacementPetugasKegiatan)
+            ->unique(fn ($item) => $item->petugas_id.'|'.$item->kegiatan_id)
+            ->values();
 
         $petugasKegiatanGrouped = $petugasKegiatan->groupBy('petugas_id')->map(function ($items) {
             $first = $items->first();
@@ -390,6 +426,20 @@ class AnalisisExportController extends Controller
                 ->get();
 
             $petugasAlokasiRaw = $petugasAlokasiRaw->merge($monthlyRows);
+
+            $replacementRows = $replacementAssignments
+                ->filter(fn (array $assignment): bool =>
+                    ((float) ($assignment['monthly_honor'][$bulan] ?? 0)) > 0
+                )
+                ->map(fn (array $assignment) => (object) [
+                    'petugas_id' => (int) $assignment['petugas_id'],
+                    'petugas_nama' => (string) $assignment['petugas_nama'],
+                    'bulan' => $bulan,
+                    'jumlah_kegiatan' => 1,
+                    'total_honor' => (float) ($assignment['monthly_honor'][$bulan] ?? 0),
+                ]);
+
+            $petugasAlokasiRaw = $petugasAlokasiRaw->merge($replacementRows);
         }
 
         $petugasAlokasiDetail = $petugasAlokasiRaw->groupBy('petugas_id')->map(function ($items) {
@@ -397,9 +447,9 @@ class AnalisisExportController extends Controller
             $bulanData = [];
             $honorData = [];
             for ($b = 1; $b <= 12; $b++) {
-                $found = $items->firstWhere('bulan', $b);
-                $bulanData[$b] = $found ? (int) $found->jumlah_kegiatan : 0;
-                $honorData[$b] = $found ? (float) $found->total_honor : 0;
+                $found = $items->where('bulan', $b);
+                $bulanData[$b] = $found->sum(fn ($row) => (int) $row->jumlah_kegiatan);
+                $honorData[$b] = $found->sum(fn ($row) => (float) $row->total_honor);
             }
 
             return [
