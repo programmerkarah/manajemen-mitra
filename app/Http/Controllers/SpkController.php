@@ -2648,11 +2648,19 @@ class SpkController extends Controller
         $downloadToken = (string) ($validated['download_token'] ?? '');
 
         if ($responseMode === 'url' && $disposition === 'inline') {
-            $previewUrl = $this->buildPublicPreviewSignedFileUrl(
-                $absolutePath,
-                $safeFilename,
-                'inline',
-            );
+            $content = @file_get_contents($absolutePath);
+            if (! is_string($content) || $content === '') {
+                return response()->json(['message' => 'File preview tidak tersedia.'], 422);
+            }
+
+            $temporaryPath = $this->storePublicPreviewTemporaryPdf($content);
+            $previewUrl = $temporaryPath
+                ? $this->buildPublicPreviewSignedFileUrl(
+                    $temporaryPath,
+                    $safeFilename,
+                    'inline',
+                )
+                : null;
 
             if ($previewUrl === null) {
                 return response()->json(['message' => 'URL preview tidak tersedia.'], 422);
