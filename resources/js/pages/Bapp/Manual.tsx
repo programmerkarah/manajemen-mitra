@@ -163,7 +163,11 @@ export default function Manual({
             <div className="space-y-5">
                 <PageHeader
                     title={pageBappLabel}
-                    description={`${contextLabel} · ${bulan_label} ${tahun} · ${persentase}%`}
+                    description={
+                        singleReplacementBapp
+                            ? `${contextLabel} · SE2026 · ${tahun}`
+                            : `${contextLabel} · ${bulan_label} ${tahun} · ${persentase}%`
+                    }
                 >
                     <Button variant="outline" asChild>
                         <Link href="/bapp" prefetch>
