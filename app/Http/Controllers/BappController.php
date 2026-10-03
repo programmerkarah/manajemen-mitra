@@ -402,20 +402,26 @@ class BappController extends Controller
     private function isStoppedPetugasEligibleForTermin(Carbon $tanggalBerhenti, int $terminNumber, int $tahun): bool
     {
         $stopDate = $tanggalBerhenti->copy()->startOfDay();
-        $july14 = Carbon::create($tahun, 7, 14)->startOfDay();
-        $july15 = Carbon::create($tahun, 7, 15)->startOfDay();
-        $aug31 = Carbon::create($tahun, 8, 31)->startOfDay();
+        $contractStart = Carbon::create($tahun, 6, 1)->startOfDay();
+        $terminTwoStart = Carbon::create($tahun, 8, 1)->startOfDay();
+        $contractEnd = Carbon::create($tahun, 8, 31)->endOfDay();
 
-        if ($stopDate->lt($july14)) {
+        if ($stopDate->lt($contractStart) || $stopDate->gt($contractEnd)) {
             return false;
         }
 
-        if ($terminNumber !== 1) {
-            return false;
+        if ($terminNumber === 1) {
+            return true;
         }
 
-        return $stopDate->greaterThanOrEqualTo($july15)
-            && $stopDate->lt($aug31);
+        if ($terminNumber === 2) {
+            // Termin II hanya menjadi kewajiban bila petugas lama masih bekerja
+            // memasuki periode Agustus. Petugas yang berhenti sebelum Agustus
+            // berhenti pada Termin I dan tidak lagi dihitung belum lengkap.
+            return $stopDate->greaterThanOrEqualTo($terminTwoStart);
+        }
+
+        return false;
     }
 
     /**
