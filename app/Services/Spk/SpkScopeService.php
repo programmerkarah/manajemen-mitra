@@ -251,6 +251,10 @@ class SpkScopeService
 
     public function indexGroupKey(PeriodeAlokasi $periode): string
     {
+        if ($this->usesPeriodBasedFlow($periode)) {
+            return 'periode-'.$periode->id;
+        }
+
         return sprintf(
             '%d-%02d',
             (int) $periode->tahun,
