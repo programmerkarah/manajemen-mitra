@@ -1322,7 +1322,7 @@ class BappController extends Controller
             return [
                 'spk_id' => $spk->id,
                 'spk_hashed_id' => $spk->hashed_id,
-                'nomor_spk' => $spk->nomor_spk,
+                'nomor_spk' => $replacementContract?->nomor_pkpp ?? $spk->nomor_spk,
                 'nilai_kontrak' => (float) $spk->nilai_kontrak,
                 'peran' => $peran,
                 'jenis_pihak_kedua' => $this->getJenisPihakKedua($peran),
