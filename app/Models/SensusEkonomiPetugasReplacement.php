@@ -23,6 +23,7 @@ class SensusEkonomiPetugasReplacement extends Model
         'pml_cover_petugas_id',
         'spk_lama_id',
         'termination_type',
+        'termin_i_paid',
         'tanggal_berhenti',
         'tanggal_mulai_cover',
         'tanggal_mulai_pkpp',
@@ -38,6 +39,7 @@ class SensusEkonomiPetugasReplacement extends Model
     protected function casts(): array
     {
         return [
+            'termin_i_paid' => 'boolean',
             'tanggal_berhenti' => 'date:Y-m-d',
             'tanggal_mulai_cover' => 'date:Y-m-d',
             'tanggal_mulai_pkpp' => 'date:Y-m-d',
