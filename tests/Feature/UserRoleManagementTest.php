@@ -64,11 +64,8 @@ class UserRoleManagementTest extends TestCase
 
         $response = $this->actingAsAdminWithRole($admin)->get("/users/{$user->id}/edit");
 
-        $response->assertStatus(200);
-        $response->assertInertia(fn ($page) => $page
-            ->component('Users/Edit')
-            ->has('user')
-            ->has('allRoles'));
+        $response->assertStatus(303);
+        $response->assertRedirect(route('users.index'));
     }
 
     public function test_admin_can_update_user_roles(): void
