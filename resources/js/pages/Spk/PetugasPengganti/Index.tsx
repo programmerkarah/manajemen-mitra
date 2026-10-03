@@ -416,10 +416,10 @@ export default function Index({
                             </div>
                             {terminationType === 'mengundurkan_diri' && (
                                 <p className="text-xs text-muted-foreground">
-                                    Status pembayaran Termin I dicatat eksplisit.
-                                    Jika sudah dibayar, BAPP dan BAST petugas lama
-                                    tetap wajib. Jika belum dibayar, keduanya
-                                    tidak menjadi kewajiban.
+                                    Status pembayaran Termin I dicatat
+                                    eksplisit. Jika sudah dibayar, BAPP dan BAST
+                                    petugas lama tetap wajib. Jika belum
+                                    dibayar, keduanya tidak menjadi kewajiban.
                                 </p>
                             )}
                         </div>
@@ -464,7 +464,8 @@ export default function Index({
                                                 {item.termination_type ===
                                                     'mengundurkan_diri' && (
                                                     <>
-                                                        {' '}· Termin I{' '}
+                                                        {' '}
+                                                        · Termin I{' '}
                                                         {item.termin_i_paid ===
                                                         null
                                                             ? 'belum dicatat'

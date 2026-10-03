@@ -13,7 +13,7 @@ import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { encryptFilters } from '@/utils/encryption';
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import FileCheck from 'lucide-react/icons/file-check';
 import FileText from 'lucide-react/icons/file-text';
 import Plus from 'lucide-react/icons/plus';
@@ -168,9 +168,7 @@ export default function Index({
                         <div className="flex flex-wrap gap-2">
                             <Button
                                 variant="outline"
-                                onClick={() =>
-                                    switchMode('regular')
-                                }
+                                onClick={() => switchMode('regular')}
                             >
                                 BAST Reguler
                             </Button>
@@ -309,9 +307,7 @@ export default function Index({
                                 variant={
                                     mode === 'regular' ? 'default' : 'outline'
                                 }
-                                onClick={() =>
-                                    switchMode('regular')
-                                }
+                                onClick={() => switchMode('regular')}
                             >
                                 Reguler
                             </Button>
@@ -321,9 +317,7 @@ export default function Index({
                                         ? 'default'
                                         : 'outline'
                                 }
-                                onClick={() =>
-                                    switchMode('sensus-ekonomi')
-                                }
+                                onClick={() => switchMode('sensus-ekonomi')}
                             >
                                 Sensus Ekonomi
                             </Button>

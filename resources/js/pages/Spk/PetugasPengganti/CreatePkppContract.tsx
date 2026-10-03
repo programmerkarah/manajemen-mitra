@@ -201,7 +201,9 @@ export default function CreatePkppContract({
                                 <div className="text-sm text-emerald-700 dark:text-emerald-300">
                                     Nomor {existing_contract.nomor_pkpp} |
                                     Tanggal kontrak{' '}
-                                    {formatDate(existing_contract.tanggal_kontrak)}
+                                    {formatDate(
+                                        existing_contract.tanggal_kontrak,
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -244,7 +246,9 @@ export default function CreatePkppContract({
                                         Tanggal berhenti
                                     </div>
                                     <div className="font-medium text-neutral-900 dark:text-neutral-100">
-                                        {formatDate(replacement.tanggal_berhenti)}
+                                        {formatDate(
+                                            replacement.tanggal_berhenti,
+                                        )}
                                     </div>
                                 </div>
                                 <div>
@@ -252,7 +256,9 @@ export default function CreatePkppContract({
                                         Mulai PKPP
                                     </div>
                                     <div className="font-medium text-neutral-900 dark:text-neutral-100">
-                                        {formatDate(replacement.tanggal_mulai_pkpp)}
+                                        {formatDate(
+                                            replacement.tanggal_mulai_pkpp,
+                                        )}
                                     </div>
                                 </div>
                                 <div>
@@ -310,7 +316,8 @@ export default function CreatePkppContract({
                                                 Kontrak paling lambat{' '}
                                                 {formatDate(
                                                     schemePreview.deadline,
-                                                )} · mulai lapangan paling lambat{' '}
+                                                )}{' '}
+                                                · mulai lapangan paling lambat{' '}
                                                 {formatDate(
                                                     schemePreview.field,
                                                 )}
