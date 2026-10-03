@@ -166,7 +166,7 @@ export default function Index({
         [availableStopCandidates],
     );
 
-    const replacementOptions = useMemo
+    const replacementOptions = useMemo(
         () =>
             replacement_candidates.map((candidate) => ({
                 value: String(candidate.id),
