@@ -47,13 +47,14 @@ trait SpkIndexActions
 
         // Mode halaman disimpan di session. URL tetap /spk sehingga refresh browser
         // tidak mengulang POST dan tidak mengekspos parameter mode.
-        $requestedMode = (string) $request->session()->get('spk_index_mode', 'regular');
+        $session = $request->hasSession() ? $request->session() : null;
+        $requestedMode = (string) ($session?->get('spk_index_mode', 'regular') ?? 'regular');
         $mode = $requestedMode === 'sensus-ekonomi' && $canAccessSensusMode
             ? 'sensus-ekonomi'
             : 'regular';
 
-        if ($mode !== $requestedMode) {
-            $request->session()->put('spk_index_mode', $mode);
+        if ($mode !== $requestedMode && $session) {
+            $session->put('spk_index_mode', $mode);
         }
 
         // Get periode alokasi yang sudah validated grouped by month
