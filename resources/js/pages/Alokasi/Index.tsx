@@ -699,16 +699,18 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                 <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
                                     Status
                                 </th>
-                                <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
-                                    Aksi
-                                </th>
+                                {!isPJ && (
+                                    <th className="px-3 py-3.5 text-center text-sm font-semibold whitespace-nowrap">
+                                        Aksi
+                                    </th>
+                                )}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
                             {paginatedAlokasi.length === 0 ? (
                                 <tr>
                                     <td
-                                        colSpan={7}
+                                        colSpan={isPJ ? 6 : 7}
                                         className="px-6 py-12 text-center text-neutral-500 dark:text-neutral-400"
                                     >
                                         {filteredAlokasi.length === 0 &&
@@ -768,8 +770,9 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                 status={periode.status}
                                             />
                                         </td>
-                                        <td className="px-3 py-3 whitespace-nowrap">
-                                            <div className="flex items-center justify-center gap-2">
+                                        {!isPJ && (
+                                            <td className="px-3 py-3 whitespace-nowrap">
+                                                <div className="flex items-center justify-center gap-2">
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
@@ -968,8 +971,9 @@ export default function Index({ alokasi, hasKegiatans }: Props) {
                                                             )}
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
-                                            </div>
-                                        </td>
+                                                </div>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))
                             )}
