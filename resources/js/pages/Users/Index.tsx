@@ -109,16 +109,12 @@ interface UsersIndexProps {
     allRoles: Role[];
 }
 
-const USER_EDITOR_STORAGE_KEY = 'simantik.users.editingUserId';
-
 const getPersistedEditUserId = (): number | null => {
     if (typeof window === 'undefined') return null;
 
-    const historyValue = (
+    const raw = (
         window.history.state as { editUserId?: unknown } | null
     )?.editUserId;
-    const storedValue = window.sessionStorage.getItem(USER_EDITOR_STORAGE_KEY);
-    const raw = historyValue ?? storedValue;
 
     const parsed = Number(raw);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
@@ -236,10 +232,6 @@ export default function Index({ users, allRoles }: UsersIndexProps) {
         setEditingUserId(user.id);
         setEditingRoles(user.roles.map((role) => role.id));
 
-        window.sessionStorage.setItem(
-            USER_EDITOR_STORAGE_KEY,
-            String(user.id),
-        );
         window.history.replaceState(
             { ...(window.history.state ?? {}), editUserId: user.id },
             '',
@@ -250,7 +242,6 @@ export default function Index({ users, allRoles }: UsersIndexProps) {
     const closeRoleEditor = () => {
         setEditingUserId(null);
         setEditingRoles(null);
-        window.sessionStorage.removeItem(USER_EDITOR_STORAGE_KEY);
         window.history.replaceState(
             { ...(window.history.state ?? {}), editUserId: null },
             '',
