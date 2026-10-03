@@ -47,9 +47,11 @@ use App\Http\Controllers\Concerns\AlokasiPetugasRecommendationSupport;
 use App\Http\Controllers\Concerns\AlokasiPetugasPeriodActions;
 use App\Http\Controllers\Concerns\AlokasiPetugasImportActions;
 use App\Http\Controllers\Concerns\AlokasiPetugasCrudActions;
+use App\Http\Controllers\Concerns\AlokasiPetugasApprovalActions;
 
 class AlokasiPetugasController extends Controller
 {
+    use AlokasiPetugasApprovalActions;
     use AlokasiPetugasCrudActions;
     use AlokasiPetugasImportActions;
     use AlokasiPetugasPeriodActions;
@@ -426,106 +428,22 @@ class AlokasiPetugasController extends Controller
     /**
      * Submit alokasi for approval.
      */
-    public function submit(Request $request, AlokasiPetugas $alokasi): RedirectResponse
-    {
-        if ($alokasi->status !== 'draft') {
-            return back()->with('error', 'Hanya alokasi dengan status draft yang dapat diajukan.');
-        }
 
-        $alokasi->update([
-            'status' => 'diajukan',
-            'submitted_at' => now(),
-        ]);
-
-        return back()->with('success', 'Alokasi berhasil diajukan untuk persetujuan.');
-    }
 
     /**
      * Approve alokasi.
      */
-    public function approve(Request $request, AlokasiPetugas $alokasi): RedirectResponse
-    {
-        $effectiveUser = effectiveUser($request);
-        if (! $effectiveUser->hasActiveRole('approver')) {
-            return back()->with('error', 'Anda tidak memiliki akses untuk menyetujui alokasi.');
-        }
 
-        if (! in_array($alokasi->status, ['diajukan', 'disetujui_pj'])) {
-            return back()->with('error', 'Hanya alokasi yang diajukan yang dapat disetujui.');
-        }
-
-        $validated = $request->validate([
-            'catatan_approval' => 'nullable|string',
-        ]);
-
-        $alokasi->update([
-            'status' => 'disetujui',
-            'approved_by' => $effectiveUser->id,
-            'approved_at' => now(),
-            'catatan_approval' => $validated['catatan_approval'] ?? null,
-        ]);
-
-        return back()->with('success', 'Alokasi berhasil disetujui.');
-    }
 
     /**
      * Reject alokasi.
      */
-    public function reject(Request $request, AlokasiPetugas $alokasi): RedirectResponse
-    {
-        $effectiveUser = effectiveUser($request);
-        if (! $effectiveUser->hasActiveRole('approver')) {
-            return back()->with('error', 'Anda tidak memiliki akses untuk menolak alokasi.');
-        }
 
-        if (! in_array($alokasi->status, ['diajukan', 'disetujui_pj'])) {
-            return back()->with('error', 'Hanya alokasi yang diajukan yang dapat ditolak.');
-        }
-
-        $validated = $request->validate([
-            'catatan_approval' => 'required|string',
-        ]);
-
-        $alokasi->update([
-            'status' => 'ditolak',
-            'approved_by' => $effectiveUser->id,
-            'approved_at' => now(),
-            'catatan_approval' => $validated['catatan_approval'],
-        ]);
-
-        return back()->with('success', 'Alokasi ditolak.');
-    }
 
     /**
      * Approve alokasi by Ketua Tim.
      */
-    public function approvePj(Request $request, AlokasiPetugas $alokasi): RedirectResponse
-    {
-        $effectiveUser = effectiveUser($request);
-        if (! $effectiveUser->hasActiveRole('ketua_tim')) {
-            return back()->with('error', 'Anda tidak memiliki akses untuk menyetujui alokasi.');
-        }
 
-        // Check if user is the Ketua Tim of the kegiatan
-        if ($alokasi->kegiatan->ketua_tim_user_id !== $effectiveUser->id) {
-            return back()->with('error', 'Anda bukan ketua tim kegiatan ini.');
-        }
-
-        if ($alokasi->status !== 'diajukan') {
-            return back()->with('error', 'Hanya alokasi yang diajukan yang dapat disetujui.');
-        }
-
-        $validated = $request->validate([
-            'catatan_approval' => 'nullable|string',
-        ]);
-
-        $alokasi->update([
-            'status' => 'disetujui_pj',
-            'catatan_approval' => $validated['catatan_approval'] ?? null,
-        ]);
-
-        return back()->with('success', 'Alokasi berhasil disetujui. Menunggu persetujuan final dari Approver.');
-    }
 
     /**
      * Submit all alokasi in a periode (kegiatan + bulan)
