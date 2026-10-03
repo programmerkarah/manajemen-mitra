@@ -482,6 +482,9 @@ class BappController extends Controller
         return SensusEkonomiPetugasReplacement::query()
             ->whereNotNull('spk_lama_id')
             ->where('status', '!=', 'dibatalkan')
+            ->where(function ($q): void {
+                $q->whereNull('termin_i_paid')->orWhere('termin_i_paid', 1);
+            })
             ->with([
                 'spkLama.petugas',
                 'spkLama.alokasiPetugas.periodeAlokasi.kegiatan',
