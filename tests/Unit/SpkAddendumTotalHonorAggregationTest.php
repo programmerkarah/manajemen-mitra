@@ -2,55 +2,36 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\SpkController;
-use Illuminate\Support\Collection;
+use App\Models\AlokasiPetugas;
+use App\Models\PeriodeAlokasi;
+use App\Services\SpkActionDecisionService;
 use Tests\TestCase;
 
 class SpkAddendumTotalHonorAggregationTest extends TestCase
 {
     public function test_effective_alokasi_prefers_perubahan_and_keeps_non_perubahan_kegiatan(): void
     {
-        $controller = new SpkController;
+        $service = app(SpkActionDecisionService::class);
 
         $alokasiGroup = collect([
-            $this->makeAlokasi(
-                kegiatanId: 10,
-                periodeId: 100,
-                status: 'direvisi',
-                totalHonor: 500,
-                totalHonorListing: 0,
-            ),
-            $this->makeAlokasi(
-                kegiatanId: 10,
-                periodeId: 101,
-                status: 'perubahan',
-                totalHonor: 1000,
-                totalHonorListing: 0,
-            ),
-            $this->makeAlokasi(
-                kegiatanId: 20,
-                periodeId: 200,
-                status: 'dikirim',
-                totalHonor: 2000,
-                totalHonorListing: 0,
-            ),
+            $this->makeAlokasi(10, 100, 'direvisi', 500, 0),
+            $this->makeAlokasi(10, 101, 'perubahan', 1000, 0),
+            $this->makeAlokasi(20, 200, 'dikirim', 2000, 0),
         ]);
 
-        $method = new \ReflectionMethod(SpkController::class, 'getEffectiveAlokasiByKegiatan');
-        $method->setAccessible(true);
-
-        /** @var Collection<int, object> $effective */
-        $effective = $method->invoke($controller, $alokasiGroup);
+        $effective = $service->getEffectiveAlokasiByKegiatan($alokasiGroup);
 
         $this->assertCount(2, $effective);
 
-        $totalHonor = $effective->sum(function ($alokasi) {
-            return ($alokasi->total_honor ?? 0) + ($alokasi->total_honor_listing ?? 0);
-        });
+        $totalHonor = $effective->sum(
+            fn (AlokasiPetugas $alokasi): float =>
+                (float) $alokasi->total_honor
+                + (float) $alokasi->total_honor_listing,
+        );
 
         $this->assertSame(3000.0, (float) $totalHonor);
-        $this->assertSame('perubahan', $effective->firstWhere('periodeAlokasi.kegiatan_id', 10)->periodeAlokasi->status);
-        $this->assertSame('dikirim', $effective->firstWhere('periodeAlokasi.kegiatan_id', 20)->periodeAlokasi->status);
+        $this->assertSame('perubahan', $effective->get(10)?->periodeAlokasi?->status);
+        $this->assertSame('dikirim', $effective->get(20)?->periodeAlokasi?->status);
     }
 
     private function makeAlokasi(
@@ -61,17 +42,22 @@ class SpkAddendumTotalHonorAggregationTest extends TestCase
         float $totalHonorListing,
         int $jumlahSatuan = 1,
         int $jumlahSatuanListing = 0,
-    ): object {
-        return (object) [
+    ): AlokasiPetugas {
+        $periode = new PeriodeAlokasi([
+            'id' => $periodeId,
+            'kegiatan_id' => $kegiatanId,
+            'status' => $status,
+        ]);
+        $periode->id = $periodeId;
+
+        $alokasi = new AlokasiPetugas([
             'jumlah_satuan' => $jumlahSatuan,
             'jumlah_satuan_listing' => $jumlahSatuanListing,
             'total_honor' => $totalHonor,
             'total_honor_listing' => $totalHonorListing,
-            'periodeAlokasi' => (object) [
-                'id' => $periodeId,
-                'kegiatan_id' => $kegiatanId,
-                'status' => $status,
-            ],
-        ];
+        ]);
+        $alokasi->setRelation('periodeAlokasi', $periode);
+
+        return $alokasi;
     }
 }
