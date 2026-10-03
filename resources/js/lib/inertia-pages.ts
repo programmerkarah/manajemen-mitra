@@ -20,7 +20,11 @@ function withNormalizedPersonNames(component: InertiaPageComponent): InertiaPage
     const NormalizedPage = ((props: Record<string, unknown>) =>
         createElement(component, normalizePersonNames(props))) as InertiaPageComponent;
 
-    NormalizedPage.displayName = `NormalizedPersonNames(${component.displayName || component.name || 'Page'})`;
+    const componentMeta = component as InertiaPageComponent & {
+        displayName?: string;
+        name?: string;
+    };
+    NormalizedPage.displayName = `NormalizedPersonNames(${componentMeta.displayName || componentMeta.name || 'Page'})`;
     NormalizedPage.layout = component.layout;
 
     normalizedPageComponents.set(component as object, NormalizedPage);
