@@ -557,7 +557,11 @@ export default function Dashboard({
                             {attentionItems.map((item) => (
                                 <Link
                                     key={item.key}
-                                    href={item.url}
+                                    href={
+                                        item.key === 'bast_due'
+                                            ? '/berita-acara'
+                                            : item.url
+                                    }
                                     className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
                                         item.severity === 'danger'
                                             ? 'bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-800/40 dark:text-red-300 dark:hover:bg-red-800/60'
