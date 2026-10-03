@@ -81,22 +81,70 @@ return new class extends Migration
 
     private function foreignKeyExists(string $table, string $constraintName): bool
     {
-        $result = DB::selectOne(
-            'SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND CONSTRAINT_NAME = ? AND CONSTRAINT_TYPE = ? LIMIT 1',
-            [DB::getDatabaseName(), $table, $constraintName, 'FOREIGN KEY']
-        );
+        $driver = DB::connection()->getDriverName();
 
-        return $result !== null;
+        if ($driver === 'mysql') {
+            $result = DB::selectOne(
+                'SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND CONSTRAINT_NAME = ? AND CONSTRAINT_TYPE = ? LIMIT 1',
+                [DB::getDatabaseName(), $table, $constraintName, 'FOREIGN KEY']
+            );
+
+            return $result !== null;
+        }
+
+        if ($driver === 'sqlite') {
+            $foreignKeys = DB::select(sprintf("PRAGMA foreign_key_list('%s')", $table));
+
+            foreach ($foreignKeys as $foreignKey) {
+                if (($foreignKey->table ?? null) === $this->referencedTableForConstraint($constraintName)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return false;
     }
 
     private function indexExists(string $table, string $indexName): bool
     {
-        $result = DB::selectOne(
-            'SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ? LIMIT 1',
-            [DB::getDatabaseName(), $table, $indexName]
-        );
+        $driver = DB::connection()->getDriverName();
 
-        return $result !== null;
+        if ($driver === 'mysql') {
+            $result = DB::selectOne(
+                'SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ? LIMIT 1',
+                [DB::getDatabaseName(), $table, $indexName]
+            );
+
+            return $result !== null;
+        }
+
+        if ($driver === 'sqlite') {
+            $indexes = DB::select(sprintf("PRAGMA index_list('%s')", $table));
+
+            foreach ($indexes as $index) {
+                if (($index->name ?? null) === $indexName) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return false;
+    }
+
+    private function referencedTableForConstraint(string $constraintName): ?string
+    {
+        return match ($constraintName) {
+            'deadline_bypasses_deadline_rule_id_foreign' => 'deadline_rules',
+            'deadline_bypasses_kegiatan_id_foreign' => 'kegiatan',
+            'deadline_bypasses_periode_alokasi_id_foreign' => 'periode_alokasi',
+            'deadline_bypasses_approved_by_user_id_foreign',
+            'deadline_bypasses_granted_for_user_id_foreign' => 'users',
+            default => null,
+        };
     }
 
     public function down(): void
