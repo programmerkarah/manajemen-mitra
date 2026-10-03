@@ -13,6 +13,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -136,6 +137,7 @@ class SensusEkonomiReplacementController extends Controller
                 'status' => $existingContract->status,
                 'spk_hashed_id' => $existingContract->spk?->hashed_id,
                 'spk_nomor_spk' => $existingContract->spk?->nomor_spk,
+                'spk_signed_uploaded' => filled($existingContract->spk?->signed_file_path),
             ] : null,
             'existing_spk' => $existingSpk ? [
                 'hashed_id' => $existingSpk->hashed_id,
@@ -241,6 +243,64 @@ class SensusEkonomiReplacementController extends Controller
             'Replacement petugas berhasil dibuat (ID: %s).',
             $replacement->hashed_id,
         ));
+    }
+
+    public function uploadSignedPkpp(Request $request, SensusEkonomiPetugasReplacement $replacement): RedirectResponse
+    {
+        if (! $request->user()?->isAdmin() && ! $request->user()?->isOperator()) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'mimes:pdf', 'max:10240'],
+        ]);
+
+        $contract = SensusEkonomiPkppContract::query()
+            ->where('replacement_id', $replacement->id)
+            ->where('petugas_id', $replacement->petugas_pengganti_id)
+            ->with(['spk.alokasiPetugas.periodeAlokasi', 'petugas'])
+            ->first();
+
+        if (! $contract) {
+            return back()->with('error', 'Simpan data PK petugas pengganti terlebih dahulu.');
+        }
+
+        $spk = $contract->spk;
+        if (! $spk) {
+            return back()->with(
+                'error',
+                'PK petugas pengganti belum terhubung ke record Perjanjian Kerja. Pastikan alokasi petugas pengganti sudah tercatat sebelum mengunggah PDF.'
+            );
+        }
+
+        $periode = $spk->alokasiPetugas?->periodeAlokasi;
+        $tahun = (int) ($periode?->tahun ?? now()->year);
+        $bulan = str_pad((string) ((int) ($periode?->bulan ?? now()->month)), 2, '0', STR_PAD_LEFT);
+        $safeNomor = preg_replace('/[^A-Za-z0-9_-]+/', '_', (string) ($contract->nomor_pkpp ?: 'PKPP_'.$contract->id));
+        $safePetugas = preg_replace('/[^A-Za-z0-9_-]+/', '_', (string) ($contract->petugas?->nama ?: 'petugas'));
+        $fileName = 'PKPP_'.$safeNomor.'_'.$safePetugas.'_signed.pdf';
+        $directory = public_path("spk-export/{$tahun}/{$bulan}");
+
+        if (! is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        if (filled($spk->signed_file_path)) {
+            $oldPath = public_path(ltrim((string) $spk->signed_file_path, '/'));
+            if (is_file($oldPath)) {
+                @unlink($oldPath);
+            }
+        }
+
+        $request->file('file')->move($directory, $fileName);
+        $relativePath = "spk-export/{$tahun}/{$bulan}/{$fileName}";
+
+        $spk->update([
+            'signed_file_path' => $relativePath,
+            'status' => 'diterbitkan',
+        ]);
+
+        return back()->with('success', 'PDF PK petugas pengganti berhasil diunggah.');
     }
 
     public function storePkppContract(
