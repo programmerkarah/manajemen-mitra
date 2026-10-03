@@ -1141,17 +1141,12 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
 
                             if ($formula !== '') {
                                 $targetColumnLetter = Coordinate::stringFromColumnIndex($mainTargetStartColumn + $targetIndex);
-                                $targetCell = $mainSheet->getCell($targetColumnLetter.$rowNumber);
 
-                                // Edit templates may already contain the persisted allocation
-                                // volume even when no frame pivot exists. Do not replace that
-                                // literal value with a derived frame formula.
-                                if (
-                                    $this->type !== 'edit'
-                                    || $targetCell->getValue() === null
-                                    || $targetCell->getValue() === ''
-                                ) {
-                                    $targetCell->setValue($formula);
+                                // Existing rows in edit templates must remain a faithful
+                                // snapshot of persisted allocation values, including blanks.
+                                // Derived formulas are only appropriate for create templates.
+                                if ($this->type !== 'edit') {
+                                    $mainSheet->setCellValue($targetColumnLetter.$rowNumber, $formula);
                                 }
                             }
                         }
