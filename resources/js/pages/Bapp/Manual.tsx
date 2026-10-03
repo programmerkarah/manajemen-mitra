@@ -115,11 +115,20 @@ export default function Manual({
         );
     };
 
+    const singleReplacementBapp =
+        document_type === 'replacement_pkpp' &&
+        replacement_termin_count === 1;
+    const pageBappLabel = singleReplacementBapp
+        ? 'BAPP'
+        : `BAPP Termin ${termin_roman}`;
+
     const contextLabel =
         document_type === 'stopped_petugas'
             ? 'Petugas berhenti'
             : document_type === 'replacement_pkpp'
-              ? `Petugas pengganti · ${replacement_termin_count} termin`
+              ? singleReplacementBapp
+                  ? 'Petugas pengganti · satu BAPP'
+                  : `Petugas pengganti · ${replacement_termin_count} termin`
               : 'Petugas utama';
 
     const uploadedCount = spk_list.filter((item) =>
@@ -142,18 +151,18 @@ export default function Manual({
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'BAPP SE2026', href: '/bapp' },
         {
-            title: `Termin ${termin_roman}`,
+            title: pageBappLabel,
             href: `/bapp/create?termin=${termin_hashed}&document_type=${document_type}&replacement_termin_count=${replacement_termin_count}`,
         },
     ];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`BAPP SE2026 Termin ${termin_roman}`} />
+            <Head title={`${pageBappLabel} SE2026`} />
 
             <div className="space-y-5">
                 <PageHeader
-                    title={`BAPP Termin ${termin_roman}`}
+                    title={pageBappLabel}
                     description={`${contextLabel} · ${bulan_label} ${tahun} · ${persentase}%`}
                 >
                     <Button variant="outline" asChild>
@@ -372,7 +381,9 @@ export default function Manual({
                         <ContentCard>
                             <div className="py-10 text-center text-sm text-muted-foreground">
                                 {spk_list.length === 0
-                                    ? `Belum ada Perjanjian Kerja untuk Termin ${termin_roman}.`
+                                    ? singleReplacementBapp
+                                        ? 'Belum ada Perjanjian Kerja untuk BAPP ini.'
+                                        : `Belum ada Perjanjian Kerja untuk Termin ${termin_roman}.`
                                     : 'Petugas tidak ditemukan.'}
                             </div>
                         </ContentCard>
