@@ -51,14 +51,6 @@ class BappController extends Controller
     use BappFrameSupport;
     use BappNumberingSupport;
     use BappDocumentContextSupport;
-    private static ?bool $hasBappTerminTable = null;
-
-    private static bool $hasLoggedMissingBappTerminTable = false;
-
-    private static ?bool $supportsBappDocumentContextColumns = null;
-
-    private static bool $hasLoggedMissingBappDocumentContextColumns = false;
-
     private static bool $hasLoggedMissingBappSpkSourceTables = false;
 
     private const TERMIN_CONFIG = [
@@ -69,12 +61,6 @@ class BappController extends Controller
     private const SE_PENDATAAN_ROLES = ['pcl_ppl', 'pcl', 'ppl'];
 
     private const SE_PEMERIKSAAN_ROLES = ['pml'];
-
-    private const DOCUMENT_TYPES = [
-        'regular',
-        'stopped_petugas',
-        'replacement_pkpp',
-    ];
 
     /**
      * Strip academic/professional titles from a name and apply title case.
