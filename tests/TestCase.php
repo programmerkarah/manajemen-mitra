@@ -3,6 +3,7 @@
 namespace Tests;
 
 use App\Http\Middleware\EnsureSingleActiveSession;
+use App\Http\Middleware\PreventMaintenanceModeRequests;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -16,7 +17,10 @@ abstract class TestCase extends BaseTestCase
 
         Cache::flush();
 
-        $this->withoutMiddleware(EnsureSingleActiveSession::class);
+        $this->withoutMiddleware([
+            EnsureSingleActiveSession::class,
+            PreventMaintenanceModeRequests::class,
+        ]);
 
         // Disable foreign key checks for SQLite in tests
         if (DB::getDriverName() === 'sqlite') {
