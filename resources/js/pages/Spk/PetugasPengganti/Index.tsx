@@ -135,7 +135,7 @@ export default function Index({
             number,
             {
                 petugasId: string;
-                startDate: string;
+                contractDate: string;
             }
         >
     >({});
@@ -150,7 +150,23 @@ export default function Index({
         [stopped_candidates],
     );
 
-    const replacementOptions = useMemo(
+    const stoppedCandidateOptions = useMemo(
+        () =>
+            availableStopCandidates.map((candidate) => ({
+                value: String(candidate.spk_id),
+                label: `${candidate.petugas_nama ?? 'Tanpa nama'} · ${candidate.nomor_spk}`,
+                searchKeywords: [
+                    candidate.petugas_nama,
+                    candidate.petugas_nik,
+                    candidate.nomor_spk,
+                ]
+                    .filter(Boolean)
+                    .join(' '),
+            })),
+        [availableStopCandidates],
+    );
+
+    const replacementOptions = useMemo
         () =>
             replacement_candidates.map((candidate) => ({
                 value: String(candidate.id),
@@ -190,14 +206,16 @@ export default function Index({
 
     const assignReplacement = (item: ReplacementItem) => {
         const form = replacementForm[item.id];
-        if (!form?.petugasId || !form.startDate) return;
+        if (!form?.petugasId || !form.contractDate) return;
 
         setAssigning(item.id);
         router.post(
             `/sensus-ekonomi/replacements/${item.hashed_id}/assign`,
             {
                 petugas_pengganti_id: Number(form.petugasId),
-                tanggal_mulai_pkpp: form.startDate,
+                // Kolom legacy tanggal_mulai_pkpp kini menyimpan tanggal kontrak awal
+                // pada tahap penetapan pengganti. Tanggal lapangan ditentukan di form skema.
+                tanggal_mulai_pkpp: form.contractDate,
             },
             {
                 preserveScroll: true,
@@ -273,29 +291,15 @@ export default function Index({
                                     <p className="text-xs font-medium text-muted-foreground">
                                         Petugas / PK Sensus Ekonomi
                                     </p>
-                                    <Select
+                                    <SearchableSelect
+                                        options={stoppedCandidateOptions}
                                         value={stoppedSpkId}
                                         onValueChange={setStoppedSpkId}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Pilih petugas yang berhenti" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {availableStopCandidates.map(
-                                                (candidate) => (
-                                                    <SelectItem
-                                                        key={candidate.spk_id}
-                                                        value={String(
-                                                            candidate.spk_id,
-                                                        )}
-                                                    >
-                                                        {candidate.petugas_nama}{' '}
-                                                        · {candidate.nomor_spk}
-                                                    </SelectItem>
-                                                ),
-                                            )}
-                                        </SelectContent>
-                                    </Select>
+                                        placeholder="Pilih petugas yang berhenti"
+                                        searchPlaceholder="Cari nama, NIK, atau nomor PK..."
+                                        defaultVisibleCount={10}
+                                        showClearAction
+                                    />
                                 </div>
 
                                 <div className="space-y-1.5">
@@ -394,7 +398,7 @@ export default function Index({
                     {replacements.map((item) => {
                         const form = replacementForm[item.id] ?? {
                             petugasId: '',
-                            startDate: item.tanggal_mulai_pkpp ?? '',
+                            contractDate: item.tanggal_mulai_pkpp ?? '',
                         };
                         const replacementAssigned = Boolean(
                             item.petugas_pengganti_nama,
@@ -505,7 +509,7 @@ export default function Index({
                                                     </p>
                                                     <p className="mt-1 text-xs text-muted-foreground">
                                                         {replacementAssigned
-                                                            ? item.petugas_pengganti_nama
+                                                            ? `${item.petugas_pengganti_nama} · kontrak ${formatDate(item.tanggal_mulai_pkpp)}`
                                                             : 'Belum ditentukan'}
                                                     </p>
                                                 </div>
@@ -546,7 +550,7 @@ export default function Index({
                                                         />
                                                         <DatePicker
                                                             value={
-                                                                form.startDate
+                                                                form.contractDate
                                                             }
                                                             min={
                                                                 item.tanggal_berhenti ??
@@ -561,20 +565,20 @@ export default function Index({
                                                                         [item.id]:
                                                                             {
                                                                                 ...form,
-                                                                                startDate:
+                                                                                contractDate:
                                                                                     value,
                                                                             },
                                                                     }),
                                                                 )
                                                             }
-                                                            placeholder="Tanggal mulai pengganti"
+                                                            placeholder="Tanggal kontrak pengganti"
                                                         />
                                                         <Button
                                                             size="sm"
                                                             className="w-full"
                                                             disabled={
                                                                 !form.petugasId ||
-                                                                !form.startDate ||
+                                                                !form.contractDate ||
                                                                 assigning ===
                                                                     item.id
                                                             }
@@ -624,7 +628,6 @@ export default function Index({
                                                 >
                                                     <Link
                                                         href={`/spk/petugas-pengganti/${item.hashed_id}/pkpp-contracts/create`}
-                                                        prefetch
                                                     >
                                                         <FileText className="mr-2 h-4 w-4" />
                                                         {schemeReady
