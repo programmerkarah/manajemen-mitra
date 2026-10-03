@@ -168,6 +168,7 @@ export default function CreatePkppContract({
             },
             {
                 preserveScroll: true,
+                preserveState: false,
                 onFinish: () => setSaving(false),
             },
         );
