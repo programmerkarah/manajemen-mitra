@@ -26,7 +26,10 @@ class HonorReturnNavigation
             return $response;
         }
 
-        return redirect($returnTo);
+        // A mutation must redirect with 303 so the follow-up request is GET.
+        // Using 302 here can make fetch/Inertia preserve PATCH/PUT and resend it
+        // to the destination (for example PATCH /users), causing a 405.
+        return redirect($returnTo, 303);
     }
 
     private function isSafeInternalPath(string $returnTo): bool
