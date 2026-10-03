@@ -672,12 +672,9 @@ class DashboardController extends Controller
                     ->sortBy(fn (array $item) => $item['target_date'])
                     ->first();
 
-                $targetUrl = $firstTarget
-                    ? route('bast.create', [
-                        'bulan' => $firstTarget['bulan'],
-                        'tahun' => $firstTarget['tahun'],
-                    ])
-                    : route('bast.index');
+                // Dashboard membuka workspace BAST melalui POST terenkripsi
+                // dari frontend. URL fallback selalu kanonik tanpa query string.
+                $targetUrl = route('bast.index');
 
                 $targetHint = $firstTarget
                     ? sprintf(
