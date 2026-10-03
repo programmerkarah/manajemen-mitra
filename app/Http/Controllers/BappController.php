@@ -2114,7 +2114,12 @@ class BappController extends Controller
         $bapp->created_by = $bapp->created_by ?: Auth::id();
         $bapp->save();
 
-        return back()->with('success', 'BAPP Termin '.$config['roman'].' berhasil diunggah manual.');
+        $successLabel = $documentType === 'replacement_pkpp'
+            && $contextReplacementTerminCount === 1
+                ? 'BAPP petugas pengganti berhasil diunggah.'
+                : 'BAPP Termin '.$config['roman'].' berhasil diunggah manual.';
+
+        return back()->with('success', $successLabel);
     }
 
     /**
