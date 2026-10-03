@@ -714,6 +714,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
     });
 
     Route::middleware(['active.role:admin,operator'])->group(function () {
+        Route::post('bapp/manual-upload', [BappController::class, 'uploadManual'])->name('bapp.manual-upload');
         Route::post('bapp/realisasi', [BappController::class, 'storeRealisasi'])->name('bapp.store-realisasi');
         Route::post('bapp/import', [BappController::class, 'importRealisasi'])->name('bapp.import');
         Route::post('bapp/generate', [BappController::class, 'generate'])->name('bapp.generate');
