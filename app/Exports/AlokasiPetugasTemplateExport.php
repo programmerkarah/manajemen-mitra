@@ -99,12 +99,12 @@ class AlokasiPetugasTemplateExport extends DefaultValueBinder implements FromArr
         if ($this->hasFrameSampelColumn()) {
             $frameCount = $this->frameSampelRows()->count();
 
-            if ($frameCount > 0) {
-                return 1 + $frameCount;
-            }
+            // Create templates must keep enough blank, validated rows for
+            // additional allocations; existing frame rows only prefill data.
+            return max(101, 1 + $frameCount);
         }
 
-        return 7;
+        return 101;
     }
 
     /**
