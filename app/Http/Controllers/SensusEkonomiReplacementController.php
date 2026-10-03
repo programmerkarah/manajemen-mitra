@@ -80,7 +80,8 @@ class SensusEkonomiReplacementController extends Controller
                             'tanggal_kontrak' => $pkpp->tanggal_kontrak?->format('Y-m-d'),
                             'tanggal_mulai_lapangan' => $pkpp->tanggal_mulai_lapangan?->format('Y-m-d'),
                             'has_spk' => $pkpp->spk !== null,
-                            'pk_uploaded' => filled($pkpp->spk?->signed_file_path),
+                            'pk_uploaded' => filled($pkpp->signed_file_path)
+                            || filled($pkpp->spk?->signed_file_path),
                         ] : null,
                     ];
                 });
@@ -332,7 +333,8 @@ class SensusEkonomiReplacementController extends Controller
                 'status' => $existingContract->status,
                 'spk_hashed_id' => $existingContract->spk?->hashed_id,
                 'spk_nomor_spk' => $existingContract->spk?->nomor_spk,
-                'spk_signed_uploaded' => filled($existingContract->spk?->signed_file_path),
+                'spk_signed_uploaded' => filled($existingContract->signed_file_path)
+                    || filled($existingContract->spk?->signed_file_path),
             ] : null,
             'existing_spk' => $existingSpk ? [
                 'hashed_id' => $existingSpk->hashed_id,
@@ -447,7 +449,7 @@ class SensusEkonomiReplacementController extends Controller
             abort(403);
         }
 
-        $validated = $request->validate([
+        $request->validate([
             'file' => ['required', 'file', 'mimes:pdf', 'max:10240'],
         ]);
 
@@ -458,43 +460,37 @@ class SensusEkonomiReplacementController extends Controller
             ->first();
 
         if (! $contract) {
-            return back()->with('error', 'Simpan data PK petugas pengganti terlebih dahulu.');
+            return back()->with('error', 'Simpan data skema PK petugas pengganti terlebih dahulu.');
         }
 
-        $spk = $contract->spk;
-        if (! $spk) {
-            return back()->with(
-                'error',
-                'PK petugas pengganti belum terhubung ke record Perjanjian Kerja. Pastikan alokasi petugas pengganti sudah tercatat sebelum mengunggah PDF.'
-            );
-        }
-
-        $periode = $spk->alokasiPetugas?->periodeAlokasi;
-        $tahun = (int) ($periode?->tahun ?? now()->year);
-        $bulan = str_pad((string) ((int) ($periode?->bulan ?? now()->month)), 2, '0', STR_PAD_LEFT);
+        $tahun = (int) ($contract->tanggal_kontrak?->year ?? now()->year);
         $safeNomor = preg_replace('/[^A-Za-z0-9_-]+/', '_', (string) ($contract->nomor_pkpp ?: 'PKPP_'.$contract->id));
         $safePetugas = preg_replace('/[^A-Za-z0-9_-]+/', '_', (string) ($contract->petugas?->nama ?: 'petugas'));
-        $fileName = 'PKPP_'.$safeNomor.'_'.$safePetugas.'_signed.pdf';
-        $directory = public_path("spk-export/{$tahun}/{$bulan}");
+        $fileName = 'PKPP_'.$safeNomor.'_'.$safePetugas.'_signed_'.time().'.pdf';
 
-        if (! is_dir($directory)) {
-            mkdir($directory, 0755, true);
+        if (filled($contract->signed_file_path)) {
+            Storage::disk('public')->delete((string) $contract->signed_file_path);
         }
 
-        if (filled($spk->signed_file_path)) {
-            $oldPath = public_path(ltrim((string) $spk->signed_file_path, '/'));
-            if (is_file($oldPath)) {
-                @unlink($oldPath);
-            }
-        }
+        $stored = $request->file('file')->storeAs(
+            'pkpp/se2026/'.$tahun,
+            $fileName,
+            'public',
+        );
 
-        $request->file('file')->move($directory, $fileName);
-        $relativePath = "spk-export/{$tahun}/{$bulan}/{$fileName}";
-
-        $spk->update([
-            'signed_file_path' => $relativePath,
-            'status' => 'diterbitkan',
+        $contract->update([
+            'signed_file_path' => $stored,
+            'signed_uploaded_at' => now(),
         ]);
+
+        // Jika workflow lama sudah memiliki record SPK pengganti, pertahankan
+        // sinkronisasi file agar halaman SPK lama tetap dapat membuka dokumen final.
+        if ($contract->spk) {
+            $contract->spk->update([
+                'signed_file_path' => 'storage/'.$stored,
+                'status' => 'diterbitkan',
+            ]);
+        }
 
         return back()->with('success', 'PDF PK petugas pengganti berhasil diunggah.');
     }
