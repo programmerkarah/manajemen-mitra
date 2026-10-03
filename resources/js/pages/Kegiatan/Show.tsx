@@ -9,7 +9,8 @@ import type {
     RateHonor,
     Satuan,
 } from '@/types';
-import { Head, Link } from '@inertiajs/react';
+import { encryptFilters } from '@/utils/encryption';
+import { Head, Link, router } from '@inertiajs/react';
 import ArrowLeft from 'lucide-react/icons/arrow-left';
 import Pencil from 'lucide-react/icons/pencil';
 import Settings from 'lucide-react/icons/settings';
@@ -331,15 +332,18 @@ export default function Show({ kegiatan, auth, can }: Props) {
                         {canEdit && (
                             <Button
                                 size="sm"
-                                asChild
                                 className="w-full gap-2 sm:w-auto"
+                                onClick={() =>
+                                    router.post('/kegiatan/edit', {
+                                        state: encryptFilters({
+                                            kegiatan: kegiatan.hashed_id,
+                                            step: 'metadata',
+                                        }),
+                                    })
+                                }
                             >
-                                <Link
-                                    href={`/kegiatan/${kegiatan.hashed_id}/edit`}
-                                >
-                                    <Pencil className="h-4 w-4" />
-                                    Edit
-                                </Link>
+                                <Pencil className="h-4 w-4" />
+                                Edit
                             </Button>
                         )}
                     </div>
