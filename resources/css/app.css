@@ -349,7 +349,7 @@
     }
 
     .summary-card__label {
-        @apply line-clamp-1 text-[11px] font-medium text-muted-foreground sm:text-xs;
+        @apply line-clamp-1 text-[11px] font-semibold text-foreground/80 sm:text-xs;
     }
 
     .summary-card__value {
@@ -357,7 +357,7 @@
     }
 
     .summary-card__meta {
-        @apply mt-1 line-clamp-1 text-[11px] text-muted-foreground sm:text-xs;
+        @apply mt-1 line-clamp-1 text-[11px] text-foreground/65 sm:text-xs;
     }
 
     .header-control {
