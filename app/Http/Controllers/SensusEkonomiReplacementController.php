@@ -62,6 +62,7 @@ class SensusEkonomiReplacementController extends Controller
                     return [
                         'id' => $replacement->id,
                         'hashed_id' => $replacement->hashed_id,
+                        'spk_lama_id' => $replacement->spk_lama_id,
                         'petugas_berhenti_nama' => $replacement->petugasBerhenti?->nama,
                         'petugas_pengganti_nama' => $replacement->petugasPengganti?->nama,
                         'pml_cover_nama' => $replacement->pmlCoverPetugas?->nama,
