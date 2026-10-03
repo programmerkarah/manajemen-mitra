@@ -36,6 +36,8 @@ class SensusEkonomiPkppContract extends Model
         'periode_pasal_7',
         'biaya_ganti_rugi',
         'status',
+        'signed_file_path',
+        'signed_uploaded_at',
         'created_by',
     ];
 
@@ -52,6 +54,7 @@ class SensusEkonomiPkppContract extends Model
             'target_termin_2' => 'array',
             'target_total' => 'array',
             'biaya_ganti_rugi' => 'decimal:2',
+            'signed_uploaded_at' => 'datetime',
         ];
     }
 
