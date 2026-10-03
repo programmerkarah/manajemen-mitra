@@ -255,6 +255,16 @@ export default function Index({
                                                     `&document_type=${workflow.document_type}` +
                                                     `&replacement_termin_count=${workflow.replacement_termin_count}`;
 
+                                                const singleReplacementBapp =
+                                                    workflow.document_type ===
+                                                        'replacement_pkpp' &&
+                                                    workflow.replacement_termin_count ===
+                                                        1;
+                                                const terminLabel =
+                                                    singleReplacementBapp
+                                                        ? 'BAPP'
+                                                        : `Termin ${termin.termin_roman}`;
+
                                                 return (
                                                     <div
                                                         key={`${workflow.key}-${termin.termin}`}
@@ -263,10 +273,7 @@ export default function Index({
                                                         <div>
                                                             <div className="flex items-center gap-2">
                                                                 <p className="text-sm font-medium">
-                                                                    Termin{' '}
-                                                                    {
-                                                                        termin.termin_roman
-                                                                    }
+                                                                    {terminLabel}
                                                                 </p>
                                                                 <Badge
                                                                     variant={
@@ -281,14 +288,9 @@ export default function Index({
                                                                 </Badge>
                                                             </div>
                                                             <p className="mt-1 text-xs text-muted-foreground">
-                                                                {
-                                                                    termin.bulan_label
-                                                                }{' '}
-                                                                ·{' '}
-                                                                {
-                                                                    termin.persentase
-                                                                }
-                                                                %
+                                                                {singleReplacementBapp
+                                                                    ? 'Satu dokumen BAPP final'
+                                                                    : `${termin.bulan_label} · ${termin.persentase}%`}
                                                             </p>
                                                         </div>
 
