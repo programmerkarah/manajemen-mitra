@@ -186,12 +186,13 @@ export default function Index({
                                     <Badge variant="secondary">Manual</Badge>
                                 </div>
                                 <p className="mt-1 text-sm text-muted-foreground">
-                                    Isi nomor, tanggal, lalu unggah PDF final per
-                                    petugas. SIMANTIK tidak melakukan generate
-                                    untuk BAST SE2026.
+                                    Isi nomor, tanggal, lalu unggah PDF final
+                                    per petugas. SIMANTIK tidak melakukan
+                                    generate untuk BAST SE2026.
                                 </p>
                                 <p className="mt-2 truncate font-mono text-xs text-muted-foreground">
-                                    B-{'{nomor}'}/BAST-SE2026/1373/PL.200/{active_year}
+                                    B-{'{nomor}'}/BAST-SE2026/1373/PL.200/
+                                    {active_year}
                                 </p>
                             </div>
 
