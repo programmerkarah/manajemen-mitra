@@ -36,9 +36,11 @@ use App\Http\Controllers\Concerns\BappDocumentContextSupport;
 use App\Http\Controllers\Concerns\BappNumberingSupport;
 use App\Http\Controllers\Concerns\BappFrameSupport;
 use App\Http\Controllers\Concerns\BappSensusSupport;
+use App\Http\Controllers\Concerns\BappPdfSupport;
 
 class BappController extends Controller
 {
+    use BappPdfSupport;
     use BappSensusSupport;
     use BappFrameSupport;
     use BappNumberingSupport;
@@ -1287,35 +1289,7 @@ class BappController extends Controller
      * @param  array{bulan:int, bulan_label:string, persentase:int, roman:string}  $config
      * @return array<string, mixed>
      */
-    private function buildPdfViewData(BappSeTermin $bapp, Spk $spk, string $peran, ?Petugas $petugas, array $config): array
-    {
-        $jenisPihakKedua = $this->getJenisPihakKedua($peran);
 
-        return [
-            'nomor_bapp' => $bapp->nomor_bapp,
-            'tanggal_bapp' => $bapp->tanggal_bapp,
-            'termin_roman' => $config['roman'],
-            'termin_number' => $bapp->termin,
-            'persentase' => $config['persentase'],
-            'jenis_pihak_kedua' => $jenisPihakKedua,
-            'is_usaha_besar' => false,
-            'nama_petugas' => $petugas?->nama,
-            'nik_petugas' => $petugas?->nik ?? '',
-            'nama_ketua_tim' => $bapp->nama_ketua_tim,
-            'nip_ketua_tim' => $bapp->nip_ketua_tim ?: $this->getNipKetuaTim($this->getSensusEkonomiKegiatan()),
-            'nama_ppk' => $bapp->nama_ppk ? $this->stripGelar($bapp->nama_ppk) : null,
-            'nip_ppk' => $bapp->nip_ppk,
-            'jabatan_ppk' => $bapp->jabatan_ppk,
-            'nama_kabkota' => $bapp->nama_kabkota ?: config('app.instansi_kabupaten', ''),
-            'nomor_spk' => $spk->nomor_spk,
-            'target_sls' => $bapp->target_sls,
-            'target_unit_sampel' => $bapp->target_unit_sampel ?? [],
-            'realisasi_sls' => $bapp->realisasi_sls,
-            'realisasi_unit_sampel' => $bapp->realisasi_unit_sampel ?? [],
-            'nilai_perjanjian' => (float) ($bapp->nilai_perjanjian ?? 0),
-            'fasih_screenshot_path' => $bapp->fasih_screenshot_path,
-        ];
-    }
 
     /**
      * Generate and merge three PDF parts into one document:
@@ -1325,42 +1299,5 @@ class BappController extends Controller
      *
      * @param  array<string, mixed>  $viewData
      */
-    private function buildMergedPdf(array $viewData): string
-    {
-        $portraitPdf = Pdf::loadView('bapp-se', array_merge($viewData, ['page_number_offset' => 0]))->setPaper('A4', 'portrait')->output();
-        $landscapePdf = Pdf::loadView('bapp-se-lampiran-table', array_merge($viewData, ['page_number_offset' => 2]))->setPaper('A4', 'landscape')->output();
-        $screenshotPdf = Pdf::loadView('bapp-se-lampiran-screenshot', array_merge($viewData, ['page_number_offset' => 3]))->setPaper('A4', 'portrait')->output();
 
-        $tmpPortrait = tempnam(sys_get_temp_dir(), 'bapp_').'.pdf';
-        $tmpLandscape = tempnam(sys_get_temp_dir(), 'bapp_').'.pdf';
-        $tmpScreenshot = tempnam(sys_get_temp_dir(), 'bapp_').'.pdf';
-
-        file_put_contents($tmpPortrait, $portraitPdf);
-        file_put_contents($tmpLandscape, $landscapePdf);
-        file_put_contents($tmpScreenshot, $screenshotPdf);
-
-        $fpdi = new Fpdi;
-        $fpdi->setPrintHeader(false);
-        $fpdi->setPrintFooter(false);
-        $fpdi->SetMargins(0, 0, 0);
-        $fpdi->SetAutoPageBreak(false, 0);
-
-        foreach ([$tmpPortrait, $tmpLandscape, $tmpScreenshot] as $tmpFile) {
-            $pageCount = $fpdi->setSourceFile($tmpFile);
-            for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
-                $tplIdx = $fpdi->importPage($pageNo);
-                $size = $fpdi->getTemplateSize($tplIdx);
-                $fpdi->AddPage($size['orientation'], [$size['width'], $size['height']]);
-                $fpdi->useTemplate($tplIdx, 0, 0, $size['width'], $size['height'], true);
-            }
-        }
-
-        $merged = $fpdi->Output('merged.pdf', 'S');
-
-        @unlink($tmpPortrait);
-        @unlink($tmpLandscape);
-        @unlink($tmpScreenshot);
-
-        return $merged;
-    }
 }
