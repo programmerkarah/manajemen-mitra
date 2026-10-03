@@ -80,7 +80,21 @@ trait SpkAddendumSupport
 
         $allPeriodeInMonth = $monthPeriodes->pluck('id');
 
-        $candidateSummary = $this->spkActionDecisionService->resolveAddendumCandidatesForMonth((int) $tahun, (int) $bulan);
+        $monthDecisions = $this->spkActionDecisionService->resolveForMonth((int) $tahun, (int) $bulan);
+        if ($monthDecisions->contains(
+            fn (array $item): bool => ($item['final_action'] ?? null) === 'regenerate_pk'
+        )) {
+            return redirect()->route('spk.index')
+                ->with('warning', 'Silakan selesaikan re-generate SPK terlebih dahulu sebelum membuat addendum.');
+        }
+
+        $candidateSummary = $monthDecisions
+            ->filter(fn (array $item): bool => in_array(
+                $item['final_action'] ?? null,
+                ['generate_addendum', 'regenerate_addendum'],
+                true
+            ))
+            ->values();
         $candidateDecisions = $candidateSummary->keyBy('petugas_id');
 
         $eligiblePetugasIds = $candidateSummary
