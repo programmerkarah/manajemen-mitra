@@ -135,7 +135,23 @@ trait BastGenerationActions
 
     public function create(Request $request): Response|RedirectResponse
     {
-        $filters = $request->session()->get('bast_create_filters');
+        $session = $request->hasSession() ? $request->session() : null;
+        $filters = $session?->get('bast_create_filters');
+
+        // Backward compatibility for direct/legacy create URLs and test/API
+        // requests that intentionally run without the session middleware.
+        if (! is_array($filters) || ! isset($filters['bulan'], $filters['tahun'])) {
+            $queryBulan = $request->query('bulan');
+            $queryTahun = $request->query('tahun');
+
+            if ($queryBulan !== null && $queryTahun !== null) {
+                $filters = [
+                    'bulan' => $queryBulan,
+                    'tahun' => $queryTahun,
+                    'mode' => $request->query('mode', 'regular'),
+                ];
+            }
+        }
 
         if (! is_array($filters) || ! isset($filters['bulan'], $filters['tahun'])) {
             return redirect()->route('bast.index')
@@ -154,7 +170,7 @@ trait BastGenerationActions
         $bulanFormatted = str_pad((string) $bulan, 2, '0', STR_PAD_LEFT);
 
         if ($isSensusEkonomiMode && $bulan !== 8) {
-            $request->session()->put('bast_index_mode', 'sensus-ekonomi');
+            $session?->put('bast_index_mode', 'sensus-ekonomi');
 
             return redirect()->route('bast.index')
                 ->with('info', 'BAST Sensus Ekonomi dikelola pada periode Agustus sesuai akhir pelaksanaan PK.');
