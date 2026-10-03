@@ -26,14 +26,19 @@ class ResetUserPassword implements ResetsUserPasswords
             'password' => $input['password'],
         ])->save();
 
-        ActivityLog::logAuth(
-            'Reset Password',
-            'Pengguna berhasil mengubah password melalui alur reset password.',
-            'success',
-            [
+        ActivityLog::query()->create([
+            'user_id' => $user->id,
+            'user_name' => $user->name,
+            'action' => 'Reset Password',
+            'type' => 'auth',
+            'description' => 'Pengguna berhasil mengubah password melalui alur reset password.',
+            'status' => 'success',
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'metadata' => [
                 'user_id' => $user->id,
                 'source' => 'native',
-            ]
-        );
+            ],
+        ]);
     }
 }
