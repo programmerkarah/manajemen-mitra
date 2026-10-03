@@ -96,6 +96,7 @@ interface CreateForMonthProps {
         encrypted: string;
     };
     mode?: 'create' | 'detail';
+    nomor_bast_suffix?: string | null;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -119,6 +120,7 @@ export default function CreateForMonth({
     bulan_label,
     spk_list,
     mode = 'create',
+    nomor_bast_suffix = null,
 }: CreateForMonthProps) {
     const { auth } = usePage<SharedData>().props;
     const decryptedSpkList = useDecryptedData<SpkItem>(spk_list.encrypted);
@@ -243,7 +245,7 @@ export default function CreateForMonth({
             {
                 spk_id: spk.spk_id,
                 file,
-                nomor_bast: manualNomor[spk.spk_id] ?? '',
+                nomor_bast: (manualNomor[spk.spk_id] ?? '').replace(/\D/g, ''),
                 tanggal_bast: manualTanggal[spk.spk_id] ?? '',
             },
             {
@@ -485,7 +487,7 @@ export default function CreateForMonth({
                                     isSpkSelectable(spk) &&
                                     handleSelectSpk(spk.spk_id)
                                 }
-                                className={`rounded-lg border p-4 transition-colors ${
+                                className={`rounded-xl border p-4 transition-colors ${
                                     !isDetailMode &&
                                     !isSensusEkonomiMode &&
                                     isAdminOrOperator &&
@@ -637,46 +639,63 @@ export default function CreateForMonth({
                                                         e.stopPropagation()
                                                     }
                                                 >
-                                                    <div className="flex items-start gap-2 text-sm text-blue-800 dark:text-blue-200">
-                                                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                                                        <p>
-                                                            BAST SE2026 tidak
-                                                            digenerate oleh
-                                                            SIMANTIK. Unggah PDF
-                                                            final yang sudah
-                                                            disiapkan secara
-                                                            manual.
-                                                        </p>
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="flex items-start gap-2 text-sm text-blue-800 dark:text-blue-200">
+                                                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                                                            <div>
+                                                                <p className="font-medium">
+                                                                    Dokumen manual SE2026
+                                                                </p>
+                                                                <p className="mt-0.5 text-xs opacity-90">
+                                                                    Isi nomor saja. Kode BAST ditambahkan otomatis.
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <Badge variant="outline">
+                                                            {spk.has_bast ? 'Sudah upload' : 'Belum upload'}
+                                                        </Badge>
                                                     </div>
                                                     <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
                                                         <div className="space-y-1.5">
                                                             <p className="text-xs font-medium text-muted-foreground">
                                                                 Nomor BAST
                                                             </p>
-                                                            <Input
-                                                                value={
-                                                                    manualNomor[
-                                                                        spk
-                                                                            .spk_id
-                                                                    ] ?? ''
-                                                                }
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    setManualNomor(
-                                                                        (
-                                                                            current,
-                                                                        ) => ({
-                                                                            ...current,
-                                                                            [spk.spk_id]:
-                                                                                event
-                                                                                    .target
-                                                                                    .value,
-                                                                        }),
-                                                                    )
-                                                                }
-                                                                placeholder="Nomor lengkap sesuai dokumen"
-                                                            />
+                                                            <div className="flex min-w-0 items-stretch rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring/30">
+                                                                <span className="flex items-center border-r border-input px-3 text-sm font-medium text-muted-foreground">
+                                                                    B-
+                                                                </span>
+                                                                <input
+                                                                    inputMode="numeric"
+                                                                    pattern="[0-9]*"
+                                                                    value={
+                                                                        manualNomor[
+                                                                            spk.spk_id
+                                                                        ] ?? ''
+                                                                    }
+                                                                    onChange={(event) => {
+                                                                        const value =
+                                                                            event.target.value.replace(
+                                                                                /\D/g,
+                                                                                '',
+                                                                            );
+                                                                        setManualNomor(
+                                                                            (current) => ({
+                                                                                ...current,
+                                                                                [spk.spk_id]:
+                                                                                    value,
+                                                                            }),
+                                                                        );
+                                                                    }}
+                                                                    placeholder="Nomor"
+                                                                    className="h-10 w-24 min-w-[72px] bg-transparent px-3 text-sm outline-none"
+                                                                />
+                                                                <span className="flex min-w-0 flex-1 items-center overflow-hidden border-l border-input px-3 text-xs text-muted-foreground">
+                                                                    <span className="truncate">
+                                                                        {nomor_bast_suffix ??
+                                                                            '/BAST-SE2026/1373/PL.200/2026'}
+                                                                    </span>
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                         <div className="space-y-1.5">
                                                             <p className="text-xs font-medium text-muted-foreground">
@@ -734,6 +753,9 @@ export default function CreateForMonth({
                                                                 !manualFiles[
                                                                     spk.spk_id
                                                                 ] ||
+                                                                !(manualNomor[
+                                                                    spk.spk_id
+                                                                ] ?? '').trim() ||
                                                                 uploadingManualSpk ===
                                                                     spk.spk_id
                                                             }
