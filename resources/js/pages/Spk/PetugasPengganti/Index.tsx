@@ -14,7 +14,6 @@ import {
 } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router } from '@inertiajs/react';
 import ArrowLeft from 'lucide-react/icons/arrow-left';
 import CheckCircle2 from 'lucide-react/icons/check-circle2';
