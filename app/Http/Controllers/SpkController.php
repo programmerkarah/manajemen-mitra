@@ -2496,6 +2496,19 @@ class SpkController extends Controller
                 return response()->json(['message' => 'BAPP hanya tersedia untuk kegiatan sensus.'], 422);
             }
 
+            if ($replacementAssignment) {
+                $bappPath = $bappTermin === 2
+                    ? (string) ($replacementAssignment['bapp_termin_ii_file_path'] ?? '')
+                    : (string) ($replacementAssignment['bapp_termin_i_file_path'] ?? '');
+
+                return $this->servePublicPreviewReplacementDocument(
+                    $bappPath,
+                    'BAPP_Termin_'.$bappTermin.'_Pengganti_SE2026_'.$petugas->nama.'.pdf',
+                    $validated,
+                    'BAPP petugas pengganti untuk termin ini belum diunggah.',
+                );
+            }
+
             return $this->servePublicPreviewBapp($petugas, ActiveYearService::get(), $bappTermin, $validated);
         }
 
@@ -3160,7 +3173,7 @@ class SpkController extends Controller
             ->values();
 
         $replacementPenugasan = $replacementAssignments->map(
-            function (array $assignment) use ($bappByTermin): array {
+            function (array $assignment): array {
                 $periodKey = sprintf(
                     '%d-%02d',
                     (int) $assignment['tahun'],
@@ -3182,13 +3195,15 @@ class SpkController extends Controller
                     'document_status' => $assignment['pk_available'] ? 'PK Pengganti Final' : 'PK Pengganti belum diunggah',
                     'bast_status' => $assignment['bast_available'] ? 'BAST tersedia' : 'Tidak tersedia',
                     'bast_available' => (bool) $assignment['bast_available'],
-                    'bapp_termin_i_status' => $bappByTermin->get(1)?->signed_file_path ? 'BAPP tersedia' : 'Tidak tersedia',
+                    'bapp_termin_i_status' => $assignment['bapp_termin_i_available']
+                        ? 'BAPP tersedia'
+                        : 'Tidak tersedia',
                     'bapp_termin_ii_status' => ((int) $assignment['termin_count'] === 2)
-                        ? ($bappByTermin->get(2)?->signed_file_path ? 'BAPP tersedia' : 'Tidak tersedia')
+                        ? ($assignment['bapp_termin_ii_available'] ? 'BAPP tersedia' : 'Tidak tersedia')
                         : null,
-                    'bapp_termin_i_available' => (bool) $bappByTermin->get(1)?->signed_file_path,
+                    'bapp_termin_i_available' => (bool) $assignment['bapp_termin_i_available'],
                     'bapp_termin_ii_available' => ((int) $assignment['termin_count'] === 2)
-                        ? (bool) $bappByTermin->get(2)?->signed_file_path
+                        ? (bool) $assignment['bapp_termin_ii_available']
                         : null,
                 ];
             },
