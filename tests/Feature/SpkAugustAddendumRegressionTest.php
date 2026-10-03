@@ -9,6 +9,7 @@ use App\Models\Petugas;
 use App\Models\Spk;
 use App\Models\User;
 use App\Services\ActiveYearService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -94,6 +95,8 @@ class SpkAugustAddendumRegressionTest extends TestCase
             'created_by' => $admin->id,
         ]);
 
+        Carbon::setTestNow("{$tahun}-08-20 09:00:00");
+
         $response = $this->get('/spk');
         $response->assertStatus(200);
 
@@ -130,5 +133,7 @@ class SpkAugustAddendumRegressionTest extends TestCase
             $fitri['perubahan'] ?? [],
             'Kolom perubahan untuk regenerate harus berisi ringkasan selisih alokasi.'
         );
+
+        Carbon::setTestNow();
     }
 }
