@@ -555,14 +555,16 @@ class BappController extends Controller
 
             return SensusEkonomiPkppContract::query()
                 ->where('termin_count', $terminCount)
-                ->whereNotNull('spk_id')
-                ->whereHas('replacement', fn ($query) => $query->where('status', '!=', 'dibatalkan'))
+                ->whereHas('replacement', fn ($query) => $query
+                    ->where('status', '!=', 'dibatalkan')
+                    ->whereNotNull('spk_lama_id'))
                 ->with([
-                    'spk.petugas',
-                    'spk.alokasiPetugas.periodeAlokasi.kegiatan',
+                    'replacement.petugasPengganti',
+                    'replacement.spkLama.petugas',
+                    'replacement.spkLama.alokasiPetugas.periodeAlokasi.kegiatan',
                 ])
                 ->get()
-                ->map(fn (SensusEkonomiPkppContract $contract) => $contract->spk)
+                ->map(fn (SensusEkonomiPkppContract $contract) => $contract->replacement?->spkLama)
                 ->filter(function ($spk) use ($tahun): bool {
                     if (! $spk instanceof Spk) {
                         return false;
@@ -621,11 +623,13 @@ class BappController extends Controller
 
         return SensusEkonomiPkppContract::query()
             ->where('termin_count', $terminCount)
-            ->whereNotNull('spk_id')
-            ->get(['replacement_id', 'spk_id'])
+            ->whereHas('replacement', fn ($query) => $query->whereNotNull('spk_lama_id'))
+            ->with('replacement:id,spk_lama_id')
+            ->get()
             ->mapWithKeys(fn (SensusEkonomiPkppContract $contract) => [
-                (int) $contract->spk_id => (int) $contract->replacement_id,
+                (int) $contract->replacement?->spk_lama_id => (int) $contract->replacement_id,
             ])
+            ->filter(fn ($replacementId, $spkId) => $spkId > 0 && $replacementId > 0)
             ->all();
     }
 
@@ -1283,9 +1287,23 @@ class BappController extends Controller
             $contextReplacementTerminCount,
         );
 
-        $spkList = $spks->map(function (Spk $spk) use ($terminNumber, $nomorBappMap, $documentType, $contextReplacementTerminCount, $hasBappTerminTable): array {
+        $replacementBySourceSpkId = $documentType === 'replacement_pkpp'
+            ? SensusEkonomiPkppContract::query()
+                ->where('termin_count', $contextReplacementTerminCount)
+                ->whereHas('replacement', fn ($query) => $query->whereNotNull('spk_lama_id'))
+                ->with(['replacement.petugasPengganti'])
+                ->get()
+                ->mapWithKeys(fn (SensusEkonomiPkppContract $contract) => [
+                    (int) $contract->replacement?->spk_lama_id => $contract,
+                ])
+            : collect();
+
+        $spkList = $spks->map(function (Spk $spk) use ($terminNumber, $nomorBappMap, $documentType, $contextReplacementTerminCount, $hasBappTerminTable, $replacementBySourceSpkId): array {
             $targetData = $this->buildTargetForTermin($spk, $terminNumber);
-            $petugas = $spk->petugas;
+            $replacementContract = $documentType === 'replacement_pkpp'
+                ? $replacementBySourceSpkId->get((int) $spk->id)
+                : null;
+            $petugas = $replacementContract?->replacement?->petugasPengganti ?? $spk->petugas;
             $alokasi = $spk->alokasiPetugas;
             $peran = $alokasi?->peran ?? 'pcl_ppl';
 
@@ -2040,7 +2058,17 @@ class BappController extends Controller
             Storage::disk('public')->delete($existing->signed_file_path);
         }
 
-        $petugas = $spk->petugas;
+        $replacementId = $documentType === 'replacement_pkpp'
+            ? ($this->getReplacementIdByReplacementSpkId($contextReplacementTerminCount)[$spk->id] ?? null)
+            : null;
+        $replacement = $replacementId
+            ? SensusEkonomiPetugasReplacement::query()
+                ->with('petugasPengganti')
+                ->find($replacementId)
+            : null;
+        $petugas = $documentType === 'replacement_pkpp'
+            ? $replacement?->petugasPengganti
+            : $spk->petugas;
         $kegiatan = $this->getSensusEkonomiKegiatan();
         $ppk = $this->getPpk();
         $nomorBapp = $this->formatManualBappNumber(
@@ -2066,9 +2094,7 @@ class BappController extends Controller
         $bapp->replacement_termin_count = $contextReplacementTerminCount;
         $bapp->replacement_id = $documentType === 'stopped_petugas'
             ? ($this->getStoppedReplacementIdBySpkId($termin, $tahun)[$spk->id] ?? null)
-            : ($documentType === 'replacement_pkpp'
-                ? ($this->getReplacementIdByReplacementSpkId($contextReplacementTerminCount)[$spk->id] ?? null)
-                : null);
+            : ($documentType === 'replacement_pkpp' ? $replacementId : null);
         $bapp->bulan = $config['bulan'];
         $bapp->tahun = $tahun;
         $bapp->persentase = $config['persentase'];
