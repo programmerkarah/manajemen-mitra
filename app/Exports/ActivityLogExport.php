@@ -48,7 +48,19 @@ class ActivityLogExport implements FromQuery, WithColumnWidths, WithHeadings, Wi
             $query->where('user_id', $this->filters['user']);
         }
 
-        if (! empty($this->filters['date'])) {
+        if (! empty($this->filters['date_from'])) {
+            $query->whereDate('created_at', '>=', $this->filters['date_from']);
+        }
+
+        if (! empty($this->filters['date_to'])) {
+            $query->whereDate('created_at', '<=', $this->filters['date_to']);
+        }
+
+        if (
+            empty($this->filters['date_from'])
+            && empty($this->filters['date_to'])
+            && ! empty($this->filters['date'])
+        ) {
             $query->whereDate('created_at', $this->filters['date']);
         }
 
