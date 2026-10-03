@@ -333,9 +333,88 @@
 
     .dark .dark\:text-neutral-300,
     .dark .dark\:text-neutral-400,
+    .dark .dark\:text-neutral-500,
+    .dark .dark\:text-neutral-600,
     .dark .dark\:text-slate-300,
-    .dark .dark\:text-slate-400 {
+    .dark .dark\:text-slate-400,
+    .dark .dark\:text-slate-500,
+    .dark .dark\:text-slate-600,
+    .dark .dark\:text-zinc-300,
+    .dark .dark\:text-zinc-400,
+    .dark .dark\:text-zinc-500,
+    .dark .dark\:text-zinc-600 {
         color: var(--muted-foreground) !important;
+    }
+
+    /*
+     * Global legacy contrast guard.
+     *
+     * Banyak halaman lama masih memakai warna netral literal tanpa variant
+     * dark. Di tema gelap warna tersebut menjadi terlalu dekat dengan surface.
+     * Normalisasikan hanya saat dark mode agar seluruh aplikasi tetap terbaca
+     * tanpa patch per halaman/elemen.
+     */
+    .dark .text-neutral-400,
+    .dark .text-neutral-500,
+    .dark .text-neutral-600,
+    .dark .text-slate-400,
+    .dark .text-slate-500,
+    .dark .text-slate-600,
+    .dark .text-zinc-400,
+    .dark .text-zinc-500,
+    .dark .text-zinc-600 {
+        color: var(--muted-foreground) !important;
+    }
+
+    /*
+     * Recharts global theme bridge.
+     * Axis, ticks, labels, legend, grid, cursor, and default tooltip inherit
+     * semantic application colors instead of browser/library gray defaults.
+     */
+    .recharts-wrapper {
+        color: var(--foreground);
+    }
+
+    .recharts-cartesian-axis-tick-value,
+    .recharts-cartesian-axis-tick text,
+    .recharts-label,
+    .recharts-text {
+        fill: var(--muted-foreground) !important;
+    }
+
+    .recharts-cartesian-axis-line,
+    .recharts-cartesian-axis-tick-line {
+        stroke: var(--border) !important;
+    }
+
+    .recharts-cartesian-grid line {
+        stroke: var(--border) !important;
+        stroke-opacity: 0.72;
+    }
+
+    .recharts-legend-item-text {
+        color: var(--muted-foreground) !important;
+    }
+
+    .recharts-tooltip-cursor {
+        fill: var(--muted) !important;
+        stroke: var(--border) !important;
+        opacity: 0.35;
+    }
+
+    .recharts-default-tooltip {
+        border: 1px solid var(--border) !important;
+        border-radius: var(--radius) !important;
+        background: var(--popover) !important;
+        color: var(--popover-foreground) !important;
+        box-shadow: 0 12px 30px rgb(0 0 0 / 0.18);
+    }
+
+    .recharts-default-tooltip .recharts-tooltip-label,
+    .recharts-default-tooltip .recharts-tooltip-item,
+    .recharts-default-tooltip .recharts-tooltip-item-name,
+    .recharts-default-tooltip .recharts-tooltip-item-value {
+        color: var(--popover-foreground) !important;
     }
 }
 
