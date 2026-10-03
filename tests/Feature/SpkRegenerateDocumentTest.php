@@ -92,7 +92,10 @@ class SpkRegenerateDocumentTest extends TestCase
             ->withSession(['active_role_id' => $adminRole->id])
             ->post('/spk/'.$spk->hashed_id.'/regenerate-document', ['mode' => 'main']);
 
-        $response->assertSessionHas('success');
+        $response->assertSessionHas('success', null, sprintf(
+            'Expected regenerate success, got error: %s',
+            (string) session('error', 'none')
+        ));
         $this->assertDatabaseCount('spk', 1);
 
         $spk->refresh();
@@ -186,7 +189,10 @@ class SpkRegenerateDocumentTest extends TestCase
             ->withSession(['active_role_id' => $adminRole->id])
             ->post('/spk/'.$addendum->hashed_id.'/regenerate-document', ['mode' => 'addendum']);
 
-        $response->assertSessionHas('success');
+        $response->assertSessionHas('success', null, sprintf(
+            'Expected regenerate success, got error: %s',
+            (string) session('error', 'none')
+        ));
         $addendum->refresh();
         $mainSpk->refresh();
 
