@@ -20,6 +20,7 @@ import {
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
+import { encryptFilters } from '@/utils/encryption';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import ChevronDown from 'lucide-react/icons/chevron-down';
 import ChevronLeft from 'lucide-react/icons/chevron-left';
@@ -488,17 +489,22 @@ export default function Index({ dipaList, tahunOptions }: DipaIndexProps) {
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
-                                                            asChild
                                                             className="h-8 gap-1.5"
+                                                            onClick={() =>
+                                                                router.post(
+                                                                    '/dipa/edit',
+                                                                    {
+                                                                        state: encryptFilters({
+                                                                            id: dipa.id,
+                                                                        }),
+                                                                    },
+                                                                )
+                                                            }
                                                         >
-                                                            <Link
-                                                                href={`/dipa/${dipa.id}/edit`}
-                                                            >
-                                                                <Pencil className="h-3.5 w-3.5" />
-                                                                <span className="sr-only sm:not-sr-only">
-                                                                    Edit
-                                                                </span>
-                                                            </Link>
+                                                            <Pencil className="h-3.5 w-3.5" />
+                                                            <span className="sr-only sm:not-sr-only">
+                                                                Edit
+                                                            </span>
                                                         </Button>
                                                         <Button
                                                             variant="outline"
