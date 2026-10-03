@@ -131,13 +131,14 @@ trait BastIndexActions
         $activeYear = ActiveYearService::get();
         $user = $this->getRequestUser($request);
         $canAccessSensusMode = $this->canAccessSensusMode($user, $activeYear);
-        $requestedMode = (string) $request->session()->get('bast_index_mode', 'regular');
+        $session = $request->hasSession() ? $request->session() : null;
+        $requestedMode = (string) ($session?->get('bast_index_mode', 'regular') ?? 'regular');
         $mode = $requestedMode === 'sensus-ekonomi' && $canAccessSensusMode
             ? 'sensus-ekonomi'
             : 'regular';
 
-        if ($mode !== $requestedMode) {
-            $request->session()->put('bast_index_mode', $mode);
+        if ($mode !== $requestedMode && $session) {
+            $session->put('bast_index_mode', $mode);
         }
         $isSensusEkonomiMode = $mode === 'sensus-ekonomi';
         $sensusPetugasByMonth = collect();
