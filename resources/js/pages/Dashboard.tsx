@@ -78,6 +78,8 @@ interface AttentionItem {
     url: string;
     description: string;
     severity: 'warning' | 'danger';
+    target_bulan?: number | null;
+    target_tahun?: number | null;
 }
 
 interface AdditionalStats {
@@ -554,35 +556,72 @@ export default function Dashboard({
                             <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
                                 Perlu ditindaklanjuti
                             </span>
-                            {attentionItems.map((item) => (
-                                <Link
-                                    key={item.key}
-                                    href={
-                                        item.key === 'bast_due'
-                                            ? '/berita-acara'
-                                            : item.url
-                                    }
-                                    className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
-                                        item.severity === 'danger'
-                                            ? 'bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-800/40 dark:text-red-300 dark:hover:bg-red-800/60'
-                                            : 'bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-800/40 dark:text-amber-300 dark:hover:bg-amber-800/60'
-                                    }`}
-                                    title={item.description}
-                                >
-                                    {item.key === 'kegiatan_draft' ? (
-                                        <Clock className="size-3" />
-                                    ) : item.key === 'spk_missing' ? (
-                                        <ScrollText className="size-3" />
-                                    ) : item.key === 'sk_kpa_missing' ||
-                                      item.key === 'sk_kpa_perlu_perubahan' ? (
-                                        <FileText className="size-3" />
-                                    ) : (
-                                        <AlertCircle className="size-3" />
-                                    )}
-                                    {item.count} {item.label}
-                                    <ChevronRight className="size-3" />
-                                </Link>
-                            ))}
+                            {attentionItems.map((item) => {
+                                const className = `flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                                    item.severity === 'danger'
+                                        ? 'bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-800/40 dark:text-red-300 dark:hover:bg-red-800/60'
+                                        : 'bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-800/40 dark:text-amber-300 dark:hover:bg-amber-800/60'
+                                }`;
+
+                                const content = (
+                                    <>
+                                        {item.key === 'kegiatan_draft' ? (
+                                            <Clock className="size-3" />
+                                        ) : item.key === 'spk_missing' ? (
+                                            <ScrollText className="size-3" />
+                                        ) : item.key === 'sk_kpa_missing' ||
+                                          item.key ===
+                                              'sk_kpa_perlu_perubahan' ? (
+                                            <FileText className="size-3" />
+                                        ) : (
+                                            <AlertCircle className="size-3" />
+                                        )}
+                                        {item.count} {item.label}
+                                        <ChevronRight className="size-3" />
+                                    </>
+                                );
+
+                                if (
+                                    item.key === 'bast_due' &&
+                                    item.target_bulan &&
+                                    item.target_tahun
+                                ) {
+                                    return (
+                                        <button
+                                            key={item.key}
+                                            type="button"
+                                            className={className}
+                                            title={item.description}
+                                            onClick={() =>
+                                                router.post(
+                                                    '/berita-acara/create',
+                                                    {
+                                                        encrypted_filters:
+                                                            encryptFilters({
+                                                                bulan: item.target_bulan,
+                                                                tahun: item.target_tahun,
+                                                                mode: 'regular',
+                                                            }),
+                                                    },
+                                                )
+                                            }
+                                        >
+                                            {content}
+                                        </button>
+                                    );
+                                }
+
+                                return (
+                                    <Link
+                                        key={item.key}
+                                        href={item.url}
+                                        className={className}
+                                        title={item.description}
+                                    >
+                                        {content}
+                                    </Link>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
