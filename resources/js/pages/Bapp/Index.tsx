@@ -10,7 +10,6 @@ import ArrowLeft from 'lucide-react/icons/arrow-left';
 import CheckCircle2 from 'lucide-react/icons/check-circle2';
 import FileText from 'lucide-react/icons/file-text';
 import FileUp from 'lucide-react/icons/file-up';
-import UserRoundCheck from 'lucide-react/icons/user-round-check';
 import UserRoundMinus from 'lucide-react/icons/user-round-minus';
 import UsersRound from 'lucide-react/icons/users-round';
 
@@ -48,7 +47,6 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'BAPP SE2026', href: '/bapp' }];
 
 const getWorkflowIcon = (type: WorkflowData['document_type']) => {
     if (type === 'stopped_petugas') return UserRoundMinus;
-    if (type === 'replacement_pkpp') return UserRoundCheck;
 
     return UsersRound;
 };
@@ -180,25 +178,6 @@ export default function Index({
                         </div>
                     </ContentCard>
                 </div>
-
-                <ContentCard>
-                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                        <div>
-                            <h2 className="font-semibold">Alur dokumen</h2>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                Petugas utama, petugas berhenti, dan petugas
-                                pengganti dikelola terpisah sehingga kewajiban
-                                dokumennya tidak saling memengaruhi.
-                            </p>
-                        </div>
-                        <Button variant="outline" asChild>
-                            <Link href="/spk/petugas-pengganti" prefetch>
-                                <UserRoundCheck className="mr-2 h-4 w-4" />
-                                Pergantian Petugas
-                            </Link>
-                        </Button>
-                    </div>
-                </ContentCard>
 
                 <div className="grid gap-4 xl:grid-cols-2">
                     {workflows.map((workflow) => {
