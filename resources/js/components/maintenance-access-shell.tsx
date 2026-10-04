@@ -25,7 +25,7 @@ export function MaintenanceAccessShell({
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_10%,rgba(59,130,246,0.10),transparent_32%),radial-gradient(circle_at_88%_82%,rgba(16,185,129,0.08),transparent_34%)]" />
             <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl flex-col">
                 <header className="flex items-center justify-between gap-4">
-                    <div className="max-w-[220px]">
+                    <div className="flex max-w-[220px] items-center">
                         <AppLogo />
                     </div>
                     <ThemeToggleButton />
