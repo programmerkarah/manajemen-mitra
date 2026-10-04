@@ -5,6 +5,7 @@ namespace App\Services\Analysis;
 use App\Models\Kegiatan;
 use App\Models\SkKpa;
 use App\Models\Spk;
+use App\Services\SensusEkonomiReplacementReadService;
 use Illuminate\Support\Facades\DB;
 
 class DocumentAnalysisService
@@ -18,6 +19,9 @@ class DocumentAnalysisService
     {
         $skPerBulan = [];
         $spkPerBulan = [];
+
+        $replacementAssignments = app(SensusEkonomiReplacementReadService::class)
+            ->assignments($year);
 
         for ($bulan = 1; $bulan <= 12; $bulan++) {
             $sk = SkKpa::query()
@@ -82,15 +86,27 @@ class DocumentAnalysisService
                 }
             }
 
-            $published = $regularPublished + $sensusMainPublished;
+            $replacementForMonth = $replacementAssignments
+                ->filter(fn (array $assignment): bool =>
+                    (int) ($assignment['pk_year'] ?? 0) === $year
+                    && (int) ($assignment['pk_month'] ?? 0) === $bulan
+                );
+            $sensusReplacementPublished = $replacementForMonth
+                ->filter(fn (array $assignment): bool => (bool) ($assignment['pk_available'] ?? false))
+                ->count();
+            $sensusReplacementDraft = $replacementForMonth->count() - $sensusReplacementPublished;
+
+            $published = $regularPublished + $sensusMainPublished + $sensusReplacementPublished;
+            $draft = $mainDraft + $sensusReplacementDraft;
 
             $spkPerBulan[] = [
                 'bulan' => $bulan,
-                'total' => $published + $mainDraft,
-                'draft' => $mainDraft,
+                'total' => $published + $draft,
+                'draft' => $draft,
                 'diterbitkan' => $published,
                 'reguler_diterbitkan' => $regularPublished,
                 'sensus_utama_diterbitkan' => $sensusMainPublished,
+                'sensus_pengganti_diterbitkan' => $sensusReplacementPublished,
             ];
         }
 
