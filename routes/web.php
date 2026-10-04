@@ -725,7 +725,6 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::post('bapp/generate', [BappController::class, 'generate'])->name('bapp.generate');
         Route::post('bapp/generate-batch', [BappController::class, 'generateBatch'])->name('bapp.generate-batch');
 
-            ->name('se-replacements.pkpp-contracts.create');
     });
 
     Route::middleware(['active.role:admin,operator,ketua_tim'])->group(function () {
