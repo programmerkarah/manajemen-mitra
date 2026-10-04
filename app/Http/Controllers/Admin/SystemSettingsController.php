@@ -12,6 +12,7 @@ use App\Models\DeadlineRule;
 use App\Models\FeatureToggle;
 use App\Models\User;
 use App\Services\DatabaseBackupService;
+use App\Services\MaintenanceMessageService;
 use Illuminate\Foundation\Http\MaintenanceModeBypassCookie;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,15 +36,14 @@ class SystemSettingsController
     private const SSO_SYNC_CACHE_KEY = 'settings:sso_sync_enabled';
 
     public function __construct(
-        private DatabaseBackupService $backupService
+        private DatabaseBackupService $backupService,
+        private MaintenanceMessageService $maintenanceMessages,
     ) {}
 
     public function index(): Response
     {
         $maintenance = app()->isDownForMaintenance();
-        $message = Storage::exists('framework/maintenance-message.txt')
-            ? Storage::get('framework/maintenance-message.txt')
-            : Config::get('app.maintenance_message');
+        $message = $this->maintenanceMessages->get();
         $ssoSyncEnabled = Cache::get(self::SSO_SYNC_CACHE_KEY);
         $featureToggles = FeatureToggle::ordered()->map(fn (FeatureToggle $toggle) => [
             'key' => $toggle->key,
@@ -1034,17 +1034,8 @@ class SystemSettingsController
         $enabled = $request->boolean('enabled');
         $message = $request->input('message');
 
-        // Save message to storage/framework/maintenance-message.txt for 503 page
-        if ($message) {
-            Storage::put('framework/maintenance-message.txt', $message);
-        } else {
-            if (Storage::exists('framework/maintenance-message.txt')) {
-                Storage::delete('framework/maintenance-message.txt');
-            }
-        }
-
-        // Set config value for fallback (optional, for config cache)
-        // config(['app.maintenance_message' => $message]);
+        // Keep one canonical source for /mt, system settings and the 503 page.
+        $this->maintenanceMessages->put($message);
 
         // Enable/disable maintenance mode
         if ($enabled) {
@@ -1086,9 +1077,6 @@ class SystemSettingsController
                 ['user_id' => Auth::id()]
             );
         }
-
-        // Clear config cache if needed
-        Cache::flush();
 
         return response()->json([
             'success' => true,
