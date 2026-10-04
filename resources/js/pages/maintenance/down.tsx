@@ -1,169 +1,147 @@
 import InputError from '@/components/input-error';
+import { MaintenanceAccessShell } from '@/components/maintenance-access-shell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Head } from '@inertiajs/react';
 import AlertTriangle from 'lucide-react/icons/alert-triangle';
-import Key from 'lucide-react/icons/key';
+import KeyRound from 'lucide-react/icons/key-round';
 import LoaderCircle from 'lucide-react/icons/loader-circle';
-
+import Wrench from 'lucide-react/icons/wrench';
 import { FormEvent, useState } from 'react';
 
 export default function Down() {
     const [processing, setProcessing] = useState(false);
-    const [errors, setErrors] = useState<{ key?: string; message?: string }>(
-        {},
-    );
+    const [errors, setErrors] = useState<{ key?: string; message?: string }>({});
     const [key, setKey] = useState('');
     const [message, setMessage] = useState('');
 
-    const getCsrfToken = () => {
-        const meta = document.querySelector('meta[name="csrf-token"]');
-        return meta?.getAttribute('content') || '';
-    };
-
-    const handleSubmit = async (e: FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (event: FormEvent) => {
+        event.preventDefault();
         setProcessing(true);
         setErrors({});
+
+        const csrf =
+            document
+                .querySelector('meta[name="csrf-token"]')
+                ?.getAttribute('content') ?? '';
 
         try {
             const response = await fetch('/mt', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': getCsrfToken(),
+                    'X-CSRF-TOKEN': csrf,
                     Accept: 'application/json',
                 },
-                credentials: 'same-origin',
                 body: JSON.stringify({ key, message }),
             });
-
             const data = await response.json();
 
-            if (data.success) {
-                // Redirect to dashboard after cookie is set
-                setTimeout(() => {
-                    window.location.href = '/dashboard';
-                }, 300);
-            } else if (data.errors) {
-                setErrors(data.errors);
-                setProcessing(false);
+            if (!response.ok || !data.success) {
+                setErrors(
+                    data.errors ?? {
+                        message:
+                            data.message ??
+                            'Permintaan maintenance gagal diproses.',
+                    },
+                );
+                return;
             }
-        } catch (error) {
-            console.error('Error:', error);
+
+            window.location.assign('/dashboard');
+        } catch {
             setErrors({
-                message: 'Terjadi kesalahan saat memproses permintaan',
+                message: 'Koneksi gagal saat mengaktifkan maintenance.',
             });
+        } finally {
             setProcessing(false);
         }
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-orange-50 via-white to-orange-50 px-4 dark:from-zinc-900 dark:via-zinc-950 dark:to-zinc-900">
+        <>
             <Head title="Masuk Maintenance Mode" />
-
-            <div className="w-full max-w-md">
-                <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-800">
-                    {/* Header */}
-                    <div className="bg-gradient-to-r from-orange-600 to-orange-700 p-6 text-center dark:from-orange-500 dark:to-orange-600">
-                        <div className="mb-3 flex justify-center">
-                            <div className="rounded-full bg-white/20 p-3">
-                                <AlertTriangle className="h-8 w-8 text-white" />
-                            </div>
-                        </div>
-                        <h1 className="mb-2 text-2xl font-bold text-white">
-                            Maintenance Mode
-                        </h1>
-                        <p className="text-sm text-orange-100">
-                            Aktifkan mode maintenance untuk sistem
+            <MaintenanceAccessShell
+                title="Masuk ke mode maintenance"
+                description="Gunakan mode ini ketika SIMANTIK perlu ditutup sementara untuk pemeliharaan, migrasi, atau perubahan yang berisiko mengganggu transaksi pengguna."
+                eyebrow="Kontrol Maintenance"
+                icon={Wrench}
+                note={
+                    <span className="flex items-start gap-2">
+                        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                        Pesan yang disimpan di sini juga menjadi pesan yang
+                        ditampilkan pada halaman 503 dan System Settings.
+                    </span>
+                }
+            >
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    <div>
+                        <h2 className="font-semibold">Aktifkan maintenance</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Verifikasi kunci administrator sebelum menutup
+                            layanan.
                         </p>
                     </div>
 
-                    {/* Form */}
-                    <div className="p-8">
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <div className="space-y-2">
-                                <Label
-                                    htmlFor="key"
-                                    className="flex items-center gap-2 font-medium text-gray-700 dark:text-gray-300"
-                                >
-                                    <Key className="h-4 w-4" />
-                                    Kunci Maintenance
-                                </Label>
-                                <Input
-                                    id="key"
-                                    type="password"
-                                    name="key"
-                                    value={key}
-                                    onChange={(e) => setKey(e.target.value)}
-                                    required
-                                    autoFocus
-                                    placeholder="Masukkan kunci maintenance"
-                                    className="h-12 border-gray-300 bg-gray-50 focus:border-orange-500 focus:ring-orange-500/20 dark:border-zinc-600 dark:bg-zinc-900 dark:focus:border-orange-400"
-                                />
-                                <InputError message={errors.key} />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label
-                                    htmlFor="message"
-                                    className="font-medium text-gray-700 dark:text-gray-300"
-                                >
-                                    Pesan Informasi (Opsional)
-                                </Label>
-                                <textarea
-                                    id="message"
-                                    name="message"
-                                    value={message}
-                                    onChange={(e) => setMessage(e.target.value)}
-                                    rows={4}
-                                    placeholder="Contoh: Sistem sedang dalam perbaikan dan akan kembali normal dalam 2 jam"
-                                    className="w-full resize-none rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-600 dark:bg-zinc-900 dark:focus:border-orange-400"
-                                />
-                                <InputError message={errors.message} />
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Pesan ini akan ditampilkan kepada pengguna
-                                    saat mengakses sistem
-                                </p>
-                            </div>
-
-                            <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/30">
-                                <p className="text-sm text-red-800 dark:text-red-200">
-                                    <strong>Peringatan:</strong> Sistem akan
-                                    masuk maintenance mode dan tidak dapat
-                                    diakses oleh pengguna biasa.
-                                </p>
-                            </div>
-
-                            <Button
-                                type="submit"
-                                disabled={processing}
-                                className="h-12 w-full bg-orange-600 text-base font-semibold text-white shadow-lg transition-all hover:bg-orange-700 dark:bg-orange-500 dark:hover:bg-orange-600"
-                            >
-                                {processing ? (
-                                    <>
-                                        <LoaderCircle className="mr-2 h-5 w-5 animate-spin" />
-                                        Memproses...
-                                    </>
-                                ) : (
-                                    <>
-                                        <AlertTriangle className="mr-2 h-5 w-5" />
-                                        Aktifkan Maintenance Mode
-                                    </>
-                                )}
-                            </Button>
-                        </form>
+                    <div className="space-y-2">
+                        <Label htmlFor="key">Kunci Maintenance</Label>
+                        <div className="relative">
+                            <KeyRound className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                id="key"
+                                type="password"
+                                value={key}
+                                onChange={(event) =>
+                                    setKey(event.target.value)
+                                }
+                                required
+                                autoFocus
+                                className="pl-9"
+                                placeholder="Masukkan kunci maintenance"
+                            />
+                        </div>
+                        <InputError message={errors.key} />
                     </div>
-                </div>
 
-                {/* Footer */}
-                <div className="mt-6 text-center">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Akses terbatas hanya untuk administrator
-                    </p>
-                </div>
-            </div>
-        </div>
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                            <Label htmlFor="message">
+                                Pesan untuk pengguna
+                            </Label>
+                            <span className="text-xs text-muted-foreground">
+                                {message.length}/500
+                            </span>
+                        </div>
+                        <Textarea
+                            id="message"
+                            value={message}
+                            onChange={(event) =>
+                                setMessage(event.target.value)
+                            }
+                            rows={5}
+                            maxLength={500}
+                            placeholder="Contoh: Sistem sedang ditingkatkan dan akan kembali tersedia setelah proses selesai."
+                        />
+                        <InputError message={errors.message} />
+                    </div>
+
+                    <Button
+                        type="submit"
+                        className="w-full"
+                        disabled={processing}
+                    >
+                        {processing ? (
+                            <LoaderCircle className="mr-2 size-4 animate-spin" />
+                        ) : (
+                            <Wrench className="mr-2 size-4" />
+                        )}
+                        Aktifkan Maintenance
+                    </Button>
+                </form>
+            </MaintenanceAccessShell>
+        </>
     );
 }
