@@ -1,3 +1,4 @@
+import { ConfirmActionDialog } from '@/components/confirm-action-dialog';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -14,7 +15,7 @@ import Pencil from 'lucide-react/icons/pencil';
 import Plus from 'lucide-react/icons/plus';
 import Trash2 from 'lucide-react/icons/trash2';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'SBML', href: '/sbml' }];
 
@@ -31,6 +32,8 @@ interface Props {
 export default function Index({ year_groups }: Props) {
     const { auth } = usePage<SharedData>().props;
     const isPJ = auth.activeRole?.name === 'pj';
+    const [deleteYear, setDeleteYear] = useState<number | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     const summary = useMemo(() => {
         const active = year_groups.filter(
@@ -51,13 +54,11 @@ export default function Index({ year_groups }: Props) {
     }, [year_groups]);
 
     const handleDelete = (tahun: number) => {
-        if (
-            confirm(
-                `Apakah Anda yakin ingin menghapus semua SBML untuk tahun ${tahun}?`,
-            )
-        ) {
-            router.delete(`/sbml/year/${tahun}`);
-        }
+        setDeleting(true);
+        router.delete(`/sbml/year/${tahun}`, {
+            onSuccess: () => setDeleteYear(null),
+            onFinish: () => setDeleting(false),
+        });
     };
 
     return (
@@ -227,6 +228,16 @@ export default function Index({ year_groups }: Props) {
                     )}
                 </ContentCard>
             </div>
+            <ConfirmActionDialog
+                open={deleteYear !== null}
+                onOpenChange={(open) => !open && setDeleteYear(null)}
+                title="Hapus konfigurasi SBML?"
+                description={`Seluruh SBML tahun ${deleteYear ?? ''} akan dihapus. Tindakan ini tidak dapat dibatalkan.`}
+                confirmLabel="Hapus SBML"
+                destructive
+                processing={deleting}
+                onConfirm={() => deleteYear !== null && handleDelete(deleteYear)}
+            />
         </AppLayout>
     );
 }
