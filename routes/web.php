@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\DatabaseController;
 use App\Http\Controllers\Admin\SystemSettingsController;
 use App\Http\Controllers\AlokasiPetugasController;
 use App\Http\Controllers\AnalisisController;
@@ -43,7 +44,6 @@ use App\Models\ActivityLog;
 use App\Models\Kegiatan;
 use App\Models\Petugas;
 use App\Models\User;
-use App\Services\DatabaseBackupService;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -320,15 +320,10 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
         Route::get('activity-log', [SystemSettingsController::class, 'activityLog'])->name('admin.activity-log');
         Route::post('activity-log', [SystemSettingsController::class, 'activityLog']);
         Route::get('activity-log/export', [SystemSettingsController::class, 'exportActivityLog'])->name('admin.activity-log.export');
-        Route::get('database-status', [SystemSettingsController::class, 'databaseStatus'])->name('admin.database-status');
-        Route::post('database-backup', [SystemSettingsController::class, 'backupDatabase'])->name('admin.database-backup');
-        Route::post('database-restore', [SystemSettingsController::class, 'restoreDatabase'])->name('admin.database-restore');
-        Route::get('database-list-backups', function () {
-            $backupService = app(DatabaseBackupService::class);
-            $backups = $backupService->listBackups();
-
-            return response()->json(['success' => true, 'backups' => $backups]);
-        })->name('admin.database-list-backups');
+        Route::get('database-status', [DatabaseController::class, 'databaseStatus'])->name('admin.database-status');
+        Route::post('database-backup', [DatabaseController::class, 'backupDatabase'])->name('admin.database-backup');
+        Route::post('database-restore', [DatabaseController::class, 'restoreDatabase'])->name('admin.database-restore');
+        Route::get('database-list-backups', [DatabaseController::class, 'listBackups'])->name('admin.database-list-backups');
     });
     // Petugas Management - IMPORTANT: Specific routes must come before parameter routes
     Route::middleware(['active.role'])->group(function () {
