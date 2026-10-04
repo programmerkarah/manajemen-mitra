@@ -12,6 +12,7 @@ use App\Imports\PetugasImport;
 use App\Imports\PetugasPreviewImport;
 use App\Models\ActivityLog;
 use App\Models\Petugas;
+use App\Models\AlokasiPetugas;
 use App\Services\PetugasImportProcessor;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -173,11 +174,19 @@ trait PetugasDetailSupport
             ];
         }
 
+        $hasReferences = AlokasiPetugas::query()
+            ->where('petugas_id', $petugas->id)
+            ->exists();
+
         return Inertia::render('Petugas/Show', [
             'petugas' => $petugas,
             'tren_alokasi' => $trenAlokasi,
             'active_year' => $activeYear,
             'riwayat_alokasi_ringkas' => $riwayatAlokasiRingkas,
+            'can_delete' => ! $hasReferences,
+            'delete_block_reason' => $hasReferences
+                ? 'Petugas sudah memiliki riwayat alokasi atau dokumen terkait sehingga ID harus dipertahankan.'
+                : null,
         ]);
     }
 
