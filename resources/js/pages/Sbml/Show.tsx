@@ -1,3 +1,4 @@
+import { ConfirmActionDialog } from '@/components/confirm-action-dialog';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import ArrowLeft from 'lucide-react/icons/arrow-left';
 import Pencil from 'lucide-react/icons/pencil';
 import Trash2 from 'lucide-react/icons/trash2';
+import { useState } from 'react';
 
 interface ShowProps {
     tahun: number;
@@ -26,6 +28,8 @@ export default function Show({
     keterangan,
 }: ShowProps) {
     const { auth } = usePage<SharedData>().props;
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     // Check if user can edit (not administrator)
     const canEdit = auth.activeRole?.name !== 'administrator';
@@ -58,13 +62,11 @@ export default function Show({
     };
 
     const handleDelete = () => {
-        if (
-            confirm(
-                `Apakah Anda yakin ingin menghapus semua data SBML untuk tahun ${tahun}?`,
-            )
-        ) {
-            router.delete(`/sbml/${tahun}`);
-        }
+        setDeleting(true);
+        router.delete(`/sbml/${tahun}`, {
+            onSuccess: () => setDeleteOpen(false),
+            onFinish: () => setDeleting(false),
+        });
     };
 
     return (
@@ -104,7 +106,7 @@ export default function Show({
                                 <Button
                                     size="sm"
                                     variant="destructive"
-                                    onClick={handleDelete}
+                                    onClick={() => setDeleteOpen(true)}
                                     className="gap-2"
                                 >
                                     <Trash2 className="h-4 w-4" />
@@ -235,6 +237,16 @@ export default function Show({
                     </div>
                 </ContentCard>
             </div>
+            <ConfirmActionDialog
+                open={deleteOpen}
+                onOpenChange={setDeleteOpen}
+                title="Hapus SBML tahun ini?"
+                description={`Seluruh konfigurasi SBML tahun ${tahun} akan dihapus. Pastikan data tersebut memang tidak lagi digunakan.`}
+                confirmLabel="Hapus SBML"
+                destructive
+                processing={deleting}
+                onConfirm={handleDelete}
+            />
         </AppLayout>
     );
 }
