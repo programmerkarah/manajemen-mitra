@@ -197,28 +197,27 @@ export default function DatabaseStatus() {
                 <PageHeader
                     title="Database"
                     description="Pantau kesehatan database, ukuran tabel, serta kelola backup dan pemulihan dari satu tempat."
-                    actions={
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                void loadBackups();
-                                router.reload({
-                                    only: [
-                                        'status',
-                                        'size',
-                                        'tables',
-                                        'tableCount',
-                                        'lastBackup',
-                                        'lastBackupFile',
-                                    ],
-                                });
-                            }}
-                        >
-                            <RefreshCw className="mr-2 size-4" />
-                            Segarkan
-                        </Button>
-                    }
-                />
+                >
+                    <Button
+                        variant="outline"
+                        onClick={() => {
+                            void loadBackups();
+                            router.reload({
+                                only: [
+                                    'status',
+                                    'size',
+                                    'tables',
+                                    'tableCount',
+                                    'lastBackup',
+                                    'lastBackupFile',
+                                ],
+                            });
+                        }}
+                    >
+                        <RefreshCw className="mr-2 size-4" />
+                        Segarkan
+                    </Button>
+                </PageHeader>
 
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <SummaryCard
