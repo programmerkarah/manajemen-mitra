@@ -3,14 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Services\MaintenanceMessageService;
 use Illuminate\Foundation\Http\MaintenanceModeBypassCookie;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class MaintenanceController extends Controller
 {
+    public function __construct(private MaintenanceMessageService $maintenanceMessages) {}
+
     /**
      * Menampilkan halaman bypass maintenance mode
      */
@@ -89,7 +91,7 @@ class MaintenanceController extends Controller
                 Artisan::call('up');
 
                 // Hapus pesan maintenance dari storage
-                Storage::delete('framework/maintenance-message.txt');
+                $this->maintenanceMessages->forget();
 
                 // Log aktivitas
                 ActivityLog::log(
@@ -133,7 +135,7 @@ class MaintenanceController extends Controller
             Artisan::call('up');
 
             // Hapus pesan maintenance dari storage
-            Storage::delete('framework/maintenance-message.txt');
+            $this->maintenanceMessages->forget();
 
             // Log aktivitas
             ActivityLog::log(
@@ -173,7 +175,7 @@ class MaintenanceController extends Controller
                 $message = $request->query('message', 'Saat ini kami sedang melakukan peningkatan layanan. Mohon bersabar.');
 
                 // Simpan pesan maintenance ke storage
-                Storage::put('framework/maintenance-message.txt', $message);
+                $this->maintenanceMessages->put($message);
 
                 // Get bypass secret from config
                 $bypassSecret = config('app.maintenance_bypass_secret');
@@ -238,7 +240,7 @@ class MaintenanceController extends Controller
             $message = $request->input('message', 'Saat ini kami sedang melakukan peningkatan layanan. Mohon bersabar.');
 
             // Simpan pesan maintenance ke storage
-            Storage::put('framework/maintenance-message.txt', $message);
+            $this->maintenanceMessages->put($message);
 
             // Get bypass secret from config
             $bypassSecret = config('app.maintenance_bypass_secret');
