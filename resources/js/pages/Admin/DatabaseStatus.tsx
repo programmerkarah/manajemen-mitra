@@ -222,28 +222,32 @@ export default function DatabaseStatus() {
 
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <SummaryCard
-                        title="Status"
+                        label="Status"
                         value={props.status ?? '-'}
-                        icon={CheckCircle2}
-                        description="Koneksi database aplikasi"
+                        icon={<CheckCircle2 className="size-4" />}
+                        meta="Koneksi database aplikasi"
+                        accent="green"
                     />
                     <SummaryCard
-                        title="Ukuran Database"
+                        label="Ukuran Database"
                         value={props.size ?? '0 MB'}
-                        icon={HardDrive}
-                        description="Data + indeks"
+                        icon={<HardDrive className="size-4" />}
+                        meta="Data + indeks"
+                        accent="blue"
                     />
                     <SummaryCard
-                        title="Jumlah Tabel"
+                        label="Jumlah Tabel"
                         value={formatNumber(props.tableCount ?? tables.length)}
-                        icon={Table2}
-                        description="Tabel pada schema aktif"
+                        icon={<Table2 className="size-4" />}
+                        meta="Tabel pada schema aktif"
+                        accent="violet"
                     />
                     <SummaryCard
-                        title="Total Baris"
+                        label="Total Baris"
                         value={formatNumber(totalRows)}
-                        icon={Database}
-                        description="Estimasi information_schema"
+                        icon={<Database className="size-4" />}
+                        meta="Estimasi information_schema"
+                        accent="orange"
                     />
                 </div>
 
