@@ -8,7 +8,6 @@ use App\Models\Kegiatan;
 use App\Models\PeriodeAlokasi;
 use App\Models\Petugas;
 use App\Models\Sbml;
-use App\Services\SensusEkonomiReplacementReadService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -225,86 +224,6 @@ class SbmlReportController extends Controller
             ->filter()
             ->sortByDesc('total_honor')
             ->values();
-
-        $replacementAssignments = app(SensusEkonomiReplacementReadService::class)
-            ->assignments($tahun)
-            ->filter(fn (array $assignment): bool =>
-                ((float) ($assignment['monthly_honor'][$bulanInt] ?? 0)) > 0
-            );
-
-        foreach ($replacementAssignments as $assignment) {
-            $replacementHonor = (float) ($assignment['monthly_honor'][$bulanInt] ?? 0);
-            $petugasId = (int) $assignment['petugas_id'];
-            $existingIndex = $petugasData->search(
-                fn (array $item): bool => (int) $item['petugas_id'] === $petugasId,
-            );
-
-            $detail = [
-                'kegiatan_id' => (int) $assignment['kegiatan_id'],
-                'nama_kegiatan' => (string) $assignment['nama_kegiatan'].' · Petugas Pengganti',
-                'jenis_kegiatan' => 'sensus',
-                'total_honor' => $replacementHonor,
-                'alokasi' => [[
-                    'peran' => $this->formatPeran((string) $assignment['peran']),
-                    'jumlah_satuan' => (float) ($assignment['target_sisa'] ?? 0),
-                    'jumlah_satuan_listing' => 0,
-                    'jumlah_satuan_dibayarkan' => (float) ($assignment['target_sisa'] ?? 0),
-                    'jumlah_satuan_listing_dibayarkan' => 0,
-                    'total_honor' => $replacementHonor,
-                    'total_honor_listing' => 0,
-                    'status_kepegawaian' => 'non_organik',
-                    'catatan' => 'PK petugas pengganti SE2026',
-                ]],
-            ];
-
-            if ($existingIndex !== false) {
-                $row = $petugasData->get($existingIndex);
-                $row['total_honor'] = (float) $row['total_honor'] + $replacementHonor;
-
-                $detailIndex = collect($row['kegiatan_details'])->search(
-                    fn (array $item): bool =>
-                        (int) $item['kegiatan_id'] === (int) $assignment['kegiatan_id'],
-                );
-
-                if ($detailIndex !== false) {
-                    $row['kegiatan_details'][$detailIndex]['total_honor'] += $replacementHonor;
-                    $row['kegiatan_details'][$detailIndex]['alokasi'][] = $detail['alokasi'][0];
-                } else {
-                    $row['kegiatan_details'][] = $detail;
-                }
-
-                $row['kegiatan_count'] = count($row['kegiatan_details']);
-                $row['exceeds'] = (float) $row['max_allowed'] > 0
-                    && (float) $row['total_honor'] > (float) $row['max_allowed'];
-                $row['difference'] = (float) $row['total_honor'] - (float) $row['max_allowed'];
-                $row['percentage'] = (float) $row['max_allowed'] > 0
-                    ? ((float) $row['total_honor'] / (float) $row['max_allowed']) * 100
-                    : 0;
-
-                $petugasData->put($existingIndex, $row);
-                continue;
-            }
-
-            $statusKepegawaian = ($assignment['jenis_petugas'] ?? '') === 'organik'
-                ? 'organik'
-                : 'non_organik';
-            $sbmlKey = 'sensus_'.$statusKepegawaian.'_'.(string) $assignment['peran'];
-            $maxAllowed = (float) ($sbmlCache->get($sbmlKey)?->honor_max ?? 0);
-
-            $petugasData->push([
-                'petugas_id' => $petugasId,
-                'nama' => (string) $assignment['petugas_nama'],
-                'nik' => (string) ($assignment['petugas_nik'] ?? ''),
-                'jenis_petugas' => (string) ($assignment['jenis_petugas'] ?? 'mitra'),
-                'total_honor' => $replacementHonor,
-                'max_allowed' => $maxAllowed,
-                'exceeds' => $maxAllowed > 0 && $replacementHonor > $maxAllowed,
-                'difference' => $replacementHonor - $maxAllowed,
-                'percentage' => $maxAllowed > 0 ? ($replacementHonor / $maxAllowed) * 100 : 0,
-                'kegiatan_count' => 1,
-                'kegiatan_details' => [$detail],
-            ]);
-        }
 
         $petugasData = $petugasData
             ->sortByDesc('total_honor')

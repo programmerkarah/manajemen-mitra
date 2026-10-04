@@ -16,13 +16,11 @@ use App\Models\SkKpa;
 use App\Models\Spk;
 use App\Services\SpkActionDecisionService;
 use App\Services\DashboardInsightService;
-use App\Services\SensusEkonomiReplacementReadService;
 use App\Traits\EffectivePeriodeScope;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -41,8 +39,6 @@ class DashboardController extends Controller
         $currentMonth = Carbon::now()->month;
         $currentYear = Carbon::now()->year;
         $currentMonthFormatted = str_pad((string) $currentMonth, 2, '0', STR_PAD_LEFT);
-        $replacementAssignments = app(SensusEkonomiReplacementReadService::class)
-            ->assignments($currentYear);
 
         // Basic stats
         $stats = [
@@ -510,21 +506,6 @@ class DashboardController extends Controller
 
             $spkWithoutBast = $spkBastQuery->get();
 
-            // Petugas SE2026 yang sudah dicatat berhenti/mengundurkan diri tidak
-            // memiliki kewajiban BAST pada SPK lama. Jangan biarkan SPK sumber
-            // tersebut masuk notifikasi "BAST mendekati / melewati target".
-            $stoppedSensusSpkIds = Schema::hasTable('sensus_ekonomi_petugas_replacements')
-                ? DB::table('sensus_ekonomi_petugas_replacements')
-                    ->whereNotNull('spk_lama_id')
-                    ->where(function ($query): void {
-                        $query->whereNull('status')
-                            ->orWhere('status', '!=', 'dibatalkan');
-                    })
-                    ->pluck('spk_lama_id')
-                    ->map(fn ($id) => (int) $id)
-                    ->unique()
-                    ->flip()
-                : collect();
 
             // Pre-load all alokasi_petugas satuan data to check BAST eligibility
             // (petugas with jumlah_satuan=0 and jumlah_satuan_listing=0 are not BAST candidates)
@@ -610,9 +591,6 @@ class DashboardController extends Controller
             $bastAttentionTargets = collect();
 
             foreach ($spkWithoutBast as $spk) {
-                if ($stoppedSensusSpkIds->has((int) $spk->id)) {
-                    continue;
-                }
 
                 $expectedBastDate = $spk->tanggal_selesai_kerja ?? $spk->tanggal_mulai_kerja;
                 if (! $expectedBastDate) {
@@ -784,15 +762,7 @@ class DashboardController extends Controller
                 ->pluck('alokasi_petugas.petugas_id')
                 ->map(fn ($id) => (int) $id);
 
-            $replacementPetugasBulan = $replacementAssignments
-                ->filter(fn (array $assignment): bool =>
-                    ((float) ($assignment['monthly_honor'][$month] ?? 0)) > 0
-                )
-                ->pluck('petugas_id')
-                ->map(fn ($id) => (int) $id);
-
             $totalPetugasAlokasi = $totalPetugasAlokasiIds
-                ->concat($replacementPetugasBulan)
                 ->unique()
                 ->count();
 
@@ -825,18 +795,7 @@ class DashboardController extends Controller
                 ->groupBy('alokasi_petugas.petugas_id')
                 ->get();
 
-            $replacementWorkloadRows = $replacementAssignments
-                ->filter(fn (array $assignment): bool =>
-                    ((float) ($assignment['monthly_honor'][$month] ?? 0)) > 0
-                )
-                ->map(fn (array $assignment) => (object) [
-                    'petugas_id' => (int) $assignment['petugas_id'],
-                    'jumlah_kegiatan' => 1,
-                    'total_satuan' => (float) ($assignment['target_sisa'] ?? 0),
-                ]);
-
             $alokasiThisMonth = $alokasiThisMonth
-                ->concat($replacementWorkloadRows)
                 ->groupBy('petugas_id')
                 ->map(function ($rows) {
                     return (object) [
@@ -1021,19 +980,6 @@ class DashboardController extends Controller
                     $petugasHonor[$pid] = 0;
                 }
                 $petugasHonor[$pid] += $honor;
-            }
-
-            foreach ($replacementAssignments as $assignment) {
-                $replacementHonor = (float) ($assignment['monthly_honor'][$month] ?? 0);
-                if ($replacementHonor <= 0) {
-                    continue;
-                }
-
-                $pid = (int) $assignment['petugas_id'];
-                if (! isset($petugasHonor[$pid])) {
-                    $petugasHonor[$pid] = 0;
-                }
-                $petugasHonor[$pid] += $replacementHonor;
             }
 
             // Accumulate per-petugas monthly totals

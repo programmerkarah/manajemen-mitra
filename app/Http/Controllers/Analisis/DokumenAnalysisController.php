@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Kegiatan;
 use App\Models\SkKpa;
 use App\Models\Spk;
-use App\Services\SensusEkonomiReplacementReadService;
 use App\Traits\EffectivePeriodeScope;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -48,9 +47,6 @@ class DokumenAnalysisController extends Controller
         // Perjanjian Kerja. tanggal_spk dapat berbeda dari bulan alokasinya dan
         // sebelumnya membuat angka analisis (mis. Agustus) tidak sama dengan
         // detail/menu PK.
-        $replacementAssignments = app(SensusEkonomiReplacementReadService::class)
-            ->assignments($currentYear);
-
         $spkPerBulan = [];
         for ($bulan = 1; $bulan <= 12; $bulan++) {
             $bulanCandidates = [
@@ -98,30 +94,9 @@ class DokumenAnalysisController extends Controller
                 }
             }
 
-            // PK petugas pengganti masuk ke bulan berdasarkan tanggal PK
-            // yang diinput pada form (tanggal_kontrak), bukan created_at,
-            // bulan alokasi SE2026, atau bulan pelaksanaan/honor.
-            $replacementForMonth = $replacementAssignments
-                ->filter(fn (array $assignment): bool =>
-                    (int) ($assignment['pk_year'] ?? 0) === $currentYear
-                    && (int) ($assignment['pk_month'] ?? 0) === $bulan
-                );
 
-            $sensusReplacementPublished = $replacementForMonth
-                ->filter(fn (array $assignment): bool =>
-                    (bool) ($assignment['pk_available'] ?? false)
-                )
-                ->count();
-            $replacementDraft = $replacementForMonth
-                ->reject(fn (array $assignment): bool =>
-                    (bool) ($assignment['pk_available'] ?? false)
-                )
-                ->count();
-
-            $published = $regularPublished
-                + $sensusMainPublished
-                + $sensusReplacementPublished;
-            $draft = $mainDraft + $replacementDraft;
+            $published = $regularPublished + $sensusMainPublished;
+            $draft = $mainDraft;
 
             $spkPerBulan[] = [
                 'bulan' => $bulan,
@@ -130,7 +105,6 @@ class DokumenAnalysisController extends Controller
                 'diterbitkan' => $published,
                 'reguler_diterbitkan' => $regularPublished,
                 'sensus_utama_diterbitkan' => $sensusMainPublished,
-                'sensus_pengganti_diterbitkan' => $sensusReplacementPublished,
             ];
         }
 

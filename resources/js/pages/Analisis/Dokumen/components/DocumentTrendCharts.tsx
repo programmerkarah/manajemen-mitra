@@ -150,13 +150,6 @@ export default function DocumentTrendCharts({
                             radius={[0, 0, 0, 0]}
                         />
                         <Bar
-                            dataKey="spk_sensus_pengganti"
-                            fill="#8b5cf6"
-                            name="SE2026 Pengganti"
-                            stackId="spk"
-                            radius={[0, 0, 0, 0]}
-                        />
-                        <Bar
                             dataKey="spk_draft"
                             fill="#94a3b8"
                             name="Draft / belum final"
