@@ -28,8 +28,7 @@ interface WorkflowData {
     key: string;
     label: string;
     description: string;
-    document_type: 'regular' | 'stopped_petugas' | 'replacement_pkpp';
-    replacement_termin_count: number;
+    document_type: 'regular';
     termin_data: TerminData[];
     total_spk: number;
     total_uploaded: number;
@@ -64,7 +63,6 @@ export default function Index({
                       label: 'Petugas utama',
                       description: 'BAPP petugas utama SE2026.',
                       document_type: 'regular',
-                      replacement_termin_count: 0,
                       termin_data,
                       total_spk: termin_data.reduce(
                           (sum, item) => sum + item.spk_count,
@@ -122,7 +120,7 @@ export default function Index({
             <div className="space-y-5">
                 <PageHeader
                     title="BAPP SE2026"
-                    description={`Kelola upload BAPP manual per jenis petugas · ${tahun}`}
+                    description={`Kelola upload BAPP manual · ${tahun}`}
                 >
                     <Button variant="outline" asChild>
                         <Link href="/dashboard" prefetch>
@@ -228,19 +226,8 @@ export default function Index({
                                                     uploaded >=
                                                         termin.spk_count;
                                                 const href =
-                                                    `/bapp/create?termin=${termin.termin_hashed}` +
-                                                    `&document_type=${workflow.document_type}` +
-                                                    `&replacement_termin_count=${workflow.replacement_termin_count}`;
-
-                                                const singleReplacementBapp =
-                                                    workflow.document_type ===
-                                                        'replacement_pkpp' &&
-                                                    workflow.replacement_termin_count ===
-                                                        1;
-                                                const terminLabel =
-                                                    singleReplacementBapp
-                                                        ? 'BAPP'
-                                                        : `Termin ${termin.termin_roman}`;
+                                                    `/bapp/create?termin=${termin.termin_hashed}&document_type=regular`;
+                                                const terminLabel = `Termin ${termin.termin_roman}`;
 
                                                 return (
                                                     <div
@@ -265,9 +252,7 @@ export default function Index({
                                                                 </Badge>
                                                             </div>
                                                             <p className="mt-1 text-xs text-muted-foreground">
-                                                                {singleReplacementBapp
-                                                                    ? 'Satu dokumen BAPP final'
-                                                                    : `${termin.bulan_label} · ${termin.persentase}%`}
+                                                                {termin.bulan_label} · {termin.persentase}%
                                                             </p>
                                                         </div>
 
