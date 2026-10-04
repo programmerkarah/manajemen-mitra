@@ -16,6 +16,7 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
+        $this->withoutVite();
         Cache::flush();
 
         // Native-auth tests must not inherit production SSO configuration.
