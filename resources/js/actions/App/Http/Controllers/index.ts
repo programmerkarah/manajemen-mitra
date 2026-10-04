@@ -24,7 +24,6 @@ import RoleSwitchController from './RoleSwitchController';
 import SampleMasterController from './SampleMasterController';
 import SbmlController from './SbmlController';
 import SbmlReportController from './SbmlReportController';
-import SensusEkonomiReplacementController from './SensusEkonomiReplacementController';
 import SkKpaController from './SkKpaController';
 import SpkController from './SpkController';
 import TwoFactorPromptController from './TwoFactorPromptController';
@@ -114,10 +113,6 @@ const Controllers = {
         AnalisisExportController,
     ),
     SkKpaController: Object.assign(SkKpaController, SkKpaController),
-    SensusEkonomiReplacementController: Object.assign(
-        SensusEkonomiReplacementController,
-        SensusEkonomiReplacementController,
-    ),
     BastController: Object.assign(BastController, BastController),
     BappController: Object.assign(BappController, BappController),
     MonitoringPulsaController: Object.assign(
