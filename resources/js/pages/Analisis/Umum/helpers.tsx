@@ -1,3 +1,4 @@
+import { formatDecimal } from '@/lib/format-number';
 import { Sector, type PieSectorShapeProps } from 'recharts';
 
 export const monthNames = [
@@ -36,14 +37,14 @@ export function formatRupiah(value: number): string {
 
 export function formatRupiahCompact(value: number): string {
     if (value >= 1_000_000_000) {
-        return `${(value / 1_000_000_000).toFixed(1)}M`;
+        return `${formatDecimal(value / 1_000_000_000, 1)}M`;
     }
 
     if (value >= 1_000_000) {
-        return `${(value / 1_000_000).toFixed(1)}jt`;
+        return `${formatDecimal(value / 1_000_000, 1)}jt`;
     }
 
-    return `${(value / 1_000).toFixed(0)}rb`;
+    return `${formatDecimal(value / 1_000, 0)}rb`;
 }
 
 export const glassTooltipClass =
@@ -86,7 +87,7 @@ export function PieLegendList({ items }: { items: PieLegendItem[] }) {
                     </div>
                     <div className="text-right text-neutral-600 dark:text-neutral-300">
                         <div className="font-semibold">{item.value}</div>
-                        <div>{item.percentage.toFixed(1)}%</div>
+                        <div>{formatDecimal(item.percentage, 1)}%</div>
                     </div>
                 </div>
             ))}
@@ -181,7 +182,7 @@ export function renderActivePieShape(
                 fill="#9ca3af"
                 fontSize={10}
             >
-                {value} ({((percent ?? 0) * 100).toFixed(1)}%)
+                {value} ({formatDecimal((percent ?? 0) * 100, 1)}%)
             </text>
         </g>
     );
