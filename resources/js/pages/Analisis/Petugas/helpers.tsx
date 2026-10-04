@@ -1,3 +1,4 @@
+import { formatDecimal } from '@/lib/format-number';
 import { Sector, type PieSectorShapeProps } from 'recharts';
 
 export const monthNames = [
@@ -72,7 +73,7 @@ export function GlassTooltipContent({
             {payload.map((entry, index) => {
                 const pct =
                     typeof entry.percent === 'number'
-                        ? (entry.percent * 100).toFixed(1)
+                        ? formatDecimal(entry.percent * 100, 1)
                         : null;
 
                 return (
@@ -118,8 +119,8 @@ export function formatHonorAxis(value: number): string {
         const inMillions = value / 1_000_000;
 
         return Number.isInteger(inMillions)
-            ? `${inMillions.toFixed(0)}jt`
-            : `${inMillions.toFixed(1)}jt`;
+            ? `${formatDecimal(inMillions, 0)}jt`
+            : `${formatDecimal(inMillions, 1)}jt`;
     }
 
     if (value >= 1_000) {
@@ -170,7 +171,7 @@ export function PieLegendList({ items }: { items: PieLegendItem[] }) {
                         </span>
                     </div>
                     <span className="shrink-0 font-semibold text-neutral-900 dark:text-white">
-                        {item.count} ({item.percentage.toFixed(1)}%)
+                        {item.count} ({formatDecimal(item.percentage, 1)}%)
                     </span>
                 </div>
             ))}
@@ -251,7 +252,7 @@ export function renderActivePieShape(
                 fill="#9ca3af"
                 fontSize={10}
             >
-                {value} ({(percent * 100).toFixed(1)}%)
+                {value} ({formatDecimal(percent * 100, 1)}%)
             </text>
         </g>
     );
