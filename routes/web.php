@@ -318,7 +318,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
             ->name('admin.system-settings.deadline-bypass-request.reject')
             ->where('requestId', '[0-9]+');
         Route::get('activity-log', [SystemSettingsController::class, 'activityLog'])->name('admin.activity-log');
-        Route::post('activity-log', [SystemSettingsController::class, 'activityLog');
+        Route::post('activity-log', [SystemSettingsController::class, 'activityLog']);
         Route::get('activity-log/export', [SystemSettingsController::class, 'exportActivityLog'])->name('admin.activity-log.export');
         Route::get('database-status', [SystemSettingsController::class, 'databaseStatus'])->name('admin.database-status');
         Route::post('database-backup', [SystemSettingsController::class, 'backupDatabase'])->name('admin.database-backup');
