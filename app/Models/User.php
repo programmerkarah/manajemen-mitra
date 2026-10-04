@@ -10,13 +10,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable;
+    use HasFactory, Notifiable, SoftDeletes, TwoFactorAuthenticatable;
 
     /**
      * Higher value means higher privilege when auto-selecting active role.
@@ -40,12 +41,14 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     protected $fillable = [
         'sso_user_id',
+        'sso_organization_type',
         'name',
         'username',
         'email',
         'nip',
         'password',
         'is_active',
+        'email_verified_at',
     ];
 
     /**
