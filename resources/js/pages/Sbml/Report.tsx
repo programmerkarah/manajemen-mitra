@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
+import { formatDecimal } from '@/lib/format-number';
 import { BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import ChevronDown from 'lucide-react/icons/chevron-down';
@@ -406,7 +407,7 @@ export default function Report({
                                                                 p.exceeds,
                                                                 p.percentage,
                                                             )}
-                                                            label={`${p.percentage.toFixed(1)}%`}
+                                                            label={`${formatDecimal(p.percentage, 1)}%`}
                                                         />
                                                     </td>
                                                     <td className="p-4 text-center align-middle">
