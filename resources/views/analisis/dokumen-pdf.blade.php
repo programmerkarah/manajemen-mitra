@@ -184,13 +184,6 @@
                     <td class="text-center font-bold text-green">{{ collect($spkPerBulan)->sum('sensus_utama_diterbitkan') }}</td>
                 </tr>
                 <tr>
-                    <td class="font-bold">SE2026 Pengganti</td>
-                    @foreach($spkPerBulan as $item)
-                        <td class="text-center" style="color:#8b5cf6">{{ ($item['sensus_pengganti_diterbitkan'] ?? 0) ?: '-' }}</td>
-                    @endforeach
-                    <td class="text-center font-bold" style="color:#8b5cf6">{{ collect($spkPerBulan)->sum('sensus_pengganti_diterbitkan') }}</td>
-                </tr>
-                <tr>
                     <td class="font-bold">Draft / belum final</td>
                     @foreach($spkPerBulan as $item)
                         <td class="text-center text-amber">{{ $item['draft'] ?: '-' }}</td>
