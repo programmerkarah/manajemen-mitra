@@ -7,6 +7,7 @@ use App\Http\Controllers\Analisis\PetugasAnalysisController;
 use App\Http\Controllers\Analisis\PetugasOrganikAnalysisController;
 use App\Http\Controllers\Analisis\PulsaAnalysisController;
 use App\Http\Controllers\Analisis\UmumAnalysisController;
+use Illuminate\Http\Request;
 use Inertia\Response;
 
 class AnalisisController extends Controller
@@ -26,9 +27,9 @@ class AnalisisController extends Controller
         return app(PulsaAnalysisController::class)();
     }
 
-    public function dokumen(): Response
+    public function dokumen(Request $request): Response
     {
-        return app(DokumenAnalysisController::class)();
+        return app(DokumenAnalysisController::class)($request);
     }
 
     public function umum(): Response
