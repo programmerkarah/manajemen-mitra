@@ -98,8 +98,20 @@
                         <td class="text-center" style="color:#3b82f6">{{ $item['sk_ditandatangani'] ?: '-' }}</td>
                         <td class="text-center text-amber">{{ $item['sk_draft'] ?: '-' }}</td>
                         <td class="text-center">
-                            <span class="{{ $item['status_dokumen'] === 'Diterbitkan' ? 'text-green' : ($item['status_dokumen'] === 'Ada Draft' ? 'text-amber' : 'text-red') }} font-bold" style="font-size:9px">
-                                {{ $item['status_dokumen'] }}
+                            @php
+                                $statusLabel = match ($item['status_dokumen']) {
+                                    'lengkap' => 'Lengkap',
+                                    'sebagian' => 'Ada Draft',
+                                    default => 'Belum Ada SK',
+                                };
+                                $statusClass = match ($item['status_dokumen']) {
+                                    'lengkap' => 'text-green',
+                                    'sebagian' => 'text-amber',
+                                    default => 'text-red',
+                                };
+                            @endphp
+                            <span class="{{ $statusClass }} font-bold" style="font-size:9px">
+                                {{ $statusLabel }}
                             </span>
                         </td>
                     </tr>
