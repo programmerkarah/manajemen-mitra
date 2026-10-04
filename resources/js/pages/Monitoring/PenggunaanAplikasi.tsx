@@ -10,6 +10,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { formatDecimal } from '@/lib/format-number';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import ChevronLeft from 'lucide-react/icons/chevron-left';
@@ -402,7 +403,7 @@ export default function PenggunaanAplikasi({
                     />
                     <SummaryCard
                         label="Rata-rata akses per hari aktif"
-                        value={summary.average_logs_per_day.toFixed(1)}
+                        value={formatDecimal(summary.average_logs_per_day, 1)}
                         meta="Menggambarkan intensitas penggunaan aplikasi"
                         accent="violet"
                     />
