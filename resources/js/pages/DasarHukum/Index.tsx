@@ -1,3 +1,4 @@
+import { ConfirmActionDialog } from '@/components/confirm-action-dialog';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -205,14 +206,15 @@ export default function Index({ dasarHukum }: Props) {
         });
     };
 
+    const [deleteTarget, setDeleteTarget] = useState<DasarHukum | null>(null);
+    const [deleting, setDeleting] = useState(false);
+
     const deleteItem = (item: DasarHukum) => {
-        if (
-            confirm(
-                `Apakah Anda yakin ingin menghapus "${getShortLabel(item)}"?`,
-            )
-        ) {
-            router.delete(`/dasar-hukum/${item.id}`);
-        }
+        setDeleting(true);
+        router.delete(`/dasar-hukum/${item.id}`, {
+            onSuccess: () => setDeleteTarget(null),
+            onFinish: () => setDeleting(false),
+        });
     };
 
     return (
@@ -609,6 +611,16 @@ export default function Index({ dasarHukum }: Props) {
                     </div>
                 </ContentCard>
             </div>
+            <ConfirmActionDialog
+                open={deleteTarget !== null}
+                onOpenChange={(open) => !open && setDeleteTarget(null)}
+                title="Hapus dasar hukum?"
+                description={deleteTarget ? `“${getShortLabel(deleteTarget)}” akan dihapus dari rangkaian referensi dasar hukum.` : ''}
+                confirmLabel="Hapus"
+                destructive
+                processing={deleting}
+                onConfirm={() => deleteTarget && deleteItem(deleteTarget)}
+            />
         </AppLayout>
     );
 }
