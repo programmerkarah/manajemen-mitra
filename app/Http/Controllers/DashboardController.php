@@ -46,6 +46,7 @@ class DashboardController extends Controller
         $currentYear = $selectedPeriod->year;
         $currentMonthFormatted = $selectedPeriod->format('m');
         $selectedMonth = $selectedPeriod->format('Y-m');
+        // Manual SE2026 replacement contracts participate in dashboard workload and honor.
         $replacementAssignments = app(SensusEkonomiReplacementReadService::class)
             ->assignments($currentYear);
 
