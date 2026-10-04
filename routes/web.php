@@ -352,6 +352,7 @@ Route::middleware(['auth', 'verified', 'sso.organization', 'require.2fa'])->grou
 
         // User Role Management
         Route::match(['get', 'post'], 'users', [UserRoleController::class, 'index'])->name('users.index');
+        Route::post('users/sync-sso', [UserRoleController::class, 'syncSso'])->name('users.sync-sso');
         Route::get('users/{user}/edit', [UserRoleController::class, 'edit'])->name('users.edit');
         Route::match(['put', 'patch'], 'users/{user}/edit', [UserRoleController::class, 'update']);
         Route::patch('users/{user}', [UserRoleController::class, 'update'])->name('users.update');
