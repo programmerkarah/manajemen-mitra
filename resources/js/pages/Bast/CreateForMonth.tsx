@@ -13,6 +13,13 @@ import {
 } from '@/components/ui/dialog';
 import { FileUpload } from '@/components/ui/file-upload';
 import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type SharedData } from '@/types';
@@ -160,6 +167,9 @@ export default function CreateForMonth({
         null,
     );
     const [seSearch, setSeSearch] = useState('');
+    const [seStatusFilter, setSeStatusFilter] = useState<
+        'all' | 'uploaded' | 'pending'
+    >('all');
     const [modalAlert, setModalAlert] = useState<{
         open: boolean;
         title: string;
@@ -316,18 +326,37 @@ export default function CreateForMonth({
         }
     };
 
+    const seUploadedCount = sortedSpkList.filter(
+        (spk) => spk.has_bast,
+    ).length;
+    const sePendingCount = sortedSpkList.length - seUploadedCount;
+    const seCompletionRate =
+        sortedSpkList.length > 0
+            ? Math.round((seUploadedCount / sortedSpkList.length) * 100)
+            : 0;
+
     const filteredSensusSpks = useMemo(() => {
         const keyword = seSearch.trim().toLocaleLowerCase('id-ID');
-        if (!keyword) return sortedSpkList;
 
-        return sortedSpkList.filter((spk) =>
-            [spk.petugas.nama, spk.petugas.nik, spk.nomor_spk]
-                .filter(Boolean)
-                .some((value) =>
-                    String(value).toLocaleLowerCase('id-ID').includes(keyword),
-                ),
-        );
-    }, [seSearch, sortedSpkList]);
+        return sortedSpkList.filter((spk) => {
+            const matchesKeyword =
+                keyword === '' ||
+                [spk.petugas.nama, spk.petugas.nik, spk.nomor_spk]
+                    .filter(Boolean)
+                    .some((value) =>
+                        String(value)
+                            .toLocaleLowerCase('id-ID')
+                            .includes(keyword),
+                    );
+
+            const matchesStatus =
+                seStatusFilter === 'all' ||
+                (seStatusFilter === 'uploaded' && Boolean(spk.has_bast)) ||
+                (seStatusFilter === 'pending' && !spk.has_bast);
+
+            return matchesKeyword && matchesStatus;
+        });
+    }, [seSearch, seStatusFilter, sortedSpkList]);
 
     if (isSensusEkonomiMode && !isDetailMode) {
         return (
@@ -375,32 +404,55 @@ export default function CreateForMonth({
                         </Button>
                     </PageHeader>
 
-                    <div className="grid gap-3 md:grid-cols-3">
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         <ContentCard>
                             <p className="text-xs font-medium text-muted-foreground">
                                 Petugas
                             </p>
                             <p className="mt-1 text-2xl font-semibold">
-                                {sortedSpkList.length}
+                                {sortedSpkList.length.toLocaleString('id-ID')}
                             </p>
                             <p className="mt-1 text-xs text-muted-foreground">
                                 PK Sensus Ekonomi
                             </p>
                         </ContentCard>
-                        <ContentCard className="md:col-span-2">
+                        <ContentCard>
+                            <p className="text-xs font-medium text-muted-foreground">
+                                Sudah upload
+                            </p>
+                            <p className="mt-1 text-2xl font-semibold text-emerald-700 dark:text-emerald-300">
+                                {seUploadedCount.toLocaleString('id-ID')}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {seCompletionRate.toLocaleString('id-ID')}% lengkap
+                            </p>
+                        </ContentCard>
+                        <ContentCard>
+                            <p className="text-xs font-medium text-muted-foreground">
+                                Belum upload
+                            </p>
+                            <p className="mt-1 text-2xl font-semibold text-amber-700 dark:text-amber-300">
+                                {sePendingCount.toLocaleString('id-ID')}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Perlu ditindaklanjuti
+                            </p>
+                        </ContentCard>
+                        <ContentCard>
                             <p className="text-xs font-medium text-muted-foreground">
                                 Format nomor
                             </p>
-                            <p className="mt-1 font-mono text-sm font-semibold break-all">
+                            <p className="mt-1 font-mono text-xs font-semibold break-all">
                                 B-{'{nomor}'}
                                 {nomor_bast_suffix ??
                                     `/BAST-SE2026/1373/PL.200/${tahun}`}
                             </p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                                Isi nomor saja, misalnya 123. Bagian B-, kode
-                                BAST, satuan kerja, klasifikasi, dan tahun
-                                ditambahkan otomatis.
-                            </p>
+                            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+                                <div
+                                    className="h-full rounded-full bg-emerald-500 transition-all"
+                                    style={{ width: `${seCompletionRate}%` }}
+                                />
+                            </div>
                         </ContentCard>
                     </div>
 
@@ -415,16 +467,44 @@ export default function CreateForMonth({
                                     baris kerja agar lebih cepat diinventaris.
                                 </p>
                             </div>
-                            <div className="relative w-full md:w-80">
-                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    value={seSearch}
-                                    onChange={(event) =>
-                                        setSeSearch(event.target.value)
+                            <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+                                <Select
+                                    value={seStatusFilter}
+                                    onValueChange={(value) =>
+                                        setSeStatusFilter(
+                                            value as
+                                                | 'all'
+                                                | 'uploaded'
+                                                | 'pending',
+                                        )
                                     }
-                                    placeholder="Cari petugas, NIK, atau PK"
-                                    className="pl-9"
-                                />
+                                >
+                                    <SelectTrigger className="w-full sm:w-44">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            Semua status
+                                        </SelectItem>
+                                        <SelectItem value="uploaded">
+                                            Sudah upload
+                                        </SelectItem>
+                                        <SelectItem value="pending">
+                                            Belum upload
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <div className="relative w-full sm:w-80">
+                                    <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        value={seSearch}
+                                        onChange={(event) =>
+                                            setSeSearch(event.target.value)
+                                        }
+                                        placeholder="Cari petugas, NIK, atau PK"
+                                        className="pl-9"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </ContentCard>
