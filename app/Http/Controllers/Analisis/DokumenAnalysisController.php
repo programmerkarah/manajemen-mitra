@@ -105,7 +105,6 @@ class DokumenAnalysisController extends Controller
                 'diterbitkan' => $published,
                 'reguler_diterbitkan' => $regularPublished,
                 'sensus_utama_diterbitkan' => $sensusMainPublished,
-                'sensus_pengganti_diterbitkan' => 0,
             ];
         }
 
