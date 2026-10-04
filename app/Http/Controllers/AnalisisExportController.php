@@ -967,6 +967,7 @@ class AnalisisExportController extends Controller
                     'sk_diterbitkan' => (int) (($skPerBulan[$index]['diterbitkan'] ?? 0) + ($skPerBulan[$index]['ditandatangani'] ?? 0)),
                     'pk_reguler' => (int) ($spkPerBulan[$index]['reguler_diterbitkan'] ?? 0),
                     'pk_se_utama' => (int) ($spkPerBulan[$index]['sensus_utama_diterbitkan'] ?? 0),
+                    // PK pengganti mengikuti bulan dari tanggal kontrak yang diinput.
                     'pk_se_pengganti' => (int) ($spkPerBulan[$index]['sensus_pengganti_diterbitkan'] ?? 0),
                     'pk_draft' => (int) ($spkPerBulan[$index]['draft'] ?? 0),
                 ];
