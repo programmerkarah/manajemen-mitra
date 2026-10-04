@@ -7,9 +7,11 @@ use App\Models\PengajuanPulsa;
 use App\Models\Petugas;
 use App\Models\SkKpa;
 use App\Models\Spk;
+use App\Services\Analysis\DocumentAnalysisService;
 use App\Traits\EffectivePeriodeScope;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -932,175 +934,24 @@ class AnalisisExportController extends Controller
     /**
      * Export Analisis Dokumen as PDF.
      */
-    public function dokumen(): HttpResponse
+    public function dokumen(Request $request, DocumentAnalysisService $analysis): HttpResponse
     {
-        $currentYear = (int) date('Y');
-
-        // ── SK per bulan ──────────────────────────────────────────────────────
-        $skPerBulan = [];
-        for ($bulan = 1; $bulan <= 12; $bulan++) {
-            $data = SkKpa::query()
-                ->where('bulan', $bulan)
-                ->where('tahun', $currentYear)
-                ->selectRaw('COUNT(*) as total')
-                ->selectRaw("SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft")
-                ->selectRaw("SUM(CASE WHEN status = 'diterbitkan' AND (is_signed = 0 OR is_signed IS NULL) THEN 1 ELSE 0 END) as diterbitkan")
-                ->selectRaw('SUM(CASE WHEN is_signed = 1 THEN 1 ELSE 0 END) as ditandatangani')
-                ->first();
-
-            $skPerBulan[] = [
-                'bulan' => $bulan,
-                'total' => (int) $data->total,
-                'draft' => (int) $data->draft,
-                'diterbitkan' => (int) $data->diterbitkan,
-                'ditandatangani' => (int) $data->ditandatangani,
-            ];
+        $currentYear = $request->integer('year', (int) date('Y'));
+        if ($currentYear < 2000 || $currentYear > 2100) {
+            $currentYear = (int) date('Y');
         }
 
-        // ── PK per bulan: sumber dan definisinya sama dengan frontend ─────────
-        $spkPerBulan = [];
-        for ($bulan = 1; $bulan <= 12; $bulan++) {
-            $bulanCandidates = [
-                (string) $bulan,
-                str_pad((string) $bulan, 2, '0', STR_PAD_LEFT),
-            ];
-
-            $mainSpks = Spk::query()
-                ->with('alokasiPetugas.periodeAlokasi.kegiatan:id,nama_kegiatan,kode_kegiatan,jenis_kegiatan')
-                ->whereHas('alokasiPetugas.periodeAlokasi', function ($query) use ($currentYear, $bulanCandidates): void {
-                    $query->where('tahun', $currentYear)
-                        ->whereIn('bulan', $bulanCandidates)
-                        ->whereIn('status', ['dikirim', 'disetujui', 'direvisi', 'perubahan']);
-                })
-                ->get();
-
-            $regularPublished = 0;
-            $sensusMainPublished = 0;
-            $mainDraft = 0;
-
-            foreach ($mainSpks as $spk) {
-                if ($spk->status === 'draft') {
-                    $mainDraft++;
-
-                    continue;
-                }
-
-                if ($spk->status !== 'diterbitkan') {
-                    continue;
-                }
-
-                $kegiatan = $spk->alokasiPetugas?->periodeAlokasi?->kegiatan;
-                $activityText = strtolower(trim(
-                    (string) ($kegiatan?->nama_kegiatan ?? '').' '.
-                    (string) ($kegiatan?->kode_kegiatan ?? '')
-                ));
-                $isSensusEkonomi = str_contains($activityText, 'sensus ekonomi')
-                    || str_contains($activityText, 'se2026')
-                    || str_contains($activityText, 'se 2026');
-
-                if ($isSensusEkonomi) {
-                    $sensusMainPublished++;
-                } else {
-                    $regularPublished++;
-                }
-            }
-
-
-            $published = $regularPublished + $sensusMainPublished;
-            $draft = $mainDraft;
-
-            $spkPerBulan[] = [
-                'bulan' => $bulan,
-                'total' => $published + $draft,
-                'draft' => $draft,
-                'diterbitkan' => $published,
-                'reguler_diterbitkan' => $regularPublished,
-                'sensus_utama_diterbitkan' => $sensusMainPublished,
-            ];
-        }
-
-        // ── Summary KPI: persis dari seri yang tampil di frontend ─────────────
-        $skTotal = SkKpa::query()->where('tahun', $currentYear)->count();
-        $skDiterbitkan = SkKpa::query()->where('tahun', $currentYear)->where('status', 'diterbitkan')->count();
-        $skDraft = SkKpa::query()->where('tahun', $currentYear)->where('status', 'draft')->count();
-        $spkTotal = (int) collect($spkPerBulan)->sum('total');
-        $spkDiterbitkan = (int) collect($spkPerBulan)->sum('diterbitkan');
-        $spkDraft = (int) collect($spkPerBulan)->sum('draft');
-
-        // ── SK progress per kegiatan ──────────────────────────────────────────
-        $kegiatanAktif = Kegiatan::query()
-            ->where('tahun_anggaran', $currentYear)
-            ->whereNotIn('status', ['dibatalkan'])
-            ->whereHas('periodeAlokasi', function ($query) use ($currentYear): void {
-                $query->where('tahun', $currentYear)
-                    ->whereNotNull('submitted_at')
-                    ->whereIn('status', ['dikirim', 'perubahan', 'direvisi', 'disetujui']);
-            })
-            ->select('id', 'nama_kegiatan', 'kode_kegiatan', 'jenis_kegiatan')
-            ->orderBy('nama_kegiatan')
-            ->get();
-
-        $skStatsByKegiatan = DB::table('sk_kpa')
-            ->where('tahun', $currentYear)
-            ->whereNull('deleted_at')
-            ->selectRaw("kegiatan_id,
-                COUNT(*) as total,
-                SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft,
-                SUM(CASE WHEN status = 'diterbitkan' THEN 1 ELSE 0 END) as diterbitkan,
-                SUM(CASE WHEN is_signed = 1 THEN 1 ELSE 0 END) as ditandatangani")
-            ->groupBy('kegiatan_id')
-            ->get()
-            ->keyBy('kegiatan_id');
-
-        $kelengkapanSKPerKegiatan = $kegiatanAktif->map(function ($kegiatan) use ($skStatsByKegiatan) {
-            $sk = $skStatsByKegiatan->get($kegiatan->id);
-            $total = $sk ? (int) $sk->total : 0;
-            $draft = $sk ? (int) $sk->draft : 0;
-            $diterbitkan = $sk ? (int) $sk->diterbitkan : 0;
-            $ditandatangani = $sk ? (int) $sk->ditandatangani : 0;
-
-            $statusDokumen = 'Belum Ada SK';
-            if ($total > 0) {
-                $statusDokumen = ($draft === 0) ? 'Diterbitkan' : 'Ada Draft';
-            }
-
-            return [
-                'nama_kegiatan' => $kegiatan->nama_kegiatan,
-                'kode_kegiatan' => $kegiatan->kode_kegiatan,
-                'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
-                'total_sk' => $total,
-                'sk_draft' => $draft,
-                'sk_diterbitkan' => $diterbitkan,
-                'sk_ditandatangani' => $ditandatangani,
-                'status_dokumen' => $statusDokumen,
-            ];
-        })->sortBy(function ($item) {
-            return match ($item['status_dokumen']) {
-                'Belum Ada SK' => 0,
-                'Ada Draft' => 1,
-                default => 2,
-            };
-        })->values()->all();
-
-        // ── SK draft lama (> 14 hari) ─────────────────────────────────────────
-        $skDraftLama = SkKpa::query()
-            ->where('tahun', $currentYear)
-            ->where('status', 'draft')
-            ->where('created_at', '<', now()->subDays(14))
-            ->with('kegiatan:id,nama_kegiatan,kode_kegiatan')
-            ->orderBy('created_at')
-            ->limit(20)
-            ->get()
-            ->map(function ($sk) {
-                return [
-                    'kegiatan_nama' => $sk->kegiatan?->nama_kegiatan ?? '-',
-                    'kegiatan_kode' => $sk->kegiatan?->kode_kegiatan ?? '-',
-                    'bulan' => (int) $sk->bulan,
-                    'tahun' => (int) $sk->tahun,
-                    'umur_hari' => (int) now()->diffInDays($sk->created_at),
-                ];
-            })
-            ->all();
+        $dataset = $analysis->build($currentYear);
+        $skPerBulan = $dataset['skPerBulan'];
+        $spkPerBulan = $dataset['spkPerBulan'];
+        $skTotal = (int) $dataset['skTotal'];
+        $skDiterbitkan = (int) $dataset['skDiterbitkan'];
+        $skDraft = (int) $dataset['skDraft'];
+        $spkTotal = (int) $dataset['spkTotal'];
+        $spkDiterbitkan = (int) $dataset['spkDiterbitkan'];
+        $spkDraft = (int) $dataset['spkDraft'];
+        $kelengkapanSKPerKegiatan = $dataset['kelengkapanSKPerKegiatan'];
+        $skDraftLama = $dataset['skDraftLama'];
 
         $dokumenPieSvg = $this->buildPieChartSvg([
             ['label' => 'SK Draft', 'value' => $skDraft],
