@@ -13,6 +13,7 @@ export interface SpkPerBulan {
     diterbitkan: number;
     reguler_diterbitkan: number;
     sensus_utama_diterbitkan: number;
+    sensus_pengganti_diterbitkan: number;
 }
 
 export interface KelengkapanSKPerKegiatan {
@@ -58,5 +59,6 @@ export interface TrenDokumenItem {
     spk_diterbitkan: number;
     spk_reguler: number;
     spk_sensus_utama: number;
+    spk_sensus_pengganti: number;
     spk_draft: number;
 }
