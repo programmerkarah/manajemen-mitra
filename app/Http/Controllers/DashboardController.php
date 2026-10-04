@@ -15,8 +15,8 @@ use App\Models\Sbml;
 use App\Models\SkKpa;
 use App\Models\Spk;
 use App\Services\DashboardInsightService;
-use App\Services\SpkActionDecisionService;
 use App\Services\SensusEkonomiReplacementReadService;
+use App\Services\SpkActionDecisionService;
 use App\Traits\EffectivePeriodeScope;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -531,7 +531,6 @@ class DashboardController extends Controller
                     ->flip()
                 : collect();
 
-
             // Pre-load all alokasi_petugas satuan data to check BAST eligibility
             // (petugas with jumlah_satuan=0 and jumlah_satuan_listing=0 are not BAST candidates)
             $allAlokasiIds = $spkWithoutBast
@@ -619,7 +618,6 @@ class DashboardController extends Controller
                 if ($stoppedSensusSpkIds->has((int) $spk->id)) {
                     continue;
                 }
-
 
                 $expectedBastDate = $spk->tanggal_selesai_kerja ?? $spk->tanggal_mulai_kerja;
                 if (! $expectedBastDate) {
@@ -980,6 +978,7 @@ class DashboardController extends Controller
                 $key = $row->petugas_id.'-'.$row->kegiatan_id;
                 if (! isset($grouped[$key])) {
                     $grouped[$key] = $row;
+
                     continue;
                 }
 
@@ -987,6 +986,7 @@ class DashboardController extends Controller
 
                 if ($row->periode_status === 'perubahan' && $existing->periode_status !== 'perubahan') {
                     $grouped[$key] = $row;
+
                     continue;
                 }
 
