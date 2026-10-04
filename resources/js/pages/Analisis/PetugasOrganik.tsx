@@ -1,4 +1,5 @@
 import AppLayout from '@/layouts/app-layout';
+import { formatDecimal } from '@/lib/format-number';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
 import { type BreadcrumbItem } from '@/types';
@@ -190,7 +191,7 @@ function renderActivePieShape(
                 fill="#9ca3af"
                 fontSize={10}
             >
-                {value} ({(percent * 100).toFixed(1)}%)
+                {value} ({formatDecimal(percent * 100, 1)}%)
             </text>
         </g>
     );
