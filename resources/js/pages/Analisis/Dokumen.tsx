@@ -1,9 +1,20 @@
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { ContentCard } from '@/components/content-card';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
+import AlertTriangle from 'lucide-react/icons/alert-triangle';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
 import Download from 'lucide-react/icons/download';
+import FileWarning from 'lucide-react/icons/file-warning';
 import DocumentKpiGrid from './Dokumen/components/DocumentKpiGrid';
 import DocumentTrendCharts from './Dokumen/components/DocumentTrendCharts';
 import SkCompletenessTable from './Dokumen/components/SkCompletenessTable';
@@ -49,8 +60,21 @@ export default function AnalisisDokumen({
     kelengkapanSKPerKegiatan,
     skDraftLama,
     currentYear,
+    availableYears,
 }: AnalisisDokumenProps) {
     const trendData = buildTrendData({ skPerBulan, spkPerBulan });
+    const kegiatanLengkap = kelengkapanSKPerKegiatan.filter(
+        (item) => item.status_dokumen === 'lengkap',
+    ).length;
+    const kegiatanPerluTindakLanjut = kelengkapanSKPerKegiatan.filter(
+        (item) => item.status_dokumen !== 'lengkap',
+    ).length;
+    const completionRate =
+        kelengkapanSKPerKegiatan.length > 0
+            ? Math.round(
+                  (kegiatanLengkap / kelengkapanSKPerKegiatan.length) * 100,
+              )
+            : 0;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -58,21 +82,49 @@ export default function AnalisisDokumen({
 
             <div className="flex flex-1 flex-col gap-6 p-4">
                 <PageHeader
-                    title="Analisis Dokumen SK dan Perjanjian Kerja"
-                    description={`Tahun ${currentYear}`}
+                    title="Analisis Dokumen"
+                    description="Pantau kelengkapan SK dan Perjanjian Kerja, identifikasi draft tertunda, dan pastikan export menggunakan dataset yang sama dengan tampilan."
                 >
+                    <Select
+                        value={String(currentYear)}
+                        onValueChange={(year) =>
+                            router.get(
+                                '/analisis/dokumen',
+                                { year },
+                                {
+                                    preserveScroll: true,
+                                    preserveState: true,
+                                    replace: true,
+                                },
+                            )
+                        }
+                    >
+                        <SelectTrigger className="w-32">
+                            <SelectValue placeholder="Tahun" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {availableYears.map((year) => (
+                                <SelectItem
+                                    key={year}
+                                    value={String(year)}
+                                >
+                                    {year}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                     <Button
                         type="button"
                         variant="outline"
                         onClick={() =>
                             window.open(
-                                '/analisis/dokumen/export-pdf',
+                                `/analisis/dokumen/export-pdf?year=${currentYear}`,
                                 '_blank',
                                 'noopener,noreferrer',
                             )
                         }
                     >
-                        <Download className="h-4 w-4" />
+                        <Download className="mr-2 h-4 w-4" />
                         Export PDF
                     </Button>
                 </PageHeader>
@@ -85,6 +137,58 @@ export default function AnalisisDokumen({
                     spkDiterbitkan={spkDiterbitkan}
                     spkDraft={spkDraft}
                 />
+
+                <div className="grid gap-3 md:grid-cols-3">
+                    <ContentCard>
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-medium text-muted-foreground">
+                                    Kelengkapan kegiatan
+                                </p>
+                                <p className="mt-1 text-2xl font-semibold">
+                                    {completionRate}%
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    {kegiatanLengkap} dari{' '}
+                                    {kelengkapanSKPerKegiatan.length} kegiatan
+                                </p>
+                            </div>
+                            <CheckCircle2 className="size-5 text-emerald-600" />
+                        </div>
+                    </ContentCard>
+                    <ContentCard>
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-medium text-muted-foreground">
+                                    Perlu tindak lanjut
+                                </p>
+                                <p className="mt-1 text-2xl font-semibold">
+                                    {kegiatanPerluTindakLanjut}
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Belum ada SK atau masih memiliki draft
+                                </p>
+                            </div>
+                            <AlertTriangle className="size-5 text-amber-600" />
+                        </div>
+                    </ContentCard>
+                    <ContentCard>
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-medium text-muted-foreground">
+                                    Draft lama
+                                </p>
+                                <p className="mt-1 text-2xl font-semibold">
+                                    {skDraftLama.length}
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    SK draft lebih dari 14 hari
+                                </p>
+                            </div>
+                            <FileWarning className="size-5 text-rose-600" />
+                        </div>
+                    </ContentCard>
+                </div>
 
                 <StaleDraftAlert items={skDraftLama} />
 
