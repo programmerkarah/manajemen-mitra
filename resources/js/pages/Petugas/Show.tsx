@@ -1,3 +1,4 @@
+import { ConfirmActionDialog } from '@/components/confirm-action-dialog';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
@@ -107,6 +108,8 @@ interface ShowProps {
     tren_alokasi: TrenAlokasi[];
     active_year: number;
     riwayat_alokasi_ringkas: RiwayatAlokasiRingkasItem[];
+    can_delete: boolean;
+    delete_block_reason: string | null;
 }
 
 const bulanNames = [
@@ -129,6 +132,8 @@ export default function Show({
     tren_alokasi,
     active_year,
     riwayat_alokasi_ringkas,
+    can_delete,
+    delete_block_reason,
 }: ShowProps) {
     const { auth } = usePage<SharedData>().props;
 
@@ -151,10 +156,18 @@ export default function Show({
         }).format(amount);
     };
 
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
     const handleDelete = () => {
-        if (confirm('Apakah Anda yakin ingin menghapus Petugas ini?')) {
-            router.delete(`/petugas/${petugas.hashed_id}`);
-        }
+        if (!can_delete) return;
+
+        setDeleting(true);
+        router.delete(`/petugas/${petugas.hashed_id}`, {
+            preserveScroll: true,
+            onSuccess: () => setDeleteOpen(false),
+            onFinish: () => setDeleting(false),
+        });
     };
 
     const alokasi = petugas.alokasi ?? [];
@@ -249,7 +262,7 @@ export default function Show({
                             <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={handleDelete}
+                                onClick={() => setDeleteOpen(true)}
                                 className="gap-2"
                             >
                                 <Trash2 className="h-4 w-4" />
@@ -825,6 +838,16 @@ export default function Show({
                     </DialogContent>
                 </Dialog>
             </div>
+            <ConfirmActionDialog
+                open={deleteOpen}
+                onOpenChange={setDeleteOpen}
+                title="Hapus petugas?"
+                description="Data petugas akan dihapus hanya jika belum pernah dipakai oleh alokasi atau dokumen lain. Tindakan ini tidak dapat dibatalkan."
+                confirmLabel="Hapus Petugas"
+                destructive
+                processing={deleting}
+                onConfirm={handleDelete}
+            />
         </AppLayout>
     );
 }
