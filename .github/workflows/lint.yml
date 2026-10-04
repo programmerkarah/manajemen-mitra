@@ -58,7 +58,7 @@ jobs:
           fi
 
           echo "$files"
-          vendor/bin/pint --test -- $files
+          vendor/bin/pint --test -v -- $files
 
   frontend-quality:
     runs-on: ubuntu-latest
