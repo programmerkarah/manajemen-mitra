@@ -807,16 +807,6 @@ export default function Create({
         [backendErrors, errors],
     );
 
-    // Debug: log errors to console
-    useEffect(() => {
-        if (Object.keys(backendErrors || {}).length > 0) {
-            console.log('Backend Errors:', backendErrors);
-        }
-        if (Object.keys(allErrors).length > 0) {
-            console.log('All Errors:', allErrors);
-        }
-    }, [backendErrors, allErrors]);
-
     // Auto-scroll to error alert when errors occur
     useEffect(() => {
         if (Object.keys(allErrors).length > 0) {
@@ -3610,7 +3600,13 @@ export default function Create({
                 title={
                     isViewMode
                         ? 'Detail Periode Kegiatan'
-                        : 'Tambah Periode Kegiatan'
+                        : isRevisiMode
+                          ? 'Revisi Alokasi Petugas'
+                          : isEditMode
+                            ? 'Edit Alokasi Petugas'
+                            : isCopyMode
+                              ? 'Salin Alokasi Petugas'
+                              : 'Tambah Alokasi Petugas'
                 }
             />
 
@@ -3618,12 +3614,24 @@ export default function Create({
                 title={
                     isViewMode
                         ? 'Detail Periode Kegiatan'
-                        : 'Tambah Periode Kegiatan'
+                        : isRevisiMode
+                          ? 'Revisi Alokasi Petugas'
+                          : isEditMode
+                            ? 'Edit Alokasi Petugas'
+                            : isCopyMode
+                              ? 'Salin Alokasi Petugas'
+                              : 'Tambah Alokasi Petugas'
                 }
                 description={
                     isViewMode
-                        ? 'Detail alokasi petugas pada periode ini'
-                        : 'Alokasikan petugas ke kegiatan untuk periode yang dipilih'
+                        ? 'Tinjau detail periode, petugas, beban, dan estimasi honor.'
+                        : isRevisiMode
+                          ? 'Pilih jenis revisi terlebih dahulu, lalu ubah bagian yang diizinkan tanpa mengganggu riwayat periode sebelumnya.'
+                          : isEditMode
+                            ? 'Perbarui periode, jadwal, dan alokasi petugas dengan validasi pagu serta beban kerja.'
+                            : isCopyMode
+                              ? 'Gunakan alokasi periode sebelumnya sebagai dasar, lalu sesuaikan periode dan petugas sebelum disimpan.'
+                              : 'Susun periode, jadwal, dan petugas secara bertahap dengan validasi pagu dan rekomendasi beban kerja.'
                 }
             >
                 <Button variant="outline" asChild>
@@ -3698,9 +3706,11 @@ export default function Create({
                             Mode Revisi Aktif
                         </p>
                         <p className="text-sm text-indigo-800 dark:text-indigo-400">
-                            {isPerubahanPetugasMode
-                                ? 'Jenis revisi: Perubahan Petugas (mengganti petugas dan alokasi).'
-                                : 'Jenis revisi: Perubahan Alokasi (hanya memperbaiki alokasi petugas).'}
+                            {isJenisPerubahanRevisiPending
+                                ? 'Pilih jenis revisi untuk menentukan field yang dapat diubah.'
+                                : isPerubahanPetugasMode
+                                  ? 'Jenis revisi: Perubahan Petugas (mengganti petugas dan alokasi).'
+                                  : 'Jenis revisi: Perubahan Alokasi (memperbaiki beban/volume tanpa mengganti konteks periode).'}
                         </p>
                     </div>
                     <div className="space-y-2">
