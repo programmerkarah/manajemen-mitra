@@ -44,6 +44,8 @@ function buildTrendData({
         spk_reguler: spkPerBulan[index]?.reguler_diterbitkan ?? 0,
         spk_sensus_utama:
             spkPerBulan[index]?.sensus_utama_diterbitkan ?? 0,
+        spk_sensus_pengganti:
+            spkPerBulan[index]?.sensus_pengganti_diterbitkan ?? 0,
         spk_draft: spkPerBulan[index]?.draft ?? 0,
     }));
 }
