@@ -5,8 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Kegiatan;
 use App\Models\PengajuanPulsa;
 use App\Models\Petugas;
-use App\Models\SkKpa;
-use App\Models\Spk;
 use App\Services\Analysis\DocumentAnalysisService;
 use App\Traits\EffectivePeriodeScope;
 use Barryvdh\DomPDF\Facade\Pdf;
