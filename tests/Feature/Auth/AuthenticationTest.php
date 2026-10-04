@@ -190,6 +190,9 @@ class AuthenticationTest extends TestCase
 
     public function test_users_are_rate_limited()
     {
+        config()->set('services.sso.base_url', '');
+        config()->set('services.sso.client_id', null);
+
         $user = User::factory()->create();
 
         $throttleKey = Str::transliterate(

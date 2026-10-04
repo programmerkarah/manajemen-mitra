@@ -821,7 +821,7 @@ class DashboardController extends Controller
                 ->whereRaw($this->allocationOrHonorExistsClause());
             $this->applySensusEkonomiMonthFilter($alokasiThisMonth, $month, 'kegiatan');
             $alokasiThisMonth = $alokasiThisMonth
-                ->select('alokasi_petugas.petugas_id', DB::raw('COUNT(*) as jumlah_kegiatan'), DB::raw('SUM(COALESCE(alokasi_petugas.jumlah_satuan, 0) + COALESCE(alokasi_petugas.jumlah_satuan_listing, 0)) as total_satuan'))
+                ->select('alokasi_petugas.petugas_id', DB::raw('COUNT(DISTINCT periode_alokasi.kegiatan_id) as jumlah_kegiatan'), DB::raw('SUM(COALESCE(alokasi_petugas.jumlah_satuan, 0) + COALESCE(alokasi_petugas.jumlah_satuan_listing, 0)) as total_satuan'))
                 ->groupBy('alokasi_petugas.petugas_id')
                 ->get();
 

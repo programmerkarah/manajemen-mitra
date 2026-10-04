@@ -173,9 +173,9 @@ trait PetugasImportSupport
 
         try {
             ActivityLog::log(
-                'Batch Edit Mitra',
+                'Batch Edit Petugas',
                 'mitra',
-                "Berhasil mengubah {$updated} data mitra secara batch.",
+                "Berhasil mengubah {$updated} data petugas secara batch.",
                 'success',
                 ['count' => $updated]
             );
