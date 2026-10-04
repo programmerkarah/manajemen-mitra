@@ -12,6 +12,7 @@ use App\Imports\PetugasImport;
 use App\Imports\PetugasPreviewImport;
 use App\Models\ActivityLog;
 use App\Models\Petugas;
+use App\Models\AlokasiPetugas;
 use App\Services\PetugasImportProcessor;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -243,6 +244,12 @@ class PetugasController extends Controller
         $petugas = Petugas::query()
             ->where('jenis_petugas', 'non-organik')
             ->findOrFail($id);
+        if (AlokasiPetugas::query()->where('petugas_id', $petugas->id)->exists()) {
+            return redirect()->route('petugas.show', $petuga)->withErrors([
+                'delete' => 'Petugas tidak dapat dihapus karena sudah terhubung dengan riwayat alokasi/dokumen. Nonaktifkan status petugas bila tidak lagi digunakan.',
+            ]);
+        }
+
         $petugasNama = $petugas->nama;
         $petugasNik = $petugas->nik;
         $petugasId = $petugas->id;
