@@ -14,6 +14,9 @@ import { useDecryptedData } from '@/hooks/useDecryptedData';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
+import ArrowDown from 'lucide-react/icons/arrow-down';
+import ArrowUp from 'lucide-react/icons/arrow-up';
+import ChevronsUpDown from 'lucide-react/icons/chevrons-up-down';
 import { useMemo, useState } from 'react';
 import {
     Bar,
@@ -407,10 +410,16 @@ export default function PenilaianMitraStatistik({
         key: 'petugas_nama' | 'kegiatan_nama' | 'rating' | 'reviewed_at',
     ) => {
         if (sortConfig.key !== key) {
-            return '';
+            return (
+                <ChevronsUpDown className="size-3.5 text-muted-foreground/60" />
+            );
         }
 
-        return sortConfig.direction === 'asc' ? ' (A-Z)' : ' (Z-A)';
+        return sortConfig.direction === 'asc' ? (
+            <ArrowUp className="size-3.5" />
+        ) : (
+            <ArrowDown className="size-3.5" />
+        );
     };
 
     const mitraRankLimit = filters.kegiatan_id === 'all' ? 5 : 3;
@@ -469,10 +478,16 @@ export default function PenilaianMitraStatistik({
 
     const getMitraSortLabel = (key: keyof HallOfFameTableRow) => {
         if (mitraTableSort.key !== key) {
-            return '';
+            return (
+                <ChevronsUpDown className="size-3.5 text-muted-foreground/60" />
+            );
         }
 
-        return mitraTableSort.direction === 'asc' ? ' (Asc)' : ' (Desc)';
+        return mitraTableSort.direction === 'asc' ? (
+            <ArrowUp className="size-3.5" />
+        ) : (
+            <ArrowDown className="size-3.5" />
+        );
     };
 
     const getRatingBadgeClass = (rating: number) => {
@@ -622,7 +637,7 @@ export default function PenilaianMitraStatistik({
                                     <th className="px-3 py-2">
                                         <button
                                             type="button"
-                                            className="hover:text-neutral-800 dark:hover:text-neutral-200"
+                                            className="inline-flex items-center gap-1.5 hover:text-neutral-800 dark:hover:text-neutral-200"
                                             onClick={() =>
                                                 handleMitraTableSort(
                                                     'petugas_nama',
@@ -636,7 +651,7 @@ export default function PenilaianMitraStatistik({
                                     <th className="px-3 py-2">
                                         <button
                                             type="button"
-                                            className="hover:text-neutral-800 dark:hover:text-neutral-200"
+                                            className="inline-flex items-center gap-1.5 hover:text-neutral-800 dark:hover:text-neutral-200"
                                             onClick={() =>
                                                 handleMitraTableSort(
                                                     'kegiatan_count',
@@ -652,7 +667,7 @@ export default function PenilaianMitraStatistik({
                                     <th className="px-3 py-2">
                                         <button
                                             type="button"
-                                            className="hover:text-neutral-800 dark:hover:text-neutral-200"
+                                            className="inline-flex items-center gap-1.5 hover:text-neutral-800 dark:hover:text-neutral-200"
                                             onClick={() =>
                                                 handleMitraTableSort(
                                                     'review_count',
@@ -666,7 +681,7 @@ export default function PenilaianMitraStatistik({
                                     <th className="px-3 py-2">
                                         <button
                                             type="button"
-                                            className="hover:text-neutral-800 dark:hover:text-neutral-200"
+                                            className="inline-flex items-center gap-1.5 hover:text-neutral-800 dark:hover:text-neutral-200"
                                             onClick={() =>
                                                 handleMitraTableSort(
                                                     'avg_review_per_kegiatan',
@@ -682,7 +697,7 @@ export default function PenilaianMitraStatistik({
                                     <th className="px-3 py-2">
                                         <button
                                             type="button"
-                                            className="hover:text-neutral-800 dark:hover:text-neutral-200"
+                                            className="inline-flex items-center gap-1.5 hover:text-neutral-800 dark:hover:text-neutral-200"
                                             onClick={() =>
                                                 handleMitraTableSort(
                                                     'avg_rating',
@@ -696,7 +711,7 @@ export default function PenilaianMitraStatistik({
                                     <th className="px-3 py-2">
                                         <button
                                             type="button"
-                                            className="hover:text-neutral-800 dark:hover:text-neutral-200"
+                                            className="inline-flex items-center gap-1.5 hover:text-neutral-800 dark:hover:text-neutral-200"
                                             onClick={() =>
                                                 handleMitraTableSort(
                                                     'balanced_score',
@@ -1167,7 +1182,7 @@ export default function PenilaianMitraStatistik({
                                     <th className="px-3 py-2">
                                         <button
                                             type="button"
-                                            className="hover:text-neutral-800 dark:hover:text-neutral-200"
+                                            className="inline-flex items-center gap-1.5 hover:text-neutral-800 dark:hover:text-neutral-200"
                                             onClick={() =>
                                                 handleSort('petugas_nama')
                                             }
@@ -1179,7 +1194,7 @@ export default function PenilaianMitraStatistik({
                                     <th className="px-3 py-2">
                                         <button
                                             type="button"
-                                            className="hover:text-neutral-800 dark:hover:text-neutral-200"
+                                            className="inline-flex items-center gap-1.5 hover:text-neutral-800 dark:hover:text-neutral-200"
                                             onClick={() =>
                                                 handleSort('kegiatan_nama')
                                             }
@@ -1191,7 +1206,7 @@ export default function PenilaianMitraStatistik({
                                     <th className="px-3 py-2">
                                         <button
                                             type="button"
-                                            className="hover:text-neutral-800 dark:hover:text-neutral-200"
+                                            className="inline-flex items-center gap-1.5 hover:text-neutral-800 dark:hover:text-neutral-200"
                                             onClick={() => handleSort('rating')}
                                         >
                                             Rating{getSortLabel('rating')}
@@ -1204,7 +1219,7 @@ export default function PenilaianMitraStatistik({
                                     <th className="px-3 py-2">
                                         <button
                                             type="button"
-                                            className="hover:text-neutral-800 dark:hover:text-neutral-200"
+                                            className="inline-flex items-center gap-1.5 hover:text-neutral-800 dark:hover:text-neutral-200"
                                             onClick={() =>
                                                 handleSort('reviewed_at')
                                             }
