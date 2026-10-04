@@ -89,13 +89,7 @@
         </p>
         @php
             $defaultMessage = 'Sistem akan kembali aktif dalam waktu dekat. Terima kasih atas pengertian dan kesabaran Anda.';
-            if (\Storage::exists('framework/maintenance-message.txt')) {
-                $maintenanceMessage = \Storage::get('framework/maintenance-message.txt');
-            } elseif (config('app.maintenance_message')) {
-                $maintenanceMessage = config('app.maintenance_message');
-            } else {
-                $maintenanceMessage = $defaultMessage;
-            }
+            $maintenanceMessage = app(\App\Services\MaintenanceMessageService::class)->get() ?: $defaultMessage;
         @endphp
         <div class="info">
             <strong>Informasi:</strong>
