@@ -3,7 +3,7 @@
 namespace Tests\Unit;
 
 use App\Http\Controllers\Admin\SystemSettingsController;
-use App\Services\DatabaseBackupService;
+use App\Services\MaintenanceMessageService;
 use Illuminate\Support\Carbon;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
@@ -17,7 +17,7 @@ class ActivityLogDateFilterNormalizationTest extends TestCase
     {
         Carbon::setTestNow(Carbon::create(2026, 6, 10, 10, 0, 0));
 
-        $controller = new SystemSettingsController(Mockery::mock(DatabaseBackupService::class));
+        $controller = new SystemSettingsController(Mockery::mock(MaintenanceMessageService::class));
         $method = new \ReflectionMethod(SystemSettingsController::class, 'normalizeActivityLogDateFilters');
 
         $filters = $method->invoke($controller, [
@@ -30,7 +30,7 @@ class ActivityLogDateFilterNormalizationTest extends TestCase
 
     public function test_normalizes_date_to_only_to_use_first_day_of_the_same_year_as_start_date(): void
     {
-        $controller = new SystemSettingsController(Mockery::mock(DatabaseBackupService::class));
+        $controller = new SystemSettingsController(Mockery::mock(MaintenanceMessageService::class));
         $method = new \ReflectionMethod(SystemSettingsController::class, 'normalizeActivityLogDateFilters');
 
         $filters = $method->invoke($controller, [
