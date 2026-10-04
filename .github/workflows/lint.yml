@@ -104,6 +104,30 @@ jobs:
 
           git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA" -- resources/js resources/css > /tmp/frontend-files.txt
           grep -E '\.(js|jsx|ts|tsx)
+
+      - name: Check Frontend Formatting
+        shell: bash
+        run: |
+          mapfile -t files < /tmp/frontend-files.txt
+          if (( ${#files[@]} == 0 )); then
+            echo "No changed frontend files to format-check."
+            exit 0
+          fi
+
+          printf 'Checking frontend formatting for:\n%s\n' "${files[*]}"
+          ./node_modules/.bin/prettier --check "${files[@]}"
+
+      - name: Lint Frontend
+        shell: bash
+        run: |
+          mapfile -t files < /tmp/eslint-files.txt
+          if (( ${#files[@]} == 0 )); then
+            echo "No changed JS/TS files to lint."
+            exit 0
+          fi
+
+          printf 'Linting frontend files:\n%s\n' "${files[*]}"
+          ./node_modules/.bin/eslint "${files[@]}"
  /tmp/frontend-files.txt > /tmp/eslint-files.txt || true
 
       - name: Check Frontend Formatting
