@@ -16,6 +16,7 @@ use App\Models\SkKpa;
 use App\Models\Spk;
 use App\Services\DashboardInsightService;
 use App\Services\SpkActionDecisionService;
+use App\Services\SensusEkonomiReplacementReadService;
 use App\Traits\EffectivePeriodeScope;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -45,6 +46,8 @@ class DashboardController extends Controller
         $currentYear = $selectedPeriod->year;
         $currentMonthFormatted = $selectedPeriod->format('m');
         $selectedMonth = $selectedPeriod->format('Y-m');
+        $replacementAssignments = app(SensusEkonomiReplacementReadService::class)
+            ->assignments($currentYear);
 
         // Basic stats
         $stats = [
@@ -787,7 +790,13 @@ class DashboardController extends Controller
                 ->pluck('alokasi_petugas.petugas_id')
                 ->map(fn ($id) => (int) $id);
 
+            $replacementPetugasBulan = $replacementAssignments
+                ->filter(fn (array $assignment): bool => ((float) ($assignment['monthly_honor'][$month] ?? 0)) > 0)
+                ->pluck('petugas_id')
+                ->map(fn ($id) => (int) $id);
+
             $totalPetugasAlokasi = $totalPetugasAlokasiIds
+                ->concat($replacementPetugasBulan)
                 ->unique()
                 ->count();
 
@@ -821,6 +830,26 @@ class DashboardController extends Controller
                 ->get();
 
             $alokasiThisMonth = $alokasiThisMonth
+                ->groupBy('petugas_id')
+                ->map(function ($rows) {
+                    return (object) [
+                        'petugas_id' => (int) $rows->first()->petugas_id,
+                        'jumlah_kegiatan' => (int) $rows->sum(fn ($row) => (int) $row->jumlah_kegiatan),
+                        'total_satuan' => (float) $rows->sum(fn ($row) => (float) $row->total_satuan),
+                    ];
+                })
+                ->values();
+
+            $replacementWorkloadRows = $replacementAssignments
+                ->filter(fn (array $assignment): bool => ((float) ($assignment['monthly_honor'][$month] ?? 0)) > 0)
+                ->map(fn (array $assignment) => (object) [
+                    'petugas_id' => (int) $assignment['petugas_id'],
+                    'jumlah_kegiatan' => 1,
+                    'total_satuan' => (float) ($assignment['target_sisa'] ?? 0),
+                ]);
+
+            $alokasiThisMonth = $alokasiThisMonth
+                ->concat($replacementWorkloadRows)
                 ->groupBy('petugas_id')
                 ->map(function ($rows) {
                     return (object) [
@@ -1005,6 +1034,19 @@ class DashboardController extends Controller
                     $petugasHonor[$pid] = 0;
                 }
                 $petugasHonor[$pid] += $honor;
+            }
+
+            foreach ($replacementAssignments as $assignment) {
+                $replacementHonor = (float) ($assignment['monthly_honor'][$month] ?? 0);
+                if ($replacementHonor <= 0) {
+                    continue;
+                }
+
+                $pid = (int) $assignment['petugas_id'];
+                if (! isset($petugasHonor[$pid])) {
+                    $petugasHonor[$pid] = 0;
+                }
+                $petugasHonor[$pid] += $replacementHonor;
             }
 
             // Accumulate per-petugas monthly totals
