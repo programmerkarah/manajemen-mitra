@@ -1,99 +1,78 @@
 import InputError from '@/components/input-error';
+import { MaintenanceAccessShell } from '@/components/maintenance-access-shell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { up } from '@/routes/maintenance';
 import { Form, Head } from '@inertiajs/react';
-import Key from 'lucide-react/icons/key';
+import CheckCircle2 from 'lucide-react/icons/check-circle2';
+import KeyRound from 'lucide-react/icons/key-round';
 import LoaderCircle from 'lucide-react/icons/loader-circle';
-import PowerIcon from 'lucide-react/icons/power';
+import Power from 'lucide-react/icons/power';
 
 export default function Up() {
     return (
-        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-50 via-white to-green-50 px-4 dark:from-zinc-900 dark:via-zinc-950 dark:to-zinc-900">
+        <>
             <Head title="Aktifkan Kembali Layanan" />
-
-            <div className="w-full max-w-md">
-                <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-800">
-                    {/* Header */}
-                    <div className="bg-gradient-to-r from-green-600 to-green-700 p-6 text-center dark:from-green-500 dark:to-green-600">
-                        <div className="mb-3 flex justify-center">
-                            <div className="rounded-full bg-white/20 p-3">
-                                <PowerIcon className="h-8 w-8 text-white" />
+            <MaintenanceAccessShell
+                title="Aktifkan kembali SIMANTIK"
+                description="Gunakan kunci aktivasi setelah pekerjaan maintenance selesai dan layanan sudah siap digunakan kembali oleh seluruh pengguna."
+                eyebrow="Pemulihan Layanan"
+                icon={Power}
+                note={
+                    <span className="flex items-start gap-2">
+                        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                        Keluar dari maintenance akan membuka kembali seluruh
+                        route normal SIMANTIK untuk pengguna yang berhak.
+                    </span>
+                }
+            >
+                <Form {...up.form()} className="space-y-5">
+                    {({ processing, errors }) => (
+                        <>
+                            <div>
+                                <h2 className="font-semibold">
+                                    Buka kembali layanan
+                                </h2>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Pastikan migrasi, build, dan pemeriksaan
+                                    aplikasi sudah selesai.
+                                </p>
                             </div>
-                        </div>
-                        <h1 className="mb-2 text-2xl font-bold text-white">
-                            Aktifkan Kembali Layanan
-                        </h1>
-                        <p className="text-sm text-green-100">
-                            Masukkan kunci untuk keluar dari maintenance mode
-                        </p>
-                    </div>
 
-                    {/* Form */}
-                    <div className="p-8">
-                        <Form {...up.form()} className="space-y-6">
-                            {({ processing, errors }) => (
-                                <>
-                                    <div className="space-y-2">
-                                        <Label
-                                            htmlFor="key"
-                                            className="flex items-center gap-2 font-medium text-gray-700 dark:text-gray-300"
-                                        >
-                                            <Key className="h-4 w-4" />
-                                            Kunci Aktivasi
-                                        </Label>
-                                        <Input
-                                            id="key"
-                                            type="password"
-                                            name="key"
-                                            required
-                                            autoFocus
-                                            placeholder="Masukkan kunci aktivasi"
-                                            className="h-12 border-gray-300 bg-gray-50 focus:border-green-500 focus:ring-green-500/20 dark:border-zinc-600 dark:bg-zinc-900 dark:focus:border-green-400"
-                                        />
-                                        <InputError message={errors.key} />
-                                    </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="key">Kunci Aktivasi</Label>
+                                <div className="relative">
+                                    <KeyRound className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        id="key"
+                                        type="password"
+                                        name="key"
+                                        required
+                                        autoFocus
+                                        className="pl-9"
+                                        placeholder="Masukkan kunci aktivasi"
+                                    />
+                                </div>
+                                <InputError message={errors.key} />
+                            </div>
 
-                                    <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950/30">
-                                        <p className="text-sm text-green-800 dark:text-green-200">
-                                            <strong>Perhatian:</strong> Sistem
-                                            akan keluar dari maintenance mode
-                                            dan layanan akan kembali normal
-                                            untuk semua pengguna.
-                                        </p>
-                                    </div>
-
-                                    <Button
-                                        type="submit"
-                                        disabled={processing}
-                                        className="h-12 w-full bg-green-600 text-base font-semibold text-white shadow-lg transition-all hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
-                                    >
-                                        {processing ? (
-                                            <>
-                                                <LoaderCircle className="mr-2 h-5 w-5 animate-spin" />
-                                                Memproses...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <PowerIcon className="mr-2 h-5 w-5" />
-                                                Aktifkan Layanan
-                                            </>
-                                        )}
-                                    </Button>
-                                </>
-                            )}
-                        </Form>
-                    </div>
-                </div>
-
-                {/* Footer */}
-                <div className="mt-6 text-center">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Akses terbatas hanya untuk administrator
-                    </p>
-                </div>
-            </div>
-        </div>
+                            <Button
+                                type="submit"
+                                className="w-full"
+                                disabled={processing}
+                            >
+                                {processing ? (
+                                    <LoaderCircle className="mr-2 size-4 animate-spin" />
+                                ) : (
+                                    <Power className="mr-2 size-4" />
+                                )}
+                                Aktifkan Layanan
+                            </Button>
+                        </>
+                    )}
+                </Form>
+            </MaintenanceAccessShell>
+        </>
     );
 }
