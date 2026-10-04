@@ -1,3 +1,4 @@
+import { ConfirmActionDialog } from '@/components/confirm-action-dialog';
 import { ContentCard } from '@/components/content-card';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
@@ -133,6 +134,7 @@ export default function Index({ users, allRoles }: UsersIndexProps) {
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage] = useState(15);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [syncSsoOpen, setSyncSsoOpen] = useState(false);
     const [editingUserId, setEditingUserId] = useState<number | null>(
         getPersistedEditUserId,
     );
@@ -281,11 +283,15 @@ export default function Index({ users, allRoles }: UsersIndexProps) {
 
     const handleRefresh = () => {
         setIsRefreshing(true);
-        router.reload({
-            onFinish: () => {
-                setTimeout(() => setIsRefreshing(false), 500);
+        router.post(
+            '/users/sync-sso',
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => setSyncSsoOpen(false),
+                onFinish: () => setIsRefreshing(false),
             },
-        });
+        );
     };
 
     const handleSort = (field: 'name' | 'username' | 'email') => {
@@ -345,13 +351,13 @@ export default function Index({ users, allRoles }: UsersIndexProps) {
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={handleRefresh}
+                        onClick={() => setSyncSsoOpen(true)}
                         disabled={isRefreshing}
                     >
                         <RefreshCw
                             className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
                         />
-                        Refresh
+                        Sync SSO
                     </Button>
                 </PageHeader>
 
@@ -995,6 +1001,15 @@ export default function Index({ users, allRoles }: UsersIndexProps) {
                     </DialogContent>
                 </Dialog>
             </div>
+            <ConfirmActionDialog
+                open={syncSsoOpen}
+                onOpenChange={setSyncSsoOpen}
+                title="Sinkronkan user dari SSO?"
+                description="SIMANTIK akan mengambil user yang masih eligible. User lokal yang tidak lagi eligible akan dinonaktifkan dan di-soft-delete tanpa menghapus ID maupun relasi historis."
+                confirmLabel="Sync SSO"
+                processing={isRefreshing}
+                onConfirm={handleRefresh}
+            />
         </AppLayout>
     );
 }
