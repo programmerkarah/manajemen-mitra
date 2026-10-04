@@ -1016,7 +1016,6 @@ class AnalisisExportController extends Controller
                 'diterbitkan' => $published,
                 'reguler_diterbitkan' => $regularPublished,
                 'sensus_utama_diterbitkan' => $sensusMainPublished,
-                'sensus_pengganti_diterbitkan' => 0,
             ];
         }
 
@@ -1117,7 +1116,6 @@ class AnalisisExportController extends Controller
                     'sk_diterbitkan' => (int) (($skPerBulan[$index]['diterbitkan'] ?? 0) + ($skPerBulan[$index]['ditandatangani'] ?? 0)),
                     'pk_reguler' => (int) ($spkPerBulan[$index]['reguler_diterbitkan'] ?? 0),
                     'pk_se_utama' => (int) ($spkPerBulan[$index]['sensus_utama_diterbitkan'] ?? 0),
-                    'pk_se_pengganti' => (int) ($spkPerBulan[$index]['sensus_pengganti_diterbitkan'] ?? 0),
                     'pk_draft' => (int) ($spkPerBulan[$index]['draft'] ?? 0),
                 ];
             }, array_keys($skPerBulan)),
@@ -1126,7 +1124,6 @@ class AnalisisExportController extends Controller
                 ['key' => 'sk_diterbitkan', 'label' => 'SK Diterbitkan', 'color' => '#22c55e'],
                 ['key' => 'pk_reguler', 'label' => 'PK Reguler', 'color' => '#3b82f6'],
                 ['key' => 'pk_se_utama', 'label' => 'SE2026 Utama', 'color' => '#16a34a'],
-                ['key' => 'pk_se_pengganti', 'label' => 'SE2026 Pengganti', 'color' => '#8b5cf6'],
                 ['key' => 'pk_draft', 'label' => 'Draft / belum final', 'color' => '#94a3b8'],
             ],
             'Tren Dokumen per Bulan',
