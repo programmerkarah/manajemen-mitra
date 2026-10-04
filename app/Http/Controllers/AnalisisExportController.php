@@ -7,7 +7,6 @@ use App\Models\PengajuanPulsa;
 use App\Models\Petugas;
 use App\Models\SkKpa;
 use App\Models\Spk;
-use App\Services\SensusEkonomiReplacementReadService;
 use App\Traits\EffectivePeriodeScope;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -266,14 +265,6 @@ class AnalisisExportController extends Controller
     public function petugas(): HttpResponse
     {
         $currentYear = (int) date('Y');
-        $replacementAssignments = app(SensusEkonomiReplacementReadService::class)
-            ->assignments($currentYear);
-        $replacementPetugasIds = $replacementAssignments
-            ->pluck('petugas_id')
-            ->map(fn ($id) => (int) $id)
-            ->unique()
-            ->values();
-
         $petugasNonOrganik = Petugas::query()
             ->where('jenis_petugas', 'non-organik')
             ->where('status', 'aktif')
@@ -352,7 +343,6 @@ class AnalisisExportController extends Controller
             ->where('jenis_petugas', 'non-organik')
             ->where('status', 'aktif')
             ->whereNull('deleted_at')
-            ->whereNotIn('id', $replacementPetugasIds)
             ->whereNotExists(function ($query) {
                 $query->select(DB::raw(1))
                     ->from('alokasi_petugas')
@@ -387,15 +377,7 @@ class AnalisisExportController extends Controller
                 ->pluck('alokasi_petugas.petugas_id')
                 ->map(fn ($id) => (int) $id);
 
-            $replacementPetugasBulan = $replacementAssignments
-                ->filter(fn (array $assignment): bool =>
-                    ((float) ($assignment['monthly_honor'][$bulan] ?? 0)) > 0
-                )
-                ->pluck('petugas_id')
-                ->map(fn ($id) => (int) $id);
-
             $jumlahPetugas = $jumlahPetugasIds
-                ->concat($replacementPetugasBulan)
                 ->unique()
                 ->count();
 
@@ -433,18 +415,7 @@ class AnalisisExportController extends Controller
             ->distinct()
             ->get();
 
-        $replacementPetugasKegiatan = $replacementAssignments->map(
-            fn (array $assignment) => (object) [
-                'petugas_id' => (int) $assignment['petugas_id'],
-                'petugas_nama' => (string) $assignment['petugas_nama'],
-                'kegiatan_id' => (int) $assignment['kegiatan_id'],
-                'nama_kegiatan' => (string) $assignment['nama_kegiatan'],
-                'kode_kegiatan' => (string) $assignment['kode_kegiatan'],
-            ],
-        );
-
         $petugasKegiatan = $petugasKegiatan
-            ->concat($replacementPetugasKegiatan)
             ->unique(fn ($item) => $item->petugas_id.'|'.$item->kegiatan_id)
             ->values();
 
@@ -487,19 +458,6 @@ class AnalisisExportController extends Controller
 
             $petugasAlokasiRaw = $petugasAlokasiRaw->merge($monthlyRows);
 
-            $replacementRows = $replacementAssignments
-                ->filter(fn (array $assignment): bool =>
-                    ((float) ($assignment['monthly_honor'][$bulan] ?? 0)) > 0
-                )
-                ->map(fn (array $assignment) => (object) [
-                    'petugas_id' => (int) $assignment['petugas_id'],
-                    'petugas_nama' => (string) $assignment['petugas_nama'],
-                    'bulan' => $bulan,
-                    'jumlah_kegiatan' => 1,
-                    'total_honor' => (float) ($assignment['monthly_honor'][$bulan] ?? 0),
-                ]);
-
-            $petugasAlokasiRaw = $petugasAlokasiRaw->merge($replacementRows);
         }
 
         $petugasAlokasiDetail = $petugasAlokasiRaw->groupBy('petugas_id')->map(function ($items) {
@@ -1000,9 +958,6 @@ class AnalisisExportController extends Controller
         }
 
         // ── PK per bulan: sumber dan definisinya sama dengan frontend ─────────
-        $replacementAssignments = app(SensusEkonomiReplacementReadService::class)
-            ->assignments($currentYear);
-
         $spkPerBulan = [];
         for ($bulan = 1; $bulan <= 12; $bulan++) {
             $bulanCandidates = [
@@ -1050,28 +1005,9 @@ class AnalisisExportController extends Controller
                 }
             }
 
-            $replacementForMonth = $replacementAssignments
-                ->filter(fn (array $assignment): bool =>
-                    (int) ($assignment['pk_year'] ?? 0) === $currentYear
-                    && (int) ($assignment['pk_month'] ?? 0) === $bulan
-                );
 
-            $sensusReplacementPublished = $replacementForMonth
-                ->filter(fn (array $assignment): bool =>
-                    (bool) ($assignment['pk_available'] ?? false)
-                )
-                ->count();
-
-            $replacementDraft = $replacementForMonth
-                ->reject(fn (array $assignment): bool =>
-                    (bool) ($assignment['pk_available'] ?? false)
-                )
-                ->count();
-
-            $published = $regularPublished
-                + $sensusMainPublished
-                + $sensusReplacementPublished;
-            $draft = $mainDraft + $replacementDraft;
+            $published = $regularPublished + $sensusMainPublished;
+            $draft = $mainDraft;
 
             $spkPerBulan[] = [
                 'bulan' => $bulan,
@@ -1080,7 +1016,7 @@ class AnalisisExportController extends Controller
                 'diterbitkan' => $published,
                 'reguler_diterbitkan' => $regularPublished,
                 'sensus_utama_diterbitkan' => $sensusMainPublished,
-                'sensus_pengganti_diterbitkan' => $sensusReplacementPublished,
+                'sensus_pengganti_diterbitkan' => 0,
             ];
         }
 
