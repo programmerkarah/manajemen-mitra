@@ -1,3 +1,4 @@
+import { MonthPicker } from '@/components/month-picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -306,6 +307,7 @@ interface DashboardProps {
     attentionItems: AttentionItem[];
     currentMonth: number;
     currentYear: number;
+    selectedMonth: string;
     userRole: string;
 }
 
@@ -339,6 +341,7 @@ export default function Dashboard({
     attentionItems,
     currentMonth,
     currentYear,
+    selectedMonth,
     userRole,
 }: DashboardProps) {
     const { auth, isSeKetuaTim } = usePage<SharedData>().props;
@@ -544,12 +547,41 @@ export default function Dashboard({
                                 })}
                             </p>
                         </div>
-                        <div className="flex flex-shrink-0 items-center gap-2 rounded-lg bg-neutral-100 px-3 py-1.5 text-xs font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
-                            <Calendar className="size-3.5" />
-                            <span>
-                                {monthNames[currentMonth - 1]} {currentYear}
-                            </span>
-                        </div>
+                        <MonthPicker
+                            value={selectedMonth}
+                            onValueChange={(month) =>
+                                router.get(
+                                    dashboard().url,
+                                    { month },
+                                    {
+                                        preserveScroll: true,
+                                        preserveState: true,
+                                        replace: true,
+                                        only: [
+                                            'stats',
+                                            'additionalStats',
+                                            'recentAlokasi',
+                                            'kegiatanBulanIni',
+                                            'chartData',
+                                            'petugasMonitoringData',
+                                            'honorInequalityData',
+                                            'honorPerPetugas',
+                                            'honorMonths',
+                                            'petugasMonitoringSummary',
+                                            'workloadInequalitySummary',
+                                            'honorInequalitySummary',
+                                            'mitraReviewSummary',
+                                            'attentionItems',
+                                            'currentMonth',
+                                            'currentYear',
+                                            'selectedMonth',
+                                        ],
+                                    },
+                                )
+                            }
+                            maxYear={new Date().getFullYear() + 1}
+                            className="min-w-44"
+                        />
                     </div>
                     {attentionItems.length > 0 && (
                         <div className="mt-5 flex flex-wrap items-center gap-2 border-l-2 border-amber-500 bg-amber-50/70 px-4 py-3 dark:bg-amber-950/20">
