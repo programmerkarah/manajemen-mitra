@@ -44,6 +44,7 @@ return [
         'redirect_uri' => env('SSO_REDIRECT_URI'),
         'register_url' => env('SSO_REGISTER_URL'),
         'user_endpoint' => env('SSO_USER_ENDPOINT', '/api/user'),
+        'eligible_users_endpoint' => env('SSO_ELIGIBLE_USERS_ENDPOINT', '/api/applications/eligible-users'),
         'scope' => env('SSO_SCOPE', ''),
         'prompt' => env('SSO_PROMPT', ''),
         'sync_focus_cooldown_seconds' => env('SSO_SYNC_FOCUS_COOLDOWN_SECONDS', 120),
