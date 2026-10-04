@@ -48,6 +48,7 @@ export interface AnalisisDokumenProps {
     kelengkapanSKPerKegiatan: KelengkapanSKPerKegiatan[];
     skDraftLama: SkDraftLama[];
     currentYear: number;
+    availableYears: number[];
 }
 
 export interface TrenDokumenItem {
