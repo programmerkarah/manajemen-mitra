@@ -36,9 +36,14 @@ class DashboardController extends Controller
     {
         $user = effectiveUser($request);
         $activeRole = $user->getActiveRole()?->name;
-        $currentMonth = Carbon::now()->month;
-        $currentYear = Carbon::now()->year;
-        $currentMonthFormatted = str_pad((string) $currentMonth, 2, '0', STR_PAD_LEFT);
+        $requestedMonth = $request->string('month')->toString();
+        $selectedPeriod = preg_match('/^\\d{4}-(0[1-9]|1[0-2])$/', $requestedMonth)
+            ? Carbon::createFromFormat('Y-m', $requestedMonth)->startOfMonth()
+            : Carbon::now()->startOfMonth();
+        $currentMonth = $selectedPeriod->month;
+        $currentYear = $selectedPeriod->year;
+        $currentMonthFormatted = $selectedPeriod->format('m');
+        $selectedMonth = $selectedPeriod->format('Y-m');
 
         // Basic stats
         $stats = [
@@ -1299,6 +1304,7 @@ class DashboardController extends Controller
             'attentionItems' => $attentionItems->values(),
             'currentMonth' => $currentMonth,
             'currentYear' => $currentYear,
+            'selectedMonth' => $selectedMonth,
             'userRole' => $user->role,
         ]);
     }
