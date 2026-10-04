@@ -7,8 +7,10 @@ use App\Http\Requests\UpdateUserRolesRequest;
 use App\Models\ActivityLog;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\SsoUserSyncService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
+use Throwable;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -71,6 +73,36 @@ class UserRoleController extends Controller
                 ->orderBy('display_name')
                 ->get(),
         ]);
+    }
+
+
+    /**
+     * Synchronize users that are currently eligible to access SIMANTIK from SSO.
+     */
+    public function syncSso(SsoUserSyncService $syncService): RedirectResponse
+    {
+        $this->authorize('viewAny', User::class);
+
+        try {
+            $result = $syncService->sync();
+
+            return redirect()->route('users.index')->with(
+                'success',
+                sprintf(
+                    'Sinkronisasi SSO selesai. %d user baru, %d diperbarui, %d dipulihkan, %d dinonaktifkan.',
+                    $result['created'],
+                    $result['updated'],
+                    $result['restored'],
+                    $result['deleted'],
+                )
+            );
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return redirect()->route('users.index')->withErrors([
+                'sync' => 'Sinkronisasi SSO gagal: '.$exception->getMessage(),
+            ]);
+        }
     }
 
     /**
