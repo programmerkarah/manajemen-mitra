@@ -1,4 +1,5 @@
 import AppLayout from '@/layouts/app-layout';
+import { formatDecimal } from '@/lib/format-number';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
 import { type BreadcrumbItem } from '@/types';
@@ -56,10 +57,10 @@ function formatRupiah(value: number): string {
 
 function formatRupiahCompact(value: number): string {
     if (value >= 1_000_000) {
-        return `Rp ${(value / 1_000_000).toFixed(1)}jt`;
+        return `Rp ${formatDecimal(value / 1_000_000, 1)}jt`;
     }
     if (value >= 1_000) {
-        return `Rp ${(value / 1_000).toFixed(0)}rb`;
+        return `Rp ${formatDecimal(value / 1_000, 0)}rb`;
     }
     return formatRupiah(value);
 }
@@ -170,7 +171,7 @@ function renderActivePieShape(
                 fill="#9ca3af"
                 fontSize={10}
             >
-                {formatRupiah(value)} ({((percent ?? 0) * 100).toFixed(1)}%)
+                {formatRupiah(value)} ({formatDecimal((percent ?? 0) * 100, 1)}%)
             </text>
         </g>
     );
