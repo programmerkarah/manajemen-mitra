@@ -14,6 +14,8 @@ abstract class TestCase extends BaseTestCase
 {
     protected function setUp(): void
     {
+        $this->assertSafeTestingDatabaseEnvironment();
+
         parent::setUp();
 
         $this->withoutVite();
@@ -37,6 +39,19 @@ abstract class TestCase extends BaseTestCase
             }
 
             DB::statement('PRAGMA foreign_keys=OFF');
+        }
+    }
+
+    private function assertSafeTestingDatabaseEnvironment(): void
+    {
+        $database = (string) (getenv('DB_DATABASE') ?: ($_ENV['DB_DATABASE'] ?? $_SERVER['DB_DATABASE'] ?? ''));
+
+        // PHPUnit configuration must point to a disposable database before
+        // Laravel boots and RefreshDatabase is allowed to run.
+        if ($database !== '' && ! str_contains(strtolower($database), 'test')) {
+            throw new \RuntimeException(
+                'TEST ABORTED: DB_DATABASE must be a dedicated testing database. Current value: '.$database
+            );
         }
     }
 
