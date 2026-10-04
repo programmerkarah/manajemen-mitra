@@ -309,19 +309,19 @@ class SpkScopeService
 
             if ($start->year === $end->year) {
                 if ($start->month === $end->month) {
-                    return $start->translatedFormat('d')
+                    return $start->locale('id')->translatedFormat('d')
                         .'-'
-                        .$end->translatedFormat('d F Y');
+                        .$end->locale('id')->translatedFormat('d F Y');
                 }
 
-                return $start->translatedFormat('F')
+                return $start->locale('id')->translatedFormat('F')
                     .' - '
-                    .$end->translatedFormat('F Y');
+                    .$end->locale('id')->translatedFormat('F Y');
             }
 
-            return $start->translatedFormat('d F Y')
+            return $start->locale('id')->translatedFormat('d F Y')
                 .' - '
-                .$end->translatedFormat('d F Y');
+                .$end->locale('id')->translatedFormat('d F Y');
         }
 
         return $this->monthLabel((int) $periode->bulan)
