@@ -23,6 +23,8 @@
         <env name="APP_SERVICES_CACHE" value="bootstrap/cache/services-testing.php" force="true"/>
         <env name="APP_PACKAGES_CACHE" value="bootstrap/cache/packages-testing.php" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <!-- Safety: never allow RefreshDatabase to target the production database. -->
+        <env name="DB_DATABASE" value="simantik_test" force="true"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null" force="true"/>
         <env name="CACHE_STORE" value="array" force="true"/>
